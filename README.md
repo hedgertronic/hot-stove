@@ -32,20 +32,23 @@ look and feel, BUILD wins on architecture.
 
 ## Status
 
-**Milestones 1–4 are built and playtested** (2026-07-30): `app/` holds the Svelte 5 +
-Vite + TS app — full loop, all four powerups, TD swap + release picker, slot picker,
-Hometown Hero, cold-stove handling, persistence (mid-game resume), finale with ledger
-reveal / squad review / share string. iPhone-first (safe areas, 44px targets,
-confirm-to-sign two-tap, sticky rail). Home screen selects the mode: Rookie /
-Standard / Scout / Eye Test difficulty ladder plus Moneyball ($82.9M hard cap, no
-owners). Cards carry age + trad stat lines (feeds Scout mode and future GM
-challenges). `DECISIONS.md` records the rules SPEC left undefined — read it alongside
-SPEC. Tests: `cd app && npm test` (scoring parity fixtures generated from
-`pipeline/scoring.py` + engine and mode flows). Dev: `npm run dev`.
+**Milestones 1–4 built and playtested, plus the round-5 polish pass** (2026-07-30):
+`app/` holds the Svelte 5 + Vite + TS app — full loop, five powerups (🎟️ Season
+Ticket, 🚚 Relocate-as-picker, ✌️ Double Play, 🔁 Trade Deadline, ⭐ Prime),
+Hometown Hero, cold-stove handling, persistence (mid-game resume), quit button,
+finale with ledger reveal / squad review / dream-team comparison / share string.
+Home screen: single-select rows for the three-rung difficulty ladder (Standard /
+Scout / Eye Test) and the bank (Classic / Moneyball $82.9M / Blank Check $248.6M).
+Cards carry age, triple-slash + K stat lines, award runner-ups (MVP2/CY2), and
+team-level 💍/🚩 pedigree; `data/players.json` indexes every player's seasons for
+Prime. Bundled Nunito keeps the rounded look identical across browsers.
+`DECISIONS.md` records the rules SPEC left undefined — read it alongside SPEC.
+Tests: `cd app && npm test` (scoring parity fixtures generated from
+`pipeline/scoring.py` + engine, mode, and best-roster suites). Dev: `npm run dev`.
 
-Remaining: Daily mode (date seed + shared spins + streak), GitHub Pages deploy
-workflow, iPad/desktop layouts. Pipeline TODO: hand-verify the 15 `wikipediaOnly`
-owner entries.
+Remaining: Daily mode (date seed + shared spins + streak — consider seeding from
+the previous day's real MLB results), GitHub Pages deploy workflow, iPad/desktop
+layouts. Pipeline TODO: hand-verify the 15 `wikipediaOnly` owner entries.
 
 ## Constraints that are decisions, not accidents
 

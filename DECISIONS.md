@@ -99,3 +99,54 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   math; owner/stadium rows never render; skipper still hires. Hometown Hero is
   naturally unreachable (needs owner + stadium). Share strings and history entries are
   tagged with the mode.
+
+## Round 5 — mode consolidation, scouting yardstick, Prime (2026-07-30, session 3)
+
+- **Three-rung ladder.** Rookie folded into Standard: the easiest mode shows WAR,
+  salary, AND award badges, and sorts by WAR desc (talent-first reading). Scout keeps
+  salary + salary-desc sort but upgrades its stat lines to the full triple slash
+  (".292/.385/.544 · 39 HR · 102 RBI · 8 SB") and W–L · ERA · K for pitchers; its
+  confirm buttons show real prices now. Eye Test is unchanged (names + position
+  circle only, alphabetical). Old `rookie` settings migrate to `standard`.
+- **Bank modes are a single-select row**: Classic (owner × stadium math) · Moneyball
+  (2002 A's $82.9M) · **Blank Check** (2005 Yankees $248.6M — the league-max
+  bankroll; the front-office bonus still demands you actually spend it). Config is
+  `{difficulty, bank}`; the old `moneyball` boolean migrates. Fixed-cap modes share
+  the no-owners/no-stadiums rule.
+- **Pedigree everywhere it's earned.** Cards carry team-level `ws`/`pen`; Standard
+  shows 💍/🚩 next to the banner record (hidden knowledge in Scout/Eye Test). The
+  hired skipper's ring/pennant counts in the Championship pedigree line too.
+- **The record IS the math.** Finale W–L = round(expected wins), replacing the
+  coin-flip sim — a simulated record read as a bug because it never reconciled with
+  the ledger. `display_record` in scoring.py is the source of truth.
+- **Dream team + Scouting report.** Every landed card is tracked (`seen`); the finale
+  solves the WAR-max roster over all of them (exact DP over slot-type capacities,
+  one-human rule enforced, money ignored on purpose) and shows it under the squad
+  with ⭐ on the picks you actually made. +1/hit "Scouting report" ledger row
+  (SCOUT_HIT_POINTS in scoring.py; parity fixtures regenerated).
+- **Awards rebalanced + down-ballot.** MVP 5 / CY 4 / ROY 2 / GG 1 / SS 1, plus
+  MVP2/CY2 (+2) for award-vote runners-up from Lahman AwardsSharePlayers (🥈 pills).
+- **⭐ Prime, the fifth powerup.** Arm it → tap a rostered player → browse every other
+  season of their career (from `data/players.json`, lazy ~0.5MB) → re-sign that year:
+  new WAR/cost/awards/pedigree, real contract price (hero pricing doesn't travel),
+  and the new season must still fit the slot. Free action (doesn't consume the
+  spin's choice), one per game.
+- **Relocate is a picker now**, symmetric with Season Ticket: any club from the same
+  season (colored team buttons, current club disabled) instead of a random reroll.
+- **Partial reels.** Season Ticket only animates the year (team half stays put);
+  Relocate only animates the team name. Reroll spins read as "same wheel, one dial".
+- **Spin timing is throttle-proof.** One authoritative timer lands the card
+  (~2.2s); the decelerating flicker chain is cosmetic and stops early if the browser
+  throttles timers (a throttled chain once stretched a 2s spin to 14s).
+- **Quit affordance:** ✕ in the header, two-tap confirm (2.5s window), clears the
+  save and returns to mode select — refreshing no longer being the only "way out"
+  that wasn't one.
+- **Deterministic typeface.** Nunito (variable, latin subset) is bundled and leads
+  `--disp`: `ui-rounded` is Safari-only and Chrome fell back to Hiragino Maru
+  Gothic, which is why the app didn't match the mocks outside Safari.
+- **Short-stint stars are in.** Eligibility floors now admit any season with
+  prorated WAR ≥ 2.0 (8 player-seasons league-wide, headlined by 2005 Aaron Small's
+  10–0 and 2020 Tanner Houck); sub-floor pitchers label SP/RP by whichever innings
+  split dominates so slot eligibility never breaks.
+- **Share string v2:** mode tag line, spin grid, `W–L · 💰 spend/cap`, then
+  `💍…🚩… ⭐hits/8 · 🏆 points`.
