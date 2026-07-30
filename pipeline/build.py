@@ -15,13 +15,13 @@ from collections import defaultdict
 from pathlib import Path
 
 from pipeline import fetch
+from pipeline.scoring import REPLACEMENT_WINS
 from pipeline.transform import (
     DISPLAY_AVG_M, MIN_GS, MIN_PA, MIN_RELIEF_IP, SLOTS,
     YEAR_MAX, YEAR_MIN, GameData, _i,
 )
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-REPLACEMENT_WINS = 47.7
 
 # DESIGN KNOB — optional "asking price": a player costs
 # max(contract, ASKING_PER_WAR x season WAR) in display $M. Set to 0: bargain
@@ -32,7 +32,8 @@ REPLACEMENT_WINS = 47.7
 ASKING_PER_WAR = 0.0
 
 LAHMAN_TABLES = ["People", "Teams", "Appearances", "Batting", "Pitching",
-                 "Salaries", "AwardsPlayers", "AwardsSharePlayers", "Managers"]
+                 "Salaries", "AwardsPlayers", "AwardsSharePlayers", "Managers",
+                 "AllstarFull"]
 
 
 def load_raw() -> dict:

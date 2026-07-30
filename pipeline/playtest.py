@@ -17,6 +17,8 @@ import random
 from pathlib import Path
 from statistics import mean, quantiles
 
+from pipeline import scoring
+
 DATA = Path(__file__).resolve().parent.parent / "data"
 SLOT_ORDER = ["C", "IF", "IF", "OF", "FLEX", "SP", "SP", "RP"]
 AVG_BUDGET = 112.1  # league-average top-4-contract bankroll, display $M
@@ -39,10 +41,10 @@ def eligible(slot: str, p: dict) -> bool:
     return p["pos"] == "RP"
 
 
-def draft(cards: list[dict], budget: float | None) -> tuple[float, float, int]:
-    """Returns (total WAR, total cost, count of sub-$5M 'bargain' signings)."""
-    war = cost = 0.0
-    bargains = 0
+def draft(cards: list[dict], budget: float | None) -> list[dict]:
+    """Returns the drafted players (one best-WAR pick per slot, if any fit)."""
+    picks: list[dict] = []
+    cost = 0.0
     for slot, card in zip(SLOT_ORDER, cards):
         pool = [p for p in card["players"] if eligible(slot, p)]
         if budget is not None:
@@ -50,10 +52,21 @@ def draft(cards: list[dict], budget: float | None) -> tuple[float, float, int]:
         if not pool:
             continue
         pick = max(pool, key=lambda p: p["war"])
-        war += pick["war"]
+        picks.append(pick)
         cost += pick["cost"]
-        bargains += pick["cost"] < 5.0
-    return war, cost, bargains
+    return picks
+
+
+def total_score(picks: list[dict], budget: float) -> float:
+    """Full game score for a drafted roster (no manager hire, no scout hits)."""
+    return scoring.score(
+        total_war=sum(p["war"] for p in picks),
+        spend_m=sum(p["cost"] for p in picks),
+        budget_m=budget,
+        award_lists=[p["awards"] for p in picks],
+        rings=sum(p["ws"] for p in picks),
+        pennants=sum(p["pen"] for p in picks),
+    )["total"]
 
 
 def main() -> None:
@@ -62,15 +75,20 @@ def main() -> None:
     trials = 5000
 
     greedy_war, greedy_cost, greedy_bargains, under = [], [], [], 0
-    aware_war = []
+    greedy_total, aware_war, aware_total = [], [], []
     for _ in range(trials):
         cards = rng.sample(all_cards, len(SLOT_ORDER))
-        w, c, b = draft(cards, budget=None)
+        picks = draft(cards, budget=None)
+        w = sum(p["war"] for p in picks)
+        c = sum(p["cost"] for p in picks)
         greedy_war.append(w)
         greedy_cost.append(c)
-        greedy_bargains.append(b)
+        greedy_bargains.append(sum(p["cost"] < 5.0 for p in picks))
         under += c <= AVG_BUDGET
-        aware_war.append(draft(cards, budget=MONEYBALL_BUDGET)[0])
+        greedy_total.append(total_score(picks, AVG_BUDGET))
+        aware = draft(cards, budget=MONEYBALL_BUDGET)
+        aware_war.append(sum(p["war"] for p in aware))
+        aware_total.append(total_score(aware, MONEYBALL_BUDGET))
 
     q_cost = quantiles(greedy_cost, n=10)
     q_war = quantiles(greedy_war, n=10)
@@ -81,6 +99,17 @@ def main() -> None:
     print(f"  bargain (<$5M) signings per 8-man draft: {mean(greedy_bargains):.1f}")
     print(f"\ncost-aware at moneyball budget (${MONEYBALL_BUDGET}M):")
     print(f"  WAR mean {mean(aware_war):.1f}  (greedy gap: {mean(greedy_war) - mean(aware_war):.1f} WAR)")
+
+    # Total game score (no manager hire, no scout hits) vs the 162-point
+    # stretch goal. Greedy is scored against the avg bankroll (its overspend
+    # becomes luxury tax); aware against the budget it drafted under.
+    for label, totals in (("war-greedy vs avg budget", greedy_total),
+                          ("cost-aware vs moneyball budget", aware_total)):
+        q = quantiles(totals, n=10)
+        clear = 100 * sum(t >= 162 for t in totals) / trials
+        print(f"\ntotal score, {label}:")
+        print(f"  mean {mean(totals):5.1f}   p10 {q[0]:5.1f}   p50 {q[4]:5.1f}   "
+              f"p90 {q[8]:5.1f}   >=162: {clear:.1f}%")
 
 
 if __name__ == "__main__":

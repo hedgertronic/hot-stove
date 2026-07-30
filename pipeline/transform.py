@@ -42,10 +42,12 @@ AWARD_CODES = {
     "Silver Slugger": "SS",
 }
 
-# Voting runner-ups (AwardsSharePlayers): (winner code, runner-up code) per ballot.
-RUNNER_UP_CODES = {
-    "Most Valuable Player": ("MVP", "MVP2"),
-    "Cy Young Award": ("CY", "CY2"),
+# Voting places (AwardsSharePlayers): (winner, 2nd, 3rd) codes per ballot.
+# Full award-name strings — Lahman's AwardsSharePlayers uses these, not the
+# short AwardsPlayers labels.
+VOTE_PLACE_CODES = {
+    "Most Valuable Player": ("MVP", "MVP2", "MVP3"),
+    "Cy Young Award": ("CY", "CY2", "CY3"),
 }
 
 POS_G_COLS = {
@@ -292,26 +294,38 @@ class GameData:
             if code:
                 self.awards[(r["playerID"], _i(r["yearID"]))].append(code)
 
-        # MVP/CY voting runner-ups: 2nd place by pointsWon (all ties) per
-        # award-year-league ballot gets MVP2/CY2. A player never carries both
-        # the winner code and the runner-up code for the same award-year.
+        # All-Star selections (AllstarFull): one AS per player-season. Dedupe
+        # by playerID+yearID — 1959-62 had two AS games per year — and count
+        # selections regardless of GP (selected-but-didn't-play still counts).
+        seen_as: set[tuple[str, int]] = set()
+        for r in self.raw["AllstarFull"]:
+            key = (r["playerID"], _i(r["yearID"]))
+            if key not in seen_as:
+                seen_as.add(key)
+                self.awards[key].append("AS")
+
+        # MVP/CY voting places: 2nd (3rd) place by pointsWon — all ties at
+        # that distinct point value — per award-year-league ballot gets
+        # MVP2/CY2 (MVP3/CY3). A player never carries more than one code from
+        # the same award's place ladder for the same award-year.
         ballots: dict[tuple[str, int, str], list[tuple[float, str]]] = defaultdict(list)
         for r in self.raw["AwardsSharePlayers"]:
-            if r["awardID"] not in RUNNER_UP_CODES:
+            if r["awardID"] not in VOTE_PLACE_CODES:
                 continue
             ballots[(r["awardID"], _i(r["yearID"]), r["lgID"])].append(
                 (_f(r["pointsWon"]), r["playerID"]))
         for (award, year, _), votes in ballots.items():
             points = sorted({pts for pts, _ in votes}, reverse=True)
-            if len(points) < 2:
-                continue
-            winner_code, runner_up_code = RUNNER_UP_CODES[award]
-            for pts, pid in votes:
-                if pts != points[1]:
+            place_codes = VOTE_PLACE_CODES[award]
+            for place in (1, 2):  # index into distinct point values: 2nd, 3rd
+                if len(points) <= place:
                     continue
-                codes = self.awards[(pid, year)]
-                if winner_code not in codes and runner_up_code not in codes:
-                    codes.append(runner_up_code)
+                for pts, pid in votes:
+                    if pts != points[place]:
+                        continue
+                    codes = self.awards[(pid, year)]
+                    if not any(c in codes for c in place_codes):
+                        codes.append(place_codes[place])
 
     # -- Debut franchise (for the Hometown Hero combo) ---------------------
 
