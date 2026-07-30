@@ -1,0 +1,162 @@
+[
+ {
+  "args": {
+   "total_war": 46.7,
+   "spend_m": 139.8,
+   "budget_m": 151.3,
+   "award_lists": [
+    [
+     "MVP"
+    ],
+    [
+     "CY"
+    ],
+    [],
+    [],
+    [],
+    [],
+    [],
+    []
+   ],
+   "rings": 3,
+   "pennants": 1,
+   "skipper_record": [
+    103,
+    58
+   ]
+  },
+  "expect": {
+   "expectedWins": 94.4,
+   "budgetBonus": 8.5,
+   "awardPoints": 6,
+   "ringPoints": 7,
+   "skipperPoints": 4.5,
+   "luxuryTax": 0.0,
+   "total": 120.4
+  }
+ },
+ {
+  "args": {
+   "total_war": 20.0,
+   "spend_m": 10.0,
+   "budget_m": 18.2,
+   "award_lists": [],
+   "rings": 0,
+   "pennants": 0,
+   "skipper_record": null
+  },
+  "expect": {
+   "expectedWins": 67.7,
+   "budgetBonus": 1.0,
+   "awardPoints": 0,
+   "ringPoints": 0,
+   "skipperPoints": 0.0,
+   "luxuryTax": 0.0,
+   "total": 68.7
+  }
+ },
+ {
+  "args": {
+   "total_war": 0.0,
+   "spend_m": 0.0,
+   "budget_m": 100.0,
+   "award_lists": [],
+   "rings": 0,
+   "pennants": 0,
+   "skipper_record": null
+  },
+  "expect": {
+   "expectedWins": 47.7,
+   "budgetBonus": -10.0,
+   "awardPoints": 0,
+   "ringPoints": 0,
+   "skipperPoints": 0.0,
+   "luxuryTax": 0.0,
+   "total": 37.7
+  }
+ },
+ {
+  "args": {
+   "total_war": 35.5,
+   "spend_m": 180.0,
+   "budget_m": 120.0,
+   "award_lists": [
+    [
+     "GG",
+     "SS"
+    ],
+    [
+     "ROY"
+    ]
+   ],
+   "rings": 1,
+   "pennants": 2,
+   "skipper_record": [
+    54,
+    108
+   ]
+  },
+  "expect": {
+   "expectedWins": 83.2,
+   "budgetBonus": 0.0,
+   "awardPoints": 4,
+   "ringPoints": 4,
+   "skipperPoints": -5.4,
+   "luxuryTax": 60.0,
+   "total": 25.8
+  }
+ },
+ {
+  "args": {
+   "total_war": 130.0,
+   "spend_m": 60.0,
+   "budget_m": 60.0,
+   "award_lists": [
+    [
+     "MVP",
+     "GG"
+    ]
+   ],
+   "rings": 0,
+   "pennants": 0,
+   "skipper_record": [
+    81,
+    81
+   ]
+  },
+  "expect": {
+   "expectedWins": 162,
+   "budgetBonus": 10.0,
+   "awardPoints": 4,
+   "ringPoints": 0,
+   "skipperPoints": 0.0,
+   "luxuryTax": 0.0,
+   "total": 176.0
+  }
+ },
+ {
+  "args": {
+   "total_war": 12.35,
+   "spend_m": 45.05,
+   "budget_m": 90.1,
+   "award_lists": [
+    []
+   ],
+   "rings": 0,
+   "pennants": 0,
+   "skipper_record": [
+    97,
+    64
+   ]
+  },
+  "expect": {
+   "expectedWins": 60.1,
+   "budgetBonus": 0.0,
+   "awardPoints": 0,
+   "ringPoints": 0,
+   "skipperPoints": 3.3,
+   "luxuryTax": 0.0,
+   "total": 63.4
+  }
+ }
+]
