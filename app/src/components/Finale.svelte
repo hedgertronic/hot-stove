@@ -1,0 +1,439 @@
+<script lang="ts">
+  import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
+  import { money, signed, warTier, yy } from "../lib/format";
+
+  let { game, onreplay }: { game: Game; onreplay: () => void } = $props();
+
+  const fin = $derived(game.finale!);
+
+  const reduced =
+    typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const AWARD_NAMES: Record<string, string> = {
+    MVP: "MVP",
+    CY: "Cy Young",
+    ROY: "Rookie of the Year",
+    GG: "Gold Glove",
+    SS: "Silver Slugger",
+  };
+
+  interface LedgerRow {
+    key: string;
+    lbl: string;
+    why: string;
+    amt: string;
+    cls: "base" | "plus" | "minus" | "zero";
+  }
+
+  function countWhy(counts: Map<string, number>, empty: string): string {
+    if (counts.size === 0) return empty;
+    return [...counts.entries()].map(([k, n]) => `${n} ${k}`).join(" · ");
+  }
+
+  const rows = $derived.by((): LedgerRow[] => {
+    const p = fin.parts;
+    const out: LedgerRow[] = [];
+    out.push({
+      key: "wins",
+      lbl: "Expected wins",
+      why: `47.7 base + ${fin.totalWar.toFixed(1)} team WAR`,
+      amt: p.expectedWins.toFixed(1),
+      cls: "base",
+    });
+    const overCap = fin.spend > fin.budget;
+    out.push({
+      key: "budget",
+      lbl: "Front-office bonus",
+      why: overCap
+        ? "blew past the cap — the tax takes it from here"
+        : `${money(fin.spend)} of ${money(fin.budget)} cap used (${Math.round((fin.spend / fin.budget) * 100)}%)`,
+      amt: signed(p.budgetBonus),
+      cls: p.budgetBonus > 0 ? "plus" : p.budgetBonus < 0 ? "minus" : "zero",
+    });
+    const awardCounts = new Map<string, number>();
+    for (const s of game.slots) {
+      for (const a of s?.awards ?? []) {
+        const name = AWARD_NAMES[a] ?? a;
+        awardCounts.set(name, (awardCounts.get(name) ?? 0) + 1);
+      }
+    }
+    out.push({
+      key: "awards",
+      lbl: "Hardware",
+      why: countWhy(awardCounts, "no award seasons"),
+      amt: signed(p.awardPoints, 0),
+      cls: p.awardPoints > 0 ? "plus" : "zero",
+    });
+    const rings = game.slots.filter((s) => s?.ws).length;
+    const pennants = game.slots.filter((s) => s?.pen).length;
+    const pedigree = new Map<string, number>();
+    if (rings) pedigree.set("rings 💍", rings);
+    if (pennants) pedigree.set(pennants === 1 ? "pennant 🚩" : "pennants 🚩", pennants);
+    out.push({
+      key: "pedigree",
+      lbl: "Championship pedigree",
+      why: countWhy(pedigree, "no October pedigree"),
+      amt: signed(p.ringPoints, 0),
+      cls: p.ringPoints > 0 ? "plus" : "zero",
+    });
+    if (game.skipper) {
+      out.push({
+        key: "skipper",
+        lbl: "Skipper",
+        why: `${game.skipper.name}, ${game.skipper.wins}–${game.skipper.losses}`,
+        amt: signed(p.skipperPoints),
+        cls: p.skipperPoints >= 0 ? "plus" : "minus",
+      });
+    }
+    out.push({
+      key: "tax",
+      lbl: "Luxury tax",
+      why: p.luxuryTax > 0 ? `${money(fin.spend - fin.budget)} over the cap` : "stayed under the cap",
+      amt: `−${p.luxuryTax % 1 === 0 ? p.luxuryTax.toFixed(0) : p.luxuryTax.toFixed(1)}`,
+      cls: p.luxuryTax > 0 ? "minus" : "zero",
+    });
+    return out;
+  });
+
+  let shownRows = $state(0);
+  let dispW = $state(0);
+  let dispL = $state(0);
+  let dispTotal = $state("0");
+  let totalShown = $state(false);
+  let toast = $state("");
+
+  function count(set: (v: number) => void, n: number, ms: number) {
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const prog = Math.min((now - t0) / ms, 1);
+      set(n * (1 - Math.pow(1 - prog, 3)));
+      if (prog < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  async function confettiPop() {
+    try {
+      const confetti = (await import("canvas-confetti")).default;
+      confetti({ particleCount: 120, spread: 75, origin: { y: 0.35 } });
+    } catch {
+      /* confetti is decoration */
+    }
+  }
+
+  $effect(() => {
+    if (reduced) {
+      dispW = fin.wins;
+      dispL = fin.losses;
+      shownRows = rows.length + 1;
+      totalShown = true;
+      dispTotal = fin.parts.total.toFixed(1);
+      return;
+    }
+    count((v) => (dispW = v), fin.wins, 900);
+    count((v) => (dispL = v), fin.losses, 900);
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 0; i <= rows.length; i++) {
+      timers.push(
+        setTimeout(() => {
+          shownRows = i + 1;
+          if (i === rows.length) {
+            totalShown = true;
+            const t0 = performance.now();
+            const tick = (now: number) => {
+              const prog = Math.min((now - t0) / 700, 1);
+              dispTotal = (fin.parts.total * (1 - Math.pow(1 - prog, 3))).toFixed(1);
+              if (prog < 1) requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+            void confettiPop();
+          }
+        }, 1000 + i * 500),
+      );
+    }
+    return () => timers.forEach(clearTimeout);
+  });
+
+  const TIER_EMOJI = { low: "⚪", mid: "🔵", high: "🟢", elite: "🟡" } as const;
+
+  function shareText(): string {
+    const grid = game.spinLog
+      .map((e) => {
+        if (e.kind === "owner") return "💰";
+        if (e.kind === "stadium") return "🏟️";
+        if (e.kind === "skipper") return "🧢";
+        if (e.kind === "swap") return "🔁";
+        return TIER_EMOJI[warTier(e.war ?? 0)];
+      })
+      .join("");
+    return `HOT STOVE 🔥\n${grid}\n${fin.wins}-${fin.losses} · ${fin.parts.total.toFixed(1)} pts`;
+  }
+
+  async function share() {
+    const text = shareText();
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+    } catch {
+      /* fall through to clipboard */
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast = "Copied 🔥";
+      setTimeout(() => (toast = ""), 1800);
+    } catch {
+      toast = "Couldn't copy";
+      setTimeout(() => (toast = ""), 1800);
+    }
+  }
+
+  const awardCls: Record<string, string> = { MVP: "mvp", CY: "cy", GG: "gg", SS: "ss", ROY: "roy" };
+</script>
+
+<div class="fin-head disp">
+  <div class="rec">{Math.round(dispW)}–{Math.round(dispL)}</div>
+  <div class="sub">YOUR HOT STOVE SQUAD</div>
+</div>
+
+<div class="ledger">
+  {#each rows as row, i (row.key)}
+    <div class="lrow disp" class:base={row.cls === "base"} class:show={i < shownRows}>
+      <span class="mid"><span class="lbl">{row.lbl}</span><span class="why">{row.why}</span></span>
+      <span class="amt" class:plus={row.cls === "plus"} class:minus={row.cls === "minus"}>{row.amt}</span>
+    </div>
+  {/each}
+  <div class="lrow total disp" class:show={totalShown}>
+    <span class="mid"
+      ><span class="lbl">Final score</span><span class="why"
+        >{fin.spinCount} spins · {money(fin.spend)} payroll</span
+      ></span
+    >
+    <span class="amt">{dispTotal}</span>
+  </div>
+</div>
+
+<div class="fin-actions">
+  <button class="btn disp" onclick={onreplay}>Replay ↻</button>
+  <button class="btn hot disp" onclick={share}>Share 🔥</button>
+</div>
+{#if toast}<div class="toast disp">{toast}</div>{/if}
+
+<div class="squad disp">
+  <div class="squad-h">YOUR SQUAD ▾</div>
+  {#each game.slots as slot, i}
+    {#if slot}
+      <div class="qrow">
+        <span class="qpos">{SLOT_TYPES[i]}</span>
+        <span class="qname"
+          >{slot.name} <i>{yy(slot.year)}{slot.prorated !== 1 ? "✱" : ""}</i></span
+        >
+        <span class="qbadges">
+          {#if slot.hero}<span class="emo">🏠</span>{/if}
+          {#each slot.awards as a}
+            <span class="qb {awardCls[a] ?? ''}">{a}</span>
+          {/each}
+          {#if slot.ws}<span class="emo">💍</span>{:else if slot.pen}<span class="emo">🚩</span>{/if}
+        </span>
+        <span class="qwar {warTier(slot.war)}">{slot.war.toFixed(1)}</span>
+      </div>
+    {/if}
+  {/each}
+  {#if game.skipper}
+    <div class="qrow skiprow">
+      <span class="qpos">MGR</span>
+      <span class="qname">{game.skipper.name} <i>{yy(game.skipper.year)}</i></span>
+      <span class="qbadges"></span>
+      <span class="qwar">{signed(fin.parts.skipperPoints)}</span>
+    </div>
+  {/if}
+</div>
+
+<style>
+  .fin-head {
+    text-align: center;
+    margin: 10px 0 12px;
+  }
+  .rec {
+    font-size: 46px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .sub {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  .ledger {
+    display: grid;
+    gap: 7px;
+    min-height: 290px;
+  }
+  .lrow {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border: 2.5px solid var(--ink);
+    border-radius: 11px;
+    background: var(--card);
+    padding: 8px 12px;
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  .lrow.show {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 0.3s,
+      transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .lrow .mid {
+    display: flex;
+    flex-direction: column;
+  }
+  .lbl {
+    font-weight: 800;
+    font-size: 13.5px;
+  }
+  .why {
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  .amt {
+    margin-left: auto;
+    font-weight: 800;
+    font-size: 16px;
+    white-space: nowrap;
+  }
+  .lrow.base {
+    background: var(--green-wash);
+  }
+  .amt.plus {
+    color: var(--green);
+  }
+  .amt.minus {
+    color: var(--orange);
+  }
+  .lrow.total {
+    background: var(--yellow);
+    border-width: 3px;
+  }
+  .lrow.total .amt {
+    font-size: 21px;
+  }
+  .fin-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    margin-top: 13px;
+  }
+  .toast {
+    text-align: center;
+    font-weight: 800;
+    font-size: 12px;
+    color: var(--green-deep);
+    margin-top: 8px;
+  }
+  .squad {
+    margin-top: 16px;
+    border-top: 2.5px dashed var(--dash);
+    padding-top: 12px;
+  }
+  .squad-h {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .qrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    padding: 6px 9px;
+    margin-bottom: 6px;
+  }
+  .qpos {
+    width: 36px;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    flex: none;
+  }
+  .qname {
+    font-weight: 800;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .qname i {
+    font-style: normal;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .qbadges {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 4px;
+    flex: none;
+  }
+  .qb {
+    font-size: 9px;
+    font-weight: 800;
+    border: 1.5px solid var(--ink);
+    border-radius: 999px;
+    padding: 0 6px;
+    line-height: 1.5;
+  }
+  .qb.mvp {
+    background: var(--yellow);
+  }
+  .qb.cy {
+    background: var(--sky);
+  }
+  .qb.gg {
+    background: var(--green-wash);
+  }
+  .qb.ss {
+    background: var(--lilac);
+  }
+  .qb.roy {
+    background: var(--pink);
+  }
+  .emo {
+    font-size: 12px;
+    line-height: 1;
+  }
+  .qwar {
+    margin-left: auto;
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--war-high);
+    flex: none;
+  }
+  .qwar.elite {
+    color: var(--war-elite);
+  }
+  .qwar.low {
+    color: var(--gray-ink);
+  }
+  .qwar.mid {
+    color: var(--war-mid);
+  }
+  .skiprow {
+    background: var(--pink);
+  }
+  .skiprow .qwar {
+    color: var(--ink);
+  }
+</style>
