@@ -2,39 +2,40 @@
  * All gameplay randomness flows through `this.rng` (one mulberry32 stream per
  * seed); the finale record sim uses a fixed derivation of the seed so the
  * displayed record is independent of how many spins the draft took. */
+import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, ownerFor } from "./data";
 import { eligibleTypes } from "./eligibility";
 import { Rng, randomSeed } from "./rng";
-import { score, simulateSeason } from "./scoring";
-import type {
-  Card,
-  CardPlayer,
-  GameIndex,
-  IndexEntry,
-  Meta,
-  Owners,
-  ScoreParts,
-  SlotType,
-} from "./types";
+import { displayRecord, score } from "./scoring";
+import { SLOT_TYPES } from "./types";
+import type { Card, CardPlayer, GameIndex, IndexEntry, Meta, Owners, ScoreParts } from "./types";
+
+export { SLOT_TYPES };
 
 export type Phase = "preSpin" | "spinning" | "landed" | "finale";
-export type PowerupKey = "seasonTicket" | "relocate" | "doublePlay" | "tradeDeadline";
+export type PowerupKey = "seasonTicket" | "relocate" | "doublePlay" | "tradeDeadline" | "prime";
 export type PowerupState = "ready" | "armed" | "spent";
 export type PlayerRowState = "open" | "dead";
 
-export type Difficulty = "rookie" | "standard" | "scout" | "eyetest";
+export type Difficulty = "standard" | "scout" | "eyetest";
+export type Bank = "classic" | "moneyball" | "blankcheck";
 
 export interface GameConfig {
   difficulty: Difficulty;
-  moneyball: boolean;
+  bank: Bank;
 }
 
-export const DEFAULT_CONFIG: GameConfig = { difficulty: "standard", moneyball: false };
+export const DEFAULT_CONFIG: GameConfig = { difficulty: "standard", bank: "classic" };
 
 /** 2002 A's top-4 contracts, normalized (Dye/Justice/Durham/Tejada). */
 export const MONEYBALL_BUDGET_M = 82.9;
+/** 2005 Yankees top-4 — the fattest bankroll in the league. */
+export const BLANK_CHECK_BUDGET_M = 248.6;
 
-export const SLOT_TYPES: SlotType[] = ["C", "IF", "IF", "OF", "FLEX", "SP", "SP", "RP"];
+/** What the reel animates on a given spin: powerup rerolls hold the other
+ * half of the banner constant (Season Ticket keeps the team, Relocate keeps
+ * the year). */
+export type SpinKind = "full" | "year" | "team";
 
 export interface Signed {
   id: string;
@@ -74,6 +75,8 @@ export interface SkipperPick {
   losses: number;
   year: number;
   teamName: string;
+  ws: boolean;
+  pen: boolean;
 }
 
 export type SpecialKey = "owner" | "stadium" | "skipper";
@@ -91,11 +94,15 @@ export interface FinaleResult {
   budget: number;
   spinCount: number;
   totalWar: number;
+  /** WAR-optimal roster over every card this game landed on (null if the
+   * cards couldn't be reloaded — score falls back to zero scout hits). */
+  best: BestRoster | null;
+  scoutHits: number;
 }
 
 const SAVE_KEY = "hotstove.current";
 const HISTORY_KEY = "hotstove.history";
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 export class Game {
   meta: Meta;
@@ -116,16 +123,22 @@ export class Game {
     relocate: "ready",
     doublePlay: "ready",
     tradeDeadline: "ready",
+    prime: "ready",
   });
   choicesLeft = $state(0);
   choicesUsed = $state(0);
   heroUsed = $state(false);
   spinCount = $state(0);
   spinLog = $state<SpinLogEntry[]>([]);
+  spinKind = $state<SpinKind>("full");
+  /** Every distinct card this game has landed on — the scouting yardstick. */
+  seen = $state<{ team: string; year: number }[]>([]);
   /** Sign-time slot ambiguity: rail becomes a slot picker for this player. */
   slotPick = $state<string | null>(null);
   /** TD release picker: rail cells the incoming player could replace. */
   releasePick = $state<string | null>(null);
+  /** Prime picker: rail slot whose player is browsing their other seasons. */
+  primePick = $state<number | null>(null);
   finale = $state<FinaleResult | null>(null);
 
   private pendingCard: Promise<Card> | null = null;
@@ -145,18 +158,20 @@ export class Game {
     this.config = { ...config };
   }
 
-  // ---------- mode visibility (BUILD.md difficulty table) ----------
+  // ---------- mode visibility (difficulty ladder) ----------
 
   get showWar(): boolean {
-    return this.config.difficulty === "rookie" || this.config.difficulty === "standard";
+    return this.config.difficulty === "standard";
   }
 
+  /** Standard sees everything priced; Scout trades WAR for trad stat lines
+   * but still shops by salary; Eye Test flies blind. */
   get showCost(): boolean {
-    return this.showWar; // WAR and cost hide together (Scout, Eye Test)
+    return this.config.difficulty !== "eyetest";
   }
 
   get showAwards(): boolean {
-    return this.config.difficulty === "rookie";
+    return this.config.difficulty === "standard";
   }
 
   get showStats(): boolean {
@@ -165,6 +180,11 @@ export class Game {
 
   get eyeTest(): boolean {
     return this.config.difficulty === "eyetest";
+  }
+
+  /** Moneyball and Blank Check are fixed-cap modes: no owners, no stadiums. */
+  get fixedCap(): boolean {
+    return this.config.bank !== "classic";
   }
 
   // ---------- derived ----------
@@ -182,7 +202,8 @@ export class Game {
   }
 
   get effectiveBudget(): number {
-    if (this.config.moneyball) return MONEYBALL_BUDGET_M;
+    if (this.config.bank === "moneyball") return MONEYBALL_BUDGET_M;
+    if (this.config.bank === "blankcheck") return BLANK_CHECK_BUDGET_M;
     return (this.owner?.budget ?? this.meta.minBudget) * (this.stadium?.mult ?? 1);
   }
 
@@ -256,7 +277,7 @@ export class Game {
   /** Can any choice still be committed on this card? (DECISIONS.md #3) */
   anyActionable(): boolean {
     if (!this.card) return false;
-    const specialsOpen = this.config.moneyball
+    const specialsOpen = this.fixedCap
       ? !this.skipper && this.skipperAvailable
       : !this.owner || !this.stadium || (!this.skipper && this.skipperAvailable);
     if (specialsOpen) return true;
@@ -283,11 +304,12 @@ export class Game {
     if (this.phase !== "preSpin") return;
     this.disarmToggles();
     const entry = this.rng.pick(this.index.cards);
-    this.beginSpin(entry);
+    this.beginSpin(entry, "full");
   }
 
-  private beginSpin(entry: IndexEntry): void {
+  private beginSpin(entry: IndexEntry, kind: SpinKind): void {
     this.phase = "spinning";
+    this.spinKind = kind;
     this.spinCount += 1;
     this.pendingCard = loadCard(entry.team, entry.year);
   }
@@ -299,6 +321,8 @@ export class Game {
     this.phase = "landed";
     this.choicesLeft = 1;
     this.choicesUsed = 0;
+    if (!this.seen.some((s) => s.team === this.card!.team && s.year === this.card!.year))
+      this.seen = [...this.seen, { team: this.card.team, year: this.card.year }];
     this.clearTransients();
     this.save();
   }
@@ -323,22 +347,26 @@ export class Game {
     this.powerups.seasonTicket = "spent";
     this.disarmToggles();
     this.spinCount -= 1; // same spin, new card
-    this.beginSpin(entry);
+    this.beginSpin(entry, "year");
   }
 
-  /** 🚚 Relocate: reroll to a different random team, same year. Pre-choice only. */
-  relocate(): void {
+  /** Teams available to Relocate to (any club, same season). */
+  teamsForYear(year: number): IndexEntry[] {
+    return this.index.cards
+      .filter((c) => c.year === year)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** 🚚 Relocate: re-pick any other team from this same season. Pre-choice only. */
+  relocate(team: string): void {
     if (this.phase !== "landed" || this.powerups.relocate !== "ready") return;
-    if (this.choicesUsed > 0 || !this.card) return;
-    const candidates = this.index.cards.filter(
-      (c) => c.year === this.card!.year && c.team !== this.card!.team,
-    );
-    if (candidates.length === 0) return;
-    const entry = this.rng.pick(candidates);
+    if (this.choicesUsed > 0 || !this.card || team === this.card.team) return;
+    const entry = this.index.cards.find((c) => c.year === this.card!.year && c.team === team);
+    if (!entry) return;
     this.powerups.relocate = "spent";
     this.disarmToggles();
     this.spinCount -= 1;
-    this.beginSpin(entry);
+    this.beginSpin(entry, "team");
   }
 
   /** ✌️ Double Play: arming grants a second choice this spin. Toggle pre-commit;
@@ -367,18 +395,75 @@ export class Game {
     this.save();
   }
 
+  /** ⭐ Prime arming toggle: filled rail cells become season-pickable. Free
+   * action — browsing a career costs nothing until a season is applied. */
+  togglePrime(): void {
+    if (this.phase !== "landed") return;
+    if (this.powerups.prime === "ready") {
+      this.powerups.prime = "armed";
+    } else if (this.powerups.prime === "armed") {
+      this.powerups.prime = "ready";
+      this.primePick = null;
+    }
+    this.save();
+  }
+
+  get primeArmed(): boolean {
+    return this.powerups.prime === "armed";
+  }
+
+  /** Armed Prime, tap a filled rail cell: browse that player's other seasons. */
+  primeTapSlot(slotIdx: number): void {
+    if (!this.primeArmed || this.slots[slotIdx] === null) return;
+    this.primePick = slotIdx;
+  }
+
+  /** Swap the slot's player to another season of their own career. The new
+   * season must still fit the slot; cost becomes that season's real contract
+   * (hero pricing doesn't travel through time). */
+  async applyPrime(slotIdx: number, team: string, year: number): Promise<boolean> {
+    if (this.powerups.prime !== "armed" || this.primePick !== slotIdx) return false;
+    const signed = this.slots[slotIdx];
+    if (!signed) return false;
+    const card = await loadCard(team, year);
+    const p = card.players.find((pl) => pl.id === signed.id);
+    if (!p || !eligibleTypes(p).includes(SLOT_TYPES[slotIdx])) return false;
+    this.slots[slotIdx] = {
+      id: p.id,
+      name: p.name,
+      pos: p.pos,
+      war: p.war,
+      awards: p.awards,
+      ws: p.ws,
+      pen: p.pen,
+      year: card.year,
+      team: card.team,
+      teamName: card.name,
+      franchise: card.franchise,
+      costPaid: p.cost,
+      hero: false,
+      prorated: card.prorated,
+    };
+    this.powerups.prime = "spent";
+    this.primePick = null;
+    this.save();
+    return true;
+  }
+
   private disarmToggles(): void {
     if (this.powerups.doublePlay === "armed") {
       this.powerups.doublePlay = "ready";
       this.choicesLeft = Math.max(0, this.choicesLeft - 1);
     }
     if (this.powerups.tradeDeadline === "armed") this.powerups.tradeDeadline = "ready";
+    if (this.powerups.prime === "armed") this.powerups.prime = "ready";
     this.clearTransients();
   }
 
   private clearTransients(): void {
     this.slotPick = null;
     this.releasePick = null;
+    this.primePick = null;
   }
 
   // ---------- choices ----------
@@ -429,7 +514,8 @@ export class Game {
 
   private endSpin(): void {
     if (this.powerups.tradeDeadline === "armed") this.powerups.tradeDeadline = "ready";
-    if (this.rosterFull) this.finishGame();
+    if (this.powerups.prime === "armed") this.powerups.prime = "ready";
+    if (this.rosterFull) void this.finishGame();
     else {
       this.phase = "preSpin";
       this.save();
@@ -471,7 +557,7 @@ export class Game {
   }
 
   hireOwner(): void {
-    if (this.config.moneyball) return;
+    if (this.fixedCap) return;
     if (this.phase !== "landed" || this.choicesLeft === 0 || this.owner || !this.card) return;
     const c = this.card;
     this.owner = {
@@ -485,7 +571,7 @@ export class Game {
   }
 
   buyStadium(): void {
-    if (this.config.moneyball) return;
+    if (this.fixedCap) return;
     if (this.phase !== "landed" || this.choicesLeft === 0 || this.stadium || !this.card) return;
     const c = this.card;
     this.stadium = { park: c.park, mult: c.stadiumMult, franchise: c.franchise, year: c.year };
@@ -502,6 +588,8 @@ export class Game {
       losses: c.losses,
       year: c.year,
       teamName: c.name,
+      ws: c.ws,
+      pen: c.pen,
     };
     this.consumeChoice({ kind: "skipper" });
   }
@@ -558,6 +646,8 @@ export class Game {
         losses: c.losses,
         year: c.year,
         teamName: c.name,
+        ws: c.ws,
+        pen: c.pen,
       };
     }
     this.powerups.tradeDeadline = "spent";
@@ -566,18 +656,32 @@ export class Game {
 
   // ---------- finale ----------
 
-  private finishGame(): void {
+  private async finishGame(): Promise<void> {
     const players = this.slots.filter((s): s is Signed => s !== null);
+    // Reload every card this game landed on (all memoized from play) and
+    // solve for the WAR-max roster — the finale's scouting yardstick.
+    let best: BestRoster | null = null;
+    try {
+      const cards = await Promise.all(this.seen.map((s) => loadCard(s.team, s.year)));
+      best = bestRoster(cards);
+    } catch {
+      /* offline mid-game: finish without the yardstick */
+    }
+    const scoutHits =
+      best?.picks.filter((b) =>
+        b != null && players.some((p) => p.id === b.id && p.year === b.year && p.team === b.team),
+      ).length ?? 0;
     const parts = score({
       totalWar: this.totalWar,
       spendM: this.spend,
       budgetM: this.effectiveBudget,
       awardLists: players.map((p) => p.awards),
-      rings: players.filter((p) => p.ws).length,
-      pennants: players.filter((p) => p.pen).length,
+      rings: players.filter((p) => p.ws).length + (this.skipper?.ws ? 1 : 0),
+      pennants: players.filter((p) => p.pen).length + (this.skipper?.pen ? 1 : 0),
       skipperRecord: this.skipper ? [this.skipper.wins, this.skipper.losses] : null,
+      scoutHits,
     });
-    const [wins, losses] = simulateSeason(parts.expectedWins, new Rng(this.seed ^ 0x51ed));
+    const [wins, losses] = displayRecord(parts.expectedWins);
     this.finale = {
       parts,
       wins,
@@ -586,6 +690,8 @@ export class Game {
       budget: this.effectiveBudget,
       spinCount: this.spinCount,
       totalWar: this.totalWar,
+      best,
+      scoutHits,
     };
     this.phase = "finale";
     this.recordHistory();
@@ -607,7 +713,7 @@ export class Game {
         record: `${this.finale.wins}-${this.finale.losses}`,
         spins: this.finale.spinCount,
         difficulty: this.config.difficulty,
-        moneyball: this.config.moneyball,
+        bank: this.config.bank,
       });
       localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
     } catch {
@@ -628,6 +734,7 @@ export class Game {
           seed: this.seed,
           rngState: this.rng.state,
           spinCount: this.spinCount,
+          seen: this.seen,
           phase: this.phase === "spinning" ? "preSpin" : this.phase,
           cardRef: this.card ? { team: this.card.team, year: this.card.year } : null,
           slots: this.slots,
@@ -641,6 +748,15 @@ export class Game {
           spinLog: this.spinLog,
         }),
       );
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  /** Abandon any saved game (the header's restart action). */
+  static clearSave(): void {
+    try {
+      localStorage.removeItem(SAVE_KEY);
     } catch {
       /* storage unavailable */
     }
@@ -660,6 +776,7 @@ export class Game {
       const game = new Game(meta, index, owners, s.seed, s.config ?? DEFAULT_CONFIG);
       game.rng.state = s.rngState;
       game.spinCount = s.spinCount;
+      game.seen = s.seen ?? [];
       game.slots = s.slots;
       game.owner = s.owner;
       game.stadium = s.stadium;
@@ -674,6 +791,7 @@ export class Game {
         game.phase = "landed";
         // A reload mid-picker restores to the base landed state.
         if (game.powerups.tradeDeadline === "armed") game.powerups.tradeDeadline = "ready";
+        if (game.powerups.prime === "armed") game.powerups.prime = "ready";
       } else {
         game.phase = "preSpin";
       }

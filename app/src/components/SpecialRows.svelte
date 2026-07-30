@@ -25,7 +25,7 @@
     const c = game.card;
     if (!c) return [];
     const out: Row[] = [];
-    if (!game.config.moneyball) {
+    if (!game.fixedCap) {
       out.push(
         {
           key: "owner",

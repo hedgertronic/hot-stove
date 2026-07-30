@@ -12,8 +12,10 @@
 
 <div class="bankbox">
   <div class="bankmath disp">
-    {#if game.config.moneyball}
+    {#if game.config.bank === "moneyball"}
       <span class="chip eff">⚾ {money(cap)} HARD CAP</span>
+    {:else if game.config.bank === "blankcheck"}
+      <span class="chip eff">💸 {money(cap)} BLANK CHECK</span>
     {:else}
       {#if game.owner}
         <span class="chip">💰 {money(game.owner.budget)}</span>
@@ -41,7 +43,7 @@
     <span>SPENT {money(spend)}</span>
     {#if over}
       <span class="warn"
-        >⚠ {money(spend - cap)} OVER {game.owner || game.config.moneyball ? "CAP" : "FLOOR"}</span
+        >⚠ {money(spend - cap)} OVER {game.owner || game.fixedCap ? "CAP" : "FLOOR"}</span
       >
     {:else}
       <span>{money(cap - spend)} LEFT</span>

@@ -18,8 +18,8 @@
     expanded = false;
   });
 
-  // Salary-desc everywhere it's allowed — in Scout mode that same order is what
-  // keeps the list from leaking WAR. Eye Test lists alphabetically (SPEC).
+  // Standard reads talent-first (WAR desc); Scout shops by price (salary desc,
+  // which also keeps the order from leaking WAR); Eye Test is alphabetical.
   const sorted = $derived.by(() => {
     if (!game.card) return [];
     const ps = [...game.card.players];
@@ -28,6 +28,7 @@
         (a, b) =>
           lastName(a.name).localeCompare(lastName(b.name)) || a.name.localeCompare(b.name),
       );
+    if (game.showWar) return ps.sort((a, b) => b.war - a.war || b.cost - a.cost);
     return ps.sort((a, b) => b.cost - a.cost);
   });
   // Collapsed view keeps salary order but guarantees signable rows are visible:
@@ -71,10 +72,19 @@
     game.tdTapPlayer(p);
   }
 
-  const AWARD_CLS: Record<string, string> = { MVP: "mvp", CY: "cy", GG: "gg", SS: "ss", ROY: "roy" };
+  const AWARD_CLS: Record<string, string> = {
+    MVP: "mvp",
+    CY: "cy",
+    MVP2: "mvp",
+    CY2: "cy",
+    GG: "gg",
+    SS: "ss",
+    ROY: "roy",
+  };
+  const PILL_TEXT: Record<string, string> = { MVP2: "🥈MVP", CY2: "🥈CY" };
 
-  /** Second line per mode: pos · age (mock) / trad stat line (Scout) / nothing
-   * in Eye Test — the position circle already carries it. */
+  /** Second line per mode: pos · age (Standard) / trad stat line (Scout) /
+   * nothing in Eye Test — the position circle already carries it. */
   function subLine(p: CardPlayer, hero: boolean): string {
     const base = game.showStats
       ? statLine(p) || p.pos
@@ -109,7 +119,7 @@
       <span class="mid">
         <span class="pname"
           >{p.name}{#if game.showAwards}<span class="badges"
-              >{#each p.awards as a}<span class="qb {AWARD_CLS[a] ?? ''}">{a}</span>{/each}{#if p.ws}<span class="emo">💍</span>{:else if p.pen}<span class="emo">🚩</span>{/if}</span
+              >{#each p.awards as a}<span class="qb {AWARD_CLS[a] ?? ''}">{PILL_TEXT[a] ?? a}</span>{/each}{#if p.ws}<span class="emo">💍</span>{:else if p.pen}<span class="emo">🚩</span>{/if}</span
             >{/if}</span
         >
         {#if subLine(p, hero)}<span class="ppos">{subLine(p, hero)}</span>{/if}
@@ -245,6 +255,9 @@
   .ppos {
     font-size: 10.5px;
     color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .right {
     margin-left: auto;

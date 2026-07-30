@@ -4,9 +4,11 @@
   import Home from "./components/Home.svelte";
   import PlayerList from "./components/PlayerList.svelte";
   import PowerupRow from "./components/PowerupRow.svelte";
+  import PrimePicker from "./components/PrimePicker.svelte";
   import RosterRail from "./components/RosterRail.svelte";
   import SpecialRows from "./components/SpecialRows.svelte";
   import SpinBanner from "./components/SpinBanner.svelte";
+  import TeamPicker from "./components/TeamPicker.svelte";
   import YearPicker from "./components/YearPicker.svelte";
   import { loadColors, loadIndex, loadMeta, loadOwners } from "./lib/data";
   import { Game, type GameConfig } from "./lib/engine.svelte";
@@ -23,6 +25,9 @@
 
   let confirmKey = $state<string | null>(null);
   let yearPickerOpen = $state(false);
+  let teamPickerOpen = $state(false);
+  let quitArmed = $state(false);
+  let quitTimer: ReturnType<typeof setTimeout> | undefined;
 
   $effect(() => {
     void (async () => {
@@ -55,6 +60,7 @@
     saveSettings(config);
     confirmKey = null;
     yearPickerOpen = false;
+    teamPickerOpen = false;
     game = new Game(deps.meta, deps.index, deps.owners, undefined, config);
     screen = "game";
   }
@@ -68,19 +74,37 @@
   function goHome() {
     confirmKey = null;
     yearPickerOpen = false;
+    teamPickerOpen = false;
+    quitArmed = false;
     game = null;
     screen = "home";
   }
 
+  /** Two-tap quit: abandons the run AND its save, back to the mode screen. */
+  function tapQuit(e: MouseEvent) {
+    e.stopPropagation();
+    clearTimeout(quitTimer);
+    if (quitArmed) {
+      Game.clearSave();
+      goHome();
+      return;
+    }
+    quitArmed = true;
+    quitTimer = setTimeout(() => (quitArmed = false), 2500);
+  }
+
   const MODE_CHIP: Record<string, string> = {
-    rookie: "🐣 ROOKIE",
     scout: "🔭 SCOUT",
     eyetest: "🕶️ EYE TEST",
+  };
+  const BANK_CHIP: Record<string, string> = {
+    moneyball: "⚾ MONEYBALL",
+    blankcheck: "💸 BLANK CHECK",
   };
 
   const modeChip = $derived.by(() => {
     if (!game) return "";
-    return [game.config.moneyball ? "⚾ MONEYBALL" : "", MODE_CHIP[game.config.difficulty] ?? ""]
+    return [BANK_CHIP[game.config.bank] ?? "", MODE_CHIP[game.config.difficulty] ?? ""]
       .filter(Boolean)
       .join(" · ");
   });
@@ -114,6 +138,11 @@
   <header class="hud disp">
     <span class="logo">HOT<em>STOVE</em></span>
     {#if modeChip}<span class="modechip">{modeChip}</span>{/if}
+    {#if game.phase !== "finale"}
+      <button class="quit" class:armed={quitArmed} onclick={tapQuit}>
+        {quitArmed ? "QUIT? TAP AGAIN" : "✕"}
+      </button>
+    {/if}
   </header>
 
   {#if game.phase === "finale" && game.finale}
@@ -124,7 +153,11 @@
     <SpinBanner {game} {colors} />
 
     {#if game.phase === "landed" && game.card && !game.coldStove}
-      <PowerupRow {game} onSeasonTicket={() => (yearPickerOpen = true)} />
+      <PowerupRow
+        {game}
+        onSeasonTicket={() => (yearPickerOpen = true)}
+        onRelocate={() => (teamPickerOpen = true)}
+      />
       {#key game.card}
         <div class="after">
           <SpecialRows {game} {confirmKey} setConfirm={(k) => (confirmKey = k)} />
@@ -137,6 +170,12 @@
 
   {#if yearPickerOpen}
     <YearPicker {game} onclose={() => (yearPickerOpen = false)} />
+  {/if}
+  {#if teamPickerOpen}
+    <TeamPicker {game} {colors} onclose={() => (teamPickerOpen = false)} />
+  {/if}
+  {#if game.primePick !== null}
+    <PrimePicker {game} onclose={() => game?.togglePrime()} />
   {/if}
 {/if}
 
@@ -153,6 +192,26 @@
     align-items: center;
     gap: 8px;
     margin-bottom: 10px;
+    position: relative;
+  }
+  .quit {
+    position: absolute;
+    right: 0;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--muted);
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 10px;
+    line-height: 1;
+    padding: 4px 8px;
+    cursor: pointer;
+  }
+  .quit.armed {
+    background: var(--orange);
+    color: var(--card);
+    border-color: var(--ink);
   }
   .modechip {
     border: 2px solid var(--ink);

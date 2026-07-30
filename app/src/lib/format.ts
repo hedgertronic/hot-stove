@@ -36,23 +36,22 @@ export function signed(n: number, digits = 1): string {
   return n >= 0 ? `+${v}` : `−${v.replace("-", "")}`;
 }
 
-/** Batting average in baseball notation: 0.292 → ".292". */
-function avg3(a: number): string {
-  return a.toFixed(3).replace(/^0/, "");
+/** Rate stat in baseball notation: 0.292 → ".292" (1.000+ keeps its digit). */
+function dot3(a: number): string {
+  return a.toFixed(3).replace(/^0\./, ".");
 }
 
-/** Scout-mode trad stat line. Pitchers read W–L/ERA (plus saves for relievers);
- * everyone else reads AVG/HR/SB. Two-way seasons show the pitching line. */
+/** Scout-mode trad stat line. Pitchers read W–L / ERA / K; everyone else reads
+ * the triple slash plus HR·RBI·SB. Two-way seasons show the pitching line. */
 export function statLine(p: {
   pos: string;
-  bat?: { avg: number; hr: number; sb: number };
-  pit?: { w: number; l: number; sv: number; era: number };
+  bat?: { avg: number; obp: number; slg: number; hr: number; rbi: number; sb: number };
+  pit?: { w: number; l: number; sv: number; era: number; so: number };
 }): string {
   const pitcher = p.pos.startsWith("SP") || p.pos === "RP";
-  if (pitcher && p.pit) {
-    const base = `${p.pit.w}–${p.pit.l} · ${p.pit.era.toFixed(2)} ERA`;
-    return p.pit.sv > 0 ? `${base} · ${p.pit.sv} SV` : base;
-  }
-  if (p.bat) return `${avg3(p.bat.avg)} · ${p.bat.hr} HR · ${p.bat.sb} SB`;
+  if (pitcher && p.pit)
+    return `${p.pit.w}–${p.pit.l} · ${p.pit.era.toFixed(2)} ERA · ${p.pit.so} K`;
+  if (p.bat)
+    return `${dot3(p.bat.avg)}/${dot3(p.bat.obp)}/${dot3(p.bat.slg)} · ${p.bat.hr} HR · ${p.bat.rbi} RBI · ${p.bat.sb} SB`;
   return "";
 }

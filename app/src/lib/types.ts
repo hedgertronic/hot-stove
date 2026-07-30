@@ -1,5 +1,7 @@
 export type SlotType = "C" | "IF" | "OF" | "FLEX" | "SP" | "RP";
 
+export const SLOT_TYPES: SlotType[] = ["C", "IF", "IF", "OF", "FLEX", "SP", "SP", "RP"];
+
 export interface CardPlayer {
   id: string;
   name: string;
@@ -20,8 +22,8 @@ export interface CardPlayer {
   debut: string;
   teams: string[];
   age?: number;
-  bat?: { avg: number; hr: number; sb: number };
-  pit?: { w: number; l: number; sv: number; era: number };
+  bat?: { avg: number; obp: number; slg: number; hr: number; rbi: number; sb: number };
+  pit?: { w: number; l: number; sv: number; era: number; so: number };
 }
 
 export interface Contract {
@@ -39,6 +41,8 @@ export interface Card {
   wins: number;
   losses: number;
   manager: string | null;
+  ws: boolean;
+  pen: boolean;
   attendance: number;
   attendancePct: number;
   stadiumMult: number;
@@ -92,6 +96,10 @@ export interface ScoreParts {
   awardPoints: number;
   ringPoints: number;
   skipperPoints: number;
+  scoutBonus: number;
   luxuryTax: number;
   total: number;
 }
+
+/** Player-seasons index (data/players.json): every card a player appears on. */
+export type PlayerSeasons = Record<string, [string, number][]>;

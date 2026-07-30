@@ -1,11 +1,11 @@
 <script lang="ts">
   import type { Game } from "../lib/engine.svelte";
 
-  let { game, onSeasonTicket }: { game: Game; onSeasonTicket: () => void } = $props();
-
-  // Two-tap confirm for Relocate — a single tap must never spend a reroll.
-  let relocateArmed = $state(false);
-  let relocateTimer: ReturnType<typeof setTimeout> | undefined;
+  let {
+    game,
+    onSeasonTicket,
+    onRelocate,
+  }: { game: Game; onSeasonTicket: () => void; onRelocate: () => void } = $props();
 
   const preChoice = $derived(game.phase === "landed" && game.choicesUsed === 0);
   const p = $derived(game.powerups);
@@ -18,19 +18,8 @@
         : "🔁 PICK A SWAP…",
   );
 
-  function tapRelocate(e: MouseEvent) {
-    e.stopPropagation();
-    if (p.relocate !== "ready" || !preChoice) return;
-    if (relocateArmed) {
-      relocateArmed = false;
-      clearTimeout(relocateTimer);
-      game.relocate();
-    } else {
-      relocateArmed = true;
-      clearTimeout(relocateTimer);
-      relocateTimer = setTimeout(() => (relocateArmed = false), 2500);
-    }
-  }
+  const anySigned = $derived(game.slots.some((s) => s !== null));
+  const primeLabel = $derived(p.prime === "armed" ? "⭐ TAP YOUR GUY…" : "⭐ PRIME");
 </script>
 
 <div class="pprow disp">
@@ -47,8 +36,10 @@
     class="pp"
     class:spent={p.relocate === "spent"}
     class:off={p.relocate === "ready" && !preChoice}
-    class:armed={relocateArmed}
-    onclick={tapRelocate}>{relocateArmed ? "🚚 REROLL TEAM?" : "🚚 RELOCATE"}</button
+    onclick={(e) => {
+      e.stopPropagation();
+      if (p.relocate === "ready" && preChoice) onRelocate();
+    }}>🚚 RELOCATE</button
   >
   <button
     class="pp"
@@ -68,6 +59,16 @@
       e.stopPropagation();
       game.toggleTradeDeadline();
     }}>{tdLabel}</button
+  >
+  <button
+    class="pp"
+    class:spent={p.prime === "spent"}
+    class:off={p.prime === "ready" && !anySigned}
+    class:armed={p.prime === "armed"}
+    onclick={(e) => {
+      e.stopPropagation();
+      if (p.prime !== "ready" || anySigned) game.togglePrime();
+    }}>{primeLabel}</button
   >
 </div>
 

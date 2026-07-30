@@ -22,8 +22,9 @@
     return { yr: String(c.year), tm: c.name, color: accentFor(colors, c.franchise) };
   });
 
-  function pulse(ms: number) {
-    for (const el of [yrEl, tmEl]) {
+  function pulse(ms: number, kind: "full" | "year" | "team") {
+    const els = kind === "year" ? [yrEl] : kind === "team" ? [tmEl] : [yrEl, tmEl];
+    for (const el of els) {
       el?.animate(
         [{ transform: "translateY(-30%)", opacity: 0.35 }, { transform: "none", opacity: 1 }],
         { duration: Math.min(ms * 0.9, 240), easing: "ease-out" },
@@ -33,11 +34,21 @@
 
   // The banner itself is the reel: cosmetic flicker from a throwaway RNG so the
   // game stream stays untouched, decelerating ticks, overshoot thunk on landing.
+  // Powerup rerolls only flick the half that's actually changing: Season Ticket
+  // holds the team name steady, Relocate holds the year.
   $effect(() => {
     if (game.phase !== "spinning" || running) return;
     running = true;
     landedAnim = false;
+    const kind = game.spinKind;
+    const prev = game.card;
     const cosmetic = new Rng(Date.now() >>> 0);
+    const pool =
+      kind === "year" && prev
+        ? game.index.cards.filter((c) => c.franchise === prev.franchise)
+        : kind === "team" && prev
+          ? game.index.cards.filter((c) => c.year === prev.year)
+          : game.index.cards;
     const land = async () => {
       await game.land();
       landedAnim = true;
@@ -47,14 +58,24 @@
       void land();
       return;
     }
-    let delay = 70;
+    // One authoritative timer lands the card; the decelerating flicker chain is
+    // pure cosmetics and simply stops early if the browser throttles timers
+    // (a throttled chain once stretched a 2s spin to 14s).
+    let delay = 50;
+    let total = 320;
+    for (let d = delay; d < 320; d *= 1.16) total += d;
+    setTimeout(() => void land(), total);
     const step = () => {
-      const e = cosmetic.pick(game.index.cards);
-      display = { yr: String(e.year), tm: e.name, color: accentFor(colors, e.franchise) };
-      pulse(delay);
-      delay *= 1.14;
-      if (delay < 480) setTimeout(step, delay);
-      else setTimeout(() => void land(), delay);
+      if (game.phase !== "spinning") return;
+      const e = cosmetic.pick(pool);
+      display = {
+        yr: kind === "team" && prev ? String(prev.year) : String(e.year),
+        tm: kind === "year" && prev ? prev.name : e.name,
+        color: accentFor(colors, kind === "year" && prev ? prev.franchise : e.franchise),
+      };
+      pulse(delay, kind);
+      delay *= 1.16;
+      if (delay < 320) setTimeout(step, delay);
     };
     step();
   });
@@ -70,7 +91,9 @@
     </div>
     {#if game.phase === "landed" && game.card}
       <div class="tmeta">
-        {game.card.wins}–{game.card.losses}{game.card.prorated !== 1 ? " ✱" : ""}
+        {game.card.wins}–{game.card.losses}{game.card.prorated !== 1 ? " ✱" : ""}{#if game.showAwards && game.card.ws}
+          <span class="pedigree" title="Won the World Series">💍</span>{:else if game.showAwards && game.card.pen}
+          <span class="pedigree" title="Won the pennant">🚩</span>{/if}
       </div>
     {/if}
   {:else}
@@ -148,6 +171,9 @@
     font-size: 11.5px;
     color: var(--muted);
     margin-top: 1px;
+  }
+  .pedigree {
+    font-size: 12px;
   }
   .spinbtn {
     width: 100%;

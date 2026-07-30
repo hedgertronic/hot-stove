@@ -16,6 +16,8 @@
   const AWARD_NAMES: Record<string, string> = {
     MVP: "MVP",
     CY: "Cy Young",
+    MVP2: "MVP runner-up",
+    CY2: "Cy Young runner-up",
     ROY: "Rookie of the Year",
     GG: "Gold Glove",
     SS: "Silver Slugger",
@@ -68,10 +70,10 @@
       amt: signed(p.awardPoints, 0),
       cls: p.awardPoints > 0 ? "plus" : "zero",
     });
-    const rings = game.slots.filter((s) => s?.ws).length;
-    const pennants = game.slots.filter((s) => s?.pen).length;
+    const rings = game.slots.filter((s) => s?.ws).length + (game.skipper?.ws ? 1 : 0);
+    const pennants = game.slots.filter((s) => s?.pen).length + (game.skipper?.pen ? 1 : 0);
     const pedigree = new Map<string, number>();
-    if (rings) pedigree.set("rings 💍", rings);
+    if (rings) pedigree.set(rings === 1 ? "ring 💍" : "rings 💍", rings);
     if (pennants) pedigree.set(pennants === 1 ? "pennant 🚩" : "pennants 🚩", pennants);
     out.push({
       key: "pedigree",
@@ -87,6 +89,18 @@
         why: `${game.skipper.name}, ${game.skipper.wins}–${game.skipper.losses}`,
         amt: signed(p.skipperPoints),
         cls: p.skipperPoints >= 0 ? "plus" : "minus",
+      });
+    }
+    if (fin.best) {
+      out.push({
+        key: "scouting",
+        lbl: "Scouting report",
+        why:
+          fin.scoutHits > 0
+            ? `${fin.scoutHits} of your ${fin.scoutHits === 1 ? "pick" : "picks"} made the dream team ⭐`
+            : "none of your picks made the dream team",
+        amt: signed(p.scoutBonus, 0),
+        cls: p.scoutBonus > 0 ? "plus" : "zero",
       });
     }
     out.push({
@@ -160,15 +174,18 @@
 
   const TIER_EMOJI = { low: "⚪", mid: "🔵", high: "🟢", elite: "🟡" } as const;
 
-  const MODE_TAG: Record<string, string> = {
-    rookie: " · 🐣",
-    scout: " · 🔭 SCOUT",
-    eyetest: " · 🕶️ EYE TEST",
+  const DIFF_TAG: Record<string, string> = {
+    standard: "🔥 STANDARD",
+    scout: "🔭 SCOUT",
+    eyetest: "🕶️ EYE TEST",
+  };
+  const BANK_TAG: Record<string, string> = {
+    moneyball: " · ⚾ MONEYBALL",
+    blankcheck: " · 💸 BLANK CHECK",
   };
 
   function shareText(): string {
-    const tag =
-      (game.config.moneyball ? " · ⚾ MONEYBALL" : "") + (MODE_TAG[game.config.difficulty] ?? "");
+    const tag = (DIFF_TAG[game.config.difficulty] ?? "") + (BANK_TAG[game.config.bank] ?? "");
     const grid = game.spinLog
       .map((e) => {
         if (e.kind === "owner") return "💰";
@@ -178,7 +195,21 @@
         return TIER_EMOJI[warTier(e.war ?? 0)];
       })
       .join("");
-    return `HOT STOVE 🔥${tag}\n${grid}\n${fin.wins}-${fin.losses} · ${fin.parts.total.toFixed(1)} pts`;
+    const rings = game.slots.filter((s) => s?.ws).length + (game.skipper?.ws ? 1 : 0);
+    const pennants = game.slots.filter((s) => s?.pen).length + (game.skipper?.pen ? 1 : 0);
+    const medals = [
+      "💍".repeat(Math.min(rings, 8)),
+      "🚩".repeat(Math.min(pennants, 8)),
+      fin.best ? `⭐${fin.scoutHits}/8` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    return [
+      `HOT STOVE ${tag}`,
+      grid,
+      `${fin.wins}–${fin.losses} · 💰 ${money(fin.spend)}/${money(fin.budget)}`,
+      `${medals ? `${medals} · ` : ""}🏆 ${fin.parts.total.toFixed(1)} pts`,
+    ].join("\n");
   }
 
   async function share() {
@@ -201,7 +232,25 @@
     }
   }
 
-  const awardCls: Record<string, string> = { MVP: "mvp", CY: "cy", GG: "gg", SS: "ss", ROY: "roy" };
+  const awardCls: Record<string, string> = {
+    MVP: "mvp",
+    CY: "cy",
+    MVP2: "mvp",
+    CY2: "cy",
+    GG: "gg",
+    SS: "ss",
+    ROY: "roy",
+  };
+  const pillText: Record<string, string> = { MVP2: "🥈MVP", CY2: "🥈CY" };
+
+  /** Signed players who are also on the dream team get the ⭐. */
+  const starKeys = $derived.by(() => {
+    const keys = new Set<string>();
+    for (const b of fin.best?.picks ?? []) if (b) keys.add(`${b.id}:${b.year}:${b.team}`);
+    return keys;
+  });
+  const starred = (s: { id: string; year: number; team: string }) =>
+    starKeys.has(`${s.id}:${s.year}:${s.team}`);
 </script>
 
 <div class="fin-head disp">
@@ -240,12 +289,13 @@
       <div class="qrow">
         <span class="qpos">{SLOT_TYPES[i]}</span>
         <span class="qname"
-          >{slot.name} <i>{yy(slot.year)}{slot.prorated !== 1 ? "✱" : ""}</i></span
+          >{#if starred(slot)}<span class="emo">⭐</span>
+          {/if}{slot.name} <i>{yy(slot.year)}{slot.prorated !== 1 ? "✱" : ""}</i></span
         >
         <span class="qbadges">
           {#if slot.hero}<span class="emo">🏠</span>{/if}
           {#each slot.awards as a}
-            <span class="qb {awardCls[a] ?? ''}">{a}</span>
+            <span class="qb {awardCls[a] ?? ''}">{pillText[a] ?? a}</span>
           {/each}
           {#if slot.ws}<span class="emo">💍</span>{:else if slot.pen}<span class="emo">🚩</span>{/if}
         </span>
@@ -256,12 +306,42 @@
   {#if game.skipper}
     <div class="qrow skiprow">
       <span class="qpos">MGR</span>
-      <span class="qname">{game.skipper.name} <i>{yy(game.skipper.year)}</i></span>
-      <span class="qbadges"></span>
+      <span class="qname"
+        >{game.skipper.name} <i>{yy(game.skipper.year)}</i></span
+      >
+      <span class="qbadges"
+        >{#if game.skipper.ws}<span class="emo">💍</span>{:else if game.skipper.pen}<span class="emo">🚩</span>{/if}</span
+      >
       <span class="qwar">{signed(fin.parts.skipperPoints)}</span>
     </div>
   {/if}
 </div>
+
+{#if fin.best}
+  <div class="squad disp">
+    <div class="squad-h">⭐ THE DREAM TEAM — BEST POSSIBLE FROM YOUR SPINS</div>
+    <div class="dream-sub">
+      Pure WAR, cap ignored: {fin.best.totalWar.toFixed(1)} WAR vs your {fin.totalWar.toFixed(1)}.
+      You found {fin.scoutHits} of 8.
+    </div>
+    {#each fin.best.picks as pick, i}
+      {@const mine =
+        pick != null &&
+        game.slots.some((s) => s && s.id === pick.id && s.year === pick.year && s.team === pick.team)}
+      <div class="qrow" class:dreamhit={mine}>
+        <span class="qpos">{SLOT_TYPES[i]}</span>
+        {#if pick}
+          <span class="qname"
+            >{#if mine}<span class="emo">⭐</span> {/if}{pick.name} <i>{yy(pick.year)} {pick.teamName}</i></span
+          >
+          <span class="qwar {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
+        {:else}
+          <span class="qname empty">—</span>
+        {/if}
+      </div>
+    {/each}
+  </div>
+{/if}
 
 <style>
   .fin-head {
@@ -460,5 +540,18 @@
   }
   .skiprow .qwar {
     color: var(--ink);
+  }
+  .dream-sub {
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--muted);
+    margin: -3px 0 8px;
+  }
+  .qrow.dreamhit {
+    background: var(--green-wash);
+  }
+  .qname.empty {
+    color: var(--gray-ink);
   }
 </style>

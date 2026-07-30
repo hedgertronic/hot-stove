@@ -11,7 +11,11 @@
     return game.card.players.find((p) => p.id === id) ?? null;
   });
 
+  const primeArming = $derived(game.primeArmed && game.primePick === null);
+
   const pickableCells = $derived.by((): Set<number> => {
+    if (primeArming)
+      return new Set(game.slots.map((s, i) => (s !== null ? i : -1)).filter((i) => i >= 0));
     if (!pickPlayer) return new Set();
     return new Set(
       game.slotPick
@@ -21,6 +25,10 @@
   });
 
   function tapCell(i: number) {
+    if (primeArming) {
+      game.primeTapSlot(i);
+      return;
+    }
     if (!pickPlayer || !pickableCells.has(i)) return;
     if (game.slotPick) game.signPlayer(pickPlayer, i);
     else game.tdRelease(pickPlayer, i);
@@ -44,7 +52,9 @@
       {/if}
     {/each}
   </div>
-  {#if pickPlayer}
+  {#if primeArming}
+    <div class="railhint">⭐ TAP A PLAYER TO VISIT ANOTHER YEAR OF THEIR CAREER</div>
+  {:else if pickPlayer}
     <div class="railhint">
       {#if game.slotPick}
         TAP A SLOT FOR {lastName(pickPlayer.name).toUpperCase()}

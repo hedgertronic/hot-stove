@@ -2,7 +2,8 @@
 import { DEFAULT_CONFIG, type GameConfig } from "./engine.svelte";
 
 const SETTINGS_KEY = "hotstove.settings";
-const DIFFICULTIES = new Set(["rookie", "standard", "scout", "eyetest"]);
+const DIFFICULTIES = new Set(["standard", "scout", "eyetest"]);
+const BANKS = new Set(["classic", "moneyball", "blankcheck"]);
 
 export function loadSettings(): GameConfig {
   try {
@@ -10,8 +11,9 @@ export function loadSettings(): GameConfig {
     if (!raw) return { ...DEFAULT_CONFIG };
     const s = JSON.parse(raw);
     return {
+      // "rookie" merged into "standard" when the ladder went to three rungs.
       difficulty: DIFFICULTIES.has(s.difficulty) ? s.difficulty : DEFAULT_CONFIG.difficulty,
-      moneyball: s.moneyball === true,
+      bank: BANKS.has(s.bank) ? s.bank : s.moneyball === true ? "moneyball" : DEFAULT_CONFIG.bank,
     };
   } catch {
     return { ...DEFAULT_CONFIG };
@@ -32,7 +34,7 @@ export interface HistoryEntry {
   record: string;
   spins: number;
   difficulty?: string;
-  moneyball?: boolean;
+  bank?: string;
 }
 
 export function loadHistory(): HistoryEntry[] {

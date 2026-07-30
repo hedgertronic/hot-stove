@@ -1,7 +1,8 @@
-import type { Card, Colors, GameIndex, Meta, Owners } from "./types";
+import type { Card, Colors, GameIndex, Meta, Owners, PlayerSeasons } from "./types";
 
 const base = import.meta.env.BASE_URL;
 const cardCache = new Map<string, Promise<Card>>();
+let playersCache: Promise<PlayerSeasons> | null = null;
 
 async function j<T>(path: string): Promise<T> {
   const res = await fetch(base + path);
@@ -13,6 +14,12 @@ export const loadMeta = () => j<Meta>("data/meta.json");
 export const loadIndex = () => j<GameIndex>("data/index.json");
 export const loadOwners = () => j<Owners>("data/owners.json");
 export const loadColors = () => j<Colors>("data/colors.json");
+
+/** Player-seasons index (~0.5MB) — fetched lazily, only when Prime is armed. */
+export function loadPlayers(): Promise<PlayerSeasons> {
+  playersCache ??= j<PlayerSeasons>("data/players.json");
+  return playersCache;
+}
 
 export function loadCard(team: string, year: number): Promise<Card> {
   const key = `${team}_${year}`;
