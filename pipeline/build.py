@@ -11,6 +11,7 @@ Output layout (all consumed by the static frontend):
 from __future__ import annotations
 
 import json
+from collections import defaultdict
 from pathlib import Path
 
 from pipeline import fetch
@@ -31,7 +32,7 @@ REPLACEMENT_WINS = 47.7
 ASKING_PER_WAR = 0.0
 
 LAHMAN_TABLES = ["People", "Teams", "Appearances", "Batting", "Pitching",
-                 "Salaries", "AwardsPlayers", "Managers"]
+                 "Salaries", "AwardsPlayers", "AwardsSharePlayers", "Managers"]
 
 
 def load_raw() -> dict:
@@ -54,7 +55,13 @@ def display_pos(gd: GameData, lahman_id: str, year: int, e: dict, factor: float)
         return "SP"
     if is_rp:
         return "RP"
-    return hitter or "P"
+    if hitter:
+        return hitter
+    # Sub-floor pitcher (WAR-override eligible): label by role split, never
+    # bare "P" — the frontend maps only "SP"/"RP" prefixes to pitcher slots.
+    if e["war_pitch"] > e["war_bat"]:
+        return "SP" if e["ip_start"] >= e["ip_relief"] else "RP"
+    return "P"
 
 
 def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]:
@@ -65,12 +72,15 @@ def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]
     for (bbref_id, y), e in gd.war.items():
         if y != year or br not in e["teams"]:
             continue
-        if not (e["pa"] >= min_pa or e["gs"] >= min_gs or e["ip_relief"] >= min_rip):
+        war_raw = e["war_bat"] + e["war_pitch"]
+        war = round(war_raw * factor, 1)
+        # Playing-time floors, with a WAR override so a high-value short
+        # stint (deadline rental, September call-up) still makes the card.
+        if not (e["pa"] >= min_pa or e["gs"] >= min_gs
+                or e["ip_relief"] >= min_rip or war >= 2.0):
             continue
         lahman_id = gd.b2l.get(bbref_id, bbref_id)
         salary, estimated = gd.resolve_salary(lahman_id, year)
-        war_raw = e["war_bat"] + e["war_pitch"]
-        war = round(war_raw * factor, 1)
         contract = gd.to_display_m(salary, year)
         games = gd.pos_games.get((lahman_id, year), {})
         # Scout-mode extras: age + trad stat lines, omitted when absent/noise.
@@ -79,12 +89,18 @@ def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]
             extras["age"] = age
         bat = gd.bat_line.get((lahman_id, year))
         if bat and bat["ab"] >= 20:
+            obp_den = bat["ab"] + bat["bb"] + bat["hbp"] + bat["sf"]
+            obp = (bat["h"] + bat["bb"] + bat["hbp"]) / obp_den if obp_den else 0.0
+            total_bases = bat["h"] + bat["2b"] + 2 * bat["3b"] + 3 * bat["hr"]
             extras["bat"] = {"avg": round(bat["h"] / bat["ab"], 3),
-                             "hr": bat["hr"], "sb": bat["sb"]}
+                             "obp": round(obp, 3),
+                             "slg": round(total_bases / bat["ab"], 3),
+                             "hr": bat["hr"], "rbi": bat["rbi"], "sb": bat["sb"]}
         pit = gd.pit_line.get((lahman_id, year))
         if pit and pit["outs"] >= 3:
             extras["pit"] = {"w": pit["w"], "l": pit["l"], "sv": pit["sv"],
-                             "era": round(9 * pit["er"] / (pit["outs"] / 3), 2)}
+                             "era": round(9 * pit["er"] / (pit["outs"] / 3), 2),
+                             "so": pit["so"]}
         players.append({
             **extras,
             "id": bbref_id,
@@ -138,6 +154,7 @@ def main() -> None:
     cards_dir.mkdir(parents=True, exist_ok=True)
     index, empty_slots = [], 0
     min_budget = None  # league-minimum bankroll: the no-owner floor (meta.minBudget)
+    player_seasons: dict[str, list[list]] = defaultdict(list)  # bbrefID -> [[br, year]]
 
     for (year, br), row in sorted(gd.team_rows.items()):
         factor = gd.proration[year]
@@ -155,6 +172,9 @@ def main() -> None:
             "park": row["park"],
             "wins": _i(row["W"]),
             "losses": _i(row["L"]),
+            "ws": gd.ws_winner.get(year) == br,
+            "pen": (gd.ws_winner.get(year) != br
+                    and br in gd.pennant.get(year, set())),
             "manager": names.get(
                 (managers.get((year, gd.lahman_team[(year, br)])) or (None,))[0]),
             "attendance": att,
@@ -171,12 +191,18 @@ def main() -> None:
             "players": build_players(gd, br, year, factor),
         }
         min_budget = card["budget"] if min_budget is None else min(min_budget, card["budget"])
+        for p in card["players"]:
+            player_seasons[p["id"]].append([br, year])
         (cards_dir / f"{br}_{year}.json").write_text(json.dumps(card))
         index.append({"team": br, "year": year, "franchise": row["franchID"],
                       "name": row["name"]})
 
     (DATA_DIR / "index.json").write_text(json.dumps(
         {"yearMin": YEAR_MIN, "yearMax": YEAR_MAX, "cards": index}))
+    (DATA_DIR / "players.json").write_text(json.dumps(
+        {pid: sorted(seasons, key=lambda s: s[1])
+         for pid, seasons in sorted(player_seasons.items())},
+        separators=(",", ":")))
     (DATA_DIR / "meta.json").write_text(json.dumps({
         "displayAvgM": DISPLAY_AVG_M,
         "replacementWins": REPLACEMENT_WINS,
@@ -203,6 +229,26 @@ def main() -> None:
     est = sum(1 for y in gd.floor)
     print(f"salary floors computed for {est} years; "
           f"e.g. 1987=${gd.floor[1987]:,} 2023=${gd.floor[2023]:,}")
+    print(f"players.json: {len(player_seasons)} players, "
+          f"{(DATA_DIR / 'players.json').stat().st_size:,} bytes")
+
+    # Short-stint audit: player-seasons on cards only via the WAR >= 2.0
+    # override (below every playing-time floor).
+    overrides = []
+    for (bbref_id, year), e in gd.war.items():
+        factor = gd.proration[year]
+        if (e["pa"] >= MIN_PA / factor or e["gs"] >= MIN_GS / factor
+                or e["ip_relief"] >= MIN_RELIEF_IP / factor):
+            continue
+        war = round((e["war_bat"] + e["war_pitch"]) * factor, 1)
+        if war >= 2.0:
+            overrides.append((war, year, e["name"], sorted(e["teams"]),
+                              e["pa"], e["gs"], round(e["ip_relief"])))
+    overrides.sort(key=lambda o: -o[0])
+    print(f"short-stint WAR>=2.0 overrides: {len(overrides)} player-seasons")
+    for war, year, name, teams, pa, gs, rip in overrides[:15]:
+        print(f"  {war:4.1f} WAR  {year} {'/'.join(teams):8} {name}  "
+              f"pa={pa} gs={gs} relIP={rip}")
 
 
 if __name__ == "__main__":

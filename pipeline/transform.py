@@ -42,6 +42,12 @@ AWARD_CODES = {
     "Silver Slugger": "SS",
 }
 
+# Voting runner-ups (AwardsSharePlayers): (winner code, runner-up code) per ballot.
+RUNNER_UP_CODES = {
+    "Most Valuable Player": ("MVP", "MVP2"),
+    "Cy Young Award": ("CY", "CY2"),
+}
+
 POS_G_COLS = {
     "C": "G_c", "1B": "G_1b", "2B": "G_2b", "3B": "G_3b", "SS": "G_ss",
     "LF": "G_lf", "CF": "G_cf", "RF": "G_rf", "DH": "G_dh", "P": "G_p",
@@ -175,11 +181,20 @@ class GameData:
             if not (YEAR_MIN <= year <= YEAR_MAX):
                 continue
             e = self.bat_line.setdefault(
-                (r["playerID"], year), {"ab": 0, "h": 0, "hr": 0, "sb": 0})
+                (r["playerID"], year),
+                {"ab": 0, "h": 0, "hr": 0, "sb": 0, "bb": 0, "hbp": 0, "sf": 0,
+                 "2b": 0, "3b": 0, "rbi": 0, "so": 0})
             e["ab"] += _i(r["AB"])
             e["h"] += _i(r["H"])
             e["hr"] += _i(r["HR"])
             e["sb"] += _i(r["SB"])
+            e["bb"] += _i(r["BB"])
+            e["hbp"] += _i(r["HBP"])  # blank in old rows; _i coerces to 0
+            e["sf"] += _i(r["SF"])
+            e["2b"] += _i(r["2B"])
+            e["3b"] += _i(r["3B"])
+            e["rbi"] += _i(r["RBI"])
+            e["so"] += _i(r["SO"])
 
         self.pit_line: dict[tuple[str, int], dict[str, int]] = {}
         for r in self.raw["Pitching"]:
@@ -187,12 +202,14 @@ class GameData:
             if not (YEAR_MIN <= year <= YEAR_MAX):
                 continue
             e = self.pit_line.setdefault(
-                (r["playerID"], year), {"w": 0, "l": 0, "sv": 0, "er": 0, "outs": 0})
+                (r["playerID"], year),
+                {"w": 0, "l": 0, "sv": 0, "er": 0, "outs": 0, "so": 0})
             e["w"] += _i(r["W"])
             e["l"] += _i(r["L"])
             e["sv"] += _i(r["SV"])
             e["er"] += _i(r["ER"])
             e["outs"] += _i(r["IPouts"])
+            e["so"] += _i(r["SO"])
 
     # -- WAR + B-R salary (aggregated across stints; full-season totals) ---
 
@@ -274,6 +291,27 @@ class GameData:
             code = AWARD_CODES.get(r["awardID"])
             if code:
                 self.awards[(r["playerID"], _i(r["yearID"]))].append(code)
+
+        # MVP/CY voting runner-ups: 2nd place by pointsWon (all ties) per
+        # award-year-league ballot gets MVP2/CY2. A player never carries both
+        # the winner code and the runner-up code for the same award-year.
+        ballots: dict[tuple[str, int, str], list[tuple[float, str]]] = defaultdict(list)
+        for r in self.raw["AwardsSharePlayers"]:
+            if r["awardID"] not in RUNNER_UP_CODES:
+                continue
+            ballots[(r["awardID"], _i(r["yearID"]), r["lgID"])].append(
+                (_f(r["pointsWon"]), r["playerID"]))
+        for (award, year, _), votes in ballots.items():
+            points = sorted({pts for pts, _ in votes}, reverse=True)
+            if len(points) < 2:
+                continue
+            winner_code, runner_up_code = RUNNER_UP_CODES[award]
+            for pts, pid in votes:
+                if pts != points[1]:
+                    continue
+                codes = self.awards[(pid, year)]
+                if winner_code not in codes and runner_up_code not in codes:
+                    codes.append(runner_up_code)
 
     # -- Debut franchise (for the Hometown Hero combo) ---------------------
 
