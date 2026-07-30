@@ -74,3 +74,28 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   toast.
 - **Motion:** `prefers-reduced-motion` skips the reel and reveal animations (jump to
   end states), per BUILD.
+
+## Modes UI decisions (M4)
+
+- **Home screen fronts the game** (`Home.svelte`): difficulty rows + Moneyball toggle,
+  selection persisted to `localStorage["hotstove.settings"]`. A mid-game save skips
+  home and resumes straight into the game; the finale's quiet "⚙ CHANGE MODE" is the
+  only path back (Replay keeps the current mode).
+- **Header mode chip:** non-default modes show a small amber chip next to the wordmark
+  (⚾ MONEYBALL · 🔭 SCOUT · 🕶️ EYE TEST · 🐣 ROOKIE). Standard shows nothing — the
+  default look stays exactly the mock.
+- **Scout/Eye Test row anatomy:** the WAR circle becomes a neutral position badge
+  (same geometry, card background, no tier color). Scout's second line is the trad
+  stat line ("19–5 · 2.44 ERA" / ".292 · 39 HR · 8 SB", two-way seasons show the
+  pitching line); Eye Test has no second line at all — the circle already carries the
+  position. Confirm buttons hide prices ("SIGN ✍️") until the meter reveals the spend.
+- **Scout keeps the salary-desc sort** (SPEC: the order must not leak WAR); Eye Test
+  sorts alphabetically by surname.
+- **Standard/Rookie second line is `pos · age`** per the mock ("SP · 32") — ages now
+  ship on every card player.
+- **Rookie badges:** award pills (MVP/CY/ROY/GG/SS in trophy colors) plus 💍/🚩 inline
+  after the name, sized down so rows don't stretch.
+- **Moneyball bank:** single "⚾ $82.9M HARD CAP" chip replaces the owner × stadium
+  math; owner/stadium rows never render; skipper still hires. Hometown Hero is
+  naturally unreachable (needs owner + stadium). Share strings and history entries are
+  tagged with the mode.
