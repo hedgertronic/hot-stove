@@ -73,11 +73,18 @@
 
   const AWARD_CLS: Record<string, string> = { MVP: "mvp", CY: "cy", GG: "gg", SS: "ss", ROY: "roy" };
 
-  /** Second line per mode: pos · age (mock) / trad stat line (Scout) / pos (Eye Test). */
-  function subLine(p: CardPlayer): string {
-    if (game.showStats) return statLine(p) || p.pos;
-    if (game.eyeTest) return p.pos;
-    return p.age != null ? `${p.pos} · ${p.age}` : p.pos;
+  /** Second line per mode: pos · age (mock) / trad stat line (Scout) / nothing
+   * in Eye Test — the position circle already carries it. */
+  function subLine(p: CardPlayer, hero: boolean): string {
+    const base = game.showStats
+      ? statLine(p) || p.pos
+      : game.eyeTest
+        ? ""
+        : p.age != null
+          ? `${p.pos} · ${p.age}`
+          : p.pos;
+    if (!hero) return base;
+    return base ? `${base} · 🏠 hometown` : "🏠 hometown";
   }
 </script>
 
@@ -105,7 +112,7 @@
               >{#each p.awards as a}<span class="qb {AWARD_CLS[a] ?? ''}">{a}</span>{/each}{#if p.ws}<span class="emo">💍</span>{:else if p.pen}<span class="emo">🚩</span>{/if}</span
             >{/if}</span
         >
-        <span class="ppos">{subLine(p)}{hero ? " · 🏠 hometown" : ""}</span>
+        {#if subLine(p, hero)}<span class="ppos">{subLine(p, hero)}</span>{/if}
       </span>
       <span class="right">
         {#if confirmKey === `p:${p.id}` && state === "open"}
