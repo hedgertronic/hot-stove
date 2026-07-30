@@ -1,5 +1,16 @@
 /* Hot Stove design tokens — extracted from design/cardstock-v2.html.
    Flat cardstock: ink borders + color washes do all structure. NO drop shadows. */
+
+/* Bundled rounded display face: ui-rounded is Safari-only (Chrome would fall
+   back to Hiragino Maru Gothic), so every browser gets the same Nunito file. */
+@font-face {
+  font-family: "Nunito";
+  src: url("./assets/nunito.woff2") format("woff2");
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --ground: #f6f1e3;
   --card: #fffdf6;
@@ -24,7 +35,7 @@
   --war-elite: #e0a010;
   --amber: #fff4d6;
   --dash: #d5cdb6;
-  --disp: ui-rounded, "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  --disp: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
 }
 
 * {
