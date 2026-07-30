@@ -32,16 +32,20 @@ look and feel, BUILD wins on architecture.
 
 ## Status
 
-**Milestones 1–4 built and playtested, plus the round-5 polish pass** (2026-07-30):
-`app/` holds the Svelte 5 + Vite + TS app — full loop, five powerups (🎟️ Season
-Ticket, 🚚 Relocate-as-picker, ✌️ Double Play, 🔁 Trade Deadline, ⭐ Prime),
-Hometown Hero, cold-stove handling, persistence (mid-game resume), quit button,
-finale with ledger reveal / squad review / dream-team comparison / share string.
-Home screen: single-select rows for the three-rung difficulty ladder (Standard /
-Scout / Eye Test) and the bank (Classic / Moneyball $82.9M / Blank Check $248.6M).
-Cards carry age, triple-slash + K stat lines, award runner-ups (MVP2/CY2), and
-team-level 💍/🚩 pedigree; `data/players.json` indexes every player's seasons for
-Prime. Bundled Nunito keeps the rounded look identical across browsers.
+**Milestones 1–4 built and playtested, through the round-6 pass** (2026-07-30):
+`app/` holds the Svelte 5 + Vite + TS app — full auto-spinning loop (no SPIN
+button; each pick rolls the next card), five powerups (🎟️ Season Ticket, 🚚
+Relocate code-grid picker, ✌️ Double Play with refund-until-second-pick, 🔁 Trade
+Deadline + completion bonus spin, ⭐ Prime Time career browser), Hometown Hero,
+cold-stove handling, persistence, quit button, finale with ledger / squad /
+dream-team (manager included, "found N of 9") / 162-goal bar / share string.
+Two difficulties (Standard 🔥 / Scout 🔭 name-recognition mode) × three banks
+(Classic / Moneyball $82.9M / Blank Check $248.6M — both caps are top-4-contract
+figures). The club must be complete to finish: 8 players + manager (+ owner and
+stadium in Classic); the manager's net wins count inside expected wins (base 50).
+Cards carry age, stat lines, medaled award ballots (MVP2/3, CY2/3), All-Star
+selections, and team-level 💍/🚩 pedigree; `data/players.json` indexes every
+player's seasons for Prime Time. Bundled Nunito keeps the look cross-browser.
 `DECISIONS.md` records the rules SPEC left undefined — read it alongside SPEC.
 Tests: `cd app && npm test` (scoring parity fixtures generated from
 `pipeline/scoring.py` + engine, mode, and best-roster suites). Dev: `npm run dev`.

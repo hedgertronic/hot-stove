@@ -150,3 +150,64 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   split dominates so slot eligibility never breaks.
 - **Share string v2:** mode tag line, spin grid, `W–L · 💰 spend/cap`, then
   `💍…🚩… ⭐hits/8 · 🏆 points`.
+
+## Round 6 — two-rung ladder, the complete club, Prime Time (2026-07-30, session 4)
+
+- **Difficulty collapsed to two rungs.** Standard (WAR + salary + award pills) and
+  Scout (the old Eye Test renamed: names and positions only — pure name
+  recognition). The stats-line middle mode is gone; `statLine` survives in the
+  Prime Time career sheet. Settings migration maps old eyetest→scout and old
+  scout/rookie→standard, disambiguated by a settings version stamp (the name
+  "scout" collides across versions).
+- **The club must be complete.** The game no longer ends at eight players: you
+  keep spinning until the roster AND the manager (plus owner + stadium in
+  Classic) are filled. Post-roster spins get a "STILL HIRING: …" line and a PASS
+  button (pre-roster spins remain must-act). If Trade Deadline is still unspent
+  when the club completes, you get one labeled bonus spin to use it or FINISH.
+- **Manager, not skipper — and he counts in the wins.** Full rename through
+  engine/UI/save (SAVE_VERSION 4). The hired manager's (W−L)×0.1 now folds into
+  expected wins (`50 base + WAR + manager`), not a separate points row; the
+  ledger why-line itemizes it. The rail gains a full-width MGR "dugout" bar under
+  the eight seats (display only — hiring/TD-swapping stays in the FRONT OFFICE
+  rows, "rail displays, card acts").
+- **Base 50, goal 162, beat the Mariners.** REPLACEMENT_WINS 47.7 → 50.0 (rounder
+  mental math). The finale shows total/162 on a goal bar — playtest says bots
+  max out ~120, so 162 is a true perfect-season stretch — plus 🔱 for >116 wins
+  (2001 Mariners) and a PERFECT SEASON badge at ≥162.
+- **Manager joins the dream team.** Best manager = max (W−L) among spun cards;
+  shown in the dream-team list, star + 1 scout point if you hired him; "found N
+  of 9" when a manager exists (8 otherwise).
+- **Down-ballot awards + All-Stars.** MVP3/CY3 (+1) from AwardsSharePlayers third
+  place (all point-ties, same convention as 2nd), AS (+1) from Lahman AllstarFull
+  (2,648 player-seasons; only injury-shortened 2014 Wieters and 2021 Trout fall
+  below card floors). Pills are medaled: 🥇/🥈/🥉 MVP and CY; AS is a plain amber
+  pill (a star glyph would collide with dream-team ⭐).
+- **Prime ⭐ is now Prime Time, and it scouts the card, not the rail.** Arm → tap
+  any unsigned listed player → browse their whole career → sign a different year
+  at that year's real price. It consumes the spin's choice like any signing
+  (strictly stronger than a plain sign, so no longer a free action) plus the
+  powerup. Slot ambiguity auto-resolves specialist-first; the browsed card does
+  not count as scouted for the dream team.
+- **Double Play refunds.** Only consumed when the second pick actually commits;
+  disarming after pick one (armed pill reads "PICK 2 — TAP TO UNDO") or moving on
+  refunds it.
+- **Season Ticket / Relocate land instantly** — no reel at all, one pulse on the
+  half that changed (this also removed the code path behind the same-team year
+  glitch). Relocate's picker is a 5-column grid of 3-letter codes in team colors.
+- **Auto-spin.** The SPIN button is gone: a fresh game rolls immediately and each
+  completed pick rolls the next card after a 500ms beat. Cold Stove keeps its
+  explanatory free-respin button.
+- **Home = self-explaining cards.** Two difficulty cards with the description
+  inside; three bankroll cards whose two mini-pills visually explain the mode
+  (Classic: dashed OWNER/STADIUM you spin for; Moneyball: two '02 A'S pills at
+  $82.9M; Blank Check: two '05 YANKS pills at $248.6M — both caps were already
+  top-4-contract numbers, only the copy ever implied true payroll). PERSONAL BEST
+  panel is prominent and per-combo via history (legacy entries normalized).
+- **Cosmetics with reasons:** owner parentheticals stripped at display
+  (`ownerFor`), "floor" wording dropped from the bank box, the $0 meter renders
+  truly empty (the fill's border painted a 2px sliver), prorated ✱ removed
+  everywhere, WAR heat ramp kept (it already ran gray→blue→green→gold) with a new
+  muted-brick negative tier, and the spinner got vertical air.
+- **Share v3:** `HOT STOVE 🔥 STANDARD · ⚾ MONEYBALL` tag line; spin grid gains
+  🧢 (manager) alongside 💰/🏟️/🔁; record line appends 🔱 when the Mariners fall;
+  last line `💍… 🚩… ⭐hits/9 · 🏆 total/162` (+ PERFECT SEASON at goal).
