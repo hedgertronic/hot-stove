@@ -1,0 +1,116 @@
+/* Hot Stove design tokens — extracted from design/cardstock-v2.html.
+   Flat cardstock: ink borders + color washes do all structure. NO drop shadows. */
+:root {
+  --ground: #f6f1e3;
+  --card: #fffdf6;
+  --ink: #24221c;
+  --muted: #6b6759;
+  --muted-2: #5c5648;
+  --green: #2f9e44;
+  --green-wash: #d3f0d8;
+  --green-deep: #1e7c31;
+  --blue: #3b5bdb;
+  --yellow: #ffd43b;
+  --sky: #a5d8ff;
+  --pink: #ffc9c9;
+  --lilac: #e6e0f5;
+  --orange: #e8590c;
+  --orange-deep: #d04e08;
+  --gray-bg: #e8e2d2;
+  --gray-ink: #a09a88;
+  --war-low: #b5afa0;
+  --war-mid: #3b7dd1;
+  --war-high: #2f9e44;
+  --war-elite: #e0a010;
+  --amber: #fff4d6;
+  --dash: #d5cdb6;
+  --disp: ui-rounded, "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font: 15px/1.45 -apple-system, "Segoe UI", system-ui, sans-serif;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+}
+
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: calc(10px + env(safe-area-inset-top)) 14px calc(28px + env(safe-area-inset-bottom));
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.disp {
+  font-family: var(--disp);
+}
+
+/* Shared button — hover nudge on pointer devices, press dip everywhere. */
+.btn {
+  border: 2.5px solid var(--ink);
+  border-radius: 11px;
+  padding: 10px 12px;
+  font-family: var(--disp);
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+  background: var(--card);
+  color: var(--ink);
+  transition: transform 0.08s;
+}
+.btn:active {
+  transform: translateY(2px);
+}
+.btn:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+.btn.hot {
+  background: var(--orange);
+  color: var(--card);
+}
+
+/* Dashed section separator (FRONT OFFICE / PLAYERS) */
+.psep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--disp);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  padding: 4px 0 8px;
+}
+.psep::before,
+.psep::after {
+  content: "";
+  flex: 1;
+  border-top: 2px dashed var(--dash);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
