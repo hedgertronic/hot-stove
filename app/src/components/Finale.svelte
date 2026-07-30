@@ -2,7 +2,11 @@
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
   import { money, signed, warTier, yy } from "../lib/format";
 
-  let { game, onreplay }: { game: Game; onreplay: () => void } = $props();
+  let {
+    game,
+    onreplay,
+    onmodes,
+  }: { game: Game; onreplay: () => void; onmodes: () => void } = $props();
 
   const fin = $derived(game.finale!);
 
@@ -156,7 +160,15 @@
 
   const TIER_EMOJI = { low: "⚪", mid: "🔵", high: "🟢", elite: "🟡" } as const;
 
+  const MODE_TAG: Record<string, string> = {
+    rookie: " · 🐣",
+    scout: " · 🔭 SCOUT",
+    eyetest: " · 🕶️ EYE TEST",
+  };
+
   function shareText(): string {
+    const tag =
+      (game.config.moneyball ? " · ⚾ MONEYBALL" : "") + (MODE_TAG[game.config.difficulty] ?? "");
     const grid = game.spinLog
       .map((e) => {
         if (e.kind === "owner") return "💰";
@@ -166,7 +178,7 @@
         return TIER_EMOJI[warTier(e.war ?? 0)];
       })
       .join("");
-    return `HOT STOVE 🔥\n${grid}\n${fin.wins}-${fin.losses} · ${fin.parts.total.toFixed(1)} pts`;
+    return `HOT STOVE 🔥${tag}\n${grid}\n${fin.wins}-${fin.losses} · ${fin.parts.total.toFixed(1)} pts`;
   }
 
   async function share() {
@@ -219,6 +231,7 @@
   <button class="btn hot disp" onclick={share}>Share 🔥</button>
 </div>
 {#if toast}<div class="toast disp">{toast}</div>{/if}
+<button class="modesbtn disp" onclick={onmodes}>⚙ CHANGE MODE</button>
 
 <div class="squad disp">
   <div class="squad-h">YOUR SQUAD ▾</div>
@@ -335,6 +348,18 @@
     font-size: 12px;
     color: var(--green-deep);
     margin-top: 8px;
+  }
+  .modesbtn {
+    display: block;
+    margin: 10px auto 0;
+    background: none;
+    border: 0;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 6px 10px;
   }
   .squad {
     margin-top: 16px;

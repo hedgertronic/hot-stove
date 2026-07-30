@@ -1,6 +1,7 @@
 <script lang="ts">
   import BankBox from "./components/BankBox.svelte";
   import Finale from "./components/Finale.svelte";
+  import Home from "./components/Home.svelte";
   import PlayerList from "./components/PlayerList.svelte";
   import PowerupRow from "./components/PowerupRow.svelte";
   import RosterRail from "./components/RosterRail.svelte";
@@ -8,13 +9,17 @@
   import SpinBanner from "./components/SpinBanner.svelte";
   import YearPicker from "./components/YearPicker.svelte";
   import { loadColors, loadIndex, loadMeta, loadOwners } from "./lib/data";
-  import { Game } from "./lib/engine.svelte";
+  import { Game, type GameConfig } from "./lib/engine.svelte";
+  import { loadSettings, saveSettings } from "./lib/settings";
   import type { Colors, GameIndex, Meta, Owners } from "./lib/types";
 
+  let screen = $state<"home" | "game">("home");
   let game = $state<Game | null>(null);
   let colors = $state<Colors | null>(null);
+  let booted = $state(false);
   let bootError = $state("");
   let deps: { meta: Meta; index: GameIndex; owners: Owners } | null = null;
+  let settings = $state(loadSettings());
 
   let confirmKey = $state<string | null>(null);
   let yearPickerOpen = $state(false);
@@ -30,19 +35,55 @@
         ]);
         deps = { meta, index, owners };
         colors = cols;
-        game = (await Game.restore(meta, index, owners)) ?? new Game(meta, index, owners);
+        // A mid-game save resumes straight into the game (iOS tab eviction);
+        // otherwise land on the mode-select home screen.
+        const saved = await Game.restore(meta, index, owners);
+        if (saved) {
+          game = saved;
+          screen = "game";
+        }
+        booted = true;
       } catch (e) {
         bootError = String(e);
       }
     })();
   });
 
-  function newGame() {
+  function startGame(config: GameConfig) {
     if (!deps) return;
+    settings = config;
+    saveSettings(config);
     confirmKey = null;
     yearPickerOpen = false;
-    game = new Game(deps.meta, deps.index, deps.owners);
+    game = new Game(deps.meta, deps.index, deps.owners, undefined, config);
+    screen = "game";
   }
+
+  /** Replay from the finale keeps the same mode. */
+  function newGame() {
+    if (!deps || !game) return;
+    startGame(game.config);
+  }
+
+  function goHome() {
+    confirmKey = null;
+    yearPickerOpen = false;
+    game = null;
+    screen = "home";
+  }
+
+  const MODE_CHIP: Record<string, string> = {
+    rookie: "🐣 ROOKIE",
+    scout: "🔭 SCOUT",
+    eyetest: "🕶️ EYE TEST",
+  };
+
+  const modeChip = $derived.by(() => {
+    if (!game) return "";
+    return [game.config.moneyball ? "⚾ MONEYBALL" : "", MODE_CHIP[game.config.difficulty] ?? ""]
+      .filter(Boolean)
+      .join(" · ");
+  });
 
   // A committed choice, a new card, or leaving the landed phase clears any
   // half-open confirm button.
@@ -65,13 +106,18 @@
 
 {#if bootError}
   <div class="boot disp">Couldn't load the league. {bootError}</div>
-{:else if !game || !colors}
+{:else if !booted || !colors}
   <div class="boot disp">Warming up the stove…</div>
+{:else if screen === "home" || !game}
+  <Home config={settings} onplay={startGame} />
 {:else}
-  <header class="hud disp"><span class="logo">HOT<em>STOVE</em></span></header>
+  <header class="hud disp">
+    <span class="logo">HOT<em>STOVE</em></span>
+    {#if modeChip}<span class="modechip">{modeChip}</span>{/if}
+  </header>
 
   {#if game.phase === "finale" && game.finale}
-    <Finale {game} onreplay={newGame} />
+    <Finale {game} onreplay={newGame} onmodes={goHome} />
   {:else}
     <RosterRail {game} />
     <BankBox {game} />
@@ -81,7 +127,6 @@
       <PowerupRow {game} onSeasonTicket={() => (yearPickerOpen = true)} />
       {#key game.card}
         <div class="after">
-          <div class="psep">FRONT OFFICE</div>
           <SpecialRows {game} {confirmKey} setConfirm={(k) => (confirmKey = k)} />
           <div class="psep">PLAYERS</div>
           <PlayerList {game} {confirmKey} setConfirm={(k) => (confirmKey = k)} />
@@ -105,7 +150,18 @@
   .hud {
     display: flex;
     justify-content: center;
+    align-items: center;
+    gap: 8px;
     margin-bottom: 10px;
+  }
+  .modechip {
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: var(--amber);
+    padding: 0 9px;
+    font-weight: 800;
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
   }
   .logo {
     font-weight: 800;
