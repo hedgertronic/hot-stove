@@ -30,20 +30,22 @@ look and feel, BUILD wins on architecture.
   Flat cardstock, tiered WAR/salary colors, named powerup pills, FRONT OFFICE /
   PLAYERS sections, rail-as-release-picker.
 
-## What's next (M4, per BUILD.md)
+## Status
 
-**Milestones 1–3 are built and playtested** (2026-07-30): `app/` holds the Svelte 5 +
+**Milestones 1–4 are built and playtested** (2026-07-30): `app/` holds the Svelte 5 +
 Vite + TS app — full loop, all four powerups, TD swap + release picker, slot picker,
 Hometown Hero, cold-stove handling, persistence (mid-game resume), finale with ledger
 reveal / squad review / share string. iPhone-first (safe areas, 44px targets,
-confirm-to-sign two-tap, sticky rail). `DECISIONS.md` records the rules SPEC left
-undefined — read it alongside SPEC. Tests: `cd app && npm test` (scoring parity
-fixtures generated from `pipeline/scoring.py` + engine flows). Dev: `npm run dev`.
+confirm-to-sign two-tap, sticky rail). Home screen selects the mode: Rookie /
+Standard / Scout / Eye Test difficulty ladder plus Moneyball ($82.9M hard cap, no
+owners). Cards carry age + trad stat lines (feeds Scout mode and future GM
+challenges). `DECISIONS.md` records the rules SPEC left undefined — read it alongside
+SPEC. Tests: `cd app && npm test` (scoring parity fixtures generated from
+`pipeline/scoring.py` + engine and mode flows). Dev: `npm run dev`.
 
-Remaining: M4 — Rookie/Scout/Eye Test modes, Moneyball, Daily mode + emoji share grid,
-GitHub Actions deploy. Pipeline TODOs: player stat lines + age (Scout mode, GM
-challenges), hand-verify the 15 `wikipediaOnly` owner entries. (`minBudget` in
-meta.json and `colors.json` are done.)
+Remaining: Daily mode (date seed + shared spins + streak), GitHub Pages deploy
+workflow, iPad/desktop layouts. Pipeline TODO: hand-verify the 15 `wikipediaOnly`
+owner entries.
 
 ## Constraints that are decisions, not accidents
 
