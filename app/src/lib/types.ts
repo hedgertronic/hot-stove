@@ -19,6 +19,9 @@ export interface CardPlayer {
   posG: { c: number; if: number; of: number; dh: number };
   debut: string;
   teams: string[];
+  age?: number;
+  bat?: { avg: number; hr: number; sb: number };
+  pit?: { w: number; l: number; sv: number; era: number };
 }
 
 export interface Contract {

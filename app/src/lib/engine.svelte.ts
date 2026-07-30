@@ -22,6 +22,18 @@ export type PowerupKey = "seasonTicket" | "relocate" | "doublePlay" | "tradeDead
 export type PowerupState = "ready" | "armed" | "spent";
 export type PlayerRowState = "open" | "dead";
 
+export type Difficulty = "rookie" | "standard" | "scout" | "eyetest";
+
+export interface GameConfig {
+  difficulty: Difficulty;
+  moneyball: boolean;
+}
+
+export const DEFAULT_CONFIG: GameConfig = { difficulty: "standard", moneyball: false };
+
+/** 2002 A's top-4 contracts, normalized (Dye/Justice/Durham/Tejada). */
+export const MONEYBALL_BUDGET_M = 82.9;
+
 export const SLOT_TYPES: SlotType[] = ["C", "IF", "IF", "OF", "FLEX", "SP", "SP", "RP"];
 
 export interface Signed {
@@ -83,7 +95,7 @@ export interface FinaleResult {
 
 const SAVE_KEY = "hotstove.current";
 const HISTORY_KEY = "hotstove.history";
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2;
 
 export class Game {
   meta: Meta;
@@ -91,6 +103,7 @@ export class Game {
   owners: Owners;
   seed: number;
   rng: Rng;
+  config: GameConfig;
 
   phase = $state<Phase>("preSpin");
   card = $state<Card | null>(null);
@@ -117,12 +130,41 @@ export class Game {
 
   private pendingCard: Promise<Card> | null = null;
 
-  constructor(meta: Meta, index: GameIndex, owners: Owners, seed?: number) {
+  constructor(
+    meta: Meta,
+    index: GameIndex,
+    owners: Owners,
+    seed?: number,
+    config: GameConfig = DEFAULT_CONFIG,
+  ) {
     this.meta = meta;
     this.index = index;
     this.owners = owners;
     this.seed = seed ?? randomSeed();
     this.rng = new Rng(this.seed);
+    this.config = { ...config };
+  }
+
+  // ---------- mode visibility (BUILD.md difficulty table) ----------
+
+  get showWar(): boolean {
+    return this.config.difficulty === "rookie" || this.config.difficulty === "standard";
+  }
+
+  get showCost(): boolean {
+    return this.showWar; // WAR and cost hide together (Scout, Eye Test)
+  }
+
+  get showAwards(): boolean {
+    return this.config.difficulty === "rookie";
+  }
+
+  get showStats(): boolean {
+    return this.config.difficulty === "scout";
+  }
+
+  get eyeTest(): boolean {
+    return this.config.difficulty === "eyetest";
   }
 
   // ---------- derived ----------
@@ -140,6 +182,7 @@ export class Game {
   }
 
   get effectiveBudget(): number {
+    if (this.config.moneyball) return MONEYBALL_BUDGET_M;
     return (this.owner?.budget ?? this.meta.minBudget) * (this.stadium?.mult ?? 1);
   }
 
@@ -213,7 +256,10 @@ export class Game {
   /** Can any choice still be committed on this card? (DECISIONS.md #3) */
   anyActionable(): boolean {
     if (!this.card) return false;
-    if (!this.owner || !this.stadium || (!this.skipper && this.skipperAvailable)) return true;
+    const specialsOpen = this.config.moneyball
+      ? !this.skipper && this.skipperAvailable
+      : !this.owner || !this.stadium || (!this.skipper && this.skipperAvailable);
+    if (specialsOpen) return true;
     if (!this.rosterFull && this.card.players.some((p) => this.playerState(p) === "open"))
       return true;
     if (this.powerups.tradeDeadline !== "spent") {
@@ -425,6 +471,7 @@ export class Game {
   }
 
   hireOwner(): void {
+    if (this.config.moneyball) return;
     if (this.phase !== "landed" || this.choicesLeft === 0 || this.owner || !this.card) return;
     const c = this.card;
     this.owner = {
@@ -438,6 +485,7 @@ export class Game {
   }
 
   buyStadium(): void {
+    if (this.config.moneyball) return;
     if (this.phase !== "landed" || this.choicesLeft === 0 || this.stadium || !this.card) return;
     const c = this.card;
     this.stadium = { park: c.park, mult: c.stadiumMult, franchise: c.franchise, year: c.year };
@@ -558,6 +606,8 @@ export class Game {
         total: this.finale.parts.total,
         record: `${this.finale.wins}-${this.finale.losses}`,
         spins: this.finale.spinCount,
+        difficulty: this.config.difficulty,
+        moneyball: this.config.moneyball,
       });
       localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
     } catch {
@@ -574,6 +624,7 @@ export class Game {
         SAVE_KEY,
         JSON.stringify({
           v: SAVE_VERSION,
+          config: this.config,
           seed: this.seed,
           rngState: this.rng.state,
           spinCount: this.spinCount,
@@ -606,7 +657,7 @@ export class Game {
     try {
       const s = JSON.parse(raw);
       if (s.v !== SAVE_VERSION) return null;
-      const game = new Game(meta, index, owners, s.seed);
+      const game = new Game(meta, index, owners, s.seed, s.config ?? DEFAULT_CONFIG);
       game.rng.state = s.rngState;
       game.spinCount = s.spinCount;
       game.slots = s.slots;

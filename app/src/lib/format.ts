@@ -35,3 +35,24 @@ export function signed(n: number, digits = 1): string {
   const v = n.toFixed(digits);
   return n >= 0 ? `+${v}` : `−${v.replace("-", "")}`;
 }
+
+/** Batting average in baseball notation: 0.292 → ".292". */
+function avg3(a: number): string {
+  return a.toFixed(3).replace(/^0/, "");
+}
+
+/** Scout-mode trad stat line. Pitchers read W–L/ERA (plus saves for relievers);
+ * everyone else reads AVG/HR/SB. Two-way seasons show the pitching line. */
+export function statLine(p: {
+  pos: string;
+  bat?: { avg: number; hr: number; sb: number };
+  pit?: { w: number; l: number; sv: number; era: number };
+}): string {
+  const pitcher = p.pos.startsWith("SP") || p.pos === "RP";
+  if (pitcher && p.pit) {
+    const base = `${p.pit.w}–${p.pit.l} · ${p.pit.era.toFixed(2)} ERA`;
+    return p.pit.sv > 0 ? `${base} · ${p.pit.sv} SV` : base;
+  }
+  if (p.bat) return `${avg3(p.bat.avg)} · ${p.bat.hr} HR · ${p.bat.sb} SB`;
+  return "";
+}
