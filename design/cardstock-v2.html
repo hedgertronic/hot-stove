@@ -1,0 +1,551 @@
+<title>Hot Stove — Cardstock v2</title>
+<style>
+  :root {
+    --paper: #f4f2ee; --ink: #211f1c; --muted: #6f6a62; --line: #dcd8d0;
+    --accent: #d94f1e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #191817; --ink: #ece9e4; --muted: #97918a; --line: #34312d; }
+  }
+  :root[data-theme="dark"] { --paper: #191817; --ink: #ece9e4; --muted: #97918a; --line: #34312d; }
+  :root[data-theme="light"] { --paper: #f4f2ee; --ink: #211f1c; --muted: #6f6a62; --line: #dcd8d0; }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 44px 20px 90px; }
+  .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin: 0 0 10px; }
+  h1 { font-size: clamp(26px, 4vw, 36px); margin: 0 0 12px; text-wrap: balance; }
+  .lede { color: var(--muted); max-width: 68ch; margin: 0 0 34px; }
+  .screens { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 32px; align-items: start; }
+  .screen h2 { font-size: 17px; margin: 0 0 12px; }
+  .notes { margin: 16px 0 0; padding: 0 0 0 18px; color: var(--muted); font-size: 14px; }
+  .notes li { margin-bottom: 7px; }
+  .notes b { color: var(--ink); }
+
+  /* ---- phone frame + cardstock world (flat: ink borders, no drop shadows) ---- */
+  .phone {
+    max-width: 392px; margin: 0 auto; background: #f6f1e3; color: #24221c;
+    border: 3px solid #24221c; border-radius: 26px;
+    padding: 16px 13px 18px; font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+  .disp { font-family: ui-rounded, "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif; }
+
+  .hud { display: flex; justify-content: center; margin-bottom: 10px; }
+  .hud .logo { font-weight: 800; font-size: 15px; }
+  .hud .logo em { font-style: normal; color: #e8590c; }
+
+  /* roster strip — two rows of four, year under name */
+  .rail { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+  .cell { border: 2px solid #24221c; border-radius: 9px; background: #fffdf6; text-align: center;
+    padding: 5px 2px 6px; font-size: 10px; line-height: 1.25; min-height: 50px; }
+  .cell b { display: block; font-size: 9px; letter-spacing: .07em; color: #6b6759; }
+  .cell span { display: block; font-weight: 800; font-size: 11px; }
+  .cell i { display: block; font-style: normal; font-size: 9px; color: #6b6759; font-weight: 700; }
+  .cell.filled { background: #d3f0d8; }
+  .cell.empty { border-style: dashed; background: transparent; color: #a09a88; }
+  .cell.pickable { background: #fff4d6; border-style: dashed; cursor: pointer;
+    animation: nudge 1s ease-in-out infinite; }
+  @keyframes nudge { 50% { transform: translateY(-2px); } }
+  .railhint { text-align: center; font-size: 10.5px; font-weight: 800; color: #e8590c;
+    margin: -2px 0 8px; display: none; }
+  .railhint.on { display: block; }
+
+  /* hired skipper chip */
+  .mgrline { text-align: center; margin-bottom: 8px; }
+  .mgrchip { display: inline-block; background: #ffc9c9; border: 2px solid #24221c;
+    border-radius: 999px; padding: 2px 12px; font-weight: 800; font-size: 11.5px; }
+
+  /* bankroll with stadium math */
+  .bankbox { border: 2.5px solid #24221c; border-radius: 12px; background: #fffdf6; padding: 8px 10px 10px; margin-bottom: 12px; }
+  .bankmath { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 700; flex-wrap: wrap; }
+  .bankmath .chip { border: 2px solid #24221c; border-radius: 999px; padding: 1px 8px; background: #fffdf6; }
+  .bankmath .chip.stad { background: #d3f0d8; color: #1e7c31; }
+  .bankmath .chip.eff { background: #ffd43b; }
+  .bankmath .chip.ghost { border-style: dashed; color: #a09a88; background: transparent; }
+  .bankmath .op { color: #6b6759; }
+  .meter { margin-top: 8px; border: 2.5px solid #24221c; border-radius: 999px; height: 17px; overflow: hidden; background: #fffdf6; }
+  .meter .fill { width: 74%; height: 100%; background: #2f9e44; border-right: 2.5px solid #24221c; }
+  .meter .fill.floorover { width: 100%; background: repeating-linear-gradient(-45deg, #e8590c 0 8px, #d04e08 8px 16px); border-right: 0; }
+  .meter-lbl { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; color: #6b6759; margin-top: 4px; }
+  .meter-lbl .warn { color: #e8590c; }
+
+  /* spin banner with contextual powerups; :has() spacer keeps text centered */
+  .banner { text-align: center; margin-bottom: 10px; }
+  .banner .bline { display: flex; align-items: center; justify-content: center; gap: 7px; }
+  .pprow { display: flex; justify-content: center; gap: 7px; margin: 6px 0 10px; flex-wrap: wrap; }
+  .pp { display: inline-flex; align-items: center; gap: 4px; border: 2px solid #24221c;
+    border-radius: 999px; background: #fffdf6; padding: 3px 11px; font-size: 10.5px;
+    font-weight: 800; letter-spacing: .04em; cursor: pointer; transition: transform .08s; }
+  .pp:hover { transform: translateY(1.5px); }
+  .pp.spent { opacity: .32; cursor: default; }
+  .pp.spent:hover { transform: none; }
+  .pp.armed { background: #e8590c; color: #fffdf6; }
+
+  /* players separator */
+  .psep { display: flex; align-items: center; gap: 10px; font-size: 10px; font-weight: 800;
+    letter-spacing: .14em; color: #6b6759; padding: 2px 0 8px; }
+  .psep::before, .psep::after { content: ""; flex: 1; border-top: 2px dashed #d5cdb6; }
+
+  /* Trade Deadline armed: grayed rows (players AND specials) unlock for a swap */
+  .armed .prow.dead { background: #fff4d6; border: 2.5px dashed #24221c; opacity: 1;
+    filter: none; cursor: pointer; }
+  .armed .prow.dead:hover { transform: translate(-1px,-1px); }
+  .armed .prow.dead .war { background: #2f9e44; }
+  .armed .prow.dead .war.low { background: #b5afa0; }
+  .armed .prow.dead .war.mid { background: #3b7dd1; }
+  .armed .prow.dead .war.elite { background: #e0a010; color: #24221c; }
+  .armed .srow.taken { background: #fff4d6; border-style: dashed; color: #24221c;
+    opacity: 1; filter: none; cursor: pointer; }
+  .armed .srow.taken .what, .armed .srow.taken .val { color: #5c5648; }
+  .armed .srow.taken:hover { transform: translate(-1px,-1px); }
+  .banner .yr { display: inline-block; background: #3b5bdb; color: #fffdf6; border: 2px solid #24221c;
+    border-radius: 999px; padding: 1px 12px; font-weight: 800; font-size: 12px; }
+  .banner .tname { font-size: 23px; font-weight: 800; line-height: 1.15; }
+  .banner .tmeta { font-size: 11.5px; color: #6b6759; margin-top: 1px; }
+  .ctx { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #24221c; background: #fffdf6;
+    display: grid; place-content: center; font-size: 13px; cursor: pointer; padding: 0;
+    transition: transform .08s; flex: none; }
+  .ctx:hover { transform: translateY(1.5px); }
+  .ctx:focus-visible { outline: 3px solid #3b5bdb; outline-offset: 2px; }
+  .ctx.spent { opacity: .32; transform: rotate(-10deg); cursor: default; }
+
+  /* owner / stadium / skipper rows */
+  .special { display: grid; gap: 7px; margin-bottom: 10px; }
+  .srow { display: flex; align-items: center; gap: 9px; border: 2.5px solid #24221c; border-radius: 11px;
+    background: #ffd43b; padding: 7px 10px; cursor: pointer; transition: transform .08s; }
+  .srow:hover { transform: translate(-1px,-1px); }
+  .srow .ic { font-size: 19px; }
+  .srow .who { font-weight: 800; font-size: 13.5px; line-height: 1.2; }
+  .srow .what { font-size: 11px; color: #5c5648; font-weight: 600; }
+  .srow .val { margin-left: auto; font-weight: 800; font-size: 14px; white-space: nowrap; }
+  .srow.stad { background: #a5d8ff; }
+  .srow.skip { background: #ffc9c9; }
+  .srow.taken { background: #e8e2d2; color: #a09a88; cursor: default; filter: grayscale(1); }
+  .srow.taken:hover { transform: none; }
+  .srow.taken .what, .srow.taken .val { color: #a09a88; }
+
+  /* player list — WAR left (tiered color), salary right (tiered color) */
+  .lhead { display: flex; align-items: center; justify-content: space-between; font-size: 10px;
+    font-weight: 800; letter-spacing: .1em; color: #6b6759; padding: 0 10px 4px; }
+  .lhead .dd { display: flex; align-items: center; gap: 6px; }
+  .plist { display: grid; gap: 6px; }
+  .prow { display: flex; align-items: center; gap: 9px; background: #fffdf6; border: 2.5px solid #24221c;
+    border-radius: 11px; padding: 6px 10px; cursor: pointer; transition: transform .08s; }
+  .prow:hover { transform: translate(-1px,-1px); }
+  .prow .war { width: 40px; height: 40px; border-radius: 50%; background: #2f9e44;
+    color: #fffdf6; border: 2px solid #24221c; display: grid; place-content: center; text-align: center;
+    font-weight: 800; font-size: 13px; line-height: 1; flex: none; }
+  .prow .war i { font-style: normal; display: block; font-size: 7.5px; font-weight: 700; }
+  .prow .war.low { background: #b5afa0; }
+  .prow .war.mid { background: #3b7dd1; }
+  .prow .war.elite { background: #e0a010; color: #24221c; }
+  .prow .pname { font-weight: 800; font-size: 14px; line-height: 1.15; }
+  .prow .ppos { font-size: 10.5px; color: #6b6759; }
+  .prow .right { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+  .prow .cost { font-weight: 800; font-size: 14px; white-space: nowrap; }
+  .prow .cost.cheap { color: #2f9e44; }
+  .prow .cost.spendy { color: #e8590c; }
+  .prow.dead { background: #e8e2d2; border-color: #a09a88; opacity: .55;
+    cursor: default; filter: grayscale(1); }
+  .prow.dead:hover { transform: none; }
+  .prow.dead .war { background: #a09a88; }
+  .more { text-align: center; font-size: 11.5px; font-weight: 700; color: #6b6759; padding: 5px 0 0; cursor: pointer; }
+
+  /* spin animation on the banner itself (per-tick pulse driven from JS) */
+  .banner.landed { animation: thunk .5s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes thunk { 0% { transform: scale(1.08) rotate(-1deg); } 100% { transform: none; } }
+  .spinbtn { width: 100%; margin: 2px 0 12px; }
+  .after { display: grid; gap: 7px; }
+  .after > * { opacity: 0; transform: translateY(10px); transition: opacity .3s, transform .3s cubic-bezier(.34,1.56,.64,1); }
+  .after.on > * { opacity: 1; transform: none; }
+  .after.on > :nth-child(2) { transition-delay: .1s; }
+  .after.on > :nth-child(3) { transition-delay: .2s; }
+  .after.on > :nth-child(4) { transition-delay: .3s; }
+  .after.on > :nth-child(5) { transition-delay: .4s; }
+  .after .hint { text-align: center; font-size: 11px; font-weight: 700; color: #a09a88; }
+
+  /* ---- finale ---- */
+  .fin-head { text-align: center; margin: 4px 0 12px; }
+  .fin-head .rec { font-size: 46px; font-weight: 800; line-height: 1; }
+  .fin-head .sub { font-size: 12px; font-weight: 700; color: #6b6759; margin-top: 3px; }
+  .ledger { display: grid; gap: 7px; min-height: 290px; }
+  .lrow { display: flex; align-items: center; gap: 9px; border: 2.5px solid #24221c; border-radius: 11px;
+    background: #fffdf6; padding: 8px 12px; opacity: 0; transform: translateY(10px) scale(.97); }
+  .lrow.show { opacity: 1; transform: none; transition: opacity .3s, transform .3s cubic-bezier(.34,1.56,.64,1); }
+  .lrow .lbl { font-weight: 800; font-size: 13.5px; }
+  .lrow .why { font-size: 10.5px; color: #6b6759; }
+  .lrow .amt { margin-left: auto; font-weight: 800; font-size: 16px; white-space: nowrap; }
+  .lrow.base { background: #d3f0d8; }
+  .lrow .amt.plus { color: #2f9e44; }
+  .lrow .amt.minus { color: #e8590c; }
+  .lrow.total { background: #ffd43b; border-width: 3px; }
+  .lrow.total .amt { font-size: 21px; }
+  .fin-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 13px; }
+  .btn { border: 2.5px solid #24221c; border-radius: 11px; padding: 9px 12px; font: inherit;
+    font-weight: 800; font-size: 14px; cursor: pointer; background: #fffdf6; color: #24221c;
+    transition: transform .08s;
+    font-family: ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", sans-serif; }
+  .btn:hover { transform: translateY(2px); }
+  .btn:focus-visible { outline: 3px solid #3b5bdb; outline-offset: 2px; }
+  .btn.share { background: #e8590c; color: #fffdf6; }
+
+  /* squad review — award pills colored by type; emoji never stretch the row */
+  .squad { margin-top: 16px; border-top: 2.5px dashed #d5cdb6; padding-top: 12px; }
+  .squad-h { text-align: center; font-size: 11px; font-weight: 800; letter-spacing: .12em; color: #6b6759; margin-bottom: 8px; }
+  .qrow { display: flex; align-items: center; gap: 8px; background: #fffdf6; border: 2px solid #24221c;
+    border-radius: 10px; padding: 5px 9px; margin-bottom: 6px; }
+  .qrow .qpos { width: 36px; font-size: 9.5px; font-weight: 800; letter-spacing: .05em; color: #6b6759; flex: none; }
+  .qrow .qname { font-weight: 800; font-size: 13px; }
+  .qrow .qname i { font-style: normal; color: #6b6759; font-size: 11px; font-weight: 700; }
+  .qrow .qbadges { display: flex; align-items: center; gap: 4px; margin-left: 4px; }
+  .qrow .qb { font-size: 9px; font-weight: 800; border: 1.5px solid #24221c;
+    border-radius: 999px; padding: 0 6px; line-height: 1.5; }
+  .qb.mvp { background: #ffd43b; }
+  .qb.cy  { background: #a5d8ff; }
+  .qb.gg  { background: #d3f0d8; }
+  .qb.ss  { background: #e6e0f5; }
+  .qrow .emo { font-size: 12px; line-height: 1; }
+  .qrow .qwar { margin-left: auto; font-weight: 800; font-size: 13px; color: #2f9e44; }
+  .qrow .qwar.elite { color: #e0a010; }
+  .qrow .qwar.low { color: #a09a88; }
+  .qrow.skiprow { background: #ffc9c9; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+    .lrow, .after > * { opacity: 1; transform: none; }
+  }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Hot Stove · Cardstock v2</p>
+  <h1>Spin, sign, and settle up</h1>
+  <p class="lede">Flat cardstock (borders, no shadows), tiered WAR and salary colors, and the spin
+  landing in true team colors. Sign-screen mock state: owner, stadium, and skipper all taken,
+  Double Dip spent. Spin-screen mock state: earlier game, nothing hired yet.</p>
+
+  <div class="screens">
+    <!-- ============ THE SPIN ============ -->
+    <div class="screen">
+      <h2>The spin</h2>
+      <div class="phone">
+        <div class="hud disp"><span class="logo">HOT<em>STOVE</em></span></div>
+        <div class="rail disp">
+          <div class="cell filled"><b>C</b><span>Posada</span><i>’03</i></div>
+          <div class="cell filled"><b>IF</b><span>Glaus</span><i>’00</i></div>
+          <div class="cell filled"><b>IF</b><span>Tejada</span><i>’02</i></div>
+          <div class="cell filled"><b>OF</b><span>Erstad</span><i>’00</i></div>
+          <div class="cell filled"><b>FLEX</b><span>Thome</span><i>’02</i></div>
+          <div class="cell empty"><b>SP</b><span>—</span></div>
+          <div class="cell empty"><b>SP</b><span>—</span></div>
+          <div class="cell empty"><b>RP</b><span>—</span></div>
+        </div>
+        <div class="bankbox">
+          <div class="bankmath disp">
+            <span class="chip ghost">💰</span>
+            <span class="op">×</span>
+            <span class="chip ghost">🏟️</span>
+            <span class="op">=</span>
+            <span class="chip ghost">$45.1M floor</span>
+          </div>
+          <div class="meter"><div class="fill floorover"></div></div>
+          <div class="meter-lbl"><span>SPENT $112.4M</span><span class="warn">⚠ $67.3M OVER FLOOR</span></div>
+        </div>
+        <div class="banner disp" id="spinBanner">
+          <div class="bline"><span class="yr" id="sYr">····</span></div>
+          <div class="bline"><div class="tname" id="sTm">HOT STOVE</div></div>
+        </div>
+        <button class="btn spinbtn disp" id="spinbtn">SPIN 🔥</button>
+        <div class="after disp" id="after">
+          <div class="psep">FRONT OFFICE</div>
+          <div class="srow"><span class="ic">💰</span><div><div class="who">Tom Ricketts</div><div class="what">Owner</div></div><div class="val">$136.3M</div></div>
+          <div class="srow stad"><span class="ic">🏟️</span><div><div class="who">Wrigley Field</div><div class="what">Stadium</div></div><div class="val">×1.11</div></div>
+          <div class="srow skip"><span class="ic">🧢</span><div><div class="who">Joe Maddon</div><div class="what">Skipper</div></div><div class="val">+4.5</div></div>
+          <div class="hint">…player list slides up beneath ▾</div>
+        </div>
+      </div>
+      <ul class="notes">
+        <li><b>The banner itself is the reel</b>, pulsing once per tick as it decelerates, landing
+        with a <i>thunk</i> in the team's own color — Cubs blue, like every other stop on the wheel.</li>
+        <li><b>No-owner bankroll:</b> bare 💰 and 🏟️ ghost chips, meter running against the
+        league-minimum floor, already deep in the red. Hire an owner or eat the tax.</li>
+        <li><b>Owner, stadium, and skipper pop in</b> staggered after landing; the player list
+        rises beneath. Press SPIN to replay.</li>
+      </ul>
+    </div>
+
+    <!-- ============ SIGN SCREEN ============ -->
+    <div class="screen">
+      <h2>The sign screen</h2>
+      <div class="phone" id="signPhone">
+        <div class="hud disp"><span class="logo">HOT<em>STOVE</em></span></div>
+        <div class="rail disp">
+          <div class="cell filled"><b>C</b><span>Posada</span><i>’03</i></div>
+          <div class="cell filled rel"><b>IF</b><span>Glaus</span><i>’00</i></div>
+          <div class="cell filled rel"><b>IF</b><span>Tejada</span><i>’02</i></div>
+          <div class="cell filled"><b>OF</b><span>Erstad</span><i>’00</i></div>
+          <div class="cell filled rel"><b>FLEX</b><span>Thome</span><i>’02</i></div>
+          <div class="cell empty"><b>SP</b><span>—</span></div>
+          <div class="cell empty"><b>SP</b><span>—</span></div>
+          <div class="cell empty"><b>RP</b><span>—</span></div>
+        </div>
+        <div class="railhint disp" id="railHint">🔁 TAP A PLAYER TO RELEASE FOR BRYANT</div>
+        <div class="mgrline disp"><span class="mgrchip">🧢 Maddon ’16</span></div>
+        <div class="bankbox">
+          <div class="bankmath disp">
+            <span class="chip">💰 $136.3M</span>
+            <span class="op">×</span>
+            <span class="chip stad">🏟️ 1.11</span>
+            <span class="op">=</span>
+            <span class="chip eff">$151.3M</span>
+          </div>
+          <div class="meter"><div class="fill"></div></div>
+          <div class="meter-lbl"><span>SPENT $112.4M</span><span>$38.9M LEFT</span></div>
+        </div>
+        <div class="banner disp">
+          <div class="bline"><span class="yr">2016</span></div>
+          <div class="bline"><div class="tname" style="color:#2b55b0">Chicago Cubs</div></div>
+          <div class="tmeta">103–58</div>
+        </div>
+        <div class="pprow disp">
+          <span class="pp">🎟️ SEASON TICKET</span>
+          <span class="pp">🚚 RELOCATE</span>
+          <span class="pp spent">✌️ DOUBLE PLAY</span>
+          <span class="pp" id="tdPill">🔁 TRADE DEADLINE</span>
+        </div>
+        <div class="psep disp">FRONT OFFICE</div>
+        <div class="special disp">
+          <div class="srow taken"><span class="ic">💰</span><div><div class="who">Tom Ricketts</div><div class="what">Owner</div></div><div class="val">$136.3M</div></div>
+          <div class="srow stad taken"><span class="ic">🏟️</span><div><div class="who">Wrigley Field</div><div class="what">Stadium</div></div><div class="val">×1.11</div></div>
+          <div class="srow skip taken"><span class="ic">🧢</span><div><div class="who">Joe Maddon</div><div class="what">Skipper</div></div><div class="val">+4.5</div></div>
+        </div>
+        <div class="psep disp">PLAYERS</div>
+        <div class="plist disp">
+          <div class="prow"><div class="war">5.4<i>WAR</i></div><div><div class="pname">Jon Lester</div><div class="ppos">SP · 32</div></div><div class="right"><span class="cost spendy">$45.7M</span></div></div>
+          <div class="prow dead"><div class="war low">1.6<i>WAR</i></div><div><div class="pname">Jason Heyward</div><div class="ppos">RF · 26</div></div><div class="right"><span class="cost spendy">$35.8M</span></div></div>
+          <div class="prow"><div class="war mid">2.4<i>WAR</i></div><div><div class="pname">John Lackey</div><div class="ppos">SP · 37</div></div><div class="right"><span class="cost spendy">$29.3M</span></div></div>
+          <div class="prow dead"><div class="war">1.2<i>WAR</i></div><div><div class="pname">Miguel Montero</div><div class="ppos">C · 32</div></div><div class="right"><span class="cost spendy">$25.6M</span></div></div>
+          <div class="prow"><div class="war">4.5<i>WAR</i></div><div><div class="pname">Jake Arrieta</div><div class="ppos">SP · 30</div></div><div class="right"><span class="cost">$19.6M</span></div></div>
+          <div class="prow dead"><div class="war">5.8<i>WAR</i></div><div><div class="pname">Anthony Rizzo</div><div class="ppos">1B · 26</div></div><div class="right"><span class="cost">$9.7M</span></div></div>
+          <div class="prow"><div class="war low">1.4<i>WAR</i></div><div><div class="pname">Héctor Rondón</div><div class="ppos">RP · 28</div></div><div class="right"><span class="cost cheap">$7.7M</span></div></div>
+          <div class="prow dead" id="bryRow"><div class="war elite">7.2<i>WAR</i></div><div><div class="pname">Kris Bryant</div><div class="ppos">3B · 24</div></div><div class="right"><span class="cost cheap">$1.2M</span></div></div>
+          <div class="prow"><div class="war">5.2<i>WAR</i></div><div><div class="pname">Kyle Hendricks</div><div class="ppos">SP · 26</div></div><div class="right"><span class="cost cheap">$1.0M</span></div></div>
+          <div class="more">show 14 more ▾</div>
+        </div>
+      </div>
+      <ul class="notes">
+        <li><b>Flat cardstock:</b> no drop shadows anywhere — ink borders and color washes do all
+        the structure; hover is a nudge, press is a dip.</li>
+        <li><b>Tiered WAR chips:</b> gray &lt;2 · blue 2–4 · green 4–6 · gold 6+. Salary mirrors it:
+        green under $8M, ink mid, orange over $25M. Bryant reads instantly: gold chip, green price.</li>
+        <li><b>All four powerups in one pill row</b> — 🎟️ SEASON TICKET · 🚚 RELOCATE ·
+        ✌️ DOUBLE PLAY (shown spent) · 🔁 TRADE DEADLINE. Double Play and Trade Deadline apply to
+        specials too: two choices from one spin, or swap out anything you've already taken —
+        players, owner, stadium, or skipper.</li>
+        <li><b>Try the full trade: click 🔁 TRADE DEADLINE, then Bryant.</b> Every roster player
+        he could replace — both IF cells <i>and</i> Thome's FLEX — lights up amber in the rail;
+        tap one to release them and the swap completes. When only one cell is eligible (an
+        incoming RP, say), the picker is skipped. Specials swap 1-for-1, no picker needed.</li>
+        <li><b>Plain "PLAYERS" separator</b> replaces the WAR/SALARY column headers — the tier
+        colors and ▾ ordering already say what the columns are.</li>
+        <li><b>Hired skipper lives as a chip under the roster</b> — 🧢 Maddon ’16, name and year
+        only. Header is just the wordmark — no spin counter.</li>
+      </ul>
+    </div>
+
+    <!-- ============ FINALE ============ -->
+    <div class="screen">
+      <h2>The finale</h2>
+      <div class="phone">
+        <div class="fin-head disp">
+          <div class="rec"><span id="w">0</span>–<span id="l">0</span></div>
+          <div class="sub">YOUR 2026 HOT STOVE SQUAD</div>
+        </div>
+        <div class="ledger" id="ledger">
+          <div class="lrow base"><div><div class="lbl">Expected wins</div><div class="why">47.7 base + 46.7 team WAR</div></div><div class="amt">94.4</div></div>
+          <div class="lrow"><div><div class="lbl">Front-office bonus</div><div class="why">$139.8M of $151.3M cap used (92%)</div></div><div class="amt plus">+8.5</div></div>
+          <div class="lrow"><div><div class="lbl">Hardware</div><div class="why">1 MVP · 1 Cy Young</div></div><div class="amt plus">+6</div></div>
+          <div class="lrow"><div><div class="lbl">Championship pedigree</div><div class="why">3 rings 💍 · 1 pennant 🚩</div></div><div class="amt plus">+7</div></div>
+          <div class="lrow"><div><div class="lbl">Skipper</div><div class="why">Joe Maddon, 103–58</div></div><div class="amt plus">+4.5</div></div>
+          <div class="lrow"><div><div class="lbl">Luxury tax</div><div class="why">stayed under the cap</div></div><div class="amt minus">−0</div></div>
+          <div class="lrow total"><div><div class="lbl">Final score</div><div class="why">top 4% of GMs today</div></div><div class="amt" id="total">0</div></div>
+        </div>
+        <div class="fin-actions">
+          <button class="btn" id="replay">Replay ↻</button>
+          <button class="btn share">Share 🔥</button>
+        </div>
+        <div class="squad disp">
+          <div class="squad-h">YOUR SQUAD ▾</div>
+          <div class="qrow"><span class="qpos">C</span><span class="qname">Jorge Posada <i>’03</i></span><span class="qbadges"><span class="qb ss">SS</span><span class="emo">🚩</span></span><span class="qwar">4.4</span></div>
+          <div class="qrow"><span class="qpos">IF</span><span class="qname">Kris Bryant <i>’16</i></span><span class="qbadges"><span class="qb mvp">MVP</span><span class="emo">💍</span></span><span class="qwar elite">7.2</span></div>
+          <div class="qrow"><span class="qpos">IF</span><span class="qname">Miguel Tejada <i>’02</i></span><span class="qbadges"><span class="qb mvp">MVP</span></span><span class="qwar">5.7</span></div>
+          <div class="qrow"><span class="qpos">OF</span><span class="qname">Darin Erstad <i>’00</i></span><span class="qbadges"><span class="qb gg">GG</span></span><span class="qwar elite">8.3</span></div>
+          <div class="qrow"><span class="qpos">FLEX</span><span class="qname">Jim Thome <i>’02</i></span><span class="qbadges"></span><span class="qwar elite">7.4</span></div>
+          <div class="qrow"><span class="qpos">SP</span><span class="qname">Barry Zito <i>’02</i></span><span class="qbadges"><span class="qb cy">CY</span></span><span class="qwar elite">7.1</span></div>
+          <div class="qrow"><span class="qpos">SP</span><span class="qname">Kyle Hendricks <i>’16</i></span><span class="qbadges"><span class="emo">💍</span></span><span class="qwar">5.2</span></div>
+          <div class="qrow"><span class="qpos">RP</span><span class="qname">Héctor Rondón <i>’16</i></span><span class="qbadges"><span class="emo">💍</span></span><span class="qwar low">1.4</span></div>
+          <div class="qrow skiprow"><span class="qpos">MGR</span><span class="qname">Joe Maddon <i>’16</i></span><span class="qbadges"><span class="emo">💍</span></span><span class="qwar">+4.5</span></div>
+        </div>
+      </div>
+      <ul class="notes">
+        <li><b>Award pills colored by type:</b> MVP gold, Cy Young blue, Gold Glove green, Silver
+        Slugger lilac — the squad reads like a trophy case. 💍/🚩 emoji sit at fixed size and no
+        longer stretch their row.</li>
+        <li><b>Ledger whys are count-based</b> ("3 rings 💍 · 1 pennant 🚩", "1 MVP · 1 Cy Young") —
+        derivable from the drafted team, no narrative context needed.</li>
+        <li><b>Front-office bonus has teeth now:</b> −10 at empty payroll, 0 at half the cap, +10
+        right at it (0 if over — that's the tax's job). Sitting on a rich owner's money costs
+        real points.</li>
+        <li><b>Squad WAR uses the same tier colors</b> as the draft — four gold seasons on this team.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---- finale ledger ---- */
+  const rows = [...document.querySelectorAll(".lrow")];
+  const W = 97, L = 65, TOTAL = 120.4;
+  const w = document.getElementById("w"), l = document.getElementById("l"),
+        total = document.getElementById("total");
+
+  function count(el, n, ms, dec) {
+    const t0 = performance.now();
+    const tick = now => {
+      const p = Math.min((now - t0) / ms, 1);
+      const v = n * (1 - Math.pow(1 - p, 3));
+      el.textContent = dec ? v.toFixed(1) : Math.round(v);
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function play() {
+    if (reduced) {
+      rows.forEach(r => r.classList.add("show"));
+      w.textContent = W; l.textContent = L; total.textContent = TOTAL.toFixed(1);
+      return;
+    }
+    rows.forEach(r => r.classList.remove("show"));
+    w.textContent = "0"; l.textContent = "0"; total.textContent = "0";
+    count(w, W, 900); count(l, L, 900);
+    rows.forEach((r, i) => setTimeout(() => {
+      r.classList.add("show");
+      if (r.classList.contains("total")) count(total, TOTAL, 700, true);
+    }, 1000 + i * 500));
+  }
+
+  document.getElementById("replay").addEventListener("click", play);
+  new IntersectionObserver((entries, io) => {
+    if (entries.some(e => e.isIntersecting)) { play(); io.disconnect(); }
+  }, { threshold: 0.35 }).observe(document.getElementById("ledger"));
+
+  /* ---- spin reel, on the banner itself ---- */
+  const REEL = [
+    ["1988", "Los Angeles Dodgers", "#2b5cad"],
+    ["2004", "St. Louis Cardinals", "#c0392b"],
+    ["1990", "Oakland Athletics", "#1e7c45"],
+    ["2001", "Seattle Mariners", "#1f6f6b"],
+    ["1997", "Baltimore Orioles", "#d3641c"],
+    ["1991", "Minnesota Twins", "#274b77"],
+    ["2007", "Colorado Rockies", "#5e4b8b"],
+    ["1993", "Philadelphia Phillies", "#a63d57"],
+  ];
+  const FINAL = ["2016", "Chicago Cubs", "#2b55b0"];
+  const banner = document.getElementById("spinBanner"),
+        sYr = document.getElementById("sYr"),
+        sTm = document.getElementById("sTm"),
+        after = document.getElementById("after");
+  let spinningNow = false;
+
+  function setBanner(yr, tm, color) {
+    sYr.textContent = yr; sTm.textContent = tm;
+    sYr.style.background = color;
+    sTm.style.color = color;
+  }
+
+  function pulse(ms) {
+    // One synced pulse per tick — duration tracks the tick length so the motion
+    // decelerates with the reel instead of strobing against it.
+    for (const el of [sYr, sTm]) {
+      el.animate(
+        [{ transform: "translateY(-30%)", opacity: 0.35 }, { transform: "none", opacity: 1 }],
+        { duration: Math.min(ms * 0.9, 240), easing: "ease-out" }
+      );
+    }
+  }
+
+  function land() {
+    setBanner(...FINAL);
+    banner.classList.add("landed");
+    setTimeout(() => { after.classList.add("on"); spinningNow = false; }, 380);
+  }
+
+  function spin() {
+    if (spinningNow) return;
+    spinningNow = true;
+    after.classList.remove("on");
+    banner.classList.remove("landed");
+    if (reduced) { land(); return; }
+    let i = 0, delay = 70;
+    const step = () => {
+      setBanner(...REEL[i++ % REEL.length]);
+      pulse(delay);
+      delay *= 1.14;
+      if (delay < 480) setTimeout(step, delay);
+      else setTimeout(land, delay);
+    };
+    step();
+  }
+
+  document.getElementById("spinbtn").addEventListener("click", spin);
+  new IntersectionObserver((entries, io) => {
+    if (entries.some(e => e.isIntersecting)) { spin(); io.disconnect(); }
+  }, { threshold: 0.5 }).observe(banner);
+
+  /* ---- Trade Deadline: arm -> pick swap-in -> pick release (live demo) ---- */
+  const tdPill = document.getElementById("tdPill"),
+        signPhone = document.getElementById("signPhone"),
+        railHint = document.getElementById("railHint"),
+        bryRow = document.getElementById("bryRow"),
+        relCells = [...document.querySelectorAll("#signPhone .cell.rel")];
+  let tdSpent = false;
+
+  function disarm() {
+    tdPill.classList.remove("armed");
+    signPhone.classList.remove("armed");
+    railHint.classList.remove("on");
+    relCells.forEach(c => c.classList.remove("pickable"));
+    tdPill.textContent = tdSpent ? "🔁 TRADE DEADLINE" : "🔁 TRADE DEADLINE";
+    if (tdSpent) tdPill.classList.add("spent");
+  }
+
+  tdPill.addEventListener("click", () => {
+    if (tdSpent) return;
+    const arming = !tdPill.classList.contains("armed");
+    if (arming) {
+      tdPill.classList.add("armed");
+      signPhone.classList.add("armed");
+      tdPill.textContent = "🔁 PICK A SWAP…";
+    } else disarm();
+  });
+
+  // Step 2: choose the swap-in (Bryant is the wired example).
+  bryRow.addEventListener("click", () => {
+    if (!signPhone.classList.contains("armed") || tdSpent) return;
+    railHint.classList.add("on");
+    relCells.forEach(c => c.classList.add("pickable"));
+    tdPill.textContent = "🔁 RELEASE WHO?";
+  });
+
+  // Step 3: choose who to release — the swap completes and TD is spent.
+  relCells.forEach(cell => cell.addEventListener("click", () => {
+    if (!cell.classList.contains("pickable")) return;
+    cell.querySelector("span").textContent = "Bryant";
+    cell.querySelector("i").textContent = "’16";
+    tdSpent = true;
+    disarm();
+  }));
+</script>

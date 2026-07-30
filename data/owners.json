@@ -1,0 +1,271 @@
+{
+  "source": "SABR Team Ownership Histories + Wikipedia (curated 2026-07)",
+  "franchises": {
+    "ATL": {
+      "name": "Atlanta Braves",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "Ted Turner", "from": 1976, "to": 1996},
+        {"name": "Time Warner", "from": 1996, "to": 2007},
+        {"name": "Liberty Media (Atlanta Braves Holdings)", "from": 2007, "to": null}
+      ]
+    },
+    "BAL": {
+      "name": "Baltimore Orioles",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "Edward Bennett Williams", "from": 1979, "to": 1989},
+        {"name": "Eli Jacobs", "from": 1989, "to": 1993},
+        {"name": "Angelos family (Peter Angelos)", "from": 1993, "to": 2024},
+        {"name": "David Rubenstein group", "from": 2024, "to": null}
+      ]
+    },
+    "BOS": {
+      "name": "Boston Red Sox",
+      "owners": [
+        {"name": "Haywood Sullivan & Buddy LeRoux (with Jean Yawkey)", "from": 1978, "to": 1987},
+        {"name": "Jean Yawkey", "from": 1987, "to": 1992},
+        {"name": "Yawkey Trust (John Harrington)", "from": 1992, "to": 2002},
+        {"name": "Fenway Sports Group (John Henry)", "from": 2002, "to": null}
+      ]
+    },
+    "ANA": {
+      "name": "Los Angeles Angels",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "Gene Autry", "from": 1961, "to": 1997},
+        {"name": "The Walt Disney Company", "from": 1997, "to": 2003},
+        {"name": "Arte Moreno", "from": 2003, "to": null}
+      ]
+    },
+    "CHC": {
+      "name": "Chicago Cubs",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "Tribune Company", "from": 1981, "to": 2009},
+        {"name": "Ricketts family (Tom Ricketts)", "from": 2009, "to": null}
+      ]
+    },
+    "CHW": {
+      "name": "Chicago White Sox",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "Jerry Reinsdorf", "from": 1981, "to": null}
+      ]
+    },
+    "CIN": {
+      "name": "Cincinnati Reds",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "Marge Schott", "from": 1984, "to": 1999},
+        {"name": "Carl Lindner Jr.", "from": 1999, "to": 2006},
+        {"name": "Bob Castellini", "from": 2006, "to": null}
+      ]
+    },
+    "CLE": {
+      "name": "Cleveland Guardians",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "O'Neill estate (Patrick O'Neill)", "from": 1983, "to": 1986},
+        {"name": "Richard & David Jacobs", "from": 1986, "to": 2000},
+        {"name": "Dolan family (Larry, then Paul Dolan)", "from": 2000, "to": null}
+      ]
+    },
+    "DET": {
+      "name": "Detroit Tigers",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "Tom Monaghan", "from": 1983, "to": 1992},
+        {"name": "Mike Ilitch", "from": 1992, "to": 2017},
+        {"name": "Ilitch family (Christopher Ilitch)", "from": 2017, "to": null}
+      ]
+    },
+    "HOU": {
+      "name": "Houston Astros",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "John McMullen", "from": 1979, "to": 1993},
+        {"name": "Drayton McLane", "from": 1993, "to": 2011},
+        {"name": "Jim Crane", "from": 2011, "to": null}
+      ]
+    },
+    "KCR": {
+      "name": "Kansas City Royals",
+      "owners": [
+        {"name": "Ewing Kauffman", "from": 1968, "to": 1993},
+        {"name": "Greater Kansas City Community Foundation (David Glass, chairman)", "from": 1993, "to": 2000},
+        {"name": "David Glass", "from": 2000, "to": 2019},
+        {"name": "John Sherman", "from": 2019, "to": null}
+      ]
+    },
+    "LAD": {
+      "name": "Los Angeles Dodgers",
+      "owners": [
+        {"name": "Peter O'Malley", "from": 1970, "to": 1998},
+        {"name": "News Corp / Fox Group (Rupert Murdoch)", "from": 1998, "to": 2004},
+        {"name": "Frank McCourt", "from": 2004, "to": 2012},
+        {"name": "Guggenheim Baseball Management (Mark Walter)", "from": 2012, "to": null}
+      ]
+    },
+    "MIL": {
+      "name": "Milwaukee Brewers",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "Bud Selig", "from": 1970, "to": 1998},
+        {"name": "Selig family (Wendy Selig-Prieb)", "from": 1998, "to": 2005},
+        {"name": "Mark Attanasio", "from": 2005, "to": null}
+      ]
+    },
+    "MIN": {
+      "name": "Minnesota Twins",
+      "owners": [
+        {"name": "Carl Pohlad", "from": 1984, "to": 2009},
+        {"name": "Pohlad family (Jim Pohlad)", "from": 2009, "to": null}
+      ]
+    },
+    "WSN": {
+      "name": "Washington Nationals",
+      "owners": [
+        {"name": "Charles Bronfman", "from": 1968, "to": 1991},
+        {"name": "Claude Brochu consortium", "from": 1991, "to": 1999},
+        {"name": "Jeffrey Loria", "from": 1999, "to": 2002},
+        {"name": "Major League Baseball (Baseball Expos LP)", "from": 2002, "to": 2006},
+        {"name": "Lerner family (Ted Lerner)", "from": 2006, "to": 2018},
+        {"name": "Lerner family (Mark Lerner)", "from": 2018, "to": null}
+      ]
+    },
+    "NYM": {
+      "name": "New York Mets",
+      "owners": [
+        {"name": "Nelson Doubleday & Fred Wilpon", "from": 1980, "to": 2002},
+        {"name": "Fred Wilpon (Sterling Equities)", "from": 2002, "to": 2020},
+        {"name": "Steve Cohen", "from": 2020, "to": null}
+      ]
+    },
+    "NYY": {
+      "name": "New York Yankees",
+      "owners": [
+        {"name": "George Steinbrenner", "from": 1973, "to": 2008},
+        {"name": "Hal Steinbrenner (Steinbrenner family)", "from": 2008, "to": null}
+      ]
+    },
+    "OAK": {
+      "name": "Athletics",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "Walter A. Haas Jr.", "from": 1981, "to": 1996},
+        {"name": "Stephen Schott & Ken Hofmann", "from": 1996, "to": 2005},
+        {"name": "Lewis Wolff & John Fisher", "from": 2005, "to": 2016},
+        {"name": "John Fisher", "from": 2016, "to": null}
+      ]
+    },
+    "PHI": {
+      "name": "Philadelphia Phillies",
+      "owners": [
+        {"name": "Bill Giles group", "from": 1981, "to": 1997},
+        {"name": "David Montgomery (general partner)", "from": 1997, "to": 2016},
+        {"name": "John Middleton", "from": 2016, "to": null}
+      ]
+    },
+    "PIT": {
+      "name": "Pittsburgh Pirates",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "Galbreath family", "from": 1950, "to": 1985},
+        {"name": "Pittsburgh Associates (public-private coalition)", "from": 1985, "to": 1996},
+        {"name": "Kevin McClatchy group", "from": 1996, "to": 2007},
+        {"name": "Bob Nutting", "from": 2007, "to": null}
+      ]
+    },
+    "SDP": {
+      "name": "San Diego Padres",
+      "owners": [
+        {"name": "Joan Kroc", "from": 1984, "to": 1990},
+        {"name": "Tom Werner group", "from": 1990, "to": 1994},
+        {"name": "John Moores", "from": 1994, "to": 2009},
+        {"name": "Jeff Moorad group", "from": 2009, "to": 2012},
+        {"name": "Ron Fowler / O'Malley-Seidler group", "from": 2012, "to": 2020},
+        {"name": "Peter Seidler", "from": 2020, "to": 2023},
+        {"name": "Seidler family (John Seidler)", "from": 2023, "to": 2026},
+        {"name": "Jose E. Feliciano", "from": 2026, "to": null}
+      ]
+    },
+    "SEA": {
+      "name": "Seattle Mariners",
+      "owners": [
+        {"name": "George Argyros", "from": 1981, "to": 1989},
+        {"name": "Jeff Smulyan", "from": 1989, "to": 1992},
+        {"name": "Nintendo (Hiroshi Yamauchi)", "from": 1992, "to": 2016},
+        {"name": "John Stanton group", "from": 2016, "to": null}
+      ]
+    },
+    "SFG": {
+      "name": "San Francisco Giants",
+      "owners": [
+        {"name": "Bob Lurie", "from": 1976, "to": 1993},
+        {"name": "Peter Magowan group", "from": 1993, "to": 2008},
+        {"name": "Bill Neukom", "from": 2008, "to": 2012},
+        {"name": "San Francisco Baseball Associates (Larry Baer / Johnson family)", "from": 2012, "to": null}
+      ]
+    },
+    "STL": {
+      "name": "St. Louis Cardinals",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "Anheuser-Busch", "from": 1953, "to": 1996},
+        {"name": "William DeWitt Jr. group", "from": 1996, "to": null}
+      ]
+    },
+    "TEX": {
+      "name": "Texas Rangers",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "Eddie Chiles", "from": 1980, "to": 1989},
+        {"name": "George W. Bush group", "from": 1989, "to": 1998},
+        {"name": "Tom Hicks", "from": 1998, "to": 2010},
+        {"name": "Rangers Baseball Express (Ray Davis & Bob Simpson)", "from": 2010, "to": null}
+      ]
+    },
+    "TOR": {
+      "name": "Toronto Blue Jays",
+      "owners": [
+        {"name": "Labatt Breweries", "from": 1977, "to": 1995},
+        {"name": "Interbrew", "from": 1995, "to": 2000},
+        {"name": "Rogers Communications", "from": 2000, "to": null}
+      ]
+    },
+    "COL": {
+      "name": "Colorado Rockies",
+      "wikipediaOnly": true,
+      "owners": [
+        {"name": "John Antonucci & Michael Monus", "from": 1991, "to": 1992},
+        {"name": "Jerry McMorris", "from": 1992, "to": 2005},
+        {"name": "Monfort brothers (Dick & Charlie Monfort)", "from": 2005, "to": null}
+      ]
+    },
+    "FLA": {
+      "name": "Miami Marlins",
+      "owners": [
+        {"name": "Wayne Huizenga", "from": 1991, "to": 1999},
+        {"name": "John Henry", "from": 1999, "to": 2002},
+        {"name": "Jeffrey Loria", "from": 2002, "to": 2017},
+        {"name": "Bruce Sherman group", "from": 2017, "to": null}
+      ]
+    },
+    "ARI": {
+      "name": "Arizona Diamondbacks",
+      "owners": [
+        {"name": "Jerry Colangelo", "from": 1995, "to": 2004},
+        {"name": "Ken Kendrick", "from": 2004, "to": null}
+      ]
+    },
+    "TBD": {
+      "name": "Tampa Bay Rays",
+      "owners": [
+        {"name": "Vince Naimoli", "from": 1995, "to": 2005},
+        {"name": "Stuart Sternberg", "from": 2005, "to": 2025},
+        {"name": "Patrick Zalupski group", "from": 2025, "to": null}
+      ]
+    }
+  }
+}

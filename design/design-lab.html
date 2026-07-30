@@ -1,0 +1,567 @@
+<title>Hot Stove — Design Lab</title>
+<style>
+  :root {
+    --paper: #f4f2ee; --ink: #211f1c; --muted: #6f6a62; --line: #dcd8d0;
+    --accent: #d94f1e; --frame-bg: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #191817; --ink: #ece9e4; --muted: #97918a; --line: #34312d; --frame-bg: #211f1d; }
+  }
+  :root[data-theme="dark"] { --paper: #191817; --ink: #ece9e4; --muted: #97918a; --line: #34312d; --frame-bg: #211f1d; }
+  :root[data-theme="light"] { --paper: #f4f2ee; --ink: #211f1c; --muted: #6f6a62; --line: #dcd8d0; --frame-bg: #ffffff; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 24px 96px; }
+  header.lab { max-width: 720px; margin-bottom: 8px; }
+  .eyebrow {
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin: 0 0 10px;
+  }
+  h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.1; margin: 0 0 14px; text-wrap: balance; }
+  .lede { color: var(--muted); margin: 0 0 8px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 22px 0 6px; padding: 0; list-style: none; }
+  .legend li { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+  .legend .dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  section.comp { margin-top: 64px; }
+  section.comp > h2 { font-size: 22px; margin: 0 0 4px; }
+  section.comp > p { color: var(--muted); margin: 0 0 20px; max-width: 66ch; }
+  .frames { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+  .frame { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--frame-bg); display: flex; flex-direction: column; }
+  .frame > .stage { flex: 1; padding: 26px 22px; }
+  .frame > .caption { border-top: 1px solid var(--line); padding: 10px 16px 12px; }
+  .caption b { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+  .caption span { display: block; font-size: 13px; color: var(--muted); }
+  .c1 b { color: #2f9e44; } .c2 b { color: #c1502e; } .c3 b { color: #d99a2b; }
+
+  footer.lab { margin-top: 72px; border-top: 1px solid var(--line); padding-top: 28px; max-width: 720px; }
+  footer.lab h2 { font-size: 18px; margin: 0 0 8px; }
+  footer.lab p { color: var(--muted); margin: 0 0 10px; }
+
+  /* ============ D1 · CARDSTOCK ============ */
+  .d1 {
+    background: #f6f1e3; color: #24221c;
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+  .d1 .disp { font-family: ui-rounded, "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif; }
+  .d1 .spin-card {
+    background: #fffdf6; border: 3px solid #24221c; border-radius: 16px;
+    box-shadow: 5px 5px 0 #24221c; padding: 18px 18px 20px; text-align: center;
+  }
+  .d1 .yr {
+    display: inline-block; background: #3b5bdb; color: #fffdf6; border: 2.5px solid #24221c;
+    border-radius: 999px; padding: 2px 14px; font-weight: 800; font-size: 14px; letter-spacing: .06em;
+  }
+  .d1 .tname { font-size: 27px; font-weight: 800; margin: 10px 0 2px; line-height: 1.1; }
+  .d1 .tmeta { font-size: 13px; color: #6b6759; margin-bottom: 14px; }
+  .d1 .choices { display: grid; gap: 9px; }
+  .d1 .btn {
+    display: block; width: 100%; border: 2.5px solid #24221c; border-radius: 11px;
+    padding: 9px 12px; font: inherit; font-weight: 800; font-size: 15px; cursor: pointer;
+    box-shadow: 0 3.5px 0 #24221c; background: #fffdf6; color: #24221c;
+    transition: transform .08s, box-shadow .08s;
+  }
+  .d1 .btn:hover { transform: translateY(2px); box-shadow: 0 1.5px 0 #24221c; }
+  .d1 .btn:focus-visible { outline: 3px solid #3b5bdb; outline-offset: 2px; }
+  .d1 .btn.sign { background: #2f9e44; color: #fffdf6; }
+  .d1 .btn.own { background: #ffd43b; }
+  .d1 .btn small { display: block; font-weight: 600; font-size: 11.5px; opacity: .85; }
+
+  .d1 .prow {
+    display: flex; align-items: center; gap: 12px; background: #fffdf6;
+    border: 2.5px solid #24221c; border-radius: 12px; padding: 9px 12px; margin-bottom: 9px;
+    box-shadow: 3px 3px 0 rgba(36,34,28,.9); cursor: pointer; transition: transform .08s;
+  }
+  .d1 .prow:hover { transform: translate(-1px,-1px); }
+  .d1 .war {
+    width: 46px; height: 46px; border-radius: 50%; background: #2f9e44; color: #fffdf6;
+    border: 2.5px solid #24221c; display: grid; place-content: center; text-align: center;
+    font-weight: 800; font-size: 15px; line-height: 1; flex: none;
+  }
+  .d1 .war i { font-style: normal; display: block; font-size: 8.5px; font-weight: 700; }
+  .d1 .pname { font-weight: 800; font-size: 15.5px; }
+  .d1 .ppos { font-size: 12px; color: #6b6759; }
+  .d1 .cost { margin-left: auto; font-weight: 800; font-size: 15px; white-space: nowrap; }
+  .d1 .badge {
+    display: inline-block; background: #ffd43b; border: 2px solid #24221c; border-radius: 999px;
+    font-size: 10.5px; font-weight: 800; padding: 0 7px; margin-left: 6px; vertical-align: 2px;
+  }
+  .d1 .cheap { color: #2f9e44; } .d1 .spendy { color: #e8590c; }
+
+  .d1 .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+  .d1 .slot {
+    border: 2.5px solid #24221c; border-radius: 10px; background: #fffdf6;
+    min-height: 58px; padding: 6px 7px; font-size: 11px; line-height: 1.25;
+  }
+  .d1 .slot b { display: block; font-size: 10px; letter-spacing: .08em; color: #6b6759; }
+  .d1 .slot span { font-weight: 800; font-size: 12px; }
+  .d1 .slot.empty { border-style: dashed; background: transparent; color: #a09a88; }
+  .d1 .slot.empty span { font-weight: 700; }
+  .d1 .bank-label { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 800; margin-bottom: 5px; }
+  .d1 .bank { border: 2.5px solid #24221c; border-radius: 999px; background: #fffdf6; height: 22px; overflow: hidden; }
+  .d1 .bank .fill { height: 100%; width: 61%; background: #2f9e44; border-right: 2.5px solid #24221c; }
+  .d1 .bank-note { font-size: 11.5px; color: #6b6759; margin-top: 5px; }
+
+  .d1 .tokens { display: flex; gap: 14px; justify-content: center; }
+  .d1 .token { text-align: center; width: 74px; }
+  .d1 .token .face {
+    width: 62px; height: 62px; margin: 0 auto 6px; border-radius: 50%; border: 3px solid #24221c;
+    background: #fffdf6; box-shadow: 0 3.5px 0 #24221c; display: grid; place-content: center;
+    font-size: 26px; cursor: pointer; transition: transform .08s, box-shadow .08s;
+  }
+  .d1 .token .face:hover { transform: translateY(2px); box-shadow: 0 1.5px 0 #24221c; }
+  .d1 .token span { font-size: 10.5px; font-weight: 800; line-height: 1.2; display: block; }
+  .d1 .token.spent { opacity: .38; }
+  .d1 .token.spent .face { transform: rotate(-8deg); box-shadow: none; background: #e8e2d2; }
+
+  .d1 .final { text-align: center; padding: 8px 0 2px; position: relative; }
+  .d1 .final .rec { font-size: 52px; font-weight: 800; line-height: 1; letter-spacing: .01em; }
+  .d1 .final .pts {
+    display: inline-block; margin-top: 10px; background: #e8590c; color: #fffdf6;
+    border: 2.5px solid #24221c; border-radius: 999px; padding: 4px 18px;
+    font-weight: 800; font-size: 18px; box-shadow: 3px 3px 0 #24221c;
+  }
+  .d1 .final .conf { position: absolute; border-radius: 2px; width: 8px; height: 8px; }
+
+  /* ============ D2 · PENNANT ============ */
+  .d2 {
+    background: #efe6d4 radial-gradient(rgba(61,43,31,.05) 1px, transparent 1.5px);
+    background-size: 7px 7px; color: #3d2b1f;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  .d2 .disp {
+    font-family: Rockwell, "Roboto Slab", "Courier New", Georgia, serif;
+    text-transform: uppercase; letter-spacing: .05em;
+  }
+  .d2 .spin-card {
+    background: #f7efdd; border: 2px solid #3d2b1f; padding: 5px; box-shadow: 0 2px 0 rgba(61,43,31,.35);
+  }
+  .d2 .spin-inner { border: 1px solid #b3a184; padding: 14px 14px 16px; text-align: center; }
+  .d2 .yr { font-size: 13px; letter-spacing: .3em; color: #c1502e; font-weight: 700; }
+  .d2 .tname { font-size: 24px; font-weight: 700; margin: 6px 0 2px; line-height: 1.15; }
+  .d2 .stars { color: #d9a441; font-size: 13px; letter-spacing: .5em; margin: 4px 0 2px; }
+  .d2 .tmeta { font-size: 12.5px; font-style: italic; color: #7a6a55; margin-bottom: 13px; }
+  .d2 .choices { display: grid; gap: 8px; }
+  .d2 .btn {
+    font-family: Rockwell, "Roboto Slab", Georgia, serif; text-transform: uppercase; letter-spacing: .1em;
+    border: 1.5px solid #3d2b1f; background: #f7efdd; color: #3d2b1f; padding: 8px 10px;
+    font-size: 13px; font-weight: 700; cursor: pointer; transition: background .12s;
+  }
+  .d2 .btn:hover { background: #ead9ba; }
+  .d2 .btn:focus-visible { outline: 2px solid #c1502e; outline-offset: 2px; }
+  .d2 .btn.sign { background: #2e6e63; color: #f7efdd; }
+  .d2 .btn.sign:hover { background: #235a50; }
+  .d2 .btn.own { background: #d9a441; }
+  .d2 .btn.own:hover { background: #caa53d; }
+
+  .d2 .ledger { background: #f7efdd; border: 1.5px solid #3d2b1f; padding: 12px 14px 6px; }
+  .d2 .ledger-h {
+    font-family: Rockwell, Georgia, serif; text-transform: uppercase; letter-spacing: .18em;
+    font-size: 11px; border-bottom: 2px solid #3d2b1f; padding-bottom: 6px; margin-bottom: 4px;
+    display: flex; justify-content: space-between;
+  }
+  .d2 .prow { display: flex; align-items: baseline; gap: 8px; padding: 7px 0; border-bottom: 1px dotted #b3a184; cursor: pointer; }
+  .d2 .prow:last-child { border-bottom: 0; }
+  .d2 .prow:hover { background: rgba(217,164,65,.14); }
+  .d2 .pname { font-weight: 700; font-size: 15px; }
+  .d2 .ppos { font-size: 11.5px; color: #7a6a55; font-style: italic; }
+  .d2 .leader { flex: 1; border-bottom: 1px dotted #b3a184; transform: translateY(-4px); }
+  .d2 .war { font-variant-numeric: tabular-nums; font-weight: 700; color: #2e6e63; }
+  .d2 .cost { font-variant-numeric: tabular-nums; font-weight: 700; width: 62px; text-align: right; }
+  .d2 .cost.spendy { color: #c1502e; }
+  .d2 .badge { color: #d9a441; font-size: 12px; }
+
+  .d2 .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-bottom: 15px; }
+  .d2 .slot {
+    background: #f7efdd; border: 1.5px solid #3d2b1f; border-left: 4px double #3d2b1f;
+    min-height: 56px; padding: 5px 7px; font-size: 10.5px; line-height: 1.25;
+  }
+  .d2 .slot b { display: block; font-family: Rockwell, Georgia, serif; font-size: 9.5px; letter-spacing: .14em; color: #c1502e; }
+  .d2 .slot span { font-weight: 700; font-size: 11.5px; }
+  .d2 .slot.empty { background: transparent; border-style: dashed; border-left-style: dashed; color: #a08d6f; }
+  .d2 .bank-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-bottom: 5px; font-family: Rockwell, Georgia, serif; text-transform: uppercase; letter-spacing: .1em; }
+  .d2 .bank { border: 1.5px solid #3d2b1f; background: #f7efdd; height: 18px; }
+  .d2 .bank .fill { height: 100%; width: 61%; background: repeating-linear-gradient(-45deg, #2e6e63 0 8px, #29625a 8px 16px); }
+  .d2 .bank-note { font-size: 11.5px; font-style: italic; color: #7a6a55; margin-top: 5px; }
+
+  .d2 .tokens { display: flex; gap: 12px; justify-content: center; }
+  .d2 .token { text-align: center; width: 76px; }
+  .d2 .token .face {
+    width: 60px; height: 60px; margin: 0 auto 6px; border-radius: 50%;
+    border: 2px solid #3d2b1f; box-shadow: inset 0 0 0 3px #f7efdd, inset 0 0 0 4.5px #b3a184;
+    background: #d9a441; display: grid; place-content: center; font-size: 23px; cursor: pointer;
+  }
+  .d2 .token:nth-child(2) .face { background: #2e6e63; }
+  .d2 .token:nth-child(3) .face { background: #c1502e; }
+  .d2 .token:nth-child(4) .face { background: #7a6a55; }
+  .d2 .token span { font-family: Rockwell, Georgia, serif; font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; display: block; line-height: 1.3; }
+  .d2 .token.spent { opacity: .35; }
+  .d2 .token.spent .face { background: #b3a184; }
+
+  .d2 .final { text-align: center; padding: 6px 0 2px; }
+  .d2 .pennant {
+    display: inline-block; background: #2e6e63; color: #f7efdd; padding: 16px 58px 16px 26px;
+    clip-path: polygon(0 0, 100% 50%, 0 100%); min-width: 240px;
+  }
+  .d2 .pennant .rec { font-family: Rockwell, Georgia, serif; font-size: 40px; font-weight: 700; line-height: 1; }
+  .d2 .final .pts { display: block; margin-top: 10px; font-style: italic; font-size: 16px; }
+  .d2 .final .pts b { color: #c1502e; font-size: 19px; }
+
+  /* ============ D3 · SCOREBOARD ============ */
+  .d3 {
+    background: #0b1020; color: #d7dbe8;
+    font-family: "Avenir Next Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  }
+  .d3 .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  .d3 .panel {
+    background: #131a2e; border: 1px solid #2a3450; border-radius: 6px;
+    box-shadow: inset 0 0 0 4px #0e1526, inset 0 0 0 5px #2a3450, 0 4px 14px rgba(0,0,0,.45);
+    padding: 16px 16px 18px; position: relative;
+  }
+  .d3 .panel::before, .d3 .panel::after {
+    content: ""; position: absolute; top: 7px; width: 5px; height: 5px; border-radius: 50%;
+    background: #3c4a6e;
+  }
+  .d3 .panel::before { left: 8px; } .d3 .panel::after { right: 8px; }
+  .d3 .marq { text-align: center; }
+  .d3 .yr { color: #57e389; font-size: 13px; letter-spacing: .4em; }
+  .d3 .tname {
+    color: #ffb02e; font-size: 22px; letter-spacing: .18em; text-transform: uppercase;
+    margin: 8px 0 4px; line-height: 1.3; text-shadow: 0 0 14px rgba(255,176,46,.5);
+  }
+  .d3 .tmeta { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #8b93ad; margin-bottom: 14px; }
+  .d3 .choices { display: grid; gap: 8px; }
+  .d3 .btn {
+    background: #0e1526; border: 1px solid #2a3450; border-radius: 4px; color: #d7dbe8;
+    letter-spacing: .22em; text-transform: uppercase; font-size: 12.5px; font-weight: 600;
+    font-family: inherit; padding: 10px; cursor: pointer; display: flex; align-items: center; gap: 9px;
+    transition: border-color .12s, color .12s;
+  }
+  .d3 .btn .lamp { width: 8px; height: 8px; border-radius: 50%; background: #3c4a6e; flex: none; }
+  .d3 .btn:hover { border-color: #ffb02e; color: #ffb02e; }
+  .d3 .btn:hover .lamp { background: #ffb02e; box-shadow: 0 0 8px #ffb02e; }
+  .d3 .btn:focus-visible { outline: 2px solid #57e389; outline-offset: 2px; }
+
+  .d3 .lhead {
+    display: flex; justify-content: space-between; color: #8b93ad; font-size: 11px;
+    letter-spacing: .3em; text-transform: uppercase; padding: 0 8px 8px; border-bottom: 1px solid #2a3450;
+  }
+  .d3 .prow {
+    display: flex; align-items: center; gap: 10px; padding: 9px 8px;
+    border-bottom: 1px solid #1b2338; cursor: pointer;
+  }
+  .d3 .prow:hover { background: #182138; }
+  .d3 .pname { letter-spacing: .1em; text-transform: uppercase; font-size: 14px; }
+  .d3 .ppos { color: #8b93ad; font-size: 11px; letter-spacing: .15em; }
+  .d3 .war { margin-left: auto; color: #ffb02e; font-size: 15px; text-shadow: 0 0 10px rgba(255,176,46,.45); }
+  .d3 .cost { width: 66px; text-align: right; color: #57e389; font-size: 14px; }
+  .d3 .cost.spendy { color: #ff5d5d; }
+  .d3 .badge { color: #0b1020; background: #ffb02e; border-radius: 2px; font-size: 9px; letter-spacing: .1em; padding: 1px 4px; font-weight: 700; }
+
+  .d3 .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }
+  .d3 .slot { background: #0e1526; border: 1px solid #2a3450; border-radius: 4px; min-height: 54px; padding: 5px 7px; font-size: 10.5px; line-height: 1.3; }
+  .d3 .slot b { display: block; color: #57e389; font-size: 9.5px; letter-spacing: .25em; }
+  .d3 .slot span { letter-spacing: .06em; text-transform: uppercase; font-size: 11px; color: #d7dbe8; }
+  .d3 .slot.empty span { color: #3c4a6e; }
+  .d3 .bank-label { display: flex; justify-content: space-between; font-size: 11px; letter-spacing: .25em; text-transform: uppercase; color: #8b93ad; margin-bottom: 6px; }
+  .d3 .bank { height: 16px; background: #0e1526; border: 1px solid #2a3450; border-radius: 3px; padding: 2px; }
+  .d3 .bank .fill {
+    height: 100%; width: 61%;
+    background: repeating-linear-gradient(90deg, #57e389 0 7px, transparent 7px 10px);
+    box-shadow: 0 0 10px rgba(87,227,137,.35);
+  }
+  .d3 .bank-note { font-size: 11px; letter-spacing: .14em; color: #8b93ad; margin-top: 6px; text-transform: uppercase; }
+
+  .d3 .tokens { display: flex; gap: 10px; justify-content: center; }
+  .d3 .token { text-align: center; width: 76px; }
+  .d3 .token .face {
+    width: 58px; height: 58px; margin: 0 auto 7px; border-radius: 6px;
+    background: #0e1526; border: 1px solid #2a3450; display: grid; place-content: center;
+    font-size: 23px; cursor: pointer; position: relative; transition: border-color .12s;
+  }
+  .d3 .token .face::after {
+    content: ""; position: absolute; top: 5px; right: 5px; width: 6px; height: 6px;
+    border-radius: 50%; background: #57e389; box-shadow: 0 0 7px #57e389;
+  }
+  .d3 .token .face:hover { border-color: #ffb02e; }
+  .d3 .token span { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: #8b93ad; display: block; line-height: 1.35; }
+  .d3 .token.spent .face { opacity: .45; }
+  .d3 .token.spent .face::after { background: #3c4a6e; box-shadow: none; }
+  .d3 .token.spent span { color: #3c4a6e; }
+
+  .d3 .final { text-align: center; padding: 10px 0 4px; }
+  .d3 .final .rec {
+    font-size: 54px; color: #ffb02e; line-height: 1;
+    text-shadow: 0 0 22px rgba(255,176,46,.55);
+  }
+  .d3 .final .pts { margin-top: 12px; color: #57e389; font-size: 15px; letter-spacing: .3em; text-transform: uppercase; text-shadow: 0 0 12px rgba(87,227,137,.4); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="lab">
+    <p class="eyebrow">Hot Stove · Design Lab</p>
+    <h1>Three aesthetics, five components, same game</h1>
+    <p class="lede">Every specimen below uses real data from the 2016 Cubs card. Pick a direction per component —
+    mixing is allowed (e.g. Cardstock interface with a Scoreboard finale) — or crown one direction outright.</p>
+    <ul class="legend">
+      <li><span class="dot" style="background:#2f9e44"></span><b>A · Cardstock</b> — board-game pieces on the kitchen table</li>
+      <li><span class="dot" style="background:#c1502e"></span><b>B · Pennant</b> — 1978 Topps &amp; felt flags</li>
+      <li><span class="dot" style="background:#ffb02e"></span><b>C · Scoreboard</b> — night game, out-of-town board</li>
+    </ul>
+  </header>
+
+  <!-- ================= 1. THE SPIN ================= -->
+  <section class="comp">
+    <h2>1 · The spin reveal</h2>
+    <p>The moment the wheel lands: team, season, and the three-way choice. This screen is 10× per game — it has to stay fun on the tenth look.</p>
+    <div class="frames">
+
+      <div class="frame d1"><div class="stage">
+        <div class="spin-card disp">
+          <span class="yr">1985–2024 · SPIN 3 OF 10</span>
+          <div class="tname">Chicago Cubs</div>
+          <div class="tmeta">2016 · 103–58 · Wrigley Field</div>
+          <div class="choices">
+            <button class="btn sign">Sign a player</button>
+            <button class="btn own">Hire the owner <small>bankroll $136.3M</small></button>
+            <button class="btn">Buy the stadium <small>attendance ×1.11</small></button>
+          </div>
+        </div>
+      </div><div class="caption c1"><b>A · Cardstock</b><span>Chunky die-cut card, buttons that physically depress.</span></div></div>
+
+      <div class="frame d2"><div class="stage">
+        <div class="spin-card">
+          <div class="spin-inner">
+            <div class="yr">SPIN No. 3</div>
+            <div class="tname disp">Chicago Cubs</div>
+            <div class="stars">★ ★ ★</div>
+            <div class="tmeta">1916 W. Addison St. — 103 wins, 58 losses, MCMXVI‑built Wrigley Field</div>
+            <div class="choices">
+              <button class="btn sign">Sign a player</button>
+              <button class="btn own">Hire the owner — $136.3M</button>
+              <button class="btn">Buy the stadium — ×1.11</button>
+            </div>
+          </div>
+        </div>
+      </div><div class="caption c2"><b>B · Pennant</b><span>Double-ruled trading card, star dividers, slab caps.</span></div></div>
+
+      <div class="frame d3"><div class="stage">
+        <div class="panel marq mono">
+          <div class="yr">·· SPIN 03 / 10 ··</div>
+          <div class="tname">Chicago Cubs</div>
+          <div class="tmeta">2016 &nbsp;·&nbsp; 103–58 &nbsp;·&nbsp; Wrigley Field</div>
+          <div class="choices">
+            <button class="btn"><span class="lamp"></span>Sign a player</button>
+            <button class="btn"><span class="lamp"></span>Hire the owner · $136.3M</button>
+            <button class="btn"><span class="lamp"></span>Buy the stadium · ×1.11</button>
+          </div>
+        </div>
+      </div><div class="caption c3"><b>C · Scoreboard</b><span>Riveted panel, glowing marquee, indicator lamps.</span></div></div>
+
+    </div>
+  </section>
+
+  <!-- ================= 2. PLAYER LIST ================= -->
+  <section class="comp">
+    <h2>2 · The player list</h2>
+    <p>Where the decision lives: WAR vs. cost at a glance, awards as badges, bargains and splurges color-coded. Scanned two dozen times per spin.</p>
+    <div class="frames">
+
+      <div class="frame d1"><div class="stage">
+        <div class="prow"><div class="war disp">7.2<i>WAR</i></div><div><div class="pname disp">Kris Bryant <span class="badge">MVP</span></div><div class="ppos">3B · age 24</div></div><div class="cost cheap disp">$1.2M</div></div>
+        <div class="prow"><div class="war disp">5.8<i>WAR</i></div><div><div class="pname disp">Anthony Rizzo <span class="badge">GG</span></div><div class="ppos">1B · age 26</div></div><div class="cost disp">$9.7M</div></div>
+        <div class="prow"><div class="war disp">5.4<i>WAR</i></div><div><div class="pname disp">Jon Lester</div><div class="ppos">SP · age 32</div></div><div class="cost spendy disp">$45.7M</div></div>
+        <div class="prow"><div class="war disp">5.2<i>WAR</i></div><div><div class="pname disp">Kyle Hendricks</div><div class="ppos">SP · age 26</div></div><div class="cost cheap disp">$1.0M</div></div>
+      </div><div class="caption c1"><b>A · Cardstock</b><span>WAR chips lead; green = bargain, orange = splurge.</span></div></div>
+
+      <div class="frame d2"><div class="stage">
+        <div class="ledger">
+          <div class="ledger-h"><span>Official Register</span><span>WAR · Salary</span></div>
+          <div class="prow"><span class="pname">Bryant, K. <span class="badge">★</span></span><span class="ppos">3B</span><span class="leader"></span><span class="war">7.2</span><span class="cost">$1.2M</span></div>
+          <div class="prow"><span class="pname">Rizzo, A.</span><span class="ppos">1B</span><span class="leader"></span><span class="war">5.8</span><span class="cost">$9.7M</span></div>
+          <div class="prow"><span class="pname">Lester, J.</span><span class="ppos">SP</span><span class="leader"></span><span class="war">5.4</span><span class="cost spendy">$45.7M</span></div>
+          <div class="prow"><span class="pname">Hendricks, K.</span><span class="ppos">SP</span><span class="leader"></span><span class="war">5.2</span><span class="cost">$1.0M</span></div>
+        </div>
+      </div><div class="caption c2"><b>B · Pennant</b><span>Dotted-leader ledger, like the back of the card.</span></div></div>
+
+      <div class="frame d3"><div class="stage">
+        <div class="panel">
+          <div class="lhead mono"><span>Player</span><span>WAR · $</span></div>
+          <div class="prow"><div><div class="pname">Bryant <span class="badge">MVP</span></div><div class="ppos">3B</div></div><div class="war mono">7.2</div><div class="cost mono">1.2</div></div>
+          <div class="prow"><div><div class="pname">Rizzo <span class="badge">GG</span></div><div class="ppos">1B</div></div><div class="war mono">5.8</div><div class="cost mono">9.7</div></div>
+          <div class="prow"><div><div class="pname">Lester</div><div class="ppos">SP</div></div><div class="war mono">5.4</div><div class="cost spendy mono">45.7</div></div>
+          <div class="prow"><div><div class="pname">Hendricks</div><div class="ppos">SP</div></div><div class="war mono">5.2</div><div class="cost mono">1.0</div></div>
+        </div>
+      </div><div class="caption c3"><b>C · Scoreboard</b><span>Line-score rows: amber WAR, green money, red splurges.</span></div></div>
+
+    </div>
+  </section>
+
+  <!-- ================= 3. ROSTER + BANKROLL ================= -->
+  <section class="comp">
+    <h2>3 · Roster &amp; bankroll</h2>
+    <p>Persistent HUD: eight slots and the money. Must read instantly without stealing focus from the spin.</p>
+    <div class="frames">
+
+      <div class="frame d1"><div class="stage">
+        <div class="slots disp">
+          <div class="slot"><b>C</b><span>Posada ’03</span></div>
+          <div class="slot"><b>IF</b><span>Bryant ’16</span></div>
+          <div class="slot empty"><b>IF</b><span>—</span></div>
+          <div class="slot"><b>OF</b><span>Erstad ’00</span></div>
+          <div class="slot empty"><b>FLEX</b><span>—</span></div>
+          <div class="slot"><b>SP</b><span>Zito ’02</span></div>
+          <div class="slot empty"><b>SP</b><span>—</span></div>
+          <div class="slot empty"><b>RP</b><span>—</span></div>
+        </div>
+        <div class="bank-label disp"><span>Payroll $83.1M</span><span>Bankroll $136.3M</span></div>
+        <div class="bank"><div class="fill"></div></div>
+        <div class="bank-note">Ricketts family money · $53.2M under</div>
+      </div><div class="caption c1"><b>A · Cardstock</b><span>Slot tiles fill like game pieces; fat pill meter.</span></div></div>
+
+      <div class="frame d2"><div class="stage">
+        <div class="slots">
+          <div class="slot"><b>C</b><span>Posada ’03</span></div>
+          <div class="slot"><b>IF</b><span>Bryant ’16</span></div>
+          <div class="slot empty"><b>IF</b><span>vacant</span></div>
+          <div class="slot"><b>OF</b><span>Erstad ’00</span></div>
+          <div class="slot empty"><b>FLEX</b><span>vacant</span></div>
+          <div class="slot"><b>SP</b><span>Zito ’02</span></div>
+          <div class="slot empty"><b>SP</b><span>vacant</span></div>
+          <div class="slot empty"><b>RP</b><span>vacant</span></div>
+        </div>
+        <div class="bank-label"><span>Payroll $83.1M</span><span>Purse $136.3M</span></div>
+        <div class="bank"><div class="fill"></div></div>
+        <div class="bank-note">Courtesy of the Ricketts family — $53.2M remains</div>
+      </div><div class="caption c2"><b>B · Pennant</b><span>Ticket-stub slots with double-rule spines.</span></div></div>
+
+      <div class="frame d3"><div class="stage">
+        <div class="slots">
+          <div class="slot"><b>C</b><span>Posada 03</span></div>
+          <div class="slot"><b>IF</b><span>Bryant 16</span></div>
+          <div class="slot empty"><b>IF</b><span>····</span></div>
+          <div class="slot"><b>OF</b><span>Erstad 00</span></div>
+          <div class="slot empty"><b>FLEX</b><span>····</span></div>
+          <div class="slot"><b>SP</b><span>Zito 02</span></div>
+          <div class="slot empty"><b>SP</b><span>····</span></div>
+          <div class="slot empty"><b>RP</b><span>····</span></div>
+        </div>
+        <div class="bank-label mono"><span>PAYROLL 83.1</span><span>BANK 136.3</span></div>
+        <div class="bank"><div class="fill"></div></div>
+        <div class="bank-note">Ricketts · 53.2 under limit</div>
+      </div><div class="caption c3"><b>C · Scoreboard</b><span>Lineup-card grid, segmented LED fuel gauge.</span></div></div>
+
+    </div>
+  </section>
+
+  <!-- ================= 4. POWERUPS ================= -->
+  <section class="comp">
+    <h2>4 · Powerup tokens</h2>
+    <p>The four one-use tools, always visible, with a clear spent state. (Double Dip already burned in each sample.)</p>
+    <div class="frames">
+
+      <div class="frame d1"><div class="stage">
+        <div class="tokens disp">
+          <div class="token"><div class="face">⏰</div><span>Time Machine</span></div>
+          <div class="token spent"><div class="face">✌️</div><span>Double Dip</span></div>
+          <div class="token"><div class="face">🔁</div><span>Trade Deadline</span></div>
+          <div class="token"><div class="face">🚚</div><span>Relocation</span></div>
+        </div>
+      </div><div class="caption c1"><b>A · Cardstock</b><span>Poker chips; spent = tossed askew, shadow gone.</span></div></div>
+
+      <div class="frame d2"><div class="stage">
+        <div class="tokens">
+          <div class="token"><div class="face">⏰</div><span>Time Machine</span></div>
+          <div class="token spent"><div class="face">✌️</div><span>Double Dip</span></div>
+          <div class="token"><div class="face">🔁</div><span>Trade Deadline</span></div>
+          <div class="token"><div class="face">🚚</div><span>Relocation</span></div>
+        </div>
+      </div><div class="caption c2"><b>B · Pennant</b><span>Enamel button pins with milled rims.</span></div></div>
+
+      <div class="frame d3"><div class="stage">
+        <div class="tokens">
+          <div class="token"><div class="face">⏰</div><span>Time Machine</span></div>
+          <div class="token spent"><div class="face">✌️</div><span>Double Dip</span></div>
+          <div class="token"><div class="face">🔁</div><span>Trade Deadline</span></div>
+          <div class="token"><div class="face">🚚</div><span>Relocation</span></div>
+        </div>
+      </div><div class="caption c3"><b>C · Scoreboard</b><span>Control-desk switches; the lamp dies when spent.</span></div></div>
+
+    </div>
+  </section>
+
+  <!-- ================= 5. FINALE ================= -->
+  <section class="comp">
+    <h2>5 · The finale</h2>
+    <p>Season simulated, record revealed, points on the board. The screenshot people share — each direction's biggest moment. (Numbers count up on scroll.)</p>
+    <div class="frames">
+
+      <div class="frame d1"><div class="stage">
+        <div class="final disp">
+          <span class="conf" style="background:#e8590c; top:4px; left:16%; transform:rotate(20deg)"></span>
+          <span class="conf" style="background:#3b5bdb; top:22px; right:12%; transform:rotate(-15deg)"></span>
+          <span class="conf" style="background:#ffd43b; bottom:30px; left:8%; transform:rotate(45deg)"></span>
+          <span class="conf" style="background:#2f9e44; top:0; right:30%; transform:rotate(10deg)"></span>
+          <div class="rec"><span class="count" data-n="97">0</span>–<span class="count" data-n="65">0</span></div>
+          <div class="pts"><span class="count" data-n="118">0</span> PTS</div>
+        </div>
+      </div><div class="caption c1"><b>A · Cardstock</b><span>Confetti scraps and a stamped score pill.</span></div></div>
+
+      <div class="frame d2"><div class="stage">
+        <div class="final">
+          <div class="pennant"><div class="rec"><span class="count" data-n="97">0</span>–<span class="count" data-n="65">0</span></div></div>
+          <div class="pts">Final tally: <b><span class="count" data-n="118">0</span> points</b></div>
+        </div>
+      </div><div class="caption c2"><b>B · Pennant</b><span>The record on a felt pennant you "earned."</span></div></div>
+
+      <div class="frame d3"><div class="stage">
+        <div class="final mono">
+          <div class="rec"><span class="count" data-n="97">0</span>–<span class="count" data-n="65">0</span></div>
+          <div class="pts">·· <span class="count" data-n="118">0</span> PTS ··</div>
+        </div>
+      </div><div class="caption c3"><b>C · Scoreboard</b><span>The big board lights up the final.</span></div></div>
+
+    </div>
+  </section>
+
+  <footer class="lab">
+    <h2>How to read this</h2>
+    <p><b>Cardstock</b> is the most in the 4x3/smush lineage: friendly, tactile, casual-first. <b>Pennant</b> has the
+    strongest baseball soul and ages beautifully, but its density suits sickos more than casuals. <b>Scoreboard</b> owns
+    the finale and the sim ticker like nothing else, at the cost of a heavier feel spin-to-spin.</p>
+    <p>They compose: one direction can carry the interface while another owns a single moment
+    (Cardstock game + Scoreboard season-sim is a natural pairing). Team identity in all three comes from
+    color washes per franchise — no logos needed.</p>
+  </footer>
+</div>
+
+<script>
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const counts = document.querySelectorAll(".count");
+  if (reduced) {
+    counts.forEach(el => el.textContent = el.dataset.n);
+  } else {
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) {
+        if (!e.isIntersecting || e.target.dataset.done) continue;
+        e.target.dataset.done = "1";
+        const n = +e.target.dataset.n, t0 = performance.now();
+        const tick = now => {
+          const p = Math.min((now - t0) / 900, 1);
+          e.target.textContent = Math.round(n * (1 - Math.pow(1 - p, 3)));
+          if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }
+    }, { threshold: 0.6 });
+    counts.forEach(el => io.observe(el));
+  }
+</script>
