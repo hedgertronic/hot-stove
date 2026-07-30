@@ -24,26 +24,29 @@
   const rows = $derived.by((): Row[] => {
     const c = game.card;
     if (!c) return [];
-    const out: Row[] = [
-      {
-        key: "owner",
-        cls: "",
-        ic: "💰",
-        who: game.ownerName,
-        what: "Owner",
-        val: money(c.budget),
-        verb: "HIRE",
-      },
-      {
-        key: "stadium",
-        cls: "stad",
-        ic: "🏟️",
-        who: c.park,
-        what: "Stadium",
-        val: `×${c.stadiumMult.toFixed(2)}`,
-        verb: "BUY",
-      },
-    ];
+    const out: Row[] = [];
+    if (!game.config.moneyball) {
+      out.push(
+        {
+          key: "owner",
+          cls: "",
+          ic: "💰",
+          who: game.ownerName,
+          what: "Owner",
+          val: money(c.budget),
+          verb: "HIRE",
+        },
+        {
+          key: "stadium",
+          cls: "stad",
+          ic: "🏟️",
+          who: c.park,
+          what: "Stadium",
+          val: `×${c.stadiumMult.toFixed(2)}`,
+          verb: "BUY",
+        },
+      );
+    }
     if (c.manager != null) {
       out.push({
         key: "skipper",
@@ -79,6 +82,9 @@
   }
 </script>
 
+{#if rows.length > 0}
+  <div class="psep">FRONT OFFICE</div>
+{/if}
 <div class="special disp">
   {#each rows as row (row.key)}
     {@const taken = game.specialTaken(row.key)}

@@ -12,22 +12,26 @@
 
 <div class="bankbox">
   <div class="bankmath disp">
-    {#if game.owner}
-      <span class="chip">💰 {money(game.owner.budget)}</span>
+    {#if game.config.moneyball}
+      <span class="chip eff">⚾ {money(cap)} HARD CAP</span>
     {:else}
-      <span class="chip ghost">💰</span>
-    {/if}
-    <span class="op">×</span>
-    {#if game.stadium}
-      <span class="chip stad">🏟️ {game.stadium.mult.toFixed(2)}</span>
-    {:else}
-      <span class="chip ghost">🏟️</span>
-    {/if}
-    <span class="op">=</span>
-    {#if game.owner}
-      <span class="chip eff">{money(cap)}</span>
-    {:else}
-      <span class="chip ghost">{money(cap)} floor</span>
+      {#if game.owner}
+        <span class="chip">💰 {money(game.owner.budget)}</span>
+      {:else}
+        <span class="chip ghost">💰</span>
+      {/if}
+      <span class="op">×</span>
+      {#if game.stadium}
+        <span class="chip stad">🏟️ {game.stadium.mult.toFixed(2)}</span>
+      {:else}
+        <span class="chip ghost">🏟️</span>
+      {/if}
+      <span class="op">=</span>
+      {#if game.owner}
+        <span class="chip eff">{money(cap)}</span>
+      {:else}
+        <span class="chip ghost">{money(cap)} floor</span>
+      {/if}
     {/if}
   </div>
   <div class="meter">
@@ -36,7 +40,9 @@
   <div class="meter-lbl disp">
     <span>SPENT {money(spend)}</span>
     {#if over}
-      <span class="warn">⚠ {money(spend - cap)} OVER {game.owner ? "CAP" : "FLOOR"}</span>
+      <span class="warn"
+        >⚠ {money(spend - cap)} OVER {game.owner || game.config.moneyball ? "CAP" : "FLOOR"}</span
+      >
     {:else}
       <span>{money(cap - spend)} LEFT</span>
     {/if}

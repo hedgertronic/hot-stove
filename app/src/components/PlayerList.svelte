@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Game } from "../lib/engine.svelte";
-  import { costTier, money, warTier } from "../lib/format";
+  import { costTier, lastName, money, statLine, warTier } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
 
   let {
@@ -18,9 +18,18 @@
     expanded = false;
   });
 
-  const sorted = $derived.by(() =>
-    game.card ? [...game.card.players].sort((a, b) => b.cost - a.cost) : [],
-  );
+  // Salary-desc everywhere it's allowed — in Scout mode that same order is what
+  // keeps the list from leaking WAR. Eye Test lists alphabetically (SPEC).
+  const sorted = $derived.by(() => {
+    if (!game.card) return [];
+    const ps = [...game.card.players];
+    if (game.eyeTest)
+      return ps.sort(
+        (a, b) =>
+          lastName(a.name).localeCompare(lastName(b.name)) || a.name.localeCompare(b.name),
+      );
+    return ps.sort((a, b) => b.cost - a.cost);
+  });
   // Collapsed view keeps salary order but guarantees signable rows are visible:
   // late-game (one slot open) the eligible players are cheap and would otherwise
   // all hide behind the expander, leaving a wall of gray.
@@ -61,6 +70,15 @@
     setConfirm(null);
     game.tdTapPlayer(p);
   }
+
+  const AWARD_CLS: Record<string, string> = { MVP: "mvp", CY: "cy", GG: "gg", SS: "ss", ROY: "roy" };
+
+  /** Second line per mode: pos · age (mock) / trad stat line (Scout) / pos (Eye Test). */
+  function subLine(p: CardPlayer): string {
+    if (game.showStats) return statLine(p) || p.pos;
+    if (game.eyeTest) return p.pos;
+    return p.age != null ? `${p.pos} · ${p.age}` : p.pos;
+  }
 </script>
 
 <div class="plist disp">
@@ -76,17 +94,25 @@
       class:swap={swappable}
       onclick={(e) => tap(p, e)}
     >
-      <span class="war {warTier(p.war)}">{p.war.toFixed(1)}<i>WAR</i></span>
+      {#if game.showWar}
+        <span class="war {warTier(p.war)}">{p.war.toFixed(1)}<i>WAR</i></span>
+      {:else}
+        <span class="war pos">{p.pos.split("/")[0]}</span>
+      {/if}
       <span class="mid">
-        <span class="pname">{p.name}</span>
-        <span class="ppos">{p.pos}{hero ? " · 🏠 hometown" : ""}</span>
+        <span class="pname"
+          >{p.name}{#if game.showAwards}<span class="badges"
+              >{#each p.awards as a}<span class="qb {AWARD_CLS[a] ?? ''}">{a}</span>{/each}{#if p.ws}<span class="emo">💍</span>{:else if p.pen}<span class="emo">🚩</span>{/if}</span
+            >{/if}</span
+        >
+        <span class="ppos">{subLine(p)}{hero ? " · 🏠 hometown" : ""}</span>
       </span>
       <span class="right">
         {#if confirmKey === `p:${p.id}` && state === "open"}
-          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSign(p); }} onkeydown={(e) => e.key === "Enter" && commitSign(p)}>SIGN {money(price)}</span>
+          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSign(p); }} onkeydown={(e) => e.key === "Enter" && commitSign(p)}>SIGN {game.showCost ? money(price) : "✍️"}</span>
         {:else if confirmKey === `t:${p.id}` && swappable}
-          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => e.key === "Enter" && commitTrade(p)}>🔁 {money(price)}</span>
-        {:else}
+          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => e.key === "Enter" && commitTrade(p)}>🔁 {game.showCost ? money(price) : "SWAP"}</span>
+        {:else if game.showCost}
           <span class="cost {hero ? 'cheap' : costTier(price)}">{money(price)}</span>
         {/if}
       </span>
@@ -154,6 +180,47 @@
   .war.elite {
     background: var(--war-elite);
     color: var(--ink);
+  }
+  /* Scout/Eye Test: the circle is a neutral position badge, no tier color. */
+  .war.pos {
+    background: var(--card);
+    color: var(--ink);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+  .badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 5px;
+    vertical-align: 1px;
+  }
+  .qb {
+    font-size: 8.5px;
+    font-weight: 800;
+    border: 1.5px solid var(--ink);
+    border-radius: 999px;
+    padding: 0 5px;
+    line-height: 1.5;
+  }
+  .qb.mvp {
+    background: var(--yellow);
+  }
+  .qb.cy {
+    background: var(--sky);
+  }
+  .qb.gg {
+    background: var(--green-wash);
+  }
+  .qb.ss {
+    background: var(--lilac);
+  }
+  .qb.roy {
+    background: var(--pink);
+  }
+  .emo {
+    font-size: 10px;
+    line-height: 1;
   }
   .mid {
     display: flex;
