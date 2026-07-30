@@ -5,7 +5,11 @@
 
   let { game, colors, onclose }: { game: Game; colors: Colors; onclose: () => void } = $props();
 
-  const teams = $derived(game.card ? game.teamsForYear(game.card.year) : []);
+  const teams = $derived(
+    game.card
+      ? [...game.teamsForYear(game.card.year)].sort((a, b) => a.team.localeCompare(b.team))
+      : [],
+  );
 
   function pick(team: string) {
     onclose();
@@ -28,10 +32,11 @@
         <button
           class="teambtn"
           disabled={t.team === game.card?.team}
-          style:color={accentFor(colors, t.franchise)}
+          style:background={accentFor(colors, t.franchise)}
+          title={t.name}
           onclick={() => pick(t.team)}
         >
-          {t.name}
+          {t.team}
         </button>
       {/each}
     </div>
@@ -70,7 +75,7 @@
   }
   .grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 7px;
     margin-bottom: 12px;
   }
@@ -78,11 +83,13 @@
     border: 2px solid var(--ink);
     border-radius: 9px;
     background: var(--card);
+    color: var(--card);
     font-family: inherit;
     font-weight: 800;
-    font-size: 12px;
+    font-size: 13px;
+    letter-spacing: 0.04em;
     line-height: 1.2;
-    padding: 8px 6px;
+    padding: 11px 0;
     cursor: pointer;
     transition: transform 0.08s;
   }

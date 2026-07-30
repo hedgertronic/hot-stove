@@ -1,6 +1,7 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { money, signed, warTier, yy } from "../lib/format";
+  import { lastName, money, signed, warTier, yy } from "../lib/format";
+  import { GOAL_POINTS, MARINERS_WINS } from "../lib/scoring";
 
   let {
     game,
@@ -18,9 +19,12 @@
     CY: "Cy Young",
     MVP2: "MVP runner-up",
     CY2: "Cy Young runner-up",
+    MVP3: "MVP 3rd in voting",
+    CY3: "Cy Young 3rd in voting",
     ROY: "Rookie of the Year",
     GG: "Gold Glove",
     SS: "Silver Slugger",
+    AS: "All-Star",
   };
 
   interface LedgerRow {
@@ -42,7 +46,9 @@
     out.push({
       key: "wins",
       lbl: "Expected wins",
-      why: `47.7 base + ${fin.totalWar.toFixed(1)} team WAR`,
+      why: game.manager
+        ? `50 base + ${fin.totalWar.toFixed(1)} WAR + ${lastName(game.manager.name)} ${signed(p.managerWins)}`
+        : `50 base + ${fin.totalWar.toFixed(1)} team WAR · no manager`,
       amt: p.expectedWins.toFixed(1),
       cls: "base",
     });
@@ -70,8 +76,8 @@
       amt: signed(p.awardPoints, 0),
       cls: p.awardPoints > 0 ? "plus" : "zero",
     });
-    const rings = game.slots.filter((s) => s?.ws).length + (game.skipper?.ws ? 1 : 0);
-    const pennants = game.slots.filter((s) => s?.pen).length + (game.skipper?.pen ? 1 : 0);
+    const rings = game.slots.filter((s) => s?.ws).length + (game.manager?.ws ? 1 : 0);
+    const pennants = game.slots.filter((s) => s?.pen).length + (game.manager?.pen ? 1 : 0);
     const pedigree = new Map<string, number>();
     if (rings) pedigree.set(rings === 1 ? "ring 💍" : "rings 💍", rings);
     if (pennants) pedigree.set(pennants === 1 ? "pennant 🚩" : "pennants 🚩", pennants);
@@ -82,22 +88,14 @@
       amt: signed(p.ringPoints, 0),
       cls: p.ringPoints > 0 ? "plus" : "zero",
     });
-    if (game.skipper) {
-      out.push({
-        key: "skipper",
-        lbl: "Skipper",
-        why: `${game.skipper.name}, ${game.skipper.wins}–${game.skipper.losses}`,
-        amt: signed(p.skipperPoints),
-        cls: p.skipperPoints >= 0 ? "plus" : "minus",
-      });
-    }
     if (fin.best) {
+      const denom = fin.bestManager ? 9 : 8;
       out.push({
         key: "scouting",
         lbl: "Scouting report",
         why:
           fin.scoutHits > 0
-            ? `${fin.scoutHits} of your ${fin.scoutHits === 1 ? "pick" : "picks"} made the dream team ⭐`
+            ? `${fin.scoutHits} of the dream team's ${denom} made your club ⭐`
             : "none of your picks made the dream team",
         amt: signed(p.scoutBonus, 0),
         cls: p.scoutBonus > 0 ? "plus" : "zero",
@@ -172,17 +170,20 @@
     return () => timers.forEach(clearTimeout);
   });
 
-  const TIER_EMOJI = { low: "⚪", mid: "🔵", high: "🟢", elite: "🟡" } as const;
+  const TIER_EMOJI = { neg: "🔴", low: "⚪", mid: "🔵", high: "🟢", elite: "🟡" } as const;
 
   const DIFF_TAG: Record<string, string> = {
     standard: "🔥 STANDARD",
     scout: "🔭 SCOUT",
-    eyetest: "🕶️ EYE TEST",
   };
   const BANK_TAG: Record<string, string> = {
     moneyball: " · ⚾ MONEYBALL",
     blankcheck: " · 💸 BLANK CHECK",
   };
+
+  const beatMariners = $derived(fin.wins > MARINERS_WINS);
+  const perfect = $derived(fin.parts.total >= GOAL_POINTS);
+  const dreamDenom = $derived(fin.bestManager ? 9 : 8);
 
   function shareText(): string {
     const tag = (DIFF_TAG[game.config.difficulty] ?? "") + (BANK_TAG[game.config.bank] ?? "");
@@ -190,25 +191,25 @@
       .map((e) => {
         if (e.kind === "owner") return "💰";
         if (e.kind === "stadium") return "🏟️";
-        if (e.kind === "skipper") return "🧢";
+        if (e.kind === "manager") return "🧢";
         if (e.kind === "swap") return "🔁";
         return TIER_EMOJI[warTier(e.war ?? 0)];
       })
       .join("");
-    const rings = game.slots.filter((s) => s?.ws).length + (game.skipper?.ws ? 1 : 0);
-    const pennants = game.slots.filter((s) => s?.pen).length + (game.skipper?.pen ? 1 : 0);
+    const rings = game.slots.filter((s) => s?.ws).length + (game.manager?.ws ? 1 : 0);
+    const pennants = game.slots.filter((s) => s?.pen).length + (game.manager?.pen ? 1 : 0);
     const medals = [
       "💍".repeat(Math.min(rings, 8)),
       "🚩".repeat(Math.min(pennants, 8)),
-      fin.best ? `⭐${fin.scoutHits}/8` : "",
+      fin.best ? `⭐${fin.scoutHits}/${dreamDenom}` : "",
     ]
       .filter(Boolean)
       .join(" ");
     return [
       `HOT STOVE ${tag}`,
       grid,
-      `${fin.wins}–${fin.losses} · 💰 ${money(fin.spend)}/${money(fin.budget)}`,
-      `${medals ? `${medals} · ` : ""}🏆 ${fin.parts.total.toFixed(1)} pts`,
+      `${fin.wins}–${fin.losses}${beatMariners ? " 🔱" : ""} · 💰 ${money(fin.spend)}/${money(fin.budget)}`,
+      `${medals ? `${medals} · ` : ""}🏆 ${fin.parts.total.toFixed(1)}/${GOAL_POINTS}${perfect ? " 🏆 PERFECT SEASON" : ""}`,
     ].join("\n");
   }
 
@@ -237,11 +238,21 @@
     CY: "cy",
     MVP2: "mvp",
     CY2: "cy",
+    MVP3: "mvp",
+    CY3: "cy",
     GG: "gg",
     SS: "ss",
     ROY: "roy",
+    AS: "as",
   };
-  const pillText: Record<string, string> = { MVP2: "🥈MVP", CY2: "🥈CY" };
+  const pillText: Record<string, string> = {
+    MVP: "🥇MVP",
+    CY: "🥇CY",
+    MVP2: "🥈MVP",
+    CY2: "🥈CY",
+    MVP3: "🥉MVP",
+    CY3: "🥉CY",
+  };
 
   /** Signed players who are also on the dream team get the ⭐. */
   const starKeys = $derived.by(() => {
@@ -256,6 +267,12 @@
 <div class="fin-head disp">
   <div class="rec">{Math.round(dispW)}–{Math.round(dispL)}</div>
   <div class="sub">YOUR {new Date().getFullYear()} HOT STOVE SQUAD</div>
+  {#if beatMariners && totalShown}
+    <div class="brag">🔱 BEAT THE ’01 MARINERS</div>
+  {/if}
+  {#if perfect && totalShown}
+    <div class="brag gold">🏆 PERFECT SEASON — {GOAL_POINTS}+</div>
+  {/if}
 </div>
 
 <div class="ledger">
@@ -272,6 +289,16 @@
       ></span
     >
     <span class="amt">{dispTotal}</span>
+  </div>
+  <div class="goal disp" class:show={totalShown}>
+    <div class="goaltrack">
+      <div
+        class="goalfill"
+        class:full={perfect}
+        style:width="{Math.min((fin.parts.total / GOAL_POINTS) * 100, 100)}%"
+      ></div>
+    </div>
+    <span class="goallbl">🎯 {GOAL_POINTS}</span>
   </div>
 </div>
 
@@ -290,7 +317,7 @@
         <span class="qpos">{SLOT_TYPES[i]}</span>
         <span class="qname"
           >{#if starred(slot)}<span class="emo">⭐</span>
-          {/if}{slot.name} <i>{yy(slot.year)}{slot.prorated !== 1 ? "✱" : ""}</i></span
+          {/if}{slot.name} <i>{yy(slot.year)}</i></span
         >
         <span class="qbadges">
           {#if slot.hero}<span class="emo">🏠</span>{/if}
@@ -303,16 +330,17 @@
       </div>
     {/if}
   {/each}
-  {#if game.skipper}
+  {#if game.manager}
     <div class="qrow skiprow">
       <span class="qpos">MGR</span>
       <span class="qname"
-        >{game.skipper.name} <i>{yy(game.skipper.year)}</i></span
+        >{#if fin.managerHit}<span class="emo">⭐</span>
+        {/if}{game.manager.name} <i>{yy(game.manager.year)}</i></span
       >
       <span class="qbadges"
-        >{#if game.skipper.ws}<span class="emo">💍</span>{:else if game.skipper.pen}<span class="emo">🚩</span>{/if}</span
+        >{#if game.manager.ws}<span class="emo">💍</span>{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
       >
-      <span class="qwar">{signed(fin.parts.skipperPoints)}</span>
+      <span class="qwar">{signed(fin.parts.managerWins)} W</span>
     </div>
   {/if}
 </div>
@@ -322,7 +350,7 @@
     <div class="squad-h">⭐ THE DREAM TEAM — BEST POSSIBLE FROM YOUR SPINS</div>
     <div class="dream-sub">
       Pure WAR, cap ignored: {fin.best.totalWar.toFixed(1)} WAR vs your {fin.totalWar.toFixed(1)}.
-      You found {fin.scoutHits} of 8.
+      You found {fin.scoutHits} of {dreamDenom}.
     </div>
     {#each fin.best.picks as pick, i}
       {@const mine =
@@ -340,6 +368,19 @@
         {/if}
       </div>
     {/each}
+    {#if fin.bestManager}
+      <div class="qrow" class:dreamhit={fin.managerHit}>
+        <span class="qpos">MGR</span>
+        <span class="qname"
+          >{#if fin.managerHit}<span class="emo">⭐</span>
+          {/if}{fin.bestManager.name} <i>{yy(fin.bestManager.year)} {fin.bestManager.teamName}</i></span
+        >
+        <span class="qbadges"
+          >{#if fin.bestManager.ws}<span class="emo">💍</span>{:else if fin.bestManager.pen}<span class="emo">🚩</span>{/if}</span
+        >
+        <span class="qwar">{signed(fin.bestManager.netWins * 0.1)} W</span>
+      </div>
+    {/if}
   </div>
 {/if}
 
@@ -358,6 +399,28 @@
     font-weight: 700;
     color: var(--muted);
     margin-top: 3px;
+  }
+  .brag {
+    display: inline-block;
+    margin-top: 7px;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: var(--sky);
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    padding: 3px 12px;
+    animation: thunk-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .brag.gold {
+    background: var(--yellow);
+    margin-left: 6px;
+  }
+  @keyframes thunk-in {
+    from {
+      opacity: 0;
+      transform: scale(0.6);
+    }
   }
   .ledger {
     display: grid;
@@ -415,6 +478,40 @@
   }
   .lrow.total .amt {
     font-size: 21px;
+  }
+  .goal {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+  }
+  .goal.show {
+    opacity: 1;
+    transition: opacity 0.4s 0.3s;
+  }
+  .goaltrack {
+    flex: 1;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    height: 10px;
+    overflow: hidden;
+    background: var(--card);
+  }
+  .goalfill {
+    height: 100%;
+    background: var(--orange);
+    border-right: 2px solid var(--ink);
+    transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s;
+  }
+  .goalfill.full {
+    background: var(--war-elite);
+    border-right: 0;
+  }
+  .goallbl {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--muted);
+    flex: none;
   }
   .fin-actions {
     display: grid;
@@ -515,6 +612,9 @@
   .qb.roy {
     background: var(--pink);
   }
+  .qb.as {
+    background: var(--amber);
+  }
   .emo {
     font-size: 12px;
     line-height: 1;
@@ -531,6 +631,9 @@
   }
   .qwar.low {
     color: var(--gray-ink);
+  }
+  .qwar.neg {
+    color: var(--war-neg);
   }
   .qwar.mid {
     color: var(--war-mid);

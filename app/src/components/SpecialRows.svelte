@@ -49,12 +49,12 @@
     }
     if (c.manager != null) {
       out.push({
-        key: "skipper",
+        key: "manager",
         cls: "skip",
         ic: "🧢",
         who: c.manager,
-        what: "Skipper",
-        val: signed((c.wins - c.losses) * 0.1),
+        what: "Manager",
+        val: `${signed((c.wins - c.losses) * 0.1)} W`,
         verb: "HIRE",
       });
     }
@@ -65,7 +65,7 @@
     setConfirm(null);
     if (key === "owner") game.hireOwner();
     else if (key === "stadium") game.buyStadium();
-    else game.hireSkipper();
+    else game.hireManager();
   }
 
   function commitSwap(key: SpecialKey) {

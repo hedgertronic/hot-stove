@@ -1,52 +1,59 @@
 <script lang="ts">
   import { loadCard, loadPlayers } from "../lib/data";
-  import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { eligibleTypes } from "../lib/eligibility";
+  import type { Game } from "../lib/engine.svelte";
   import { money, statLine, warTier } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
 
   let { game, onclose }: { game: Game; onclose: () => void } = $props();
 
-  const slotIdx = $derived(game.primePick);
-  const signed = $derived(slotIdx !== null ? game.slots[slotIdx] : null);
+  const playerId = $derived(game.primePick);
+  const listed = $derived.by((): CardPlayer | null => {
+    if (playerId === null || !game.card) return null;
+    return game.card.players.find((p) => p.id === playerId) ?? null;
+  });
 
   interface Season {
     team: string;
     year: number;
     teamName: string;
     p: CardPlayer;
-    eligible: boolean;
+    /** Season fits an open roster seat → signable. */
+    fits: boolean;
+    /** This is the landed card's own season — just sign him the normal way. */
+    here: boolean;
   }
   let seasons = $state<Season[] | null>(null);
   let failed = $state(false);
+  let busy = $state(false);
 
   // The whole career loads up front (cards are ~10KB each and cached); rows
-  // that no longer fit the slot render grayed rather than vanishing.
+  // that fit no open seat render grayed rather than vanishing.
   $effect(() => {
-    const idx = slotIdx;
-    const s = signed;
+    const id = playerId;
     seasons = null;
     failed = false;
-    if (idx === null || !s) return;
+    if (id === null) return;
     void (async () => {
       try {
         const index = await loadPlayers();
-        const refs = (index[s.id] ?? []).filter(([t, y]) => !(t === s.team && y === s.year));
+        const refs = index[id] ?? [];
         const cards = await Promise.all(refs.map(([t, y]) => loadCard(t, y)));
         seasons = cards
           .map((card) => {
-            const p = card.players.find((pl) => pl.id === s.id);
+            const p = card.players.find((pl) => pl.id === id);
             return p
               ? {
                   team: card.team,
                   year: card.year,
                   teamName: card.name,
                   p,
-                  eligible: eligibleTypes(p).includes(SLOT_TYPES[idx]),
+                  fits: game.openSlotsFor(p).length > 0,
+                  here: card.team === game.card?.team && card.year === game.card?.year,
                 }
               : null;
           })
-          .filter((x): x is Season => x !== null);
+          .filter((x): x is Season => x !== null)
+          .sort((a, b) => a.year - b.year);
       } catch {
         failed = true;
       }
@@ -54,8 +61,10 @@
   });
 
   async function pick(sea: Season) {
-    if (slotIdx === null || !sea.eligible) return;
-    await game.applyPrime(slotIdx, sea.team, sea.year);
+    if (busy || !sea.fits || sea.here) return;
+    busy = true;
+    await game.applyPrime(sea.team, sea.year);
+    busy = false;
     onclose();
   }
 </script>
@@ -69,7 +78,8 @@
     aria-label="Pick a season of this player's career"
     tabindex="-1"
   >
-    <div class="sheet-h">⭐ PRIME — {signed?.name ?? ""}</div>
+    <div class="sheet-h">⭐ PRIME TIME — {listed?.name ?? ""}</div>
+    <div class="sheet-sub">Sign any year of the career, at that year's price</div>
     {#if failed}
       <div class="note">Couldn't load the career. Try again.</div>
     {:else if seasons === null}
@@ -79,20 +89,18 @@
     {:else}
       <div class="list">
         {#each seasons as sea ((sea.team + sea.year))}
-          <button class="srow" disabled={!sea.eligible} onclick={() => pick(sea)}>
-            {#if game.showWar}
-              <span class="war {warTier(sea.p.war)}">{sea.p.war.toFixed(1)}<i>WAR</i></span>
-            {:else}
-              <span class="war pos">{sea.p.pos.split("/")[0]}</span>
-            {/if}
+          <button class="srow" disabled={!sea.fits || sea.here} onclick={() => pick(sea)}>
+            <span class="pos">{sea.p.pos.split("/")[0]}</span>
             <span class="mid">
               <span class="yr">’{String(sea.year).slice(2)} {sea.teamName}</span>
-              {#if game.showStats && statLine(sea.p)}<span class="sub">{statLine(sea.p)}</span
-                >{:else if !sea.eligible}<span class="sub">doesn't fit the {SLOT_TYPES[slotIdx ?? 0]} slot</span>{/if}
+              {#if sea.here}<span class="sub">that's this card — just sign him</span>
+              {:else if !sea.fits}<span class="sub">no open seat fits this season</span>
+              {:else if game.showWar && statLine(sea.p)}<span class="sub">{statLine(sea.p)}</span>{/if}
             </span>
-            {#if game.showCost}
-              <span class="cost">{money(sea.p.cost)}</span>
-            {/if}
+            <span class="right">
+              {#if game.showWar}<span class="warchip {warTier(sea.p.war)}">{sea.p.war.toFixed(1)}</span>{/if}
+              {#if game.showCost}<span class="cost">{money(sea.p.cost)}</span>{/if}
+            </span>
           </button>
         {/each}
       </div>
@@ -128,7 +136,13 @@
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.08em;
-    margin-bottom: 10px;
+  }
+  .sheet-sub {
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--muted);
+    margin: 2px 0 10px;
   }
   .note {
     text-align: center;
@@ -169,41 +183,20 @@
   .srow:disabled:active {
     transform: none;
   }
-  .war {
-    width: 40px;
-    height: 40px;
+  .pos {
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    background: var(--war-high);
-    color: var(--card);
+    background: var(--card);
+    color: var(--ink);
     border: 2px solid var(--ink);
     display: grid;
     place-content: center;
     text-align: center;
     font-weight: 800;
-    font-size: 13px;
+    font-size: 10.5px;
     line-height: 1;
     flex: none;
-  }
-  .war i {
-    font-style: normal;
-    display: block;
-    font-size: 7.5px;
-    font-weight: 700;
-  }
-  .war.low {
-    background: var(--war-low);
-  }
-  .war.mid {
-    background: var(--war-mid);
-  }
-  .war.elite {
-    background: var(--war-elite);
-    color: var(--ink);
-  }
-  .war.pos {
-    background: var(--card);
-    color: var(--ink);
-    font-size: 11px;
   }
   .mid {
     display: flex;
@@ -220,12 +213,51 @@
   .sub {
     font-size: 10px;
     color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex: none;
+  }
+  .warchip {
+    display: inline-block;
+    min-width: 34px;
+    text-align: center;
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 12px;
+    line-height: 1.6;
+    padding: 0 4px;
+    color: var(--card);
+  }
+  .warchip.neg {
+    background: var(--war-neg);
+  }
+  .warchip.low {
+    background: var(--war-low);
+  }
+  .warchip.mid {
+    background: var(--war-mid);
+  }
+  .warchip.high {
+    background: var(--war-high);
+  }
+  .warchip.elite {
+    background: var(--war-elite);
+    color: var(--ink);
   }
   .cost {
-    margin-left: auto;
     font-weight: 800;
     font-size: 13px;
     white-space: nowrap;
+    min-width: 48px;
+    text-align: right;
   }
   .cancel {
     width: 100%;

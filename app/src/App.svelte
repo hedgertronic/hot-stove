@@ -95,7 +95,6 @@
 
   const MODE_CHIP: Record<string, string> = {
     scout: "🔭 SCOUT",
-    eyetest: "🕶️ EYE TEST",
   };
   const BANK_CHIP: Record<string, string> = {
     moneyball: "⚾ MONEYBALL",
@@ -140,7 +139,7 @@
     {#if modeChip}<span class="modechip">{modeChip}</span>{/if}
     {#if game.phase !== "finale"}
       <button class="quit" class:armed={quitArmed} onclick={tapQuit}>
-        {quitArmed ? "QUIT? TAP AGAIN" : "✕"}
+        {quitArmed ? "QUIT?" : "✕"}
       </button>
     {/if}
   </header>

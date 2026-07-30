@@ -11,24 +11,14 @@
     return game.card.players.find((p) => p.id === id) ?? null;
   });
 
-  const primeArming = $derived(game.primeArmed && game.primePick === null);
-
   const pickableCells = $derived.by((): Set<number> => {
-    if (primeArming)
-      return new Set(game.slots.map((s, i) => (s !== null ? i : -1)).filter((i) => i >= 0));
     if (!pickPlayer) return new Set();
     return new Set(
-      game.slotPick
-        ? game.pickableSlotCells(pickPlayer)
-        : game.occupiedSlotsFor(pickPlayer),
+      game.slotPick ? game.pickableSlotCells(pickPlayer) : game.occupiedSlotsFor(pickPlayer),
     );
   });
 
   function tapCell(i: number) {
-    if (primeArming) {
-      game.primeTapSlot(i);
-      return;
-    }
     if (!pickPlayer || !pickableCells.has(i)) return;
     if (game.slotPick) game.signPlayer(pickPlayer, i);
     else game.tdRelease(pickPlayer, i);
@@ -52,9 +42,20 @@
       {/if}
     {/each}
   </div>
-  {#if primeArming}
-    <div class="railhint">⭐ TAP A PLAYER TO VISIT ANOTHER YEAR OF THEIR CAREER</div>
-  {:else if pickPlayer}
+  <!-- The dugout: the manager's seat sits under the eight player seats, part of
+       the club you must fill before the finale. -->
+  {#if game.manager}
+    <div class="dugout filled">
+      <b>🧢 MGR</b>
+      <span class="mgrname">{lastName(game.manager.name)}</span>
+      <i>{yy(game.manager.year)} {game.manager.team}</i>
+      {#if game.showAwards && game.manager.ws}<span class="emo">💍</span
+        >{:else if game.showAwards && game.manager.pen}<span class="emo">🚩</span>{/if}
+    </div>
+  {:else}
+    <div class="dugout empty"><b>🧢 MGR</b><span class="mgrname">—</span></div>
+  {/if}
+  {#if pickPlayer}
     <div class="railhint">
       {#if game.slotPick}
         TAP A SLOT FOR {lastName(pickPlayer.name).toUpperCase()}
@@ -62,9 +63,6 @@
         🔁 TAP A PLAYER TO RELEASE FOR {lastName(pickPlayer.name).toUpperCase()}
       {/if}
     </div>
-  {/if}
-  {#if game.skipper}
-    <div class="mgrline"><span class="mgrchip">🧢 {lastName(game.skipper.name)} {yy(game.skipper.year)}</span></div>
   {/if}
 </div>
 
@@ -136,24 +134,53 @@
       transform: translateY(-2px);
     }
   }
+  .dugout {
+    margin-top: 6px;
+    border: 2px solid var(--ink);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 3px 8px;
+    min-height: 26px;
+    font-size: 10px;
+  }
+  .dugout b {
+    font-size: 9px;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+  }
+  .dugout .mgrname {
+    font-weight: 800;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dugout i {
+    font-style: normal;
+    font-size: 9px;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .dugout .emo {
+    font-size: 11px;
+    line-height: 1;
+  }
+  .dugout.filled {
+    background: var(--pink);
+  }
+  .dugout.empty {
+    border-style: dashed;
+    background: transparent;
+    color: var(--gray-ink);
+  }
   .railhint {
     text-align: center;
     font-size: 10.5px;
     font-weight: 800;
     color: var(--orange);
     margin-top: 5px;
-  }
-  .mgrline {
-    text-align: center;
-    margin-top: 6px;
-  }
-  .mgrchip {
-    display: inline-block;
-    background: var(--pink);
-    border: 2px solid var(--ink);
-    border-radius: 999px;
-    padding: 2px 12px;
-    font-weight: 800;
-    font-size: 11.5px;
   }
 </style>

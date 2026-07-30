@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Game } from "../lib/engine.svelte";
-  import { costTier, lastName, money, statLine, warTier } from "../lib/format";
+  import { costTier, lastName, money, warTier } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
 
   let {
@@ -18,22 +18,21 @@
     expanded = false;
   });
 
-  // Standard reads talent-first (WAR desc); Scout shops by price (salary desc,
-  // which also keeps the order from leaking WAR); Eye Test is alphabetical.
+  // Standard reads talent-first (WAR desc); Scout is alphabetical — any other
+  // order would leak information the mode is supposed to hide.
   const sorted = $derived.by(() => {
     if (!game.card) return [];
     const ps = [...game.card.players];
-    if (game.eyeTest)
+    if (game.scout)
       return ps.sort(
         (a, b) =>
           lastName(a.name).localeCompare(lastName(b.name)) || a.name.localeCompare(b.name),
       );
-    if (game.showWar) return ps.sort((a, b) => b.war - a.war || b.cost - a.cost);
-    return ps.sort((a, b) => b.cost - a.cost);
+    return ps.sort((a, b) => b.war - a.war || b.cost - a.cost);
   });
-  // Collapsed view keeps salary order but guarantees signable rows are visible:
-  // late-game (one slot open) the eligible players are cheap and would otherwise
-  // all hide behind the expander, leaving a wall of gray.
+  // Collapsed view keeps sort order but guarantees signable rows are visible:
+  // late-game (one slot open) the eligible players would otherwise all hide
+  // behind the expander, leaving a wall of gray.
   const visible = $derived.by(() => {
     if (expanded) return sorted;
     const out = sorted.slice(0, COLLAPSED);
@@ -54,6 +53,11 @@
   function tap(p: CardPlayer, e: MouseEvent) {
     e.stopPropagation();
     if (!canAct) return;
+    // Armed Prime Time hijacks the row tap: any unsigned human's career opens.
+    if (game.primeArmed) {
+      game.primeTapPlayer(p);
+      return;
+    }
     const state = game.playerState(p);
     if (state === "open") {
       setConfirm(confirmKey === `p:${p.id}` ? null : `p:${p.id}`);
@@ -77,22 +81,24 @@
     CY: "cy",
     MVP2: "mvp",
     CY2: "cy",
+    MVP3: "mvp",
+    CY3: "cy",
     GG: "gg",
     SS: "ss",
     ROY: "roy",
+    AS: "as",
   };
-  const PILL_TEXT: Record<string, string> = { MVP2: "🥈MVP", CY2: "🥈CY" };
+  const PILL_TEXT: Record<string, string> = {
+    MVP: "🥇MVP",
+    CY: "🥇CY",
+    MVP2: "🥈MVP",
+    CY2: "🥈CY",
+    MVP3: "🥉MVP",
+    CY3: "🥉CY",
+  };
 
-  /** Second line per mode: pos · age (Standard) / trad stat line (Scout) /
-   * nothing in Eye Test — the position circle already carries it. */
   function subLine(p: CardPlayer, hero: boolean): string {
-    const base = game.showStats
-      ? statLine(p) || p.pos
-      : game.eyeTest
-        ? ""
-        : p.age != null
-          ? `${p.pos} · ${p.age}`
-          : p.pos;
+    const base = game.scout ? "" : p.age != null ? `age ${p.age}` : "";
     if (!hero) return base;
     return base ? `${base} · 🏠 hometown` : "🏠 hometown";
   }
@@ -103,19 +109,17 @@
     {@const state = game.playerState(p)}
     {@const dead = state === "dead"}
     {@const swappable = dead && tdArmed && canAct && !game.isRostered(p)}
+    {@const primeable = game.primeArmed && canAct && !game.isRostered(p)}
     {@const hero = game.heroEligible(p)}
     {@const price = game.priceFor(p)}
     <button
       class="prow"
-      class:dead={dead && !swappable}
-      class:swap={swappable}
+      class:dead={dead && !swappable && !primeable}
+      class:swap={swappable && !primeable}
+      class:prime={primeable}
       onclick={(e) => tap(p, e)}
     >
-      {#if game.showWar}
-        <span class="war {warTier(p.war)}">{p.war.toFixed(1)}<i>WAR</i></span>
-      {:else}
-        <span class="war pos">{p.pos.split("/")[0]}</span>
-      {/if}
+      <span class="pos">{p.pos.split("/")[0]}</span>
       <span class="mid">
         <span class="pname"
           >{p.name}{#if game.showAwards}<span class="badges"
@@ -125,12 +129,14 @@
         {#if subLine(p, hero)}<span class="ppos">{subLine(p, hero)}</span>{/if}
       </span>
       <span class="right">
-        {#if confirmKey === `p:${p.id}` && state === "open"}
+        {#if confirmKey === `p:${p.id}` && state === "open" && !game.primeArmed}
           <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSign(p); }} onkeydown={(e) => e.key === "Enter" && commitSign(p)}>SIGN {game.showCost ? money(price) : "✍️"}</span>
-        {:else if confirmKey === `t:${p.id}` && swappable}
+        {:else if confirmKey === `t:${p.id}` && swappable && !game.primeArmed}
           <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => e.key === "Enter" && commitTrade(p)}>🔁 {game.showCost ? money(price) : "SWAP"}</span>
-        {:else if game.showCost}
-          <span class="cost {hero ? 'cheap' : costTier(price)}">{money(price)}</span>
+        {:else}
+          {#if primeable}<span class="primetag">⭐</span>{/if}
+          {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}</span>{/if}
+          {#if game.showCost}<span class="cost {hero ? 'cheap' : costTier(price)}">{money(price)}</span>{/if}
         {/if}
       </span>
     </button>
@@ -167,43 +173,22 @@
   .prow:active {
     transform: translate(-1px, -1px);
   }
-  .war {
+  /* Neutral position badge — WAR lives on the right, next to the price. */
+  .pos {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: var(--war-high);
-    color: var(--card);
+    background: var(--card);
+    color: var(--ink);
     border: 2px solid var(--ink);
     display: grid;
     place-content: center;
     text-align: center;
     font-weight: 800;
-    font-size: 13px;
-    line-height: 1;
-    flex: none;
-  }
-  .war i {
-    font-style: normal;
-    display: block;
-    font-size: 7.5px;
-    font-weight: 700;
-  }
-  .war.low {
-    background: var(--war-low);
-  }
-  .war.mid {
-    background: var(--war-mid);
-  }
-  .war.elite {
-    background: var(--war-elite);
-    color: var(--ink);
-  }
-  /* Scout/Eye Test: the circle is a neutral position badge, no tier color. */
-  .war.pos {
-    background: var(--card);
-    color: var(--ink);
     font-size: 11px;
     letter-spacing: 0.02em;
+    line-height: 1;
+    flex: none;
   }
   .badges {
     display: inline-flex;
@@ -234,6 +219,9 @@
   }
   .qb.roy {
     background: var(--pink);
+  }
+  .qb.as {
+    background: var(--amber);
   }
   .emo {
     font-size: 10px;
@@ -266,10 +254,40 @@
     gap: 7px;
     flex: none;
   }
+  .warchip {
+    display: inline-block;
+    min-width: 34px;
+    text-align: center;
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 12px;
+    line-height: 1.6;
+    padding: 0 4px;
+    color: var(--card);
+  }
+  .warchip.neg {
+    background: var(--war-neg);
+  }
+  .warchip.low {
+    background: var(--war-low);
+  }
+  .warchip.mid {
+    background: var(--war-mid);
+  }
+  .warchip.high {
+    background: var(--war-high);
+  }
+  .warchip.elite {
+    background: var(--war-elite);
+    color: var(--ink);
+  }
   .cost {
     font-weight: 800;
     font-size: 14px;
     white-space: nowrap;
+    min-width: 52px;
+    text-align: right;
   }
   .cost.cheap {
     color: var(--green);
@@ -287,14 +305,23 @@
   .prow.dead:active {
     transform: none;
   }
-  .prow.dead .war {
-    background: var(--gray-ink);
+  .prow.dead .pos {
+    background: transparent;
   }
   .prow.swap {
     background: var(--amber);
     border: 2.5px dashed var(--ink);
     opacity: 1;
     filter: none;
+  }
+  .prow.prime {
+    background: var(--amber);
+    border: 2.5px dashed var(--ink);
+    opacity: 1;
+    filter: none;
+  }
+  .primetag {
+    font-size: 13px;
   }
   .confirm {
     border: 2px solid var(--ink);

@@ -18,8 +18,8 @@
         : "🔁 PICK A SWAP…",
   );
 
-  const anySigned = $derived(game.slots.some((s) => s !== null));
-  const primeLabel = $derived(p.prime === "armed" ? "⭐ TAP YOUR GUY…" : "⭐ PRIME");
+  const canAct = $derived(game.phase === "landed" && game.choicesLeft > 0);
+  const primeLabel = $derived(p.prime === "armed" ? "⭐ TAP A PLAYER…" : "⭐ PRIME TIME");
 </script>
 
 <div class="pprow disp">
@@ -49,7 +49,7 @@
     onclick={(e) => {
       e.stopPropagation();
       game.toggleDoublePlay();
-    }}>{p.doublePlay === "armed" ? "✌️ PICK TWO…" : "✌️ DOUBLE PLAY"}</button
+    }}>{p.doublePlay === "armed" ? "✌️ PICK 2 — TAP TO UNDO" : "✌️ DOUBLE PLAY"}</button
   >
   <button
     class="pp"
@@ -63,11 +63,11 @@
   <button
     class="pp"
     class:spent={p.prime === "spent"}
-    class:off={p.prime === "ready" && !anySigned}
+    class:off={p.prime === "ready" && !canAct}
     class:armed={p.prime === "armed"}
     onclick={(e) => {
       e.stopPropagation();
-      if (p.prime !== "ready" || anySigned) game.togglePrime();
+      if (p.prime !== "ready" || canAct) game.togglePrime();
     }}>{primeLabel}</button
   >
 </div>

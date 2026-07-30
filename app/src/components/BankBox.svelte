@@ -32,19 +32,17 @@
       {#if game.owner}
         <span class="chip eff">{money(cap)}</span>
       {:else}
-        <span class="chip ghost">{money(cap)} floor</span>
+        <span class="chip ghost">{money(cap)}</span>
       {/if}
     {/if}
   </div>
   <div class="meter">
-    <div class="fill" class:floorover={over} style:width="{over ? 100 : pct}%"></div>
+    <div class="fill" class:floorover={over} class:zero={spend <= 0} style:width="{over ? 100 : pct}%"></div>
   </div>
   <div class="meter-lbl disp">
     <span>SPENT {money(spend)}</span>
     {#if over}
-      <span class="warn"
-        >⚠ {money(spend - cap)} OVER {game.owner || game.fixedCap ? "CAP" : "FLOOR"}</span
-      >
+      <span class="warn">⚠ {money(spend - cap)} OVER CAP</span>
     {:else}
       <span>{money(cap - spend)} LEFT</span>
     {/if}
@@ -102,6 +100,11 @@
     background: var(--green);
     border-right: 2.5px solid var(--ink);
     transition: width 0.3s;
+  }
+  /* At $0 the bar's own right border would still paint a sliver — hide it all. */
+  .fill.zero {
+    border-right: 0;
+    background: transparent;
   }
   .fill.floorover {
     background: repeating-linear-gradient(
