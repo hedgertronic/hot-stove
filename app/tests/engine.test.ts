@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eligibleTypes } from "../src/lib/eligibility";
 import { Game, SLOT_TYPES } from "../src/lib/engine.svelte";
 import type { Card, CardPlayer, GameIndex, Meta, Owners } from "../src/lib/types";
@@ -68,6 +68,8 @@ function card(players: CardPlayer[], over: Partial<Card> = {}): Card {
     wins: 103,
     losses: 58,
     manager: "Joe Maddon",
+    ws: false,
+    pen: false,
     attendance: 3_232_420,
     attendancePct: 0.86,
     stadiumMult: 1.11,
@@ -340,7 +342,7 @@ describe("cold stove", () => {
 });
 
 describe("finale", () => {
-  it("fires when the roster fills and the record is seed-stable", () => {
+  it("fires when the roster fills; the record equals rounded expected wins", async () => {
     const g = landedGame(card([player({ pos: "SP", gs: 30, posG: { c: 0, if: 0, of: 0, dh: 0 }, war: 5 })]));
     for (let i = 0; i < 8; i++) {
       if (i === 5) continue;
@@ -352,15 +354,13 @@ describe("finale", () => {
     }
     const sp = g.card!.players[0];
     g.signPlayer(sp);
-    expect(g.phase).toBe("finale");
+    // finishGame awaits the best-roster card reloads (a microtask here).
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
     const f = g.finale!;
     expect(f.parts.expectedWins).toBeCloseTo(47.7 + 3 * 7 + 5, 1);
-    expect(f.parts.awardPoints).toBe(3);
+    expect(f.parts.awardPoints).toBe(5);
     expect(f.parts.ringPoints).toBe(3);
+    expect(f.wins).toBe(Math.round(f.parts.expectedWins));
     expect(f.wins + f.losses).toBe(162);
-    // deterministic per seed
-    const g2 = landedGame(card([player({ pos: "SP", gs: 30, posG: { c: 0, if: 0, of: 0, dh: 0 }, war: 5 })]));
-    g2.slots = [...g.slots];
-    expect(new Game(meta, index, owners, 42).seed).toBe(42);
   });
 });

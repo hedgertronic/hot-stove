@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { Game, MONEYBALL_BUDGET_M, SLOT_TYPES, type GameConfig } from "../src/lib/engine.svelte";
+import {
+  BLANK_CHECK_BUDGET_M,
+  Game,
+  MONEYBALL_BUDGET_M,
+  SLOT_TYPES,
+  type GameConfig,
+} from "../src/lib/engine.svelte";
 import { statLine } from "../src/lib/format";
 import { loadSettings, saveSettings } from "../src/lib/settings";
 import type { Card, CardPlayer, GameIndex, Meta, Owners } from "../src/lib/types";
@@ -68,6 +74,8 @@ function card(players: CardPlayer[], over: Partial<Card> = {}): Card {
     wins: 103,
     losses: 58,
     manager: "Joe Maddon",
+    ws: true,
+    pen: false,
     attendance: 3_232_420,
     attendancePct: 0.86,
     stadiumMult: 1.11,
@@ -97,16 +105,15 @@ beforeEach(() => {
 describe("difficulty visibility gating", () => {
   const cases: [string, boolean, boolean, boolean, boolean][] = [
     // difficulty, showWar, showCost, showAwards, showStats
-    ["rookie", true, true, true, false],
-    ["standard", true, true, false, false],
-    ["scout", false, false, false, true],
+    ["standard", true, true, true, false],
+    ["scout", false, true, false, true],
     ["eyetest", false, false, false, false],
   ];
   for (const [d, war, cost, awards, stats] of cases) {
-    it(`${d} matches the BUILD.md table`, () => {
+    it(`${d} matches the three-rung ladder`, () => {
       const g = landedGame(card([]), {
         difficulty: d as GameConfig["difficulty"],
-        moneyball: false,
+        bank: "classic",
       });
       expect([g.showWar, g.showCost, g.showAwards, g.showStats]).toEqual([
         war,
@@ -120,7 +127,7 @@ describe("difficulty visibility gating", () => {
 });
 
 describe("moneyball", () => {
-  const MB: GameConfig = { difficulty: "standard", moneyball: true };
+  const MB: GameConfig = { difficulty: "standard", bank: "moneyball" };
 
   it("locks the cap to the 2002 A's bankroll regardless of specials", () => {
     const g = landedGame(card([]), MB);
@@ -165,49 +172,76 @@ describe("moneyball", () => {
   });
 
   it("config round-trips through save/restore", async () => {
-    const g = landedGame(card([player({})]), { difficulty: "scout", moneyball: true });
+    const g = landedGame(card([player({})]), { difficulty: "scout", bank: "moneyball" });
     g.save();
     // restore() re-fetches the card; strip the ref so it resumes preSpin w/o fetch.
     const saved = JSON.parse(store.get("hotstove.current")!);
     saved.cardRef = null;
     store.set("hotstove.current", JSON.stringify(saved));
     const back = await Game.restore(meta, index, owners);
-    expect(back?.config).toEqual({ difficulty: "scout", moneyball: true });
+    expect(back?.config).toEqual({ difficulty: "scout", bank: "moneyball" });
+  });
+});
+
+describe("blank check", () => {
+  const BC: GameConfig = { difficulty: "standard", bank: "blankcheck" };
+
+  it("locks the cap to the 2005 Yankees bankroll and disables specials", () => {
+    const g = landedGame(card([]), BC);
+    expect(g.effectiveBudget).toBe(BLANK_CHECK_BUDGET_M);
+    g.hireOwner();
+    g.buyStadium();
+    expect(g.owner).toBeNull();
+    expect(g.stadium).toBeNull();
+  });
+});
+
+describe("skipper pedigree", () => {
+  it("hiring a champ's manager records the ring", () => {
+    const g = landedGame(card([player({})]));
+    g.hireSkipper();
+    expect(g.skipper?.ws).toBe(true);
+    expect(g.skipper?.pen).toBe(false);
   });
 });
 
 describe("settings persistence", () => {
   it("round-trips and falls back to defaults on garbage", () => {
-    saveSettings({ difficulty: "eyetest", moneyball: true });
-    expect(loadSettings()).toEqual({ difficulty: "eyetest", moneyball: true });
+    saveSettings({ difficulty: "eyetest", bank: "moneyball" });
+    expect(loadSettings()).toEqual({ difficulty: "eyetest", bank: "moneyball" });
     store.set("hotstove.settings", "{not json");
-    expect(loadSettings()).toEqual({ difficulty: "standard", moneyball: false });
-    store.set("hotstove.settings", JSON.stringify({ difficulty: "impossible", moneyball: 3 }));
-    expect(loadSettings()).toEqual({ difficulty: "standard", moneyball: false });
+    expect(loadSettings()).toEqual({ difficulty: "standard", bank: "classic" });
+    store.set("hotstove.settings", JSON.stringify({ difficulty: "impossible", bank: 3 }));
+    expect(loadSettings()).toEqual({ difficulty: "standard", bank: "classic" });
+  });
+
+  it("migrates pre-bank settings: rookie folds into standard, moneyball flag maps over", () => {
+    store.set("hotstove.settings", JSON.stringify({ difficulty: "rookie", moneyball: true }));
+    expect(loadSettings()).toEqual({ difficulty: "standard", bank: "moneyball" });
   });
 });
 
 describe("stat lines", () => {
-  it("hitters read AVG/HR/SB", () => {
-    expect(statLine({ pos: "3B", bat: { avg: 0.292, hr: 39, sb: 8 } })).toBe(
-      ".292 · 39 HR · 8 SB",
-    );
+  it("hitters read slash/HR/RBI/SB", () => {
+    expect(
+      statLine({ pos: "3B", bat: { avg: 0.292, obp: 0.385, slg: 0.544, hr: 39, rbi: 102, sb: 8 } }),
+    ).toBe(".292/.385/.544 · 39 HR · 102 RBI · 8 SB");
   });
-  it("starters read W–L/ERA; relievers add saves", () => {
-    expect(statLine({ pos: "SP", pit: { w: 19, l: 5, sv: 0, era: 2.44 } })).toBe(
-      "19–5 · 2.44 ERA",
+  it("pitchers read W–L/ERA/K", () => {
+    expect(statLine({ pos: "SP", pit: { w: 19, l: 5, sv: 0, era: 2.44, so: 284 } })).toBe(
+      "19–5 · 2.44 ERA · 284 K",
     );
-    expect(statLine({ pos: "RP", pit: { w: 2, l: 3, sv: 18, era: 3.53 } })).toBe(
-      "2–3 · 3.53 ERA · 18 SV",
+    expect(statLine({ pos: "RP", pit: { w: 2, l: 3, sv: 18, era: 3.53, so: 74 } })).toBe(
+      "2–3 · 3.53 ERA · 74 K",
     );
   });
   it("two-way seasons show the pitching line", () => {
     expect(
       statLine({
         pos: "SP/DH",
-        bat: { avg: 0.273, hr: 34, sb: 11 },
-        pit: { w: 9, l: 2, sv: 0, era: 2.33 },
+        bat: { avg: 0.273, obp: 0.372, slg: 0.585, hr: 34, rbi: 95, sb: 11 },
+        pit: { w: 9, l: 2, sv: 0, era: 2.33, so: 219 },
       }),
-    ).toBe("9–2 · 2.33 ERA");
+    ).toBe("9–2 · 2.33 ERA · 219 K");
   });
 });
