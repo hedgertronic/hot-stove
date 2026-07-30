@@ -7,15 +7,15 @@ All dollar amounts are normalized display millions (league-avg slot-8 = $160M).
 
 from __future__ import annotations
 
-import random
-
 REPLACEMENT_WINS = 47.7
 GAMES = 162
 
-AWARD_POINTS = {"MVP": 3, "CY": 3, "ROY": 2, "GG": 1, "SS": 1}
+# MVP2/CY2 are award-vote runners-up (finished 2nd on their league's ballot).
+AWARD_POINTS = {"MVP": 5, "CY": 4, "MVP2": 2, "CY2": 2, "ROY": 2, "GG": 1, "SS": 1}
 RING_POINTS = 2      # per player whose team won the World Series that season
 PENNANT_POINTS = 1   # per player whose team won the pennant but lost the Series
 SKIPPER_PER_NET_WIN = 0.1  # hired manager: (team W - team L) x this, negative allowed
+SCOUT_HIT_POINTS = 1.0  # per drafted player who's in the WAR-optimal roster
 
 LUXURY_TAX_PER_M = 1.0
 BUDGET_BONUS_MAX = 10.0
@@ -50,15 +50,14 @@ def award_points(award_lists: list[list[str]]) -> int:
     return sum(AWARD_POINTS.get(code, 0) for awards in award_lists for code in awards)
 
 
-def simulate_season(exp_wins: float, seed: int) -> tuple[int, int]:
-    """Displayed record: game-by-game coin flips at p = exp_wins/162.
+def display_record(exp_wins: float) -> tuple[int, int]:
+    """Displayed record: expected wins, rounded.
 
-    Deterministic per seed so a daily-mode result is reproducible and
-    shareable. The score always uses expected_wins; this is just drama.
+    Deliberately deterministic — the headline W-L must match the
+    "Expected wins" ledger row exactly (a simulated record read as a bug:
+    it never reconciled with the visible math).
     """
-    rng = random.Random(seed)
-    p = exp_wins / GAMES
-    wins = sum(rng.random() < p for _ in range(GAMES))
+    wins = round(exp_wins)
     return wins, GAMES - wins
 
 
@@ -70,6 +69,7 @@ def score(
     rings: int = 0,
     pennants: int = 0,
     skipper_record: tuple[int, int] | None = None,
+    scout_hits: int = 0,
 ) -> dict[str, float]:
     wins = expected_wins(total_war)
     parts = {
@@ -80,10 +80,12 @@ def score(
         "skipperPoints": round(
             (skipper_record[0] - skipper_record[1]) * SKIPPER_PER_NET_WIN, 1
         ) if skipper_record else 0.0,
+        "scoutBonus": round(scout_hits * SCOUT_HIT_POINTS, 1),
         "luxuryTax": round(luxury_tax(spend_m, budget_m), 1),
     }
     parts["total"] = round(
         parts["expectedWins"] + parts["budgetBonus"] + parts["awardPoints"]
-        + parts["ringPoints"] + parts["skipperPoints"] - parts["luxuryTax"], 1
+        + parts["ringPoints"] + parts["skipperPoints"] + parts["scoutBonus"]
+        - parts["luxuryTax"], 1
     )
     return parts

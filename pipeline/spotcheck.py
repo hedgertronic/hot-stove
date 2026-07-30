@@ -48,8 +48,8 @@ def main() -> None:
         award_lists=[p["awards"] for p in team],
     )
     print(f"\n3-player toy score vs {c['year']} {c['team']} budget: {result}")
-    w, l = scoring.simulate_season(result["expectedWins"], seed=42)
-    print(f"simulated record (seed 42): {w}-{l}")
+    w, l = scoring.display_record(result["expectedWins"])
+    print(f"display record: {w}-{l}")
 
 
 if __name__ == "__main__":

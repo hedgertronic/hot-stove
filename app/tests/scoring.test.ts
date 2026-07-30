@@ -13,6 +13,7 @@ interface Fixture {
     rings: number;
     pennants: number;
     skipper_record: [number, number] | null;
+    scout_hits: number;
   };
   expect: Record<string, number>;
 }
@@ -28,6 +29,7 @@ describe("scoring parity with pipeline/scoring.py", () => {
         rings: f.args.rings,
         pennants: f.args.pennants,
         skipperRecord: f.args.skipper_record,
+        scoutHits: f.args.scout_hits,
       });
       expect(parts).toEqual(f.expect);
     });

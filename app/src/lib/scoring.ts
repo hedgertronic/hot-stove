@@ -2,16 +2,25 @@
  * Balance changes happen there first (playtested via pipeline/playtest.py),
  * then get mirrored here. tests/scoring.test.ts holds parity fixtures
  * generated from the Python implementation. */
-import { Rng } from "./rng";
 import type { ScoreParts } from "./types";
 
 export const REPLACEMENT_WINS = 47.7;
 export const GAMES = 162;
 
-export const AWARD_POINTS: Record<string, number> = { MVP: 3, CY: 3, ROY: 2, GG: 1, SS: 1 };
+/** MVP2/CY2 are award-vote runners-up (finished 2nd in their league's ballot). */
+export const AWARD_POINTS: Record<string, number> = {
+  MVP: 5,
+  CY: 4,
+  MVP2: 2,
+  CY2: 2,
+  ROY: 2,
+  GG: 1,
+  SS: 1,
+};
 export const RING_POINTS = 2; // per player whose team won the World Series that season
 export const PENNANT_POINTS = 1; // per player whose team won the pennant but lost the Series
 export const SKIPPER_PER_NET_WIN = 0.1; // hired manager: (team W − team L) × this, negative allowed
+export const SCOUT_HIT_POINTS = 1.0; // per drafted player who's in the WAR-optimal roster
 
 export const LUXURY_TAX_PER_M = 1.0;
 export const BUDGET_BONUS_MAX = 10.0;
@@ -47,14 +56,11 @@ export function awardPoints(awardLists: string[][]): number {
   return total;
 }
 
-/** Displayed record: game-by-game coin flips at p = expWins/162. Deterministic
- * per rng seed. The score always uses expectedWins; this is just drama.
- * (Uses mulberry32 rather than Python's Mersenne Twister — the record never
- * needs cross-language parity, only cross-device reproducibility.) */
-export function simulateSeason(expWins: number, rng: Rng): [number, number] {
-  const p = expWins / GAMES;
-  let wins = 0;
-  for (let g = 0; g < GAMES; g++) if (rng.next() < p) wins++;
+/** Displayed record: expected wins, rounded. Deliberately deterministic — the
+ * headline W–L must match the "Expected wins" ledger row exactly (a simulated
+ * record read as a bug: it never reconciled with the visible math). */
+export function displayRecord(expWins: number): [number, number] {
+  const wins = Math.round(expWins);
   return [wins, GAMES - wins];
 }
 
@@ -66,8 +72,18 @@ export function score(args: {
   rings?: number;
   pennants?: number;
   skipperRecord?: [number, number] | null;
+  scoutHits?: number;
 }): ScoreParts {
-  const { totalWar, spendM, budgetM, awardLists, rings = 0, pennants = 0, skipperRecord = null } = args;
+  const {
+    totalWar,
+    spendM,
+    budgetM,
+    awardLists,
+    rings = 0,
+    pennants = 0,
+    skipperRecord = null,
+    scoutHits = 0,
+  } = args;
   const parts: ScoreParts = {
     expectedWins: round1(expectedWins(totalWar)),
     budgetBonus: round1(budgetBonus(spendM, budgetM)),
@@ -76,6 +92,7 @@ export function score(args: {
     skipperPoints: skipperRecord
       ? round1((skipperRecord[0] - skipperRecord[1]) * SKIPPER_PER_NET_WIN)
       : 0,
+    scoutBonus: round1(scoutHits * SCOUT_HIT_POINTS),
     luxuryTax: round1(luxuryTax(spendM, budgetM)),
     total: 0,
   };
@@ -84,7 +101,8 @@ export function score(args: {
       parts.budgetBonus +
       parts.awardPoints +
       parts.ringPoints +
-      parts.skipperPoints -
+      parts.skipperPoints +
+      parts.scoutBonus -
       parts.luxuryTax,
   );
   return parts;
