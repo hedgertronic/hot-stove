@@ -124,6 +124,7 @@ def main() -> None:
     cards_dir = DATA_DIR / "cards"
     cards_dir.mkdir(parents=True, exist_ok=True)
     index, empty_slots = [], 0
+    min_budget = None  # league-minimum bankroll: the no-owner floor (meta.minBudget)
 
     for (year, br), row in sorted(gd.team_rows.items()):
         factor = gd.proration[year]
@@ -156,6 +157,7 @@ def main() -> None:
             "prorated": factor,
             "players": build_players(gd, br, year, factor),
         }
+        min_budget = card["budget"] if min_budget is None else min(min_budget, card["budget"])
         (cards_dir / f"{br}_{year}.json").write_text(json.dumps(card))
         index.append({"team": br, "year": year, "franchise": row["franchID"],
                       "name": row["name"]})
@@ -166,6 +168,7 @@ def main() -> None:
         "displayAvgM": DISPLAY_AVG_M,
         "replacementWins": REPLACEMENT_WINS,
         "slots": SLOTS,
+        "minBudget": min_budget,
         "avgSlot8": {str(y): round(v) for y, v in sorted(gd.avg_slot8.items())},
         "salaryFloor": {str(y): v for y, v in sorted(gd.floor.items())},
         "proration": {str(y): f for y, f in sorted(gd.proration.items()) if f != 1.0},
