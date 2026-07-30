@@ -80,6 +80,7 @@ class GameData:
         self._build_ids()
         self._build_teams()
         self._build_positions()
+        self._build_stat_lines()
         self._build_war()
         self._build_salaries()
         self._build_awards()
@@ -91,9 +92,19 @@ class GameData:
 
     def _build_ids(self) -> None:
         self.b2l: dict[str, str] = {}
+        self.birth: dict[str, tuple[int, int]] = {}  # playerID -> (year, month)
         for r in self.raw["People"]:
             bbref = r.get("bbrefID") or r["playerID"]
             self.b2l[bbref] = r["playerID"]
+            if by := _i(r.get("birthYear")):
+                self.birth[r["playerID"]] = (by, _i(r.get("birthMonth")) or 7)
+
+    def seasonal_age(self, lahman_id: str, year: int) -> int | None:
+        """Baseball convention: age on June 30 of the season."""
+        if (b := self.birth.get(lahman_id)) is None:
+            return None
+        by, bm = b
+        return year - by - (1 if bm >= 7 else 0)
 
     # -- Teams / seasons ---------------------------------------------------
 
@@ -154,6 +165,34 @@ class GameData:
             return None
         best = max(games, key=lambda p: games[p])
         return best if games[best] > 0 else None
+
+    # -- Traditional stat lines (Scout mode; summed across stints) ---------
+
+    def _build_stat_lines(self) -> None:
+        self.bat_line: dict[tuple[str, int], dict[str, int]] = {}
+        for r in self.raw["Batting"]:
+            year = _i(r["yearID"])
+            if not (YEAR_MIN <= year <= YEAR_MAX):
+                continue
+            e = self.bat_line.setdefault(
+                (r["playerID"], year), {"ab": 0, "h": 0, "hr": 0, "sb": 0})
+            e["ab"] += _i(r["AB"])
+            e["h"] += _i(r["H"])
+            e["hr"] += _i(r["HR"])
+            e["sb"] += _i(r["SB"])
+
+        self.pit_line: dict[tuple[str, int], dict[str, int]] = {}
+        for r in self.raw["Pitching"]:
+            year = _i(r["yearID"])
+            if not (YEAR_MIN <= year <= YEAR_MAX):
+                continue
+            e = self.pit_line.setdefault(
+                (r["playerID"], year), {"w": 0, "l": 0, "sv": 0, "er": 0, "outs": 0})
+            e["w"] += _i(r["W"])
+            e["l"] += _i(r["L"])
+            e["sv"] += _i(r["SV"])
+            e["er"] += _i(r["ER"])
+            e["outs"] += _i(r["IPouts"])
 
     # -- WAR + B-R salary (aggregated across stints; full-season totals) ---
 

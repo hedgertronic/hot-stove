@@ -30,8 +30,8 @@ REPLACEMENT_WINS = 47.7
 # see the sweep tables in pipeline/playtest.py history.
 ASKING_PER_WAR = 0.0
 
-LAHMAN_TABLES = ["People", "Teams", "Appearances", "Pitching", "Salaries",
-                 "AwardsPlayers", "Managers"]
+LAHMAN_TABLES = ["People", "Teams", "Appearances", "Batting", "Pitching",
+                 "Salaries", "AwardsPlayers", "Managers"]
 
 
 def load_raw() -> dict:
@@ -73,7 +73,20 @@ def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]
         war = round(war_raw * factor, 1)
         contract = gd.to_display_m(salary, year)
         games = gd.pos_games.get((lahman_id, year), {})
+        # Scout-mode extras: age + trad stat lines, omitted when absent/noise.
+        extras: dict = {}
+        if (age := gd.seasonal_age(lahman_id, year)) is not None:
+            extras["age"] = age
+        bat = gd.bat_line.get((lahman_id, year))
+        if bat and bat["ab"] >= 20:
+            extras["bat"] = {"avg": round(bat["h"] / bat["ab"], 3),
+                             "hr": bat["hr"], "sb": bat["sb"]}
+        pit = gd.pit_line.get((lahman_id, year))
+        if pit and pit["outs"] >= 3:
+            extras["pit"] = {"w": pit["w"], "l": pit["l"], "sv": pit["sv"],
+                             "era": round(9 * pit["er"] / (pit["outs"] / 3), 2)}
         players.append({
+            **extras,
             "id": bbref_id,
             "name": e["name"],
             "pos": display_pos(gd, lahman_id, year, e, factor),
