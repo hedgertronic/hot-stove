@@ -92,10 +92,11 @@ export interface Colors {
 
 export interface ScoreParts {
   expectedWins: number;
+  /** Manager net-win contribution — already inside expectedWins, shown for the ledger. */
+  managerWins: number;
   budgetBonus: number;
   awardPoints: number;
   ringPoints: number;
-  skipperPoints: number;
   scoutBonus: number;
   luxuryTax: number;
   total: number;

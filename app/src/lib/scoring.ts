@@ -4,26 +4,34 @@
  * generated from the Python implementation. */
 import type { ScoreParts } from "./types";
 
-export const REPLACEMENT_WINS = 47.7;
+export const REPLACEMENT_WINS = 50;
 export const GAMES = 162;
 
-/** MVP2/CY2 are award-vote runners-up (finished 2nd in their league's ballot). */
+/** MVP2/CY2 (and 3) are award-vote ballot finishes; AS is an All-Star selection. */
 export const AWARD_POINTS: Record<string, number> = {
   MVP: 5,
   CY: 4,
   MVP2: 2,
   CY2: 2,
+  MVP3: 1,
+  CY3: 1,
   ROY: 2,
+  AS: 1,
   GG: 1,
   SS: 1,
 };
 export const RING_POINTS = 2; // per player whose team won the World Series that season
 export const PENNANT_POINTS = 1; // per player whose team won the pennant but lost the Series
-export const SKIPPER_PER_NET_WIN = 0.1; // hired manager: (team W − team L) × this, negative allowed
-export const SCOUT_HIT_POINTS = 1.0; // per drafted player who's in the WAR-optimal roster
+export const MANAGER_PER_NET_WIN = 0.1; // hired manager: (team W − team L) × this, in WINS
+export const SCOUT_HIT_POINTS = 1.0; // per drafted pick who's in the dream team
 
 export const LUXURY_TAX_PER_M = 1.0;
 export const BUDGET_BONUS_MAX = 10.0;
+
+/** The season is 162 games; a perfect draft chases 162 points. */
+export const GOAL_POINTS = 162;
+/** 2001 Mariners — the wins record the finale calls out when beaten. */
+export const MARINERS_WINS = 116;
 
 /** Round to 1 decimal, matching Python's round(x, 1). toFixed rounds the true
  * double value (multiplying by 10 first double-rounds: 60.050000000000004×10
@@ -34,8 +42,9 @@ export function round1(x: number): number {
   return Number(x.toFixed(1));
 }
 
-export function expectedWins(totalWar: number): number {
-  return Math.min(REPLACEMENT_WINS + totalWar, GAMES);
+/** Manager folds into the win total (not a separate points row). */
+export function expectedWins(totalWar: number, managerWins = 0): number {
+  return Math.min(REPLACEMENT_WINS + totalWar + managerWins, GAMES);
 }
 
 export function luxuryTax(spendM: number, budgetM: number): number {
@@ -71,7 +80,7 @@ export function score(args: {
   awardLists: string[][];
   rings?: number;
   pennants?: number;
-  skipperRecord?: [number, number] | null;
+  managerRecord?: [number, number] | null;
   scoutHits?: number;
 }): ScoreParts {
   const {
@@ -81,17 +90,16 @@ export function score(args: {
     awardLists,
     rings = 0,
     pennants = 0,
-    skipperRecord = null,
+    managerRecord = null,
     scoutHits = 0,
   } = args;
+  const mw = managerRecord ? (managerRecord[0] - managerRecord[1]) * MANAGER_PER_NET_WIN : 0;
   const parts: ScoreParts = {
-    expectedWins: round1(expectedWins(totalWar)),
+    expectedWins: round1(expectedWins(totalWar, mw)),
+    managerWins: round1(mw),
     budgetBonus: round1(budgetBonus(spendM, budgetM)),
     awardPoints: awardPoints(awardLists),
     ringPoints: rings * RING_POINTS + pennants * PENNANT_POINTS,
-    skipperPoints: skipperRecord
-      ? round1((skipperRecord[0] - skipperRecord[1]) * SKIPPER_PER_NET_WIN)
-      : 0,
     scoutBonus: round1(scoutHits * SCOUT_HIT_POINTS),
     luxuryTax: round1(luxuryTax(spendM, budgetM)),
     total: 0,
@@ -101,7 +109,6 @@ export function score(args: {
       parts.budgetBonus +
       parts.awardPoints +
       parts.ringPoints +
-      parts.skipperPoints +
       parts.scoutBonus -
       parts.luxuryTax,
   );

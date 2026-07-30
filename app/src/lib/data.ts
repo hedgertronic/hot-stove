@@ -31,12 +31,14 @@ export function loadCard(team: string, year: number): Promise<Card> {
   return p;
 }
 
-/** Resolve the owning name for a franchise-year against [from, to). */
+/** Resolve the owning name for a franchise-year against [from, to). The data's
+ * trailing parenthetical ("Ricketts family (Tom Ricketts)") is dropped for
+ * display — the short form is the recognizable one. */
 export function ownerFor(owners: Owners, franchise: string, year: number): string {
   const entry = owners.franchises[franchise]?.owners.find(
     (o) => o.from <= year && (o.to === null || year < o.to),
   );
-  return entry?.name ?? "The Front Office";
+  return (entry?.name ?? "The Front Office").replace(/\s*\([^)]*\)\s*$/, "");
 }
 
 export function accentFor(colors: Colors, franchise: string): string {

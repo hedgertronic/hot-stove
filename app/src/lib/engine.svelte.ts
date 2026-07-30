@@ -1,7 +1,6 @@
 /** Game state machine. Implements SPEC.md's rules, DECISIONS.md's gap fills.
  * All gameplay randomness flows through `this.rng` (one mulberry32 stream per
- * seed); the finale record sim uses a fixed derivation of the seed so the
- * displayed record is independent of how many spins the draft took. */
+ * seed). The displayed record is deterministic (rounded expected wins). */
 import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, ownerFor } from "./data";
 import { eligibleTypes } from "./eligibility";
@@ -17,7 +16,7 @@ export type PowerupKey = "seasonTicket" | "relocate" | "doublePlay" | "tradeDead
 export type PowerupState = "ready" | "armed" | "spent";
 export type PlayerRowState = "open" | "dead";
 
-export type Difficulty = "standard" | "scout" | "eyetest";
+export type Difficulty = "standard" | "scout";
 export type Bank = "classic" | "moneyball" | "blankcheck";
 
 export interface GameConfig {
@@ -69,20 +68,32 @@ export interface StadiumPick {
   year: number;
 }
 
-export interface SkipperPick {
+export interface ManagerPick {
   name: string;
   wins: number;
   losses: number;
   year: number;
+  team: string;
   teamName: string;
   ws: boolean;
   pen: boolean;
 }
 
-export type SpecialKey = "owner" | "stadium" | "skipper";
+/** The winningest manager among every card this game landed on. */
+export interface BestManager {
+  name: string;
+  team: string;
+  year: number;
+  teamName: string;
+  ws: boolean;
+  pen: boolean;
+  netWins: number;
+}
+
+export type SpecialKey = "owner" | "stadium" | "manager";
 
 export interface SpinLogEntry {
-  kind: "sign" | "owner" | "stadium" | "skipper" | "swap";
+  kind: "sign" | "owner" | "stadium" | "manager" | "swap";
   war?: number;
 }
 
@@ -97,12 +108,15 @@ export interface FinaleResult {
   /** WAR-optimal roster over every card this game landed on (null if the
    * cards couldn't be reloaded — score falls back to zero scout hits). */
   best: BestRoster | null;
+  bestManager: BestManager | null;
+  /** True when the hired manager IS the dream team's manager. */
+  managerHit: boolean;
   scoutHits: number;
 }
 
 const SAVE_KEY = "hotstove.current";
 const HISTORY_KEY = "hotstove.history";
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
 
 export class Game {
   meta: Meta;
@@ -117,7 +131,7 @@ export class Game {
   slots = $state<(Signed | null)[]>(Array(SLOT_TYPES.length).fill(null));
   owner = $state<OwnerPick | null>(null);
   stadium = $state<StadiumPick | null>(null);
-  skipper = $state<SkipperPick | null>(null);
+  manager = $state<ManagerPick | null>(null);
   powerups = $state<Record<PowerupKey, PowerupState>>({
     seasonTicket: "ready",
     relocate: "ready",
@@ -133,12 +147,15 @@ export class Game {
   spinKind = $state<SpinKind>("full");
   /** Every distinct card this game has landed on — the scouting yardstick. */
   seen = $state<{ team: string; year: number }[]>([]);
+  /** The one bonus spin granted when the club is complete but Trade Deadline
+   * is still unspent — a last chance to upgrade before the finale. */
+  tdBonus = $state(false);
   /** Sign-time slot ambiguity: rail becomes a slot picker for this player. */
   slotPick = $state<string | null>(null);
   /** TD release picker: rail cells the incoming player could replace. */
   releasePick = $state<string | null>(null);
-  /** Prime picker: rail slot whose player is browsing their other seasons. */
-  primePick = $state<number | null>(null);
+  /** Prime picker: id of the LISTED player whose career is being browsed. */
+  primePick = $state<string | null>(null);
   finale = $state<FinaleResult | null>(null);
 
   private pendingCard: Promise<Card> | null = null;
@@ -164,22 +181,17 @@ export class Game {
     return this.config.difficulty === "standard";
   }
 
-  /** Standard sees everything priced; Scout trades WAR for trad stat lines
-   * but still shops by salary; Eye Test flies blind. */
+  /** Scout mode flies blind: names and positions only. */
   get showCost(): boolean {
-    return this.config.difficulty !== "eyetest";
+    return this.config.difficulty === "standard";
   }
 
   get showAwards(): boolean {
     return this.config.difficulty === "standard";
   }
 
-  get showStats(): boolean {
+  get scout(): boolean {
     return this.config.difficulty === "scout";
-  }
-
-  get eyeTest(): boolean {
-    return this.config.difficulty === "eyetest";
   }
 
   /** Moneyball and Blank Check are fixed-cap modes: no owners, no stadiums. */
@@ -191,6 +203,21 @@ export class Game {
 
   get rosterFull(): boolean {
     return this.slots.every((s) => s !== null);
+  }
+
+  /** The club is complete when every seat that can be filled is: the whole
+   * roster, a manager, and (classic bank only) an owner and a stadium. The
+   * game keeps spinning until this is true. */
+  get complete(): boolean {
+    return (
+      this.rosterFull &&
+      this.manager !== null &&
+      (this.fixedCap || (this.owner !== null && this.stadium !== null))
+    );
+  }
+
+  get inTdBonus(): boolean {
+    return this.tdBonus;
   }
 
   get totalWar(): number {
@@ -232,7 +259,7 @@ export class Game {
     return ownerFor(this.owners, this.card.franchise, this.card.year);
   }
 
-  get skipperAvailable(): boolean {
+  get managerAvailable(): boolean {
     return this.card?.manager != null;
   }
 
@@ -271,22 +298,22 @@ export class Game {
   }
 
   specialTaken(which: SpecialKey): boolean {
-    return { owner: this.owner, stadium: this.stadium, skipper: this.skipper }[which] !== null;
+    return { owner: this.owner, stadium: this.stadium, manager: this.manager }[which] !== null;
   }
 
   /** Can any choice still be committed on this card? (DECISIONS.md #3) */
   anyActionable(): boolean {
     if (!this.card) return false;
     const specialsOpen = this.fixedCap
-      ? !this.skipper && this.skipperAvailable
-      : !this.owner || !this.stadium || (!this.skipper && this.skipperAvailable);
+      ? !this.manager && this.managerAvailable
+      : !this.owner || !this.stadium || (!this.manager && this.managerAvailable);
     if (specialsOpen) return true;
     if (!this.rosterFull && this.card.players.some((p) => this.playerState(p) === "open"))
       return true;
     if (this.powerups.tradeDeadline !== "spent") {
       if (this.card.players.some((p) => this.playerState(p) === "dead" && !this.isRostered(p)))
         return true;
-      if (this.owner || this.stadium || (this.skipper && this.skipperAvailable)) return true;
+      if (this.owner || this.stadium || (this.manager && this.managerAvailable)) return true;
     }
     return false;
   }
@@ -369,16 +396,22 @@ export class Game {
     this.beginSpin(entry, "team");
   }
 
-  /** ✌️ Double Play: arming grants a second choice this spin. Toggle pre-commit;
-   * spent at the first commit while armed. */
+  /** ✌️ Double Play: arming grants a second choice this spin. Only consumed
+   * when the SECOND pick actually commits — disarming or moving on with one
+   * pick refunds it. */
   toggleDoublePlay(): void {
-    if (this.phase !== "landed" || this.choicesUsed > 0) return;
+    if (this.phase !== "landed") return;
     if (this.powerups.doublePlay === "ready") {
+      if (this.choicesUsed > 0) return;
       this.powerups.doublePlay = "armed";
       this.choicesLeft += 1;
     } else if (this.powerups.doublePlay === "armed") {
       this.powerups.doublePlay = "ready";
       this.choicesLeft -= 1;
+      if (this.choicesLeft === 0 && this.choicesUsed > 0) {
+        this.endSpin();
+        return;
+      }
     }
     this.save();
   }
@@ -395,10 +428,10 @@ export class Game {
     this.save();
   }
 
-  /** ⭐ Prime arming toggle: filled rail cells become season-pickable. Free
-   * action — browsing a career costs nothing until a season is applied. */
+  /** ⭐ Prime Time arming toggle: listed (unsigned) players become
+   * career-browsable. Browsing costs nothing until a season is signed. */
   togglePrime(): void {
-    if (this.phase !== "landed") return;
+    if (this.phase !== "landed" || this.choicesLeft === 0) return;
     if (this.powerups.prime === "ready") {
       this.powerups.prime = "armed";
     } else if (this.powerups.prime === "armed") {
@@ -412,41 +445,33 @@ export class Game {
     return this.powerups.prime === "armed";
   }
 
-  /** Armed Prime, tap a filled rail cell: browse that player's other seasons. */
-  primeTapSlot(slotIdx: number): void {
-    if (!this.primeArmed || this.slots[slotIdx] === null) return;
-    this.primePick = slotIdx;
+  /** Armed Prime, tap a listed player: browse their whole career. */
+  primeTapPlayer(p: CardPlayer): void {
+    if (!this.primeArmed || this.isRostered(p)) return;
+    this.primePick = p.id;
   }
 
-  /** Swap the slot's player to another season of their own career. The new
-   * season must still fit the slot; cost becomes that season's real contract
-   * (hero pricing doesn't travel through time). */
-  async applyPrime(slotIdx: number, team: string, year: number): Promise<boolean> {
-    if (this.powerups.prime !== "armed" || this.primePick !== slotIdx) return false;
-    const signed = this.slots[slotIdx];
-    if (!signed) return false;
+  /** Sign a DIFFERENT season of the browsed player's career, at that season's
+   * real cost. Consumes both the powerup and the spin's choice. Slot ambiguity
+   * auto-resolves (first open specialist seat, else first open seat) — no
+   * nested picker inside the career sheet. The browsed card does not count as
+   * scouted (`seen`): only cards the reel landed on do. */
+  async applyPrime(team: string, year: number): Promise<boolean> {
+    if (this.powerups.prime !== "armed" || this.primePick === null) return false;
+    if (this.phase !== "landed" || this.choicesLeft === 0) return false;
+    const id = this.primePick;
+    if (this.slots.some((s) => s?.id === id)) return false;
     const card = await loadCard(team, year);
-    const p = card.players.find((pl) => pl.id === signed.id);
-    if (!p || !eligibleTypes(p).includes(SLOT_TYPES[slotIdx])) return false;
-    this.slots[slotIdx] = {
-      id: p.id,
-      name: p.name,
-      pos: p.pos,
-      war: p.war,
-      awards: p.awards,
-      ws: p.ws,
-      pen: p.pen,
-      year: card.year,
-      team: card.team,
-      teamName: card.name,
-      franchise: card.franchise,
-      costPaid: p.cost,
-      hero: false,
-      prorated: card.prorated,
-    };
+    const p = card.players.find((pl) => pl.id === id);
+    if (!p) return false;
+    const open = this.openSlotsFor(p);
+    if (open.length === 0) return false;
+    const specialist = open.filter((i) => SLOT_TYPES[i] !== "FLEX");
+    const idx = specialist.length > 0 ? specialist[0] : open[0];
+    this.slots[idx] = this.makeSigned(card, p, p.cost, false);
     this.powerups.prime = "spent";
     this.primePick = null;
-    this.save();
+    this.consumeChoice({ kind: "sign", war: p.war });
     return true;
   }
 
@@ -468,8 +493,7 @@ export class Game {
 
   // ---------- choices ----------
 
-  private makeSigned(p: CardPlayer, costPaid: number, hero: boolean): Signed {
-    const c = this.card!;
+  private makeSigned(c: Card, p: CardPlayer, costPaid: number, hero: boolean): Signed {
     return {
       id: p.id,
       name: p.name,
@@ -489,19 +513,34 @@ export class Game {
   }
 
   private consumeChoice(entry: SpinLogEntry): void {
-    if (this.powerups.doublePlay === "armed") this.powerups.doublePlay = "spent";
     this.choicesUsed += 1;
     this.choicesLeft -= 1;
+    // Double Play burns only when its second pick lands.
+    if (this.powerups.doublePlay === "armed" && this.choicesUsed >= 2)
+      this.powerups.doublePlay = "spent";
     this.spinLog = [...this.spinLog, entry];
     this.clearTransients();
     if (this.choicesLeft === 0 || !this.anyActionable()) this.endSpin();
     else this.save();
   }
 
-  /** Forfeit a remaining Double Play pick and move on. */
+  /** Forfeit a remaining Double Play pick and move on (DP refunds). */
   finishSpin(): void {
     if (this.phase !== "landed" || this.choicesUsed === 0) return;
     this.endSpin();
+  }
+
+  /** Skip a card outright during the post-roster hunt (roster full, still
+   * chasing manager/owner/stadium or riding the TD bonus spin). Pre-roster
+   * spins remain must-act. */
+  passSpin(): void {
+    if (this.phase !== "landed" || this.choicesUsed !== 0 || !this.rosterFull) return;
+    this.endSpin();
+  }
+
+  /** Whether passSpin/endSpin goes straight to the finale (labels PASS vs FINISH). */
+  get willFinishOnPass(): boolean {
+    return this.complete && (this.tdBonus || this.powerups.tradeDeadline !== "ready");
   }
 
   /** Free respin out of a dead card. */
@@ -513,10 +552,19 @@ export class Game {
   }
 
   private endSpin(): void {
+    if (this.powerups.doublePlay === "armed") this.powerups.doublePlay = "ready";
     if (this.powerups.tradeDeadline === "armed") this.powerups.tradeDeadline = "ready";
     if (this.powerups.prime === "armed") this.powerups.prime = "ready";
-    if (this.rosterFull) void this.finishGame();
-    else {
+    if (this.complete) {
+      // Complete club + unspent Trade Deadline = one bonus spin to upgrade.
+      if (this.powerups.tradeDeadline === "ready" && !this.tdBonus) {
+        this.tdBonus = true;
+        this.phase = "preSpin";
+        this.save();
+      } else {
+        void this.finishGame();
+      }
+    } else {
       this.phase = "preSpin";
       this.save();
     }
@@ -545,7 +593,7 @@ export class Game {
       }
     }
     const hero = this.heroEligible(p);
-    this.slots[idx] = this.makeSigned(p, this.priceFor(p), hero);
+    this.slots[idx] = this.makeSigned(this.card!, p, this.priceFor(p), hero);
     if (hero) this.heroUsed = true;
     this.consumeChoice({ kind: "sign", war: p.war });
   }
@@ -578,20 +626,21 @@ export class Game {
     this.consumeChoice({ kind: "stadium" });
   }
 
-  hireSkipper(): void {
-    if (this.phase !== "landed" || this.choicesLeft === 0 || this.skipper || !this.card) return;
+  hireManager(): void {
+    if (this.phase !== "landed" || this.choicesLeft === 0 || this.manager || !this.card) return;
     const c = this.card;
     if (c.manager == null) return;
-    this.skipper = {
+    this.manager = {
       name: c.manager,
       wins: c.wins,
       losses: c.losses,
       year: c.year,
+      team: c.team,
       teamName: c.name,
       ws: c.ws,
       pen: c.pen,
     };
-    this.consumeChoice({ kind: "skipper" });
+    this.consumeChoice({ kind: "manager" });
   }
 
   // ---------- Trade Deadline swaps ----------
@@ -617,7 +666,7 @@ export class Game {
 
   private completeSwap(p: CardPlayer, idx: number): void {
     const hero = this.heroEligible(p);
-    this.slots[idx] = this.makeSigned(p, this.priceFor(p), hero);
+    this.slots[idx] = this.makeSigned(this.card!, p, this.priceFor(p), hero);
     if (hero) this.heroUsed = true;
     this.powerups.tradeDeadline = "spent";
     this.consumeChoice({ kind: "swap", war: p.war });
@@ -640,11 +689,12 @@ export class Game {
       this.stadium = { park: c.park, mult: c.stadiumMult, franchise: c.franchise, year: c.year };
     } else {
       if (c.manager == null) return;
-      this.skipper = {
+      this.manager = {
         name: c.manager,
         wins: c.wins,
         losses: c.losses,
         year: c.year,
+        team: c.team,
         teamName: c.name,
         ws: c.ws,
         pen: c.pen,
@@ -659,26 +709,51 @@ export class Game {
   private async finishGame(): Promise<void> {
     const players = this.slots.filter((s): s is Signed => s !== null);
     // Reload every card this game landed on (all memoized from play) and
-    // solve for the WAR-max roster — the finale's scouting yardstick.
+    // solve for the WAR-max roster — the finale's scouting yardstick. The
+    // dream team also gets a manager: the winningest one available.
     let best: BestRoster | null = null;
+    let bestManager: BestManager | null = null;
     try {
       const cards = await Promise.all(this.seen.map((s) => loadCard(s.team, s.year)));
       best = bestRoster(cards);
+      for (const c of cards) {
+        if (c.manager == null) continue;
+        const netWins = c.wins - c.losses;
+        if (bestManager === null || netWins > bestManager.netWins) {
+          bestManager = {
+            name: c.manager,
+            team: c.team,
+            year: c.year,
+            teamName: c.name,
+            ws: c.ws,
+            pen: c.pen,
+            netWins,
+          };
+        }
+      }
     } catch {
       /* offline mid-game: finish without the yardstick */
     }
-    const scoutHits =
-      best?.picks.filter((b) =>
-        b != null && players.some((p) => p.id === b.id && p.year === b.year && p.team === b.team),
+    const playerHits =
+      best?.picks.filter(
+        (b) =>
+          b != null &&
+          players.some((p) => p.id === b.id && p.year === b.year && p.team === b.team),
       ).length ?? 0;
+    const managerHit =
+      bestManager !== null &&
+      this.manager !== null &&
+      this.manager.team === bestManager.team &&
+      this.manager.year === bestManager.year;
+    const scoutHits = playerHits + (managerHit ? 1 : 0);
     const parts = score({
       totalWar: this.totalWar,
       spendM: this.spend,
       budgetM: this.effectiveBudget,
       awardLists: players.map((p) => p.awards),
-      rings: players.filter((p) => p.ws).length + (this.skipper?.ws ? 1 : 0),
-      pennants: players.filter((p) => p.pen).length + (this.skipper?.pen ? 1 : 0),
-      skipperRecord: this.skipper ? [this.skipper.wins, this.skipper.losses] : null,
+      rings: players.filter((p) => p.ws).length + (this.manager?.ws ? 1 : 0),
+      pennants: players.filter((p) => p.pen).length + (this.manager?.pen ? 1 : 0),
+      managerRecord: this.manager ? [this.manager.wins, this.manager.losses] : null,
       scoutHits,
     });
     const [wins, losses] = displayRecord(parts.expectedWins);
@@ -691,6 +766,8 @@ export class Game {
       spinCount: this.spinCount,
       totalWar: this.totalWar,
       best,
+      bestManager,
+      managerHit,
       scoutHits,
     };
     this.phase = "finale";
@@ -707,6 +784,7 @@ export class Game {
     try {
       const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]") as unknown[];
       hist.push({
+        v: 2, // two-rung ladder era; disambiguates "scout" from the old stats mode
         date: new Date().toISOString().slice(0, 10),
         seed: this.seed,
         total: this.finale.parts.total,
@@ -735,12 +813,13 @@ export class Game {
           rngState: this.rng.state,
           spinCount: this.spinCount,
           seen: this.seen,
+          tdBonus: this.tdBonus,
           phase: this.phase === "spinning" ? "preSpin" : this.phase,
           cardRef: this.card ? { team: this.card.team, year: this.card.year } : null,
           slots: this.slots,
           owner: this.owner,
           stadium: this.stadium,
-          skipper: this.skipper,
+          manager: this.manager,
           powerups: this.powerups,
           choicesLeft: this.choicesLeft,
           choicesUsed: this.choicesUsed,
@@ -777,10 +856,11 @@ export class Game {
       game.rng.state = s.rngState;
       game.spinCount = s.spinCount;
       game.seen = s.seen ?? [];
+      game.tdBonus = s.tdBonus ?? false;
       game.slots = s.slots;
       game.owner = s.owner;
       game.stadium = s.stadium;
-      game.skipper = s.skipper;
+      game.manager = s.manager;
       game.powerups = s.powerups;
       game.choicesLeft = s.choicesLeft;
       game.choicesUsed = s.choicesUsed;
@@ -792,6 +872,10 @@ export class Game {
         // A reload mid-picker restores to the base landed state.
         if (game.powerups.tradeDeadline === "armed") game.powerups.tradeDeadline = "ready";
         if (game.powerups.prime === "armed") game.powerups.prime = "ready";
+        if (game.powerups.doublePlay === "armed") {
+          game.powerups.doublePlay = "ready";
+          game.choicesLeft = Math.max(0, game.choicesLeft - 1);
+        }
       } else {
         game.phase = "preSpin";
       }

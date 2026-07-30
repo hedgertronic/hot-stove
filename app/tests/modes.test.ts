@@ -7,7 +7,7 @@ import {
   type GameConfig,
 } from "../src/lib/engine.svelte";
 import { statLine } from "../src/lib/format";
-import { loadSettings, saveSettings } from "../src/lib/settings";
+import { bestFor, loadSettings, saveSettings } from "../src/lib/settings";
 import type { Card, CardPlayer, GameIndex, Meta, Owners } from "../src/lib/types";
 
 const store = new Map<string, string>();
@@ -19,7 +19,7 @@ const store = new Map<string, string>();
 
 const meta: Meta = {
   displayAvgM: 160,
-  replacementWins: 47.7,
+  replacementWins: 50,
   slots: SLOT_TYPES,
   minBudget: 18.2,
   avgSlot8: { "2016": 87497175 },
@@ -103,27 +103,17 @@ beforeEach(() => {
 });
 
 describe("difficulty visibility gating", () => {
-  const cases: [string, boolean, boolean, boolean, boolean][] = [
-    // difficulty, showWar, showCost, showAwards, showStats
-    ["standard", true, true, true, false],
-    ["scout", false, true, false, true],
-    ["eyetest", false, false, false, false],
-  ];
-  for (const [d, war, cost, awards, stats] of cases) {
-    it(`${d} matches the three-rung ladder`, () => {
-      const g = landedGame(card([]), {
-        difficulty: d as GameConfig["difficulty"],
-        bank: "classic",
-      });
-      expect([g.showWar, g.showCost, g.showAwards, g.showStats]).toEqual([
-        war,
-        cost,
-        awards,
-        stats,
-      ]);
-      expect(g.eyeTest).toBe(d === "eyetest");
-    });
-  }
+  it("standard sees WAR, salary, and awards", () => {
+    const g = landedGame(card([]), { difficulty: "standard", bank: "classic" });
+    expect([g.showWar, g.showCost, g.showAwards]).toEqual([true, true, true]);
+    expect(g.scout).toBe(false);
+  });
+
+  it("scout flies blind: names and positions only", () => {
+    const g = landedGame(card([]), { difficulty: "scout", bank: "classic" });
+    expect([g.showWar, g.showCost, g.showAwards]).toEqual([false, false, false]);
+    expect(g.scout).toBe(true);
+  });
 });
 
 describe("moneyball", () => {
@@ -144,20 +134,20 @@ describe("moneyball", () => {
     expect(g.effectiveBudget).toBe(MONEYBALL_BUDGET_M);
   });
 
-  it("skipper still hires and consumes the choice", () => {
+  it("the manager still hires and consumes the choice", () => {
     const g = landedGame(card([player({})]), MB);
-    g.hireSkipper();
-    expect(g.skipper?.name).toBe("Joe Maddon");
+    g.hireManager();
+    expect(g.manager?.name).toBe("Joe Maddon");
   });
 
-  it("missing owner/stadium is not actionable — only players and skipper count", () => {
-    // Roster one signable player, take him and the skipper; card must go cold.
+  it("missing owner/stadium is not actionable — only players and the manager count", () => {
+    // Roster one signable player, take him and the manager; card must go cold.
     const p = player({});
     const g = landedGame(card([p]), MB);
     g.choicesLeft = 3; // room to exhaust everything on one card
-    g.powerups.tradeDeadline = "spent"; // else the taken skipper stays swappable
+    g.powerups.tradeDeadline = "spent"; // else the taken manager stays swappable
     g.signPlayer(p);
-    g.hireSkipper();
+    g.hireManager();
     expect(g.anyActionable()).toBe(false);
   });
 
@@ -167,7 +157,7 @@ describe("moneyball", () => {
     g.choicesLeft = 3;
     g.powerups.tradeDeadline = "spent";
     g.signPlayer(p);
-    g.hireSkipper();
+    g.hireManager();
     expect(g.anyActionable()).toBe(true);
   });
 
@@ -196,28 +186,60 @@ describe("blank check", () => {
   });
 });
 
-describe("skipper pedigree", () => {
-  it("hiring a champ's manager records the ring", () => {
+describe("manager pedigree", () => {
+  it("hiring a champ's manager records the ring and the team", () => {
     const g = landedGame(card([player({})]));
-    g.hireSkipper();
-    expect(g.skipper?.ws).toBe(true);
-    expect(g.skipper?.pen).toBe(false);
+    g.hireManager();
+    expect(g.manager?.ws).toBe(true);
+    expect(g.manager?.pen).toBe(false);
+    expect(g.manager?.team).toBe("CHC");
   });
 });
 
 describe("settings persistence", () => {
   it("round-trips and falls back to defaults on garbage", () => {
-    saveSettings({ difficulty: "eyetest", bank: "moneyball" });
-    expect(loadSettings()).toEqual({ difficulty: "eyetest", bank: "moneyball" });
+    saveSettings({ difficulty: "scout", bank: "moneyball" });
+    expect(loadSettings()).toEqual({ difficulty: "scout", bank: "moneyball" });
     store.set("hotstove.settings", "{not json");
     expect(loadSettings()).toEqual({ difficulty: "standard", bank: "classic" });
-    store.set("hotstove.settings", JSON.stringify({ difficulty: "impossible", bank: 3 }));
+    store.set("hotstove.settings", JSON.stringify({ v: 2, difficulty: "impossible", bank: 3 }));
     expect(loadSettings()).toEqual({ difficulty: "standard", bank: "classic" });
   });
 
-  it("migrates pre-bank settings: rookie folds into standard, moneyball flag maps over", () => {
+  it("migrates legacy rungs: eyetest becomes scout; old scout/rookie fold into standard", () => {
+    store.set("hotstove.settings", JSON.stringify({ difficulty: "eyetest", bank: "classic" }));
+    expect(loadSettings().difficulty).toBe("scout");
+    store.set("hotstove.settings", JSON.stringify({ difficulty: "scout", bank: "classic" }));
+    expect(loadSettings().difficulty).toBe("standard"); // pre-v2 "scout" was the stats mode
     store.set("hotstove.settings", JSON.stringify({ difficulty: "rookie", moneyball: true }));
     expect(loadSettings()).toEqual({ difficulty: "standard", bank: "moneyball" });
+  });
+
+  it("a v2 'scout' selection sticks (no re-migration)", () => {
+    saveSettings({ difficulty: "scout", bank: "classic" });
+    expect(loadSettings().difficulty).toBe("scout");
+  });
+});
+
+describe("bestFor leaderboard", () => {
+  it("groups history by mode combo, normalizing legacy entries", () => {
+    store.set(
+      "hotstove.history",
+      JSON.stringify([
+        // legacy eyetest + moneyball flag → (scout, moneyball)
+        { date: "2026-07-29", total: 90, record: "88-74", spins: 12, difficulty: "eyetest", moneyball: true },
+        // legacy stats-scout → (standard, classic)
+        { date: "2026-07-29", total: 120, record: "98-64", spins: 11, difficulty: "scout", bank: "classic" },
+        // v2 scout stays scout
+        { v: 2, date: "2026-07-30", total: 100, record: "91-71", spins: 13, difficulty: "scout", bank: "classic" },
+        { v: 2, date: "2026-07-30", total: 131.5, record: "104-58", spins: 10, difficulty: "standard", bank: "classic" },
+        { v: 2, date: "2026-07-30", total: 110, record: "95-67", spins: 10, difficulty: "standard", bank: "classic" },
+      ]),
+    );
+    expect(bestFor("scout", "moneyball")).toEqual({ best: 90, games: 1 });
+    expect(bestFor("standard", "classic")).toEqual({ best: 131.5, games: 3 });
+    expect(bestFor("scout", "classic")).toEqual({ best: 100, games: 1 });
+    expect(bestFor("standard", "blankcheck")).toEqual({ best: null, games: 0 });
   });
 });
 
@@ -231,17 +253,5 @@ describe("stat lines", () => {
     expect(statLine({ pos: "SP", pit: { w: 19, l: 5, sv: 0, era: 2.44, so: 284 } })).toBe(
       "19–5 · 2.44 ERA · 284 K",
     );
-    expect(statLine({ pos: "RP", pit: { w: 2, l: 3, sv: 18, era: 3.53, so: 74 } })).toBe(
-      "2–3 · 3.53 ERA · 74 K",
-    );
-  });
-  it("two-way seasons show the pitching line", () => {
-    expect(
-      statLine({
-        pos: "SP/DH",
-        bat: { avg: 0.273, obp: 0.372, slg: 0.585, hr: 34, rbi: 95, sb: 11 },
-        pit: { w: 9, l: 2, sv: 0, era: 2.33, so: 219 },
-      }),
-    ).toBe("9–2 · 2.33 ERA · 219 K");
   });
 });

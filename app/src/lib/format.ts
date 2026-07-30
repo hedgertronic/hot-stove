@@ -14,13 +14,15 @@ export function lastName(full: string): string {
   return parts.length > 1 ? parts.slice(1).join(" ") : full;
 }
 
-/** Tier buckets from BUILD.md — WAR chip color. */
-export type WarTier = "low" | "mid" | "high" | "elite";
+/** Tier buckets from BUILD.md — WAR chip color. A monotone heat ramp:
+ * neg (<0) · low 0–2 · mid 2–4 · high 4–6 · elite 6+. */
+export type WarTier = "neg" | "low" | "mid" | "high" | "elite";
 export function warTier(war: number): WarTier {
   if (war >= 6) return "elite";
   if (war >= 4) return "high";
   if (war >= 2) return "mid";
-  return "low";
+  if (war >= 0) return "low";
+  return "neg";
 }
 
 /** Tier buckets from BUILD.md — salary text color. */

@@ -12,7 +12,7 @@ interface Fixture {
     award_lists: string[][];
     rings: number;
     pennants: number;
-    skipper_record: [number, number] | null;
+    manager_record: [number, number] | null;
     scout_hits: number;
   };
   expect: Record<string, number>;
@@ -28,10 +28,36 @@ describe("scoring parity with pipeline/scoring.py", () => {
         awardLists: f.args.award_lists,
         rings: f.args.rings,
         pennants: f.args.pennants,
-        skipperRecord: f.args.skipper_record,
+        managerRecord: f.args.manager_record,
         scoutHits: f.args.scout_hits,
       });
       expect(parts).toEqual(f.expect);
     });
+  });
+});
+
+describe("manager folds into the win total", () => {
+  it("the 2001 Mariners' manager adds +7.0 wins, not separate points", () => {
+    const p = score({
+      totalWar: 20,
+      spendM: 50,
+      budgetM: 100,
+      awardLists: [],
+      managerRecord: [116, 46],
+    });
+    expect(p.expectedWins).toBeCloseTo(77.0, 5);
+    expect(p.managerWins).toBeCloseTo(7.0, 5);
+    expect("skipperPoints" in p).toBe(false);
+  });
+
+  it("wins cap at 162 even with a stacked club", () => {
+    const p = score({
+      totalWar: 200,
+      spendM: 0,
+      budgetM: 100,
+      awardLists: [],
+      managerRecord: [116, 46],
+    });
+    expect(p.expectedWins).toBe(162);
   });
 });

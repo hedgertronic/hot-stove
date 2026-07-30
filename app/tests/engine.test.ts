@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eligibleTypes } from "../src/lib/eligibility";
-import { Game, SLOT_TYPES } from "../src/lib/engine.svelte";
+import { Game, SLOT_TYPES, type Signed } from "../src/lib/engine.svelte";
 import type { Card, CardPlayer, GameIndex, Meta, Owners } from "../src/lib/types";
 
 // Engine save()/restore() guard storage access; give node a minimal stub.
@@ -11,9 +11,18 @@ const store = new Map<string, string>();
   removeItem: (k: string) => void store.delete(k),
 };
 
+// loadCard goes through fetch; serve registered cards, 404 anything else
+// (finale reloads of unregistered cards fail → best roster falls back to null).
+const fetchCards: Record<string, Card> = {};
+vi.stubGlobal("fetch", async (url: unknown) => {
+  const m = String(url).match(/cards\/([A-Z0-9]+)_(\d{4})\.json$/);
+  const c = m ? fetchCards[`${m[1]}_${m[2]}`] : undefined;
+  return c ? { ok: true, json: async () => c } : { ok: false, status: 404 };
+});
+
 const meta: Meta = {
   displayAvgM: 160,
-  replacementWins: 47.7,
+  replacementWins: 50,
   slots: SLOT_TYPES,
   minBudget: 18.2,
   avgSlot8: { "2016": 87497175 },
@@ -89,6 +98,46 @@ function landedGame(c: Card): Game {
   g.choicesLeft = 1;
   g.choicesUsed = 0;
   return g;
+}
+
+function filler(i: number, over: Partial<Signed> = {}): Signed {
+  return {
+    id: `f${i}`,
+    name: "Filler",
+    pos: "1B",
+    war: 3,
+    awards: [],
+    ws: false,
+    pen: false,
+    year: 2000,
+    team: "SEA",
+    teamName: "Mariners",
+    franchise: "SEA",
+    costPaid: 10,
+    hero: false,
+    prorated: 1,
+    ...over,
+  };
+}
+
+function fillSlots(g: Game, except: number[] = []): void {
+  for (let i = 0; i < SLOT_TYPES.length; i++) {
+    if (except.includes(i)) continue;
+    g.slots[i] = filler(i);
+  }
+}
+
+function hiredManager(g: Game): void {
+  g.manager = {
+    name: "Lou Piniella",
+    wins: 116,
+    losses: 46,
+    year: 2001,
+    team: "SEA",
+    teamName: "Seattle Mariners",
+    ws: false,
+    pen: true,
+  };
 }
 
 beforeEach(() => {
@@ -186,18 +235,31 @@ describe("specials and bankroll", () => {
     expect(g.phase).toBe("preSpin");
     expect(g.choicesLeft).toBe(0);
   });
+
+  it("hiring the manager records team, record, and pedigree", () => {
+    const g = landedGame(card([player({})], { ws: true }));
+    g.hireManager();
+    expect(g.manager).toMatchObject({
+      name: "Joe Maddon",
+      team: "CHC",
+      wins: 103,
+      losses: 58,
+      ws: true,
+    });
+  });
 });
 
 describe("Double Play", () => {
-  it("grants two choices, spends on first commit", () => {
+  it("grants two choices; burns only when the second pick commits", () => {
     const a = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
     const g = landedGame(card([a]));
     g.toggleDoublePlay();
     expect(g.choicesLeft).toBe(2);
     g.signPlayer(a);
-    expect(g.powerups.doublePlay).toBe("spent");
+    expect(g.powerups.doublePlay).toBe("armed"); // still refundable
     expect(g.phase).toBe("landed"); // second choice still live
     g.hireOwner();
+    expect(g.powerups.doublePlay).toBe("spent");
     expect(g.phase).toBe("preSpin");
   });
 
@@ -218,6 +280,28 @@ describe("Double Play", () => {
     g.toggleDoublePlay();
     expect(g.choicesLeft).toBe(1);
     expect(g.powerups.doublePlay).toBe("ready");
+  });
+
+  it("refunds when the second pick is forfeited via DONE", () => {
+    const a = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
+    const g = landedGame(card([a]));
+    g.toggleDoublePlay();
+    g.signPlayer(a);
+    expect(g.phase).toBe("landed");
+    g.finishSpin();
+    expect(g.powerups.doublePlay).toBe("ready");
+    expect(g.phase).toBe("preSpin");
+  });
+
+  it("disarming after the first pick refunds and ends the spin", () => {
+    const a = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
+    const g = landedGame(card([a]));
+    g.toggleDoublePlay();
+    g.signPlayer(a);
+    expect(g.phase).toBe("landed");
+    g.toggleDoublePlay(); // change of heart
+    expect(g.powerups.doublePlay).toBe("ready");
+    expect(g.phase).toBe("preSpin");
   });
 });
 
@@ -275,6 +359,56 @@ describe("Trade Deadline", () => {
   });
 });
 
+describe("Prime Time", () => {
+  const C_POS = { c: 90, if: 0, of: 0, dh: 0 };
+
+  function primeSetup() {
+    const now = player({ id: "star", pos: "C", posG: C_POS, war: 2, cost: 3 });
+    const then = player({ id: "star", pos: "C", posG: C_POS, war: 7, cost: 12 });
+    fetchCards.PRM_2014 = card([then], {
+      year: 2014,
+      team: "PRM",
+      franchise: "PRM",
+      name: "Prime City",
+    });
+    return { now, g: landedGame(card([now])) };
+  }
+
+  it("signs another season of a listed player at that season's cost", async () => {
+    const { now, g } = primeSetup();
+    g.togglePrime();
+    expect(g.primeArmed).toBe(true);
+    g.primeTapPlayer(now);
+    expect(g.primePick).toBe("star");
+    const ok = await g.applyPrime("PRM", 2014);
+    expect(ok).toBe(true);
+    expect(g.slots[0]).toMatchObject({ id: "star", year: 2014, costPaid: 12, war: 7 });
+    expect(g.powerups.prime).toBe("spent");
+    expect(g.choicesUsed).toBe(1);
+    expect(g.phase).toBe("preSpin"); // consumed the spin's choice
+    expect(g.seen).toEqual([]); // browsed card is not "scouted"
+  });
+
+  it("cannot arm or apply without a choice left", async () => {
+    const { now, g } = primeSetup();
+    g.choicesLeft = 0;
+    g.togglePrime();
+    expect(g.primeArmed).toBe(false);
+    g.powerups.prime = "armed"; // force past the toggle guard
+    g.primeTapPlayer(now);
+    expect(await g.applyPrime("PRM", 2014)).toBe(false);
+    expect(g.slots[0]).toBe(null);
+  });
+
+  it("ignores taps on rostered players", () => {
+    const { now, g } = primeSetup();
+    g.slots[0] = filler(0, { id: "star" });
+    g.togglePrime();
+    g.primeTapPlayer(now);
+    expect(g.primePick).toBe(null);
+  });
+});
+
 describe("Hometown Hero", () => {
   it("activates on matching owner+stadium and floors the price", () => {
     const local = player({ debut: "CHC" });
@@ -313,26 +447,9 @@ describe("cold stove", () => {
     const g = landedGame(card([c], { manager: null }));
     g.owner = { name: "x", budget: 100, franchise: "SEA", year: 2001, teamName: "Mariners" };
     g.stadium = { park: "y", mult: 1, franchise: "SEA", year: 2001 };
+    hiredManager(g);
     // fill everything except an SP slot; card only offers a catcher
-    for (let i = 0; i < 8; i++) {
-      if (SLOT_TYPES[i] === "SP" && g.slots[i] === null && i === 5) continue;
-      g.slots[i] = {
-        id: `f${i}`,
-        name: "Filler",
-        pos: "1B",
-        war: 1,
-        awards: [],
-        ws: false,
-        pen: false,
-        year: 2000,
-        team: "SEA",
-        teamName: "Mariners",
-        franchise: "SEA",
-        costPaid: 1,
-        hero: false,
-        prorated: 1,
-      };
-    }
+    fillSlots(g, [5]);
     g.powerups.tradeDeadline = "spent";
     expect(g.coldStove).toBe(true);
     // with TD available it is NOT cold — the catcher could swap in
@@ -341,25 +458,102 @@ describe("cold stove", () => {
   });
 });
 
+describe("completion and the hunt", () => {
+  it("a full roster alone doesn't end the game — the hunt for the front office continues", () => {
+    const c = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
+    const g = landedGame(card([c]));
+    fillSlots(g, [0]);
+    g.signPlayer(c);
+    expect(g.rosterFull).toBe(true);
+    expect(g.complete).toBe(false);
+    expect(g.phase).toBe("preSpin"); // spun onward, no finale
+    expect(g.finale).toBe(null);
+  });
+
+  it("fixed-cap: hiring the manager completes the club; TD spent → straight to finale", async () => {
+    const g = new Game(meta, index, owners, 42, { difficulty: "standard", bank: "moneyball" });
+    g.card = card([]);
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    fillSlots(g);
+    g.powerups.tradeDeadline = "spent";
+    g.hireManager();
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    expect(g.finale?.parts.managerWins).toBeCloseTo((103 - 58) * 0.1, 5);
+  });
+
+  it("classic also needs owner and stadium", async () => {
+    const g = landedGame(card([]));
+    fillSlots(g);
+    hiredManager(g);
+    g.owner = { name: "x", budget: 100, franchise: "CHC", year: 2016, teamName: "Cubs" };
+    g.powerups.tradeDeadline = "spent";
+    expect(g.complete).toBe(false);
+    g.buyStadium();
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+  });
+
+  it("an unspent Trade Deadline earns one bonus spin before the finale", async () => {
+    const g = new Game(meta, index, owners, 42, { difficulty: "standard", bank: "moneyball" });
+    g.card = card([]);
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    fillSlots(g);
+    g.hireManager(); // complete, TD still ready
+    expect(g.phase).toBe("preSpin");
+    expect(g.inTdBonus).toBe(true);
+    expect(g.finale).toBe(null);
+    // the bonus card lands; player waves it off
+    g.card = card([]);
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    g.choicesUsed = 0;
+    expect(g.willFinishOnPass).toBe(true);
+    g.passSpin();
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+  });
+});
+
+describe("passSpin", () => {
+  it("is a no-op before the roster is full", () => {
+    const g = landedGame(card([player({})]));
+    g.passSpin();
+    expect(g.phase).toBe("landed");
+  });
+
+  it("skips a hunt card without consuming anything", () => {
+    const g = landedGame(card([]));
+    fillSlots(g);
+    expect(g.willFinishOnPass).toBe(false);
+    g.passSpin();
+    expect(g.phase).toBe("preSpin");
+    expect(g.finale).toBe(null);
+    expect(g.choicesUsed).toBe(0);
+  });
+});
+
 describe("finale", () => {
-  it("fires when the roster fills; the record equals rounded expected wins", async () => {
-    const g = landedGame(card([player({ pos: "SP", gs: 30, posG: { c: 0, if: 0, of: 0, dh: 0 }, war: 5 })]));
+  it("the record equals rounded expected wins on the 50-win base", async () => {
+    const g = landedGame(
+      card([player({ pos: "SP", gs: 30, posG: { c: 0, if: 0, of: 0, dh: 0 }, war: 5 })]),
+    );
     for (let i = 0; i < 8; i++) {
       if (i === 5) continue;
-      g.slots[i] = {
-        id: `f${i}`, name: "Filler", pos: "1B", war: 3, awards: i === 0 ? ["MVP"] : [],
-        ws: i === 1, pen: i === 2, year: 2000, team: "SEA", teamName: "Mariners",
-        franchise: "SEA", costPaid: 10, hero: false, prorated: 1,
-      };
+      g.slots[i] = filler(i, { awards: i === 0 ? ["MVP"] : [], ws: i === 1, pen: i === 2 });
     }
+    hiredManager(g); // 116–46 → +7.0 wins
+    g.owner = { name: "x", budget: 100, franchise: "CHC", year: 2016, teamName: "Cubs" };
+    g.stadium = { park: "y", mult: 1, franchise: "CHC", year: 2016 };
+    g.powerups.tradeDeadline = "spent";
     const sp = g.card!.players[0];
     g.signPlayer(sp);
     // finishGame awaits the best-roster card reloads (a microtask here).
     await vi.waitFor(() => expect(g.phase).toBe("finale"));
     const f = g.finale!;
-    expect(f.parts.expectedWins).toBeCloseTo(47.7 + 3 * 7 + 5, 1);
+    expect(f.parts.expectedWins).toBeCloseTo(50 + 3 * 7 + 5 + 7, 1);
+    expect(f.parts.managerWins).toBeCloseTo(7.0, 5);
     expect(f.parts.awardPoints).toBe(5);
-    expect(f.parts.ringPoints).toBe(3);
+    expect(f.parts.ringPoints).toBe(3 + 1); // two player flags + manager pennant
     expect(f.wins).toBe(Math.round(f.parts.expectedWins));
     expect(f.wins + f.losses).toBe(162);
   });
