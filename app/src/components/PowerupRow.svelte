@@ -75,7 +75,7 @@
   .pprow {
     display: flex;
     justify-content: center;
-    gap: 6px;
+    gap: 7px;
     margin: 6px 0 10px;
     flex-wrap: wrap;
   }

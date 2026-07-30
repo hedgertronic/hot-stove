@@ -194,7 +194,7 @@
 
 <div class="fin-head disp">
   <div class="rec">{Math.round(dispW)}–{Math.round(dispL)}</div>
-  <div class="sub">YOUR HOT STOVE SQUAD</div>
+  <div class="sub">YOUR {new Date().getFullYear()} HOT STOVE SQUAD</div>
 </div>
 
 <div class="ledger">
@@ -356,7 +356,7 @@
     background: var(--card);
     border: 2px solid var(--ink);
     border-radius: 10px;
-    padding: 6px 9px;
+    padding: 5px 9px;
     margin-bottom: 6px;
   }
   .qpos {

@@ -40,7 +40,7 @@ body {
 body {
   background: var(--ground);
   color: var(--ink);
-  font: 15px/1.45 -apple-system, "Segoe UI", system-ui, sans-serif;
+  font: 16px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif;
   touch-action: manipulation;
   overscroll-behavior-y: none;
 }
@@ -66,10 +66,10 @@ button {
 .btn {
   border: 2.5px solid var(--ink);
   border-radius: 11px;
-  padding: 10px 12px;
+  padding: 9px 12px;
   font-family: var(--disp);
   font-weight: 800;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   background: var(--card);
   color: var(--ink);
@@ -97,7 +97,7 @@ button {
   font-weight: 800;
   letter-spacing: 0.14em;
   color: var(--muted);
-  padding: 4px 0 8px;
+  padding: 2px 0 8px;
 }
 .psep::before,
 .psep::after {
