@@ -306,3 +306,51 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   ("MVP 3rd", no "in voting"); dream team uses short codes ("2005 NYY");
   Modes/Replay/Share are equal thirds, emoji-before-text (⚙️ 🔄 📤 — the 🔥
   share icon was off-topic).
+
+## Round 9 — seeds, bankroll everywhere, the y-axis manager (2026-07-31, session 7)
+
+- **Games are shareable via seed.** The RNG was already consumed only per-spin
+  (verified and now test-pinned: no player action draws from the stream), so a
+  seed reproduces the exact card sequence regardless of choices. The finale
+  shows `GAME #XXXX` (uppercase base36) and the share string ends with it;
+  home has a muted "PLAY A SEED #" input (case-insensitive, `#` optional).
+- **Tabs keep sharing one save.** Considered per-tab instances and said no:
+  the game is resume-your-run by design, and the seed feature now covers
+  "retry this exact setup" without forking the save model.
+- **"Cap" is banned from gameplay copy.** It's a bankroll — you can spend past
+  it and the luxury tax is the price. "HARD CAP" chip → "$82.9M BANKROLL",
+  help/ledger/tagline reworded ("Stretch the bankroll."). Pre-owner Owner's
+  Box shows spend-so-far always, with uncertainty as question marks: `$???`
+  chips and a softly drifting ?-hatch meter (reduced-motion safe) — unknown,
+  not empty.
+- **Luxury tax always reads "−0.0"** when inactive — the row exists to remind
+  you it can only hurt. It stays a separate ledger row from the front-office
+  bonus: bounded reward-shaping and unbounded punishment are different
+  mechanics; merging them would hide the threat.
+- **Eye Test hides manager numbers too** — W–L and the ±W value are exactly
+  the quantified signals the mode withholds ("Manager" + "? W"). The stadium
+  ×mult stays (mechanical: it sets your bankroll), and so does team pedigree.
+- **Championship pedigree stays 💍 +2 / 🚩 +1.** Every season has exactly one
+  champ and one pennant loser among ~26–30 clubs, so ring players are common;
+  buffing them would make "sign anyone from the champ" beat WAR judgment.
+  If Octoberness should matter more later, the lever is a set-collection
+  bonus, not a bigger per-player constant.
+- **Season Ticket grid shows franchise pedigree** (💍 title years, 🚩 pennant
+  years) in Box Score only — the index now carries ws/pen flags (78 entries;
+  one champ per year except strike-1994). Honest data note: SEA has zero 🚩 —
+  a pennant means winning the LCS, and 1995 Seattle didn't.
+- **The manager reads like a chart axis.** Round 8's vertical-lr (clockwise)
+  is what the user disliked; the cell is now `sideways-lr` — bottom-to-top,
+  the y-axis-label convention — three parallel lines (MGR / name / year TEAM),
+  wider cell, no emoji. WAR is gone from every rail seat: the rail is
+  identity, the list rows are the numbers.
+- **Smaller ink:** WAR unit label bumped to 9px; in-game mode chip is
+  emoji-only ("⚾ 🔭", names in the tooltip); finale buttons are text-first
+  with the emoji after — 🕹️/🔄/📣 replaced ⚙️/📤, which render as gray
+  text-presentation glyphs; squad rows carry "year TEAM" like the dream team.
+- **Pipeline is byte-stable now:** slot8/top-contracts sort ties on player id
+  (the pool iterates a set, so equal salaries churned per run). One-time
+  settling: 89 cards reordered their contracts display, WSN 2023 swapped
+  which tied $2.325M contract shows fourth (sum unchanged, no slot-8 or
+  budget changes anywhere). Verified byte-identical across consecutive
+  regens.

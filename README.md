@@ -32,7 +32,7 @@ look and feel, BUILD wins on architecture.
 
 ## Status
 
-**Milestones 1–4 built and playtested, through the round-8 pass** (2026-07-31):
+**Milestones 1–4 built and playtested, through the round-9 pass** (2026-07-31):
 `app/` holds the Svelte 5 + Vite + TS app — full auto-spinning loop (no SPIN
 button; each pick rolls the next card), five powerups (🎟️ Season Ticket, 🚚
 Relocate code-grid picker, ✌️ Double Play with refund-until-second-pick, 🔁 Trade
@@ -52,7 +52,14 @@ the STILL HIRING nag, hid the pre-owner cap floor behind `capKnown`, made Eye
 Test a salary-sorted list with the Box Score row anatomy (WAR/awards stay
 hidden), labeled WAR values, enforced one canonical award order, moved the
 manager to a vertical seat left of the roster grid, and renamed the FLEX slot's
-display to UTIL.
+display to UTIL. Round 9 added shareable seeds (finale shows `GAME #XXXX`,
+share string ends with it, home has PLAY A SEED — the RNG is per-spin only, so
+a seed reproduces the exact card sequence), swept "cap" out of gameplay copy
+in favor of bankroll language (pre-owner cap is `$???` + a ?-hatch meter),
+put 💍/🚩 pedigree in the Box Score Season Ticket grid via new index ws/pen
+flags, hid manager W–L in Eye Test, and flipped the manager seat to
+sideways-lr. The pipeline now regenerates byte-stable (salary ties break on
+player id).
 Cards carry age, stat lines, medaled award ballots (MVP2/3, CY2/3), All-Star
 selections, and team-level 💍/🚩 pedigree; `data/players.json` indexes every
 player's seasons for Prime Time. Bundled Nunito keeps the look cross-browser.
