@@ -354,3 +354,32 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   which tied $2.325M contract shows fourth (sum unchanged, no slot-8 or
   budget changes anywhere). Verified byte-identical across consecutive
   regens.
+
+## Round 10 — pedigree in the pickers, tap-to-copy, the part-time pin (2026-07-31, session 7)
+
+- **Pedigree emoji sit inline after the year/code, not in a corner.** The
+  Season Ticket grid's corner flags were easy to miss at 8px; they now read
+  as part of the label ("1998 💍"). Relocate gets the same treatment — the
+  season's champ and pennant winner are marked right on the team grid, so
+  🚚 becomes a "chase October" tool too. Both stay Box Score-only, matching
+  the round-9 gate (Eye Test withholds exactly this kind of signal); no new
+  plumbing — teamsForYear already returns index rows carrying ws/pen.
+- **The finale seed chip is a button.** "GAME #XXXX" copies "#CODE" to the
+  clipboard on tap (toast confirms); the leading # round-trips because
+  parseSeedCode strips it. Same quiet mono look — affordance lives in the
+  cursor and title, not extra chrome.
+- **The ✕ survives into the finale** and returns straight home with no
+  "QUIT?" arm — the engine cleared the save at finale entry, so there is
+  nothing to abandon and a confirm would be pure friction. Mid-game keeps
+  the two-tap arm.
+- **The manager seat reserves its three-line width when empty** (fixed 52px,
+  derived from the filled type stack) so hiring a manager no longer reflows
+  the roster grid.
+- **The rail pins only while a pick is in flight.** Sticky existed for one
+  reason — the rail doubles as the slot/release picker, and a deep-list tap
+  must end on a visible rail cell. That state is exactly `pickPlayer != null`,
+  so the rail now scrolls away during normal browsing (reclaiming ~60px of
+  list viewport) and snaps to the top the moment a slot-pick or TD release
+  starts. User-approved mid-round from a "does it need to be sticky?" question.
+- **Pre-owner meter labels match:** "$??? LEFT" now shares the SPENT label's
+  size/weight/color; italic alone marks the unknown.
