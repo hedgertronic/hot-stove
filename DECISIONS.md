@@ -413,3 +413,52 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   52px → 56px — measured geometry was already equal (52 = 52) but the
   rotated seat still read slimmer (vertical–horizontal illusion), so it gets
   ~8% optical compensation, A/B'd live.
+
+## The wide layout — one DOM, two boards (2026-07-31, session 7)
+
+- **Width is additive.** Every wide rule lives inside `@media (min-width: 760px)`
+  (plus a 1100px refinement tier); the phone layout has zero new rules, so it
+  is identical by construction, not by testing. The board caps at 1020px —
+  player rows wider than ~650px open a name→chips gulf.
+- **The club owns a column.** At width the roster + bank stick on the left
+  (350→380px) while the market scrolls on the right, so your club never
+  leaves the screen. The rail's pick-time pin is a deliberate no-op here.
+- **Sheets become modals at width; Home stays a 540px menu** — it's a mode
+  picker, not a workspace.
+
+## Round 12 — the reflowed board, the two-faced budget row (2026-07-31, session 7)
+
+- **The spinner introduces the market.** Wide board is now three areas from
+  one phone-ordered DOM (`gleft` club / `gmid` spinner+powerups / `gright`
+  market) via grid-template-areas: the reel sits atop the column that sells
+  the card it just landed. The club column spends its freed space — 62px
+  rail cells, 22px bank meter, bumped type — instead of hoarding it.
+- **One budget row, two faces.** Luxury tax and front-office bonus are
+  mutually exclusive by construction (`scoring.py`: bonus is 0 whenever
+  spend exceeds budget), so the ledger shows a single row that IS whichever
+  applies: over → "Luxury tax −X" with the orange over-hatch meter, at/under
+  → "Front-office bonus ±X" with the green meter. Display-only; scoring
+  parity untouched. The name stays "front-office bonus" — it echoes the
+  FRONT OFFICE section on the draft screen.
+- **The ledger is single-line and uniform.** Every row is
+  label · inline visual (pills ×N / 💍🚩 / ⭐×N / mini meter) · small text ·
+  amount at one 44px height; the scouting row joined the show-don't-tell
+  pattern (⭐×N "of 9 found"). Final score keeps its deliberate emphasis.
+- **Both finale rosters carry psep headers** ("YOUR SQUAD", "⭐ THE DREAM
+  TEAM") — the draft screen's label-in-dashed-rule pattern, ending the
+  finale's one-off header style.
+- **Share feedback matches the seed chip:** the button's own label swaps to
+  "Copied 🔥" for 1.2s; the toast is gone. Native share sheets remain their
+  own feedback.
+- **WAR ladder now follows the rarity ramp:** gray → **green 2–4** →
+  **blue 4–6** → violet → gold (mid/high hexes swapped, share grid 🟢/🔵
+  swapped). Players read tier ladders as gray<green<blue<purple<gold; ours
+  ran backwards at the middle rungs. Manager "+W" values were pinned to
+  plain green — they're wins added, not a WAR tier.
+- **Fixed-cap banks state their identity:** Moneyball/Blank Check show
+  "💰 OAK 2002"/"💰 NYY 2005" in the slot where Owner's Box shows its hires,
+  keeping one BankBox height across modes.
+- **The manager seat returned to the 52px geometric match** — the user
+  preferred the honest measurement over round 11's optical compensation.
+- **The ?/✕ pills share a fixed 28px width** (min-width let the wider ✕
+  glyph outgrow its twin); the armed QUIT? state may still stretch.

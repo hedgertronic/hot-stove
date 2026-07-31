@@ -32,7 +32,7 @@ look and feel, BUILD wins on architecture.
 
 ## Status
 
-**Milestones 1–4 built and playtested, through the round-11 pass** (2026-07-31):
+**Milestones 1–4 built and playtested, through the round-12 pass** (2026-07-31):
 `app/` holds the Svelte 5 + Vite + TS app — full auto-spinning loop (no SPIN
 button; each pick rolls the next card), five powerups (🎟️ Season Ticket, 🚚
 Relocate code-grid picker, ✌️ Double Play with refund-until-second-pick, 🔁 Trade
@@ -68,7 +68,17 @@ split the WAR ladder six ways (violet "star" 6–8 before gold 8+, white text
 on both), made position chips honest ("2B/OF", Ohtani's "SP/DH" shown whole),
 turned the finale ledger visual (award pills ×N, 💍/🚩 chips, a mini salary
 meter on the front-office row), made seed-copy feedback in-place, and applied
-optical corrections (11px picker pedigree, 56px manager seat).
+optical corrections (11px picker pedigree). The wide layout (≥760px, additive
+media queries only — phone untouched by construction) gives the game a
+two-column board capped at 1020px: sticky club column left, spin banner atop
+the scrolling market right; the finale goes two-column and sheets become
+centered modals. Round 12 reflowed that board (spinner over the market,
+club column expanded), merged luxury tax + front-office bonus into one
+two-faced ledger row with an inline mini meter, flattened the finale ledger
+to uniform single-line rows, gave both finale rosters psep headers, made
+share feedback in-place, swapped the WAR ladder's middle rungs to the
+rarity ramp (green 2–4, blue 4–6), added the fixed-cap banks' identity
+line, and equalized the ?/✕ pills.
 Cards carry age, stat lines, medaled award ballots (MVP2/3, CY2/3), All-Star
 selections, and team-level 💍/🚩 pedigree; `data/players.json` indexes every
 player's seasons for Prime Time. Bundled Nunito keeps the look cross-browser.
@@ -77,8 +87,8 @@ Tests: `cd app && npm test` (scoring parity fixtures generated from
 `pipeline/scoring.py` + engine, mode, and best-roster suites). Dev: `npm run dev`.
 
 Remaining: Daily mode (date seed + shared spins + streak — consider seeding from
-the previous day's real MLB results), GitHub Pages deploy workflow, iPad/desktop
-layouts. Pipeline TODO: hand-verify the 15 `wikipediaOnly` owner entries.
+the previous day's real MLB results), GitHub Pages deploy workflow. Pipeline
+TODO: hand-verify the 15 `wikipediaOnly` owner entries.
 
 ## Constraints that are decisions, not accidents
 
