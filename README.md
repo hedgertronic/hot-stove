@@ -32,7 +32,7 @@ look and feel, BUILD wins on architecture.
 
 ## Status
 
-**Milestones 1–4 built and playtested, through the round-12 pass** (2026-07-31):
+**Milestones 1–4 built and playtested, through the round-13 pass** (2026-07-31):
 `app/` holds the Svelte 5 + Vite + TS app — full auto-spinning loop (no SPIN
 button; each pick rolls the next card), five powerups (🎟️ Season Ticket, 🚚
 Relocate code-grid picker, ✌️ Double Play with refund-until-second-pick, 🔁 Trade
@@ -78,7 +78,15 @@ two-faced ledger row with an inline mini meter, flattened the finale ledger
 to uniform single-line rows, gave both finale rosters psep headers, made
 share feedback in-place, swapped the WAR ladder's middle rungs to the
 rarity ramp (green 2–4, blue 4–6), added the fixed-cap banks' identity
-line, and equalized the ?/✕ pills.
+line, and equalized the ?/✕ pills. Round 13 turned the wide rail into
+finale-style rows (same pick buttons, manager de-rotated and last), locked
+powerups into a 3+2 lattice, hired the real fixed-cap owners (Schott &
+Hofmann / Steinbrenner) into the bank line, renamed the home box TRACK
+RECORD with games inline, stripped redundant uncertainty marks (?-glyph
+meter fill, ⚠ over icon, Eye Test "? W"), centered the rail seat type,
+reduced the ledger's scouting/pedigree rows to bare emoji counts, and left
+each finale roster one dream-team cue (⭐ in the squad, green in the dream
+team).
 Cards carry age, stat lines, medaled award ballots (MVP2/3, CY2/3), All-Star
 selections, and team-level 💍/🚩 pedigree; `data/players.json` indexes every
 player's seasons for Prime Time. Bundled Nunito keeps the look cross-browser.

@@ -462,3 +462,39 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   preferred the honest measurement over round 11's optical compensation.
 - **The ?/✕ pills share a fixed 28px width** (min-width let the wider ✕
   glyph outgrow its twin); the armed QUIT? state may still stretch.
+
+## Round 13 — the wide rail grows up, one cue per list (2026-07-31, session 7)
+
+- **The wide rail is the finale card, live.** At ≥760px the roster grid
+  becomes stacked full-width rows (pos · name · season · tier-colored WAR,
+  manager de-rotated and last, matching the finale's order); empty seats are
+  dashed rows. Same buttons, zero logic changes — the slot-pick/TD-release
+  behavior is untouched, and the phone grid is byte-identical. WAR ems hide
+  in Eye Test.
+- **Powerups sit in a fixed 3+2 lattice** (six grid tracks: top pills span 2,
+  bottom span 3) — free-wrapping flex could strand one pill alone under four,
+  and armed pills change label width. Labels ellipsize inside the pill; the
+  44px tap extension stays unclipped. Double Play's armed label tightened to
+  "✌️ PICK 2 — UNDO" to fit a balanced 390px pill.
+- **Fixed-cap banks hire their real owners:** Moneyball shows 💰 Stephen
+  Schott & Ken Hofmann, Blank Check 💰 George Steinbrenner — the owners.json
+  entries whose clubs set those caps, rendered exactly as classic renders a
+  hire (runtime `ownerFor` lookup, no hardcoding).
+- **Uncertainty needs one voice, not three:** the pre-owner meter dropped its
+  "? ? ? ?" glyphs (the drifting hatch already says unknown), the over state
+  dropped its ⚠ (red text already says over), and the Eye Test manager tile
+  renders nothing instead of "? W" (absence reads cleaner than a placeholder).
+- **"PERSONAL BEST" is now "TRACK RECORD"** — owner-flavored — with the games
+  count folded into the header line ("TRACK RECORD 📊 💼 · 12 GAMES"); the
+  separate sub-line is gone.
+- **Rail seat text is optically centered:** the cell's block layout top-set
+  the type stack (≈7.7px above / 8.7px below); flex centering with symmetric
+  padding measures exactly 8.2/8.2.
+- **The finale ledger says it once.** Scouting is a bare ⭐×N (zero state:
+  "none found"); pedigree is a literal trophy case — one emoji per season,
+  💍💍🚩 — falling back to ×N only past 8 emojis; the final-score row lost
+  its spins/payroll subtext.
+- **One cue per roster list:** YOUR SQUAD keeps the ⭐ prefix (= made the
+  dream team, now with a real 4px gap — CSS margin, since Svelte collapsed
+  the markup space); THE DREAM TEAM drops the star and keeps only the green
+  tint (= you found this one). Star-in-both-lists was the repetition.
