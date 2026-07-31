@@ -281,6 +281,35 @@ export class Game {
     return this.openSlotsFor(p).length > 0 ? "open" : "dead";
   }
 
+  /** Card players the list actually shows: below-replacement (negative WAR)
+   * rows are hidden, EXCEPT the best player at any position that would
+   * otherwise vanish entirely — a roster hunting a C or RP always has at
+   * least one candidate. Career sheets (Prime Time) are unaffected. */
+  get visiblePlayers(): CardPlayer[] {
+    if (!this.card) return [];
+    const ps = this.card.players;
+    const rescued = new Set<string>();
+    for (const pos of new Set(ps.map((p) => p.pos))) {
+      const atPos = ps.filter((p) => p.pos === pos);
+      if (atPos.some((p) => p.war >= 0)) continue;
+      rescued.add(atPos.reduce((a, b) => (b.war > a.war ? b : a)).id);
+    }
+    return ps.filter((p) => p.war >= 0 || rescued.has(p.id));
+  }
+
+  /** Whether a listed row is tappable right now — the single gate the UI
+   * uses for signing, Trade Deadline swaps, AND Prime Time browsing (an
+   * armed Prime follows the same gray-out rules as a plain sign). */
+  rowPlayable(p: CardPlayer): boolean {
+    if (this.phase !== "landed" || this.choicesLeft === 0) return false;
+    if (this.playerState(p) === "open") return true;
+    return (
+      this.powerups.tradeDeadline === "armed" &&
+      !this.isRostered(p) &&
+      this.occupiedSlotsFor(p).length > 0
+    );
+  }
+
   heroEligible(p: CardPlayer): boolean {
     return this.heroFranchise !== null && p.debut === this.heroFranchise;
   }
@@ -308,10 +337,10 @@ export class Game {
       ? !this.manager && this.managerAvailable
       : !this.owner || !this.stadium || (!this.manager && this.managerAvailable);
     if (specialsOpen) return true;
-    if (!this.rosterFull && this.card.players.some((p) => this.playerState(p) === "open"))
+    if (!this.rosterFull && this.visiblePlayers.some((p) => this.playerState(p) === "open"))
       return true;
     if (this.powerups.tradeDeadline !== "spent") {
-      if (this.card.players.some((p) => this.playerState(p) === "dead" && !this.isRostered(p)))
+      if (this.visiblePlayers.some((p) => this.playerState(p) === "dead" && !this.isRostered(p)))
         return true;
       if (this.owner || this.stadium || (this.manager && this.managerAvailable)) return true;
     }

@@ -236,10 +236,10 @@ describe("bestFor leaderboard", () => {
         { v: 2, date: "2026-07-30", total: 110, record: "95-67", spins: 10, difficulty: "standard", bank: "classic" },
       ]),
     );
-    expect(bestFor("scout", "moneyball")).toEqual({ best: 90, games: 1 });
-    expect(bestFor("standard", "classic")).toEqual({ best: 131.5, games: 3 });
-    expect(bestFor("scout", "classic")).toEqual({ best: 100, games: 1 });
-    expect(bestFor("standard", "blankcheck")).toEqual({ best: null, games: 0 });
+    expect(bestFor("scout", "moneyball")).toEqual({ best: 90, bestRecord: "88–74", games: 1 });
+    expect(bestFor("standard", "classic")).toEqual({ best: 131.5, bestRecord: "104–58", games: 3 });
+    expect(bestFor("scout", "classic")).toEqual({ best: 100, bestRecord: "91–71", games: 1 });
+    expect(bestFor("standard", "blankcheck")).toEqual({ best: null, bestRecord: null, games: 0 });
   });
 });
 

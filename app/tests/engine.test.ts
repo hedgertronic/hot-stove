@@ -441,6 +441,129 @@ describe("Hometown Hero", () => {
   });
 });
 
+describe("visiblePlayers", () => {
+  it("hides below-replacement players", () => {
+    const good = player({ war: 2.5 });
+    const bad = player({ war: -0.8, pa: 300 });
+    const zero = player({ war: 0, pa: 200 });
+    const g = landedGame(card([good, bad, zero]));
+    expect(g.visiblePlayers.map((p) => p.id)).toEqual([good.id, zero.id]);
+  });
+
+  it("rescues the best player at a position that would vanish entirely", () => {
+    const c1 = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 }, war: -0.4 });
+    const c2 = player({ pos: "C", posG: { c: 60, if: 0, of: 0, dh: 0 }, war: -1.9, pa: 200 });
+    const ifPos = player({ war: 4 });
+    const g = landedGame(card([c1, c2, ifPos]));
+    // c1 is the least-bad catcher → kept; c2 stays hidden
+    expect(g.visiblePlayers.map((p) => p.id)).toEqual([c1.id, ifPos.id]);
+  });
+
+  it("cold stove judges by visible players, not the full card", () => {
+    // A (war 3, catcher) is already rostered at FLEX; B (war −1, catcher) is
+    // the only body for the open C seat but is hidden → the card is cold.
+    const a = player({ id: "vetC", pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 }, war: 3 });
+    const b = player({ pos: "C", posG: { c: 80, if: 0, of: 0, dh: 0 }, war: -1, pa: 150 });
+    const g = landedGame(card([a, b], { manager: null }));
+    g.owner = { name: "x", budget: 100, franchise: "SEA", year: 2001, teamName: "Mariners" };
+    g.stadium = { park: "y", mult: 1, franchise: "SEA", year: 2001 };
+    hiredManager(g);
+    fillSlots(g, [0]);
+    g.slots[4] = filler(4, { id: "vetC" });
+    g.powerups.tradeDeadline = "spent";
+    expect(g.visiblePlayers.map((p) => p.id)).toEqual(["vetC"]);
+    expect(g.coldStove).toBe(true);
+  });
+});
+
+describe("rowPlayable", () => {
+  it("true for an open row, false with no choice left", () => {
+    const p = player({});
+    const g = landedGame(card([p]));
+    expect(g.rowPlayable(p)).toBe(true);
+    g.choicesLeft = 0;
+    expect(g.rowPlayable(p)).toBe(false);
+  });
+
+  it("dead rows come alive only under an armed Trade Deadline", () => {
+    const if1 = player({});
+    const if2 = player({ pa: 400 });
+    const g = landedGame(card([if1, if2]));
+    g.slots[1] = filler(1);
+    g.slots[2] = filler(2);
+    g.slots[4] = filler(4);
+    expect(g.playerState(if1)).toBe("dead");
+    expect(g.rowPlayable(if1)).toBe(false);
+    g.toggleTradeDeadline();
+    expect(g.rowPlayable(if1)).toBe(true);
+  });
+
+  it("stays false for rostered players even when TD is armed", () => {
+    const p = player({ id: "mine" });
+    const g = landedGame(card([p]));
+    g.slots[4] = filler(4, { id: "mine" });
+    g.toggleTradeDeadline();
+    expect(g.rowPlayable(p)).toBe(false);
+  });
+});
+
+describe("Season Ticket and Relocate franchise resolution", () => {
+  const wsnIndex: GameIndex = {
+    yearMin: 1985,
+    yearMax: 2024,
+    cards: [
+      { team: "WSN", year: 2010, franchise: "WSN", name: "Washington Nationals" },
+      { team: "MON", year: 1994, franchise: "WSN", name: "Montreal Expos" },
+      { team: "ATL", year: 1994, franchise: "ATL", name: "Atlanta Braves" },
+    ],
+  };
+  const expos = () =>
+    card([], { year: 1994, team: "MON", franchise: "WSN", name: "Montreal Expos" });
+  const nats = () =>
+    card([], { year: 2010, team: "WSN", franchise: "WSN", name: "Washington Nationals" });
+
+  function landedOn(c: Card): Game {
+    const g = new Game(meta, wsnIndex, owners, 42);
+    g.card = c;
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    g.choicesUsed = 0;
+    return g;
+  }
+
+  it("yearsForFranchise lists only seasons the franchise has cards for", () => {
+    const g = landedOn(nats());
+    expect(g.yearsForFranchise("WSN")).toEqual([1994, 2010]);
+  });
+
+  it("rejects a year outside the franchise's card list without burning the powerup", () => {
+    const g = landedOn(nats());
+    g.seasonTicket(1993);
+    expect(g.phase).toBe("landed");
+    expect(g.powerups.seasonTicket).toBe("ready");
+  });
+
+  it("Season Ticket crosses the relocation: 2010 Nationals → 1994 loads MON", async () => {
+    fetchCards.MON_1994 = expos();
+    const g = landedOn(nats());
+    g.seasonTicket(1994);
+    expect(g.phase).toBe("spinning");
+    await g.land();
+    expect(g.card?.team).toBe("MON");
+    expect(g.card?.name).toBe("Montreal Expos");
+    expect(g.powerups.seasonTicket).toBe("spent");
+  });
+
+  it("Relocate resolves the era-correct team code for a franchise", async () => {
+    fetchCards.MON_1994 = expos();
+    const g = landedOn(card([], { year: 1994, team: "ATL", franchise: "ATL", name: "Atlanta Braves" }));
+    expect(g.teamsForYear(1994).map((e) => e.team).sort()).toEqual(["ATL", "MON"]);
+    g.relocate("MON");
+    await g.land();
+    expect(g.card?.team).toBe("MON");
+  });
+});
+
 describe("cold stove", () => {
   it("detected when nothing is actionable", () => {
     const c = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
