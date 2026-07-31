@@ -383,3 +383,33 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   starts. User-approved mid-round from a "does it need to be sticky?" question.
 - **Pre-owner meter labels match:** "$??? LEFT" now shares the SPENT label's
   size/weight/color; italic alone marks the unknown.
+
+## Round 11 — six-rung WAR ladder, honest position chips, the visual ledger (2026-07-31, session 7)
+
+- **WAR tiers get a sixth rung:** gray 0–2, blue 2–4, green 4–6, **violet 6–8
+  (star, MVP candidate)**, gold now 8+ (generational). Share grid adds 🟣.
+  Gold chips flip to white text at the user's explicit call (reversing the
+  round-8 ink-text contrast decision); the gold deepened #e0a010 → #c98a08 so
+  white carries (~3:1), and the Finale's gold-on-cream text benefits too.
+- **Position chips tell the whole truth.** New `posLabel`: raw position plus
+  any EXTRA specialist slot groups the season's games earn (10+ G), C→IF→OF
+  order — "2B/OF", "C/IF/OF" (26 exist). Two-way seasons pass through whole:
+  Ohtani's cards were already `pos: "SP/DH"` with combined B-R WAR and
+  SP-or-UTIL eligibility — only the chip's `split("/")[0]` hid it. Long
+  labels (>5 chars) shrink to 7.5px inside the fixed 38px column. UTIL is
+  never listed (every hitter has it). Same fix in the Prime Time browser.
+- **The ledger shows, not tells.** Hardware row renders the player-row award
+  pills (canonical order) with an ×N when an award repeats; Championship
+  pedigree renders 💍/🚩 the same way (borderless — the emoji carries the
+  color); Front-office bonus carries a miniature of the BankBox meter (green
+  fill, orange hatch when over) under a compact text line. LedgerRow grew
+  optional `chips`/`meter` fields — one branch per flavor, no HTML in
+  strings.
+- **Seed copy feedback is in-place:** the chip's own text swaps to
+  "COPIED ✓" (green, 1.2s) — no toast line, zero layout shift (15ch
+  min-width). The share button keeps its toast.
+- **Optical corrections:** picker pedigree emoji 9px → 11px (emoji render
+  below nominal size; 11px balances the 13px labels). Manager seat width
+  52px → 56px — measured geometry was already equal (52 = 52) but the
+  rotated seat still read slimmer (vertical–horizontal illusion), so it gets
+  ~8% optical compensation, A/B'd live.
