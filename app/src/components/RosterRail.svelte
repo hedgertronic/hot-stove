@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { lastName, yy } from "../lib/format";
+  import { lastName } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
 
   let { game }: { game: Game } = $props();
@@ -23,37 +23,44 @@
     if (game.slotPick) game.signPlayer(pickPlayer, i);
     else game.tdRelease(pickPlayer, i);
   }
+
+  /** Seat sub-line: season identity, plus WAR when the mode shows stats —
+   * that's the number you weigh when Trade Deadline asks who to release. */
+  function seatMeta(s: { year: number; team: string; war: number }): string {
+    const id = `${s.year} ${s.team}`;
+    return game.showWar ? `${id} · ${s.war.toFixed(1)}` : id;
+  }
 </script>
 
 <div class="railwrap disp">
   <div class="rail">
     {#each game.slots as slot, i}
       {#if pickableCells.has(i)}
-        <button class="cell pickable" onclick={() => tapCell(i)}>
+        <button class="cell pickable" class:vacant={!slot} onclick={() => tapCell(i)}>
           <b>{SLOT_TYPES[i]}</b>
-          {#if slot}<span>{lastName(slot.name)}</span><i>{yy(slot.year)}</i>{:else}<span>—</span>{/if}
+          {#if slot}<span>{lastName(slot.name)}</span><i>{seatMeta(slot)}</i>{/if}
         </button>
       {:else if slot}
         <div class="cell filled">
-          <b>{SLOT_TYPES[i]}</b><span>{lastName(slot.name)}</span><i>{yy(slot.year)}</i>
+          <b>{SLOT_TYPES[i]}</b><span>{lastName(slot.name)}</span><i>{seatMeta(slot)}</i>
         </div>
       {:else}
-        <div class="cell empty"><b>{SLOT_TYPES[i]}</b><span>—</span></div>
+        <div class="cell empty"><b>{SLOT_TYPES[i]}</b></div>
       {/if}
     {/each}
   </div>
-  <!-- The dugout: the manager's seat sits under the eight player seats, part of
-       the club you must fill before the finale. -->
+  <!-- The dugout: the manager's seat, same visual language as the eight player
+       seats — one club, nine chairs. -->
   {#if game.manager}
     <div class="dugout filled">
       <b>🧢 MGR</b>
       <span class="mgrname">{lastName(game.manager.name)}</span>
-      <i>{yy(game.manager.year)} {game.manager.team}</i>
+      <i>{game.manager.year} {game.manager.team}</i>
       {#if game.showAwards && game.manager.ws}<span class="emo">💍</span
         >{:else if game.showAwards && game.manager.pen}<span class="emo">🚩</span>{/if}
     </div>
   {:else}
-    <div class="dugout empty"><b>🧢 MGR</b><span class="mgrname">—</span></div>
+    <div class="dugout empty"><b>🧢 MGR</b></div>
   {/if}
   {#if pickPlayer}
     <div class="railhint">
@@ -111,16 +118,26 @@
   .cell i {
     display: block;
     font-style: normal;
-    font-size: 9px;
+    font-size: 8.5px;
     color: var(--muted);
     font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .cell.filled {
     background: var(--green-wash);
   }
+  /* An empty seat is an invitation: just the position, centered, waiting. */
   .cell.empty {
     border-style: dashed;
     background: transparent;
+    color: var(--gray-ink);
+    display: grid;
+    place-content: center;
+  }
+  .cell.empty b {
+    font-size: 11px;
     color: var(--gray-ink);
   }
   .cell.pickable {
@@ -128,6 +145,10 @@
     border-style: dashed;
     cursor: pointer;
     animation: nudge 1s ease-in-out infinite;
+  }
+  .cell.pickable.vacant {
+    display: grid;
+    place-content: center;
   }
   @keyframes nudge {
     50% {
@@ -142,8 +163,8 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 3px 8px;
-    min-height: 26px;
+    padding: 4px 8px;
+    min-height: 28px;
     font-size: 10px;
   }
   .dugout b {
@@ -169,11 +190,14 @@
     line-height: 1;
   }
   .dugout.filled {
-    background: var(--pink);
+    background: var(--green-wash);
   }
   .dugout.empty {
     border-style: dashed;
     background: transparent;
+    color: var(--gray-ink);
+  }
+  .dugout.empty b {
     color: var(--gray-ink);
   }
   .railhint {

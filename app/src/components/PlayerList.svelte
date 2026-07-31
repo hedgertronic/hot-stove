@@ -18,11 +18,11 @@
     expanded = false;
   });
 
-  // Standard reads talent-first (WAR desc); Scout is alphabetical — any other
-  // order would leak information the mode is supposed to hide.
+  // Box Score reads talent-first (WAR desc); Eye Test is alphabetical — any
+  // other order would leak information the mode is supposed to hide.
+  // Below-replacement rows are filtered engine-side (visiblePlayers).
   const sorted = $derived.by(() => {
-    if (!game.card) return [];
-    const ps = [...game.card.players];
+    const ps = [...game.visiblePlayers];
     if (game.scout)
       return ps.sort(
         (a, b) =>
@@ -47,21 +47,19 @@
     return out;
   });
 
-  const tdArmed = $derived(game.powerups.tradeDeadline === "armed");
-  const canAct = $derived(game.phase === "landed" && game.choicesLeft > 0);
-
   function tap(p: CardPlayer, e: MouseEvent) {
     e.stopPropagation();
-    if (!canAct) return;
-    // Armed Prime Time hijacks the row tap: any unsigned human's career opens.
+    // One gate for everything: signing, Trade Deadline swaps, and Prime Time
+    // browsing all follow the same gray-out rules.
+    if (!game.rowPlayable(p)) return;
     if (game.primeArmed) {
       game.primeTapPlayer(p);
       return;
     }
-    const state = game.playerState(p);
-    if (state === "open") {
+    if (game.playerState(p) === "open") {
       setConfirm(confirmKey === `p:${p.id}` ? null : `p:${p.id}`);
-    } else if (tdArmed) {
+    } else {
+      // playable but no open seat ⇒ armed Trade Deadline swap target
       setConfirm(confirmKey === `t:${p.id}` ? null : `t:${p.id}`);
     }
   }
@@ -97,42 +95,49 @@
     CY3: "🥉CY",
   };
 
-  function subLine(p: CardPlayer, hero: boolean): string {
+  function subText(p: CardPlayer, hero: boolean): string {
     const base = game.scout ? "" : p.age != null ? `age ${p.age}` : "";
     if (!hero) return base;
     return base ? `${base} · 🏠 hometown` : "🏠 hometown";
   }
+
+  const isPitcher = (p: CardPlayer) => p.pos.startsWith("SP") || p.pos === "RP";
+  const hasBadges = (p: CardPlayer) =>
+    game.showAwards && (p.awards.length > 0 || p.ws || p.pen);
 </script>
 
-<div class="plist disp">
+<div class="plist disp" class:scoutmode={game.scout}>
   {#each visible as p (p.id)}
-    {@const state = game.playerState(p)}
-    {@const dead = state === "dead"}
-    {@const swappable = dead && tdArmed && canAct && !game.isRostered(p)}
-    {@const primeable = game.primeArmed && canAct && !game.isRostered(p)}
+    {@const playable = game.rowPlayable(p)}
+    {@const open = game.playerState(p) === "open"}
+    {@const swappable = playable && !open}
+    {@const primeable = game.primeArmed && playable}
     {@const hero = game.heroEligible(p)}
     {@const price = game.priceFor(p)}
     <button
       class="prow"
-      class:dead={dead && !swappable && !primeable}
+      class:dead={!playable}
       class:swap={swappable && !primeable}
       class:prime={primeable}
       onclick={(e) => tap(p, e)}
     >
-      <span class="pos">{p.pos.split("/")[0]}</span>
+      <span class="pos" class:pit={isPitcher(p)}>{p.pos.split("/")[0]}</span>
       <span class="mid">
-        <span class="pname"
-          >{p.name}{#if game.showAwards}<span class="badges"
-              >{#each p.awards as a}<span class="qb {AWARD_CLS[a] ?? ''}">{PILL_TEXT[a] ?? a}</span>{/each}{#if p.ws}<span class="emo">💍</span>{:else if p.pen}<span class="emo">🚩</span>{/if}</span
-            >{/if}</span
-        >
-        {#if subLine(p, hero)}<span class="ppos">{subLine(p, hero)}</span>{/if}
+        <span class="pname">{p.name}</span>
+        {#if subText(p, hero) || hasBadges(p)}
+          <span class="sub">
+            {#if subText(p, hero)}<span class="age">{subText(p, hero)}</span>{/if}
+            {#if hasBadges(p)}<span class="badges"
+                >{#each p.awards as a}<span class="qb {AWARD_CLS[a] ?? ''}">{PILL_TEXT[a] ?? a}</span>{/each}{#if p.ws}<span class="emo">💍</span>{:else if p.pen}<span class="emo">🚩</span>{/if}</span
+              >{/if}
+          </span>
+        {/if}
       </span>
       <span class="right">
-        {#if confirmKey === `p:${p.id}` && state === "open" && !game.primeArmed}
+        {#if confirmKey === `p:${p.id}` && open && !game.primeArmed}
           <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSign(p); }} onkeydown={(e) => e.key === "Enter" && commitSign(p)}>SIGN {game.showCost ? money(price) : "✍️"}</span>
         {:else if confirmKey === `t:${p.id}` && swappable && !game.primeArmed}
-          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => e.key === "Enter" && commitTrade(p)}>🔁 {game.showCost ? money(price) : "SWAP"}</span>
+          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => e.key === "Enter" && commitTrade(p)}>TRADE FOR {game.showCost ? money(price) : "✍️"}</span>
         {:else}
           {#if primeable}<span class="primetag">⭐</span>{/if}
           {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}</span>{/if}
@@ -173,11 +178,12 @@
   .prow:active {
     transform: translate(-1px, -1px);
   }
-  /* Neutral position badge — WAR lives on the right, next to the price. */
+  /* Position is a filter cue, not the headline: a compact fixed-width tag so
+     the left edge scans as a column. Pitchers flip to filled ink — one subtle
+     two-way split (arms vs bats), no rainbow. */
   .pos {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    width: 38px;
+    border-radius: 7px;
     background: var(--card);
     color: var(--ink);
     border: 2px solid var(--ink);
@@ -185,17 +191,56 @@
     place-content: center;
     text-align: center;
     font-weight: 800;
-    font-size: 11px;
-    letter-spacing: 0.02em;
+    font-size: 9.5px;
+    letter-spacing: 0.03em;
     line-height: 1;
+    padding: 4px 0;
     flex: none;
+  }
+  .pos.pit {
+    background: var(--ink);
+    color: var(--card);
+  }
+  /* Eye Test keeps the classic scouting circle — position is the only intel. */
+  .scoutmode .pos {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    font-size: 10.5px;
+    padding: 0;
+  }
+  .mid {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+  .pname {
+    font-weight: 800;
+    font-size: 14px;
+    line-height: 1.15;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Second line: age + hardware. Keeps the name row clean on narrow screens. */
+  .sub {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .age {
+    font-size: 10.5px;
+    color: var(--muted);
+    white-space: nowrap;
   }
   .badges {
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    margin-left: 5px;
-    vertical-align: 1px;
+    flex: none;
   }
   .qb {
     font-size: 8.5px;
@@ -227,26 +272,6 @@
     font-size: 10px;
     line-height: 1;
   }
-  .mid {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-  .pname {
-    font-weight: 800;
-    font-size: 14px;
-    line-height: 1.15;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .ppos {
-    font-size: 10.5px;
-    color: var(--muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
   .right {
     margin-left: auto;
     display: flex;
@@ -254,16 +279,17 @@
     gap: 7px;
     flex: none;
   }
+  /* WAR is the decision number — biggest thing on the right. */
   .warchip {
     display: inline-block;
-    min-width: 34px;
+    min-width: 42px;
     text-align: center;
     border: 2px solid var(--ink);
-    border-radius: 8px;
+    border-radius: 9px;
     font-weight: 800;
-    font-size: 12px;
-    line-height: 1.6;
-    padding: 0 4px;
+    font-size: 13.5px;
+    line-height: 1.65;
+    padding: 0 5px;
     color: var(--card);
   }
   .warchip.neg {
@@ -284,9 +310,9 @@
   }
   .cost {
     font-weight: 800;
-    font-size: 14px;
+    font-size: 13px;
     white-space: nowrap;
-    min-width: 52px;
+    min-width: 50px;
     text-align: right;
   }
   .cost.cheap {
@@ -307,6 +333,9 @@
   }
   .prow.dead .pos {
     background: transparent;
+  }
+  .prow.dead .pos.pit {
+    background: var(--gray-ink);
   }
   .prow.swap {
     background: var(--amber);

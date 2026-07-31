@@ -51,10 +51,14 @@
     landedAnim = false;
     const kind = game.spinKind;
     const land = async () => {
+      const prevName = game.card?.name;
       await game.land();
       landedAnim = true;
       running = false;
-      if (kind !== "full" && !reduced) pulse(260, kind);
+      // A Season Ticket crossover (Expos↔Nationals) changes the club name on a
+      // "year" spin — pulse both halves so the rename doesn't appear silently.
+      const renamed = kind === "year" && game.card?.name !== prevName;
+      if (kind !== "full" && !reduced) pulse(260, renamed ? "full" : kind);
     };
     if (reduced || kind !== "full") {
       void land();
@@ -104,14 +108,11 @@
     </div>
     <div class="bline team">
       <div class="tname" bind:this={tmEl} style:color={cardView.color}>{cardView.tm}</div>
+      {#if game.phase === "landed" && game.card && game.showAwards}
+        {#if game.card.ws}<span class="pedigree" title="Won the World Series">💍</span>
+        {:else if game.card.pen}<span class="pedigree" title="Won the pennant">🚩</span>{/if}
+      {/if}
     </div>
-    {#if game.phase === "landed" && game.card}
-      <div class="tmeta">
-        {game.card.wins}–{game.card.losses}{#if game.showAwards && game.card.ws}
-          <span class="pedigree" title="Won the World Series">💍</span>{:else if game.showAwards && game.card.pen}
-          <span class="pedigree" title="Won the pennant">🚩</span>{/if}
-      </div>
-    {/if}
   {:else}
     <div class="bline"><span class="yr idle">····</span></div>
     <div class="bline team"><div class="tname idle">HOT STOVE</div></div>
@@ -189,13 +190,8 @@
   .tname.idle {
     color: var(--gray-ink);
   }
-  .tmeta {
-    font-size: 11.5px;
-    color: var(--muted);
-    margin-top: 3px;
-  }
   .pedigree {
-    font-size: 12px;
+    font-size: 15px;
   }
   .hunt {
     font-size: 10px;

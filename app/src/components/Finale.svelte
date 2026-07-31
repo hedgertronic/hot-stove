@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { lastName, money, signed, warTier, yy } from "../lib/format";
+  import { lastName, money, signed, warTier } from "../lib/format";
   import { GOAL_POINTS, MARINERS_WINS } from "../lib/scoring";
 
   let {
@@ -173,8 +173,8 @@
   const TIER_EMOJI = { neg: "🔴", low: "⚪", mid: "🔵", high: "🟢", elite: "🟡" } as const;
 
   const DIFF_TAG: Record<string, string> = {
-    standard: "🔥 STANDARD",
-    scout: "🔭 SCOUT",
+    standard: "📊 BOX SCORE",
+    scout: "🔭 EYE TEST",
   };
   const BANK_TAG: Record<string, string> = {
     moneyball: " · ⚾ MONEYBALL",
@@ -209,7 +209,7 @@
       `HOT STOVE ${tag}`,
       grid,
       `${fin.wins}–${fin.losses}${beatMariners ? " 🔱" : ""} · 💰 ${money(fin.spend)}/${money(fin.budget)}`,
-      `${medals ? `${medals} · ` : ""}🏆 ${fin.parts.total.toFixed(1)}/${GOAL_POINTS}${perfect ? " 🏆 PERFECT SEASON" : ""}`,
+      `${medals ? `${medals} · ` : ""}🏆 ${fin.parts.total.toFixed(1)}${perfect ? " · PERFECT SEASON" : ""}`,
     ].join("\n");
   }
 
@@ -266,12 +266,11 @@
 
 <div class="fin-head disp">
   <div class="rec">{Math.round(dispW)}–{Math.round(dispL)}</div>
-  <div class="sub">YOUR {new Date().getFullYear()} HOT STOVE SQUAD</div>
   {#if beatMariners && totalShown}
-    <div class="brag">🔱 BEAT THE ’01 MARINERS</div>
+    <div class="brag">🔱 BEAT THE 2001 MARINERS</div>
   {/if}
   {#if perfect && totalShown}
-    <div class="brag gold">🏆 PERFECT SEASON — {GOAL_POINTS}+</div>
+    <div class="brag gold">🏆 PERFECT SEASON</div>
   {/if}
 </div>
 
@@ -290,34 +289,23 @@
     >
     <span class="amt">{dispTotal}</span>
   </div>
-  <div class="goal disp" class:show={totalShown}>
-    <div class="goaltrack">
-      <div
-        class="goalfill"
-        class:full={perfect}
-        style:width="{Math.min((fin.parts.total / GOAL_POINTS) * 100, 100)}%"
-      ></div>
-    </div>
-    <span class="goallbl">🎯 {GOAL_POINTS}</span>
-  </div>
 </div>
 
 <div class="fin-actions">
-  <button class="btn disp" onclick={onreplay}>Replay ↻</button>
-  <button class="btn hot disp" onclick={share}>Share 🔥</button>
+  <button class="btn ghost disp" onclick={onmodes}><span class="bic">⚙</span> Modes</button>
+  <button class="btn disp" onclick={onreplay}>Replay <span class="bic">↻</span></button>
+  <button class="btn hot disp" onclick={share}>Share <span class="bic">🔥</span></button>
 </div>
 {#if toast}<div class="toast disp">{toast}</div>{/if}
-<button class="modesbtn disp" onclick={onmodes}>⚙ CHANGE MODE</button>
 
 <div class="squad disp">
-  <div class="squad-h">YOUR SQUAD ▾</div>
   {#each game.slots as slot, i}
     {#if slot}
       <div class="qrow">
         <span class="qpos">{SLOT_TYPES[i]}</span>
         <span class="qname"
           >{#if starred(slot)}<span class="emo">⭐</span>
-          {/if}{slot.name} <i>{yy(slot.year)}</i></span
+          {/if}{slot.name} <i>{slot.year}</i></span
         >
         <span class="qbadges">
           {#if slot.hero}<span class="emo">🏠</span>{/if}
@@ -335,7 +323,7 @@
       <span class="qpos">MGR</span>
       <span class="qname"
         >{#if fin.managerHit}<span class="emo">⭐</span>
-        {/if}{game.manager.name} <i>{yy(game.manager.year)}</i></span
+        {/if}{game.manager.name} <i>{game.manager.year}</i></span
       >
       <span class="qbadges"
         >{#if game.manager.ws}<span class="emo">💍</span>{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
@@ -347,11 +335,7 @@
 
 {#if fin.best}
   <div class="squad disp">
-    <div class="squad-h">⭐ THE DREAM TEAM — BEST POSSIBLE FROM YOUR SPINS</div>
-    <div class="dream-sub">
-      Pure WAR, cap ignored: {fin.best.totalWar.toFixed(1)} WAR vs your {fin.totalWar.toFixed(1)}.
-      You found {fin.scoutHits} of {dreamDenom}.
-    </div>
+    <div class="squad-h">⭐ THE DREAM TEAM</div>
     {#each fin.best.picks as pick, i}
       {@const mine =
         pick != null &&
@@ -360,7 +344,7 @@
         <span class="qpos">{SLOT_TYPES[i]}</span>
         {#if pick}
           <span class="qname"
-            >{#if mine}<span class="emo">⭐</span> {/if}{pick.name} <i>{yy(pick.year)} {pick.teamName}</i></span
+            >{#if mine}<span class="emo">⭐</span> {/if}{pick.name} <i>{pick.year} {pick.teamName}</i></span
           >
           <span class="qwar {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
         {:else}
@@ -373,7 +357,7 @@
         <span class="qpos">MGR</span>
         <span class="qname"
           >{#if fin.managerHit}<span class="emo">⭐</span>
-          {/if}{fin.bestManager.name} <i>{yy(fin.bestManager.year)} {fin.bestManager.teamName}</i></span
+          {/if}{fin.bestManager.name} <i>{fin.bestManager.year} {fin.bestManager.teamName}</i></span
         >
         <span class="qbadges"
           >{#if fin.bestManager.ws}<span class="emo">💍</span>{:else if fin.bestManager.pen}<span class="emo">🚩</span>{/if}</span
@@ -393,12 +377,6 @@
     font-size: 46px;
     font-weight: 800;
     line-height: 1;
-  }
-  .sub {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--muted);
-    margin-top: 3px;
   }
   .brag {
     display: inline-block;
@@ -479,45 +457,28 @@
   .lrow.total .amt {
     font-size: 21px;
   }
-  .goal {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    opacity: 0;
-  }
-  .goal.show {
-    opacity: 1;
-    transition: opacity 0.4s 0.3s;
-  }
-  .goaltrack {
-    flex: 1;
-    border: 2px solid var(--ink);
-    border-radius: 999px;
-    height: 10px;
-    overflow: hidden;
-    background: var(--card);
-  }
-  .goalfill {
-    height: 100%;
-    background: var(--orange);
-    border-right: 2px solid var(--ink);
-    transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s;
-  }
-  .goalfill.full {
-    background: var(--war-elite);
-    border-right: 0;
-  }
-  .goallbl {
-    font-size: 10px;
-    font-weight: 800;
-    color: var(--muted);
-    flex: none;
-  }
   .fin-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1.2fr 1.2fr;
     gap: 9px;
     margin-top: 13px;
+  }
+  .fin-actions .btn {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 7px 8px;
+  }
+  .bic {
+    font-size: 19px;
+    line-height: 1;
+  }
+  .btn.ghost {
+    background: transparent;
+    border-style: dashed;
+    color: var(--muted);
   }
   .toast {
     text-align: center;
@@ -525,18 +486,6 @@
     font-size: 12px;
     color: var(--green-deep);
     margin-top: 8px;
-  }
-  .modesbtn {
-    display: block;
-    margin: 10px auto 0;
-    background: none;
-    border: 0;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    cursor: pointer;
-    padding: 6px 10px;
   }
   .squad {
     margin-top: 16px;
@@ -643,13 +592,6 @@
   }
   .skiprow .qwar {
     color: var(--ink);
-  }
-  .dream-sub {
-    text-align: center;
-    font-size: 10.5px;
-    font-weight: 700;
-    color: var(--muted);
-    margin: -3px 0 8px;
   }
   .qrow.dreamhit {
     background: var(--green-wash);

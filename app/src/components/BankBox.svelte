@@ -36,6 +36,13 @@
       {/if}
     {/if}
   </div>
+  {#if game.config.bank === "classic"}
+    <div class="hires disp">
+      <span class="hire" class:tbd={!game.owner}>💰 {game.owner ? game.owner.name : "no owner yet"}</span>
+      <span class="hsep">·</span>
+      <span class="hire" class:tbd={!game.stadium}>🏟️ {game.stadium ? game.stadium.park : "no stadium yet"}</span>
+    </div>
+  {/if}
   <div class="meter">
     <div class="fill" class:floorover={over} class:zero={spend <= 0} style:width="{over ? 100 : pct}%"></div>
   </div>
@@ -86,6 +93,30 @@
   }
   .op {
     color: var(--muted);
+  }
+  .hires {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 5px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .hire {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 46%;
+  }
+  .hire.tbd {
+    color: var(--gray-ink);
+    font-style: italic;
+    font-weight: 600;
+  }
+  .hsep {
+    color: var(--gray-ink);
   }
   .meter {
     margin-top: 8px;

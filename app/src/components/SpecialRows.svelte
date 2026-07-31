@@ -11,6 +11,11 @@
   const tdArmed = $derived(game.powerups.tradeDeadline === "armed");
   const canAct = $derived(game.phase === "landed" && game.choicesLeft > 0);
 
+  /** Compact attendance: 2,169,811 → "2.17M fans". */
+  function fans(n: number): string {
+    return n >= 1e6 ? `${(n / 1e6).toFixed(2)}M fans` : `${Math.round(n / 1e3)}K fans`;
+  }
+
   interface Row {
     key: SpecialKey;
     cls: string;
@@ -41,7 +46,7 @@
           cls: "stad",
           ic: "🏟️",
           who: c.park,
-          what: "Stadium",
+          what: `Stadium · ${fans(c.attendance)}`,
           val: `×${c.stadiumMult.toFixed(2)}`,
           verb: "BUY",
         },
@@ -53,7 +58,7 @@
         cls: "skip",
         ic: "🧢",
         who: c.manager,
-        what: "Manager",
+        what: `Manager · ${c.wins}–${c.losses}`,
         val: `${signed((c.wins - c.losses) * 0.1)} W`,
         verb: "HIRE",
       });

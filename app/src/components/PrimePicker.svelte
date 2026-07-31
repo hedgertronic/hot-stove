@@ -90,9 +90,10 @@
       <div class="list">
         {#each seasons as sea ((sea.team + sea.year))}
           <button class="srow" disabled={!sea.fits || sea.here} onclick={() => pick(sea)}>
-            <span class="pos">{sea.p.pos.split("/")[0]}</span>
+            <span class="pos" class:pit={sea.p.pos.startsWith("SP") || sea.p.pos === "RP"}
+              >{sea.p.pos.split("/")[0]}</span>
             <span class="mid">
-              <span class="yr">’{String(sea.year).slice(2)} {sea.teamName}</span>
+              <span class="yr">{sea.year} {sea.teamName}</span>
               {#if sea.here}<span class="sub">that's this card — just sign him</span>
               {:else if !sea.fits}<span class="sub">no open seat fits this season</span>
               {:else if game.showWar && statLine(sea.p)}<span class="sub">{statLine(sea.p)}</span>{/if}
@@ -184,9 +185,8 @@
     transform: none;
   }
   .pos {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
+    width: 38px;
+    border-radius: 7px;
     background: var(--card);
     color: var(--ink);
     border: 2px solid var(--ink);
@@ -194,9 +194,15 @@
     place-content: center;
     text-align: center;
     font-weight: 800;
-    font-size: 10.5px;
+    font-size: 9.5px;
+    letter-spacing: 0.03em;
     line-height: 1;
+    padding: 4px 0;
     flex: none;
+  }
+  .pos.pit {
+    background: var(--ink);
+    color: var(--card);
   }
   .mid {
     display: flex;
@@ -226,14 +232,14 @@
   }
   .warchip {
     display: inline-block;
-    min-width: 34px;
+    min-width: 42px;
     text-align: center;
     border: 2px solid var(--ink);
-    border-radius: 8px;
+    border-radius: 9px;
     font-weight: 800;
-    font-size: 12px;
-    line-height: 1.6;
-    padding: 0 4px;
+    font-size: 13.5px;
+    line-height: 1.65;
+    padding: 0 5px;
     color: var(--card);
   }
   .warchip.neg {

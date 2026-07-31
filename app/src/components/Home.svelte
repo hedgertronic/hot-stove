@@ -7,7 +7,6 @@
     type GameConfig,
   } from "../lib/engine.svelte";
   import { money } from "../lib/format";
-  import { GOAL_POINTS } from "../lib/scoring";
   import { bestFor } from "../lib/settings";
 
   let { config, onplay }: { config: GameConfig; onplay: (c: GameConfig) => void } = $props();
@@ -19,59 +18,54 @@
   let bank = $state<Bank>(config.bank);
 
   const DIFFS: { key: Difficulty; ic: string; name: string; desc: string }[] = [
-    { key: "standard", ic: "🔥", name: "Standard", desc: "WAR, salaries & awards on every card" },
-    { key: "scout", ic: "🔭", name: "Scout", desc: "No stats, no salaries — pure name recognition" },
+    { key: "standard", ic: "📊", name: "Box Score", desc: "Stats, salaries, and awards" },
+    { key: "scout", ic: "🔭", name: "Eye Test", desc: "No stats, no salaries" },
   ];
-  /** Each bank card explains itself with the two pills the mode locks or leaves
-   * open: Classic spins for its owner + stadium; the fixed caps come pre-signed. */
+  /** Each bank card shows its bankroll pill + team pill: Owner's Box leaves
+   * both dashed (you hire the owner in-game); the fixed caps come pre-signed. */
   const BANKS: {
     key: Bank;
     ic: string;
     name: string;
-    pills: { txt: string; cls: string }[];
-    cap: string;
+    cash: string;
+    team: string;
+    cls: string;
+    desc: string;
   }[] = [
     {
       key: "classic",
       ic: "💼",
-      name: "Classic",
-      pills: [
-        { txt: "💰 OWNER", cls: "open" },
-        { txt: "🏟️ STADIUM", cls: "open" },
-      ],
-      cap: "spin for your cap",
+      name: "Owner's Box",
+      cash: "$ · · ·",
+      team: "· · ·",
+      cls: "open",
+      desc: "Hire an owner to set your budget",
     },
     {
       key: "moneyball",
       ic: "⚾",
       name: "Moneyball",
-      pills: [
-        { txt: "💰 ’02 A’S", cls: "oak" },
-        { txt: "🏟️ ’02 A’S", cls: "oak" },
-      ],
-      cap: money(MONEYBALL_BUDGET_M),
+      cash: money(MONEYBALL_BUDGET_M),
+      team: "OAK 2002",
+      cls: "oak",
+      desc: "The 2002 A's bankroll",
     },
     {
       key: "blankcheck",
       ic: "💸",
       name: "Blank Check",
-      pills: [
-        { txt: "💰 ’05 YANKS", cls: "nyy" },
-        { txt: "🏟️ ’05 YANKS", cls: "nyy" },
-      ],
-      cap: money(BLANK_CHECK_BUDGET_M),
+      cash: money(BLANK_CHECK_BUDGET_M),
+      team: "NYY 2005",
+      cls: "nyy",
+      desc: "The 2005 Yankees' bankroll",
     },
   ];
 
-  const DIFF_ICON: Record<Difficulty, string> = { standard: "🔥", scout: "🔭" };
+  const DIFF_ICON: Record<Difficulty, string> = { standard: "📊", scout: "🔭" };
   const BANK_ICON: Record<Bank, string> = { classic: "💼", moneyball: "⚾", blankcheck: "💸" };
 
   const best = $derived(bestFor(difficulty, bank));
-  const comboLabel = $derived(
-    `${DIFF_ICON[difficulty]} ${difficulty === "standard" ? "STANDARD" : "SCOUT"} · ${BANK_ICON[bank]} ${
-      bank === "classic" ? "CLASSIC" : bank === "moneyball" ? "MONEYBALL" : "BLANK CHECK"
-    }`,
-  );
+  const comboEmoji = $derived(`${DIFF_ICON[difficulty]} ${BANK_ICON[bank]}`);
 </script>
 
 <div class="home disp">
@@ -103,12 +97,11 @@
       >
         <span class="ic">{b.ic}</span>
         <span class="segname">{b.name}</span>
-        <span class="pillcol">
-          {#each b.pills as p}
-            <span class="mini {p.cls}">{p.txt}</span>
-          {/each}
+        <span class="pillrow">
+          <span class="pill cash {b.cls}">{b.cash}</span>
+          <span class="pill team {b.cls}">{b.team}</span>
         </span>
-        <span class="segcap">{b.cap}</span>
+        <span class="segdesc">{b.desc}</span>
       </button>
     {/each}
   </div>
@@ -116,14 +109,30 @@
   <button class="btn hot playbtn" onclick={() => onplay({ difficulty, bank })}> PLAY 🔥 </button>
 
   <div class="bestbox">
-    <div class="best-h">PERSONAL BEST — {comboLabel}</div>
+    <div class="best-h">PERSONAL BEST {comboEmoji}</div>
     {#if best.best !== null}
-      <div class="best-n">
-        {best.best.toFixed(1)}<span class="best-goal"> / GOAL {GOAL_POINTS}</span>
+      <div class="best-cols">
+        <div class="best-col">
+          <div class="best-n" class:empty={best.bestRecord === null}>{best.bestRecord ?? "—"}</div>
+          <div class="best-cap">BEST RECORD</div>
+        </div>
+        <div class="best-col">
+          <div class="best-n">{best.best.toFixed(1)}</div>
+          <div class="best-cap">BEST SCORE</div>
+        </div>
       </div>
       <div class="best-sub">{best.games} {best.games === 1 ? "game" : "games"} played</div>
     {:else}
-      <div class="best-n empty">—<span class="best-goal"> / GOAL {GOAL_POINTS}</span></div>
+      <div class="best-cols">
+        <div class="best-col">
+          <div class="best-n empty">—</div>
+          <div class="best-cap">BEST RECORD</div>
+        </div>
+        <div class="best-col">
+          <div class="best-n empty">—</div>
+          <div class="best-cap">BEST SCORE</div>
+        </div>
+      </div>
       <div class="best-sub">no games yet in this mode — set the bar</div>
     {/if}
   </div>
@@ -208,42 +217,41 @@
     color: var(--muted);
     max-width: 150px;
   }
-  .pillcol {
+  .pillrow {
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    width: 100%;
-    margin-top: 2px;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
   }
-  .mini {
-    border: 1.5px dashed var(--gray-ink);
+  .pill {
+    display: inline-block;
     border-radius: 999px;
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 0.03em;
-    padding: 2px 0;
-    text-align: center;
+    letter-spacing: 0.04em;
+    padding: 3px 12px;
     white-space: nowrap;
+  }
+  .pill.open {
+    border: 2px dashed var(--gray-ink);
     color: var(--muted);
     background: transparent;
   }
-  .mini.oak {
-    border: 1.5px solid var(--ink);
+  .pill.cash:not(.open) {
+    border: 2px solid var(--ink);
+    background: var(--card);
+    color: var(--ink);
+  }
+  .pill.team.oak {
+    border: 2px solid var(--ink);
     background: #003831;
     color: #efb21e;
   }
-  .mini.nyy {
-    border: 1.5px solid var(--ink);
+  .pill.team.nyy {
+    border: 2px solid var(--ink);
     background: #0c2340;
     color: #fffdf6;
-  }
-  .segcap {
-    font-size: 10px;
-    font-weight: 800;
-    margin-top: 1px;
-  }
-  .segbtn:not(.on) .segcap {
-    color: var(--muted);
   }
   .playbtn {
     width: 100%;
@@ -265,19 +273,28 @@
     letter-spacing: 0.1em;
     color: var(--muted);
   }
+  .best-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-top: 3px;
+  }
+  .best-col + .best-col {
+    border-left: 2px dashed var(--dash);
+  }
   .best-n {
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 800;
     line-height: 1.2;
-    margin-top: 2px;
   }
   .best-n.empty {
     color: var(--gray-ink);
   }
-  .best-goal {
-    font-size: 12px;
+  .best-cap {
+    font-size: 8.5px;
     font-weight: 800;
+    letter-spacing: 0.1em;
     color: var(--muted);
+    margin-bottom: 3px;
   }
   .best-sub {
     font-size: 10.5px;

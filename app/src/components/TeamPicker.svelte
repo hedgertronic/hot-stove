@@ -1,15 +1,22 @@
 <script lang="ts">
   import { accentFor } from "../lib/data";
+  import { DIVISIONS } from "../lib/divisions";
   import type { Game } from "../lib/engine.svelte";
   import type { Colors } from "../lib/types";
 
   let { game, colors, onclose }: { game: Game; colors: Colors; onclose: () => void } = $props();
 
-  const teams = $derived(
-    game.card
-      ? [...game.teamsForYear(game.card.year)].sort((a, b) => a.team.localeCompare(b.team))
-      : [],
-  );
+  // Grouped by current division; expansion clubs missing from an early year
+  // just leave a shorter row. tests/divisions.test.ts proves the map covers
+  // every franchise in the data, so nothing can drop out silently.
+  const divisions = $derived.by(() => {
+    if (!game.card) return [];
+    const byFranchise = new Map(game.teamsForYear(game.card.year).map((t) => [t.franchise, t]));
+    return DIVISIONS.map((d) => ({
+      label: d.label,
+      teams: d.franchises.flatMap((f) => byFranchise.get(f) ?? []),
+    })).filter((d) => d.teams.length > 0);
+  });
 
   function pick(team: string) {
     onclose();
@@ -27,19 +34,22 @@
     tabindex="-1"
   >
     <div class="sheet-h">🚚 RELOCATE — ANY {game.card?.year ?? ""} CLUB</div>
-    <div class="grid">
-      {#each teams as t (t.team)}
-        <button
-          class="teambtn"
-          disabled={t.team === game.card?.team}
-          style:background={accentFor(colors, t.franchise)}
-          title={t.name}
-          onclick={() => pick(t.team)}
-        >
-          {t.team}
-        </button>
-      {/each}
-    </div>
+    {#each divisions as d (d.label)}
+      <div class="div-h">{d.label}</div>
+      <div class="grid">
+        {#each d.teams as t (t.team)}
+          <button
+            class="teambtn"
+            disabled={t.team === game.card?.team}
+            style:background={accentFor(colors, t.franchise)}
+            title={t.name}
+            onclick={() => pick(t.team)}
+          >
+            {t.team}
+          </button>
+        {/each}
+      </div>
+    {/each}
     <button class="btn cancel" onclick={onclose}>Cancel</button>
   </div>
 </div>
@@ -73,10 +83,20 @@
     letter-spacing: 0.08em;
     margin-bottom: 10px;
   }
+  .div-h {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 8px 2px 5px;
+  }
   .grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 7px;
+    margin-bottom: 4px;
+  }
+  .grid:last-of-type {
     margin-bottom: 12px;
   }
   .teambtn {

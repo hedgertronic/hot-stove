@@ -1,6 +1,7 @@
 <script lang="ts">
   import BankBox from "./components/BankBox.svelte";
   import Finale from "./components/Finale.svelte";
+  import HelpModal from "./components/HelpModal.svelte";
   import Home from "./components/Home.svelte";
   import PlayerList from "./components/PlayerList.svelte";
   import PowerupRow from "./components/PowerupRow.svelte";
@@ -28,6 +29,7 @@
   let teamPickerOpen = $state(false);
   let quitArmed = $state(false);
   let quitTimer: ReturnType<typeof setTimeout> | undefined;
+  let helpOpen = $state(false);
 
   $effect(() => {
     void (async () => {
@@ -94,7 +96,7 @@
   }
 
   const MODE_CHIP: Record<string, string> = {
-    scout: "🔭 SCOUT",
+    scout: "🔭 EYE TEST",
   };
   const BANK_CHIP: Record<string, string> = {
     moneyball: "⚾ MONEYBALL",
@@ -135,6 +137,7 @@
   <Home config={settings} onplay={startGame} />
 {:else}
   <header class="hud disp">
+    <button class="help" onclick={(e) => { e.stopPropagation(); helpOpen = true; }} aria-label="How to play">?</button>
     <span class="logo">HOT<em>STOVE</em></span>
     {#if modeChip}<span class="modechip">{modeChip}</span>{/if}
     {#if game.phase !== "finale"}
@@ -176,6 +179,9 @@
   {#if game.primePick !== null}
     <PrimePicker {game} onclose={() => game?.togglePrime()} />
   {/if}
+  {#if helpOpen}
+    <HelpModal onclose={() => (helpOpen = false)} />
+  {/if}
 {/if}
 
 <style>
@@ -192,6 +198,20 @@
     gap: 8px;
     margin-bottom: 10px;
     position: relative;
+  }
+  .help {
+    position: absolute;
+    left: 0;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--muted);
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 10px;
+    line-height: 1;
+    padding: 4px 8px;
+    cursor: pointer;
   }
   .quit {
     position: absolute;

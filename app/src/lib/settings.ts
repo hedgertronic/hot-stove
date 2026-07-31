@@ -64,15 +64,19 @@ export function loadHistory(): HistoryEntry[] {
   }
 }
 
-/** Best score + game count for one mode combo. Legacy entries (no v stamp)
- * get the same difficulty mapping as settings; pre-bank entries carry a
- * `moneyball` boolean instead of `bank`. */
+/** Best score, best record, and game count for one mode combo. Legacy entries
+ * (no v stamp) get the same difficulty mapping as settings; pre-bank entries
+ * carry a `moneyball` boolean instead of `bank`. Best record = most wins,
+ * fewest losses on ties; entries without a parseable record still count
+ * toward games and best score. */
 export function bestFor(
   difficulty: Difficulty,
   bank: Bank,
-): { best: number | null; games: number } {
+): { best: number | null; bestRecord: string | null; games: number } {
   let best: number | null = null;
   let games = 0;
+  let recW = -1;
+  let recL = -1;
   for (const e of loadHistory()) {
     if (typeof e?.total !== "number") continue;
     const d =
@@ -83,6 +87,15 @@ export function bestFor(
     if (d !== difficulty || b !== bank) continue;
     games += 1;
     if (best === null || e.total > best) best = e.total;
+    const m = typeof e.record === "string" ? /^(\d+)[-–](\d+)$/.exec(e.record) : null;
+    if (m) {
+      const w = Number(m[1]);
+      const l = Number(m[2]);
+      if (w > recW || (w === recW && l < recL)) {
+        recW = w;
+        recL = l;
+      }
+    }
   }
-  return { best, games };
+  return { best, bestRecord: recW >= 0 ? `${recW}–${recL}` : null, games };
 }

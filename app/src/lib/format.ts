@@ -3,19 +3,16 @@ export function money(m: number): string {
   return `$${m.toFixed(1).replace(/\.0$/, "")}M`;
 }
 
-/** Apostrophe-year: 2003 → ’03. */
-export function yy(year: number): string {
-  return `’${String(year).padStart(4, "0").slice(2)}`;
-}
-
 /** Surname-ish display for roster cells: drop the first given name only. */
 export function lastName(full: string): string {
   const parts = full.split(" ");
   return parts.length > 1 ? parts.slice(1).join(" ") : full;
 }
 
-/** Tier buckets from BUILD.md — WAR chip color. A monotone heat ramp:
- * neg (<0) · low 0–2 · mid 2–4 · high 4–6 · elite 6+. */
+/** Tier buckets from BUILD.md — WAR chip color, cold-to-hot with a medal on
+ * top: gray = replacement (0–2), blue = everyday starter (2–4), green =
+ * all-star (4–6), gold = MVP (6+); brick marks below-replacement. Gold caps
+ * the ramp because elite = gold medal is the one universal sports color. */
 export type WarTier = "neg" | "low" | "mid" | "high" | "elite";
 export function warTier(war: number): WarTier {
   if (war >= 6) return "elite";
