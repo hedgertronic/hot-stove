@@ -211,3 +211,60 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
 - **Share v3:** `HOT STOVE 🔥 STANDARD · ⚾ MONEYBALL` tag line; spin grid gains
   🧢 (manager) alongside 💰/🏟️/🔁; record line appends 🔱 when the Mariners fall;
   last line `💍… 🚩… ⭐hits/9 · 🏆 total/162` (+ PERFECT SEASON at goal).
+
+## Round 7 — Box Score vs Eye Test, the honest list, info-rich tiles (2026-07-31, session 5)
+
+- **Mode names are the analytics debate.** "Box Score" (📊, "Stats, salaries, and
+  awards") vs "Eye Test" (🔭, "No stats, no salaries") — internal keys stay
+  `standard`/`scout`, only display strings changed. The Classic bank is now
+  "Owner's Box" (💼, "Hire an owner to set your budget"); its card shows dashed
+  bankroll/team placeholder pills that mirror the in-game unhired aesthetic, and
+  the fixed banks show a bankroll pill plus a club-colored OAK 2002 / NYY 2005
+  pill. Full four-digit years everywhere, home and game.
+- **Both fixed caps ARE top-4 numbers** (verified again in data): 2002 A's raw
+  top-4 = Dye 7.17 + Justice 7.0 + Durham 6.3 + Tejada 3.6 = $24.1M raw; 2005
+  Yankees = ARod 26 + Jeter 19.6 + Mussina 19 + RJ 16 = $80.6M raw. All game
+  dollars are normalized so the league-average top-4 = $160M, which maps those
+  to $82.9M and $248.6M. Oakland "looks high" only because normalization scales
+  everything to a modern-cap frame.
+- **No bankroll-size bonus.** Considered and rejected: personal bests are per
+  mode-combo, so cross-bank fairness never bites; the budget bonus already pays
+  for frugality within a run; a low-cap bonus would turn the bank picker into a
+  scoring exploit instead of a flavor choice.
+- **Negative-WAR players are hidden from the signing list** (`visiblePlayers`),
+  with a per-position rescue: if a position's players are all negative, the
+  least-bad one stays so a C- or RP-starved roster is never stranded. Cold Stove
+  judges by the visible list. Prime Time career sheets still show negative
+  seasons — the arc is the point there.
+- **One tappability gate.** `rowPlayable()` is the single source of truth for
+  row liveness (open fitting seat, or armed TD + occupied fitting seat) and now
+  gates normal signing, Trade Deadline, AND Prime Time — an armed Prime no
+  longer lights up rows TD couldn't reach. TD confirms read "TRADE FOR $X"
+  parallel to "SIGN $X" when a row is playable only via the swap.
+- **Info-rich tiles.** W–L moved from the spin banner to the manager hire row
+  (the 💍/🚩 pedigree stays beside the club name); the stadium row shows
+  attendance ("2.17M fans"); BankBox keeps a persistent "💰 owner · 🏟️ stadium"
+  identity line in Owner's Box games (dashed placeholders before hiring).
+- **Relocate groups by the six current divisions** — deliberately ahistoric
+  (1988 Houston files under AL WEST) because the grouping is a navigational
+  mental map, not an era claim; codes stay era-correct (CAL, MON). A test pins
+  the division map to the exact franchise set in data/index.json.
+- **Season Ticket bounds were already right** — the year grid comes from
+  yearsForFranchise (D-backs offer exactly 1998–2024), and the Expos/Nationals
+  share franchise WSN so a 2010 Nationals card can roll to 1994 and land
+  MON_1994 with the era-correct code (now pinned by tests).
+- **Player rows, redesigned** (dedicated design pass): compact fixed-width
+  position tag (filled ink = pitchers, outline = position players — the only
+  color split; no rainbow), name ≥ WAR > salary > position > age hierarchy,
+  medals/age on a second meta line so long names never collide with the WAR
+  chip. WAR ramp evaluated against a Savant-style blue→red and kept
+  (gray→blue→green→gold): gold=elite is the universal sports color and red
+  would collide with the brick negative tier. Roster rail is nine matching
+  chairs — manager bar shares the seats' green-wash/dashed language.
+- **Finale/home cleanup:** squad header and 162-goal presentation deleted (the
+  🔱 Mariners badge and PERFECT SEASON still fire; share ends "🏆 106.1" bare);
+  Modes/Replay/Share are one row with bigger icons; PERSONAL BEST shows
+  BEST RECORD | BEST SCORE columns keyed by combo emojis, no em dash.
+- **Help sheet** (? pill, upper-left): loop, bankroll (incl. Hometown Hero and
+  sign-past-the-cap), scoring with medal values, one line per powerup — and it
+  documents that TD can also swap in the card's owner/stadium.

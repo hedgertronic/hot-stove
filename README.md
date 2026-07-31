@@ -32,17 +32,21 @@ look and feel, BUILD wins on architecture.
 
 ## Status
 
-**Milestones 1–4 built and playtested, through the round-6 pass** (2026-07-30):
+**Milestones 1–4 built and playtested, through the round-7 pass** (2026-07-31):
 `app/` holds the Svelte 5 + Vite + TS app — full auto-spinning loop (no SPIN
 button; each pick rolls the next card), five powerups (🎟️ Season Ticket, 🚚
 Relocate code-grid picker, ✌️ Double Play with refund-until-second-pick, 🔁 Trade
 Deadline + completion bonus spin, ⭐ Prime Time career browser), Hometown Hero,
 cold-stove handling, persistence, quit button, finale with ledger / squad /
 dream-team (manager included, "found N of 9") / 162-goal bar / share string.
-Two difficulties (Standard 🔥 / Scout 🔭 name-recognition mode) × three banks
-(Classic / Moneyball $82.9M / Blank Check $248.6M — both caps are top-4-contract
-figures). The club must be complete to finish: 8 players + manager (+ owner and
-stadium in Classic); the manager's net wins count inside expected wins (base 50).
+Two difficulties (📊 Box Score / 🔭 Eye Test name-recognition mode) × three banks
+(💼 Owner's Box / Moneyball $82.9M / Blank Check $248.6M — both caps are
+top-4-contract figures). The club must be complete to finish: 8 players + manager
+(+ owner and stadium in Owner's Box); the manager's net wins count inside
+expected wins (base 50). Round 7 added the ? help sheet, negative-WAR filtering
+with per-position rescue, the single rowPlayable gate (TRADE FOR confirms, Prime
+obeys TD reach), division-grouped Relocate, record-on-manager /
+attendance-on-stadium tiles, and the two-column per-combo personal best.
 Cards carry age, stat lines, medaled award ballots (MVP2/3, CY2/3), All-Star
 selections, and team-level 💍/🚩 pedigree; `data/players.json` indexes every
 player's seasons for Prime Time. Bundled Nunito keeps the look cross-browser.
