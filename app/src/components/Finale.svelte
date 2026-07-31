@@ -281,6 +281,12 @@
     starKeys.has(`${s.id}:${s.year}:${s.team}`);
 </script>
 
+<!-- Phone: the two halves are plain stacked divs, same order as ever. Wide
+     (≥760px): the score story (record, ledger, actions, seed) sits beside the
+     rosters (squad + dream team) so the reveal and the receipts share the
+     screen. -->
+<div class="fin-cols">
+<div class="fin-main">
 <div class="fin-head disp">
   <div class="rec">{Math.round(dispW)}–{Math.round(dispL)}</div>
   {#if beatMariners && totalShown}
@@ -346,7 +352,9 @@
 <button class="seedchip disp" class:ok={seedState === "copied"} title="Copy seed" onclick={copySeed}>
   {seedState === "idle" ? `GAME #${seedCode(game.seed)}` : seedState === "copied" ? "COPIED ✓" : "COPY FAILED"}
 </button>
+</div>
 
+<div class="fin-side">
 <div class="squad disp">
   {#each game.slots as slot, i}
     {#if slot}
@@ -416,8 +424,28 @@
     {/if}
   </div>
 {/if}
+</div>
+</div>
 
 <style>
+  /* Wide: score story beside the rosters. The dashed squad separators exist
+     to break a vertical stack — in a side column the column gap does that
+     job, so the first squad loses its top rule and aligns with the head. */
+  @media (min-width: 760px) {
+    .fin-cols {
+      display: grid;
+      grid-template-columns: minmax(0, 10fr) minmax(0, 9fr);
+      gap: 28px;
+      align-items: start;
+      max-width: 1020px;
+      margin: 0 auto;
+    }
+    .fin-side > .squad:first-child {
+      margin-top: 4px;
+      border-top: 0;
+      padding-top: 0;
+    }
+  }
   .fin-head {
     text-align: center;
     margin: 10px 0 12px;

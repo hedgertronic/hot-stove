@@ -90,6 +90,18 @@
     max-height: 85dvh;
     overflow-y: auto;
   }
+  /* Wide: a bottom sheet reads phone-y — center it as a cardstock modal. */
+  @media (min-width: 760px) {
+    .backdrop {
+      align-items: center;
+      padding: 24px;
+    }
+    .sheet {
+      border-bottom: 3px solid var(--ink);
+      border-radius: 18px;
+      padding-bottom: 14px;
+    }
+  }
   .sheet-h {
     text-align: center;
     font-size: 12px;
