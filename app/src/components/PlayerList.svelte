@@ -285,11 +285,11 @@
     color: var(--card);
   }
   .warchip .unit {
-    font-size: 6.5px;
+    font-size: 9px;
     letter-spacing: 0.05em;
     opacity: 0.85;
-    margin-left: 2px;
-    vertical-align: 1.5px;
+    margin-left: 2.5px;
+    vertical-align: 1px;
   }
   .warchip.neg {
     background: var(--war-neg);

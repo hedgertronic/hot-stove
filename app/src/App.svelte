@@ -56,14 +56,16 @@
     })();
   });
 
-  function startGame(config: GameConfig) {
+  /** An explicit seed (from the home screen's PLAY A SEED input) replays that
+   * exact card sequence; omitted, each game rolls a fresh random seed. */
+  function startGame(config: GameConfig, seed?: number) {
     if (!deps) return;
     settings = config;
     saveSettings(config);
     confirmKey = null;
     yearPickerOpen = false;
     teamPickerOpen = false;
-    game = new Game(deps.meta, deps.index, deps.owners, undefined, config);
+    game = new Game(deps.meta, deps.index, deps.owners, seed, config);
     screen = "game";
   }
 
@@ -95,17 +97,31 @@
     quitTimer = setTimeout(() => (quitArmed = false), 2500);
   }
 
+  // The header chip is emoji-only; full mode names live in the title/aria-label.
   const MODE_CHIP: Record<string, string> = {
-    scout: "🔭 EYE TEST",
+    scout: "🔭",
   };
   const BANK_CHIP: Record<string, string> = {
-    moneyball: "⚾ MONEYBALL",
-    blankcheck: "💸 BLANK CHECK",
+    moneyball: "⚾",
+    blankcheck: "💸",
+  };
+  const MODE_NAME: Record<string, string> = {
+    scout: "Eye Test",
+  };
+  const BANK_NAME: Record<string, string> = {
+    moneyball: "Moneyball",
+    blankcheck: "Blank Check",
   };
 
   const modeChip = $derived.by(() => {
     if (!game) return "";
     return [BANK_CHIP[game.config.bank] ?? "", MODE_CHIP[game.config.difficulty] ?? ""]
+      .filter(Boolean)
+      .join(" ");
+  });
+  const modeTitle = $derived.by(() => {
+    if (!game) return "";
+    return [BANK_NAME[game.config.bank] ?? "", MODE_NAME[game.config.difficulty] ?? ""]
       .filter(Boolean)
       .join(" · ");
   });
@@ -139,7 +155,7 @@
   <header class="hud disp">
     <button class="help" onclick={(e) => { e.stopPropagation(); helpOpen = true; }} aria-label="How to play">?</button>
     <span class="logo">HOT<em>STOVE</em></span>
-    {#if modeChip}<span class="modechip">{modeChip}</span>{/if}
+    {#if modeChip}<span class="modechip" title={modeTitle} aria-label={modeTitle}>{modeChip}</span>{/if}
     {#if game.phase !== "finale"}
       <button class="quit" class:armed={quitArmed} onclick={tapQuit}>
         {quitArmed ? "QUIT?" : "✕"}
@@ -229,14 +245,14 @@
     color: var(--card);
     border-color: var(--ink);
   }
+  /* Emoji-only chip, scaled to sit beside the ?/✕ pills. */
   .modechip {
     border: 2px solid var(--ink);
     border-radius: 999px;
     background: var(--amber);
-    padding: 0 9px;
-    font-weight: 800;
-    font-size: 9.5px;
-    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    font-size: 11px;
+    line-height: 1.4;
   }
   .logo {
     font-weight: 800;

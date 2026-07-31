@@ -6,10 +6,13 @@
     type Difficulty,
     type GameConfig,
   } from "../lib/engine.svelte";
-  import { money } from "../lib/format";
+  import { money, parseSeedCode } from "../lib/format";
   import { bestFor } from "../lib/settings";
 
-  let { config, onplay }: { config: GameConfig; onplay: (c: GameConfig) => void } = $props();
+  let {
+    config,
+    onplay,
+  }: { config: GameConfig; onplay: (c: GameConfig, seed?: number) => void } = $props();
 
   // Seed once from the saved settings; the rows edit local state until PLAY.
   // svelte-ignore state_referenced_locally
@@ -19,7 +22,7 @@
 
   const DIFFS: { key: Difficulty; ic: string; name: string; desc: string }[] = [
     { key: "standard", ic: "📊", name: "Box Score", desc: "Stats, salaries, and awards" },
-    { key: "scout", ic: "🔭", name: "Eye Test", desc: "No stats, no salaries" },
+    { key: "scout", ic: "🔭", name: "Eye Test", desc: "No stats, no awards" },
   ];
   /** Each fixed-cap card shows its team pill over its bankroll pill; Owner's Box
    * has only a dashed bankroll pill (you hire the owner in-game). */
@@ -62,12 +65,28 @@
 
   const best = $derived(bestFor(difficulty, bank));
   const comboEmoji = $derived(`${DIFF_ICON[difficulty]} ${BANK_ICON[bank]}`);
+
+  // PLAY A SEED: a shared code replays that game's exact card sequence
+  // under whatever mode combo is selected above.
+  let seedOpen = $state(false);
+  let seedInput = $state("");
+  let seedBad = $state(false);
+
+  function playSeed() {
+    const seed = parseSeedCode(seedInput);
+    if (seed === null) {
+      seedBad = true;
+      setTimeout(() => (seedBad = false), 450);
+      return;
+    }
+    onplay({ difficulty, bank }, seed);
+  }
 </script>
 
 <div class="home disp">
   <div class="mast">
     <div class="biglogo">HOT<em>STOVE</em></div>
-    <div class="tag">Spin for a team-season. Sign the right players. Beat the cap.</div>
+    <div class="tag">Spin for a team-season. Sign the right players. Stretch the bankroll.</div>
   </div>
 
   <div class="psep">DIFFICULTY</div>
@@ -102,6 +121,26 @@
   </div>
 
   <button class="btn hot playbtn" onclick={() => onplay({ difficulty, bank })}> PLAY 🔥 </button>
+
+  {#if seedOpen}
+    <div class="seedrow" class:bad={seedBad}>
+      <span class="seedhash">#</span>
+      <input
+        class="seedin"
+        type="text"
+        maxlength="8"
+        placeholder="KF12OY"
+        autocapitalize="characters"
+        autocomplete="off"
+        spellcheck="false"
+        bind:value={seedInput}
+        onkeydown={(e) => e.key === "Enter" && playSeed()}
+      />
+      <button class="seedgo" onclick={playSeed}>GO</button>
+    </div>
+  {:else}
+    <button class="seedlink" onclick={() => (seedOpen = true)}>PLAY A SEED #</button>
+  {/if}
 
   <div class="bestbox">
     <div class="best-h">PERSONAL BEST {comboEmoji}</div>
@@ -257,6 +296,78 @@
     min-height: 48px;
     margin-top: 4px;
     font-size: 16px;
+  }
+  .seedlink {
+    display: block;
+    margin: 8px auto 0;
+    background: none;
+    border: 0;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .seedrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .seedrow.bad {
+    animation: seedshake 0.45s;
+  }
+  .seedrow.bad .seedin {
+    border-color: var(--orange);
+    color: var(--orange);
+  }
+  @keyframes seedshake {
+    20%,
+    60% {
+      transform: translateX(-4px);
+    }
+    40%,
+    80% {
+      transform: translateX(4px);
+    }
+  }
+  .seedhash {
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .seedin {
+    width: 110px;
+    border: 2px dashed var(--gray-ink);
+    border-radius: 9px;
+    background: var(--card);
+    color: var(--ink);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 5px 8px;
+    outline: none;
+  }
+  .seedin:focus {
+    border-style: solid;
+    border-color: var(--ink);
+  }
+  .seedgo {
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--card);
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 11px;
+    padding: 5px 12px;
+    cursor: pointer;
   }
   .bestbox {
     margin-top: 14px;

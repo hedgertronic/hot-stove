@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { lastName, money, signed, slotLabel, sortAwards, warTier } from "../lib/format";
+  import { lastName, money, seedCode, signed, slotLabel, sortAwards, warTier } from "../lib/format";
   import { GOAL_POINTS, MARINERS_WINS } from "../lib/scoring";
 
   let {
@@ -57,8 +57,8 @@
       key: "budget",
       lbl: "Front-office bonus",
       why: overCap
-        ? "blew past the cap — the tax takes it from here"
-        : `${money(fin.spend)} of ${money(fin.budget)} cap used (${Math.round((fin.spend / fin.budget) * 100)}%)`,
+        ? "blew past the bankroll — the tax takes it from here"
+        : `${money(fin.spend)} of ${money(fin.budget)} bankroll used (${Math.round((fin.spend / fin.budget) * 100)}%)`,
       amt: signed(p.budgetBonus),
       cls: p.budgetBonus > 0 ? "plus" : p.budgetBonus < 0 ? "minus" : "zero",
     });
@@ -110,8 +110,9 @@
     out.push({
       key: "tax",
       lbl: "Luxury tax",
-      why: p.luxuryTax > 0 ? `${money(fin.spend - fin.budget)} over the cap` : "stayed under the cap",
-      amt: p.luxuryTax > 0 ? `−${p.luxuryTax.toFixed(1)}` : "0.0",
+      why: p.luxuryTax > 0 ? `${money(fin.spend - fin.budget)} over budget` : "stayed under budget",
+      // Always signed, even at zero — this row can only ever hurt you.
+      amt: `−${p.luxuryTax.toFixed(1)}`,
       cls: p.luxuryTax > 0 ? "minus" : "zero",
     });
     return out;
@@ -211,11 +212,13 @@
     ]
       .filter(Boolean)
       .join(" ");
+    // The seed code ends the string: paste it into PLAY A SEED # on the home
+    // screen to replay this exact card sequence.
     return [
       `HOT STOVE ${tag}`,
       grid,
       `${fin.wins}–${fin.losses}${beatMariners ? " 🔱" : ""} · 💰 ${money(fin.spend)}/${money(fin.budget)}`,
-      `${medals ? `${medals} · ` : ""}🏆 ${fin.parts.total.toFixed(1)}${perfect ? " · PERFECT SEASON" : ""}`,
+      `${medals ? `${medals} · ` : ""}🏆 ${fin.parts.total.toFixed(1)}${perfect ? " · PERFECT SEASON" : ""} · #${seedCode(game.seed)}`,
     ].join("\n");
   }
 
@@ -298,11 +301,13 @@
 </div>
 
 <div class="fin-actions">
-  <button class="btn ghost disp" onclick={onmodes}><span class="bic">⚙️</span> Modes</button>
-  <button class="btn disp" onclick={onreplay}><span class="bic">🔄</span> Replay</button>
-  <button class="btn hot disp" onclick={share}><span class="bic">📤</span> Share</button>
+  <button class="btn ghost disp" onclick={onmodes}>Modes <span class="bic">🕹️</span></button>
+  <button class="btn disp" onclick={onreplay}>Replay <span class="bic">🔄</span></button>
+  <button class="btn hot disp" onclick={share}>Share <span class="bic">📣</span></button>
 </div>
 {#if toast}<div class="toast disp">{toast}</div>{/if}
+
+<div class="seedchip disp">GAME #{seedCode(game.seed)}</div>
 
 <div class="squad disp">
   {#each game.slots as slot, i}
@@ -311,7 +316,7 @@
         <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
         <span class="qname"
           >{#if starred(slot)}<span class="emo">⭐</span>
-          {/if}{slot.name} <i>{slot.year}</i></span
+          {/if}{slot.name} <i>{slot.year} {slot.team}</i></span
         >
         <span class="qbadges">
           {#if slot.hero}<span class="emo">🏠</span>{/if}
@@ -329,7 +334,7 @@
       <span class="qpos">MGR</span>
       <span class="qname"
         >{#if fin.managerHit}<span class="emo">⭐</span>
-        {/if}{game.manager.name} <i>{game.manager.year}</i></span
+        {/if}{game.manager.name} <i>{game.manager.year} {game.manager.team}</i></span
       >
       <span class="qbadges"
         >{#if game.manager.ws}<span class="emo">💍</span>{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
@@ -493,6 +498,16 @@
     font-size: 12px;
     color: var(--green-deep);
     margin-top: 8px;
+  }
+  /* The game's seed — quiet, mono, copyable by eye into PLAY A SEED #. */
+  .seedchip {
+    text-align: center;
+    margin-top: 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--muted);
   }
   .squad {
     margin-top: 16px;

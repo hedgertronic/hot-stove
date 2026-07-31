@@ -4,6 +4,13 @@
   let { game, onclose }: { game: Game; onclose: () => void } = $props();
 
   const years = $derived(game.card ? game.yearsForFranchise(game.card.franchise) : []);
+  // Box Score gets the franchise's October history on the grid; Eye Test
+  // stays a bare list of years.
+  const ped = $derived(
+    game.card && game.showAwards
+      ? game.yearPedigree(game.card.franchise)
+      : ({} as Record<number, "ws" | "pen">),
+  );
 
   function pick(y: number) {
     onclose();
@@ -24,7 +31,7 @@
     <div class="grid">
       {#each years as y (y)}
         <button class="yearbtn" disabled={y === game.card?.year} onclick={() => pick(y)}>
-          {y}
+          {y}{#if ped[y]}<span class="pedi">{ped[y] === "ws" ? "💍" : "🚩"}</span>{/if}
         </button>
       {/each}
     </div>
@@ -68,6 +75,7 @@
     margin-bottom: 12px;
   }
   .yearbtn {
+    position: relative;
     border: 2px solid var(--ink);
     border-radius: 9px;
     background: var(--card);
@@ -77,6 +85,14 @@
     padding: 9px 0;
     cursor: pointer;
     transition: transform 0.08s;
+  }
+  /* October pedigree rides the corner so the year stays centered. */
+  .pedi {
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    font-size: 8px;
+    line-height: 1;
   }
   .yearbtn:active {
     transform: translateY(1.5px);

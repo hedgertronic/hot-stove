@@ -53,13 +53,16 @@
       );
     }
     if (c.manager != null) {
+      // Eye Test withholds the record and win value — they're exactly the
+      // quantified signals the mode hides. The stadium ×mult stays: it's
+      // mechanical (it sets your bankroll), not a scouting stat.
       out.push({
         key: "manager",
         cls: "skip",
         ic: "🧢",
         who: c.manager,
-        what: `Manager · ${c.wins}–${c.losses}`,
-        val: `${signed((c.wins - c.losses) * 0.1)} W`,
+        what: game.scout ? "Manager" : `Manager · ${c.wins}–${c.losses}`,
+        val: game.scout ? "? W" : `${signed((c.wins - c.losses) * 0.1)} W`,
         verb: "HIRE",
       });
     }

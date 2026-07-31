@@ -24,11 +24,10 @@
     else game.tdRelease(pickPlayer, i);
   }
 
-  /** Seat sub-line: season identity, plus WAR when the mode shows stats —
-   * that's the number you weigh when Trade Deadline asks who to release. */
-  function seatMeta(s: { year: number; team: string; war: number }): string {
-    const id = `${s.year} ${s.team}`;
-    return game.showWar ? `${id} · ${s.war.toFixed(1)} WAR` : id;
+  /** Seat sub-line: season identity only ("2013 OAK") — the rail is the
+   * roster's who/when, not a stat sheet; WAR lives on the list rows. */
+  function seatMeta(s: { year: number; team: string }): string {
+    return `${s.year} ${s.team}`;
   }
 </script>
 
@@ -153,28 +152,28 @@
       transform: translateY(-2px);
     }
   }
-  /* The manager reads top-to-bottom down the left rail: label, then name,
-     then season — same type scale as the player seats, just rotated. */
+  /* The manager reads bottom-to-top up the left rail (y-axis-label style,
+     glyphs facing the grid) — three parallel lines, label outermost, same
+     content pattern and type scale as the player seats. */
   .mgr {
     grid-column: 1;
     grid-row: 1 / 3;
     border: 2px solid var(--ink);
     border-radius: 9px;
-    writing-mode: vertical-lr;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    padding: 4px 3px;
-    line-height: 1.25;
+    writing-mode: sideways-lr;
+    text-align: center;
+    padding: 4px 5px;
+    line-height: 1.3;
     overflow: hidden;
   }
   .mgr b {
+    display: block;
     font-size: 9px;
     letter-spacing: 0.07em;
     color: var(--muted);
   }
   .mgr span {
+    display: block;
     font-weight: 800;
     font-size: 11px;
     max-height: 100%;
@@ -183,6 +182,7 @@
     white-space: nowrap;
   }
   .mgr i {
+    display: block;
     font-style: normal;
     font-size: 8.5px;
     color: var(--muted);
@@ -199,6 +199,8 @@
     border-style: dashed;
     background: transparent;
     color: var(--gray-ink);
+    display: grid;
+    place-content: center;
   }
   .mgr.empty b {
     font-size: 11px;

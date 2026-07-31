@@ -16,7 +16,7 @@
 <div class="bankbox">
   <div class="bankmath disp">
     {#if game.config.bank === "moneyball"}
-      <span class="chip eff">⚾ {money(cap)} HARD CAP</span>
+      <span class="chip eff">⚾ {money(cap)} BANKROLL</span>
     {:else if game.config.bank === "blankcheck"}
       <span class="chip eff">💸 {money(cap)} BLANK CHECK</span>
     {:else}
@@ -35,7 +35,7 @@
       {#if game.owner}
         <span class="chip eff">{money(cap)}</span>
       {:else}
-        <span class="chip ghost">$ · · ·</span>
+        <span class="chip ghost">$???</span>
       {/if}
     {/if}
   </div>
@@ -47,14 +47,20 @@
     </div>
   {/if}
   <div class="meter">
-    <div class="fill" class:floorover={over} class:zero={spend <= 0 || !capKnown} style:width="{over ? 100 : pct}%"></div>
+    {#if !capKnown}
+      <!-- No owner yet ⇒ no denominator: the bar can't show a share of an
+           unknown bankroll, so it reads as pure uncertainty instead. -->
+      <div class="fill unknown"><span class="qs">? ? ? ? ? ? ? ?</span></div>
+    {:else}
+      <div class="fill" class:floorover={over} class:zero={spend <= 0} style:width="{over ? 100 : pct}%"></div>
+    {/if}
   </div>
   <div class="meter-lbl disp">
     <span>SPENT {money(spend)}</span>
     {#if !capKnown}
-      <span class="nocap">CAP — HIRE AN OWNER</span>
+      <span class="nocap">$??? LEFT</span>
     {:else if over}
-      <span class="warn">⚠ {money(spend - cap)} OVER CAP</span>
+      <span class="warn">⚠ {money(spend - cap)} OVER BANKROLL</span>
     {:else}
       <span>{money(cap - spend)} LEFT</span>
     {/if}
@@ -149,6 +155,38 @@
       var(--orange-deep) 8px 16px
     );
     border-right: 0;
+  }
+  /* Unknown bankroll: a soft drifting hatch + question marks — a loading bar
+     that admits it doesn't know where it ends. */
+  .fill.unknown {
+    width: 100%;
+    border-right: 0;
+    background: repeating-linear-gradient(
+      -45deg,
+      var(--gray-bg) 0 10px,
+      transparent 10px 20px
+    );
+    background-size: 28.3px 100%;
+    display: grid;
+    place-content: center;
+    animation: drift 2.6s linear infinite;
+  }
+  .qs {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.28em;
+    color: var(--gray-ink);
+    line-height: 1;
+  }
+  @keyframes drift {
+    to {
+      background-position: 28.3px 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fill.unknown {
+      animation: none;
+    }
   }
   .meter-lbl {
     display: flex;

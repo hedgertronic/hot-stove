@@ -30,21 +30,21 @@
     <div class="hsec">YOUR BANKROLL</div>
     <ul>
       <li>
-        <b>Owner's Box:</b> hire an owner to set your cap, then buy a stadium — its
+        <b>Owner's Box:</b> hire an owner to set your bankroll, then buy a stadium — its
         attendance multiplier (×0.85–1.15) scales it.
       </li>
       <li>
         <b>Hometown Hero:</b> owner + stadium from the same franchise lets you sign one
         player who debuted there at the league minimum.
       </li>
-      <li>You <i>can</i> sign past the cap — the luxury tax just eats your score.</li>
+      <li>You <i>can</i> sign past your bankroll — the luxury tax just eats your score.</li>
     </ul>
 
     <div class="hsec">SCORING</div>
     <ul>
       <li><b>Wins:</b> 50 base + roster WAR + manager (W−L) × 0.1.</li>
       <li>
-        <b>Budget:</b> up to +10 for using your whole cap; under half goes negative;
+        <b>Budget:</b> up to +10 for using your whole bankroll; under half goes negative;
         −1 per $1M over it.
       </li>
       <li>
