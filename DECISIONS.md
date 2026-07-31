@@ -528,3 +528,54 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   so no fallback guard needed).
 - **Prime Time's current season just grays out** — the "that's this card"
   note was explaining what disabled styling already says.
+
+## Round 15 — beta chrome and the pre-release quality pass (2026-07-31, session 8)
+
+- **The subtitle is gone entirely** (round 14's rewrite lasted one round);
+  the masthead is the wordmark plus a small yellow **BETA** pill, rendered by
+  a shared `Logo.svelte` on both the home screen and the in-game HUD so the
+  tag can't drift. Favicon is a 🔥 via inline SVG — no icon asset.
+- **Powerup rows sit ~8px apart, not 14** — flex `row-gap` was landing twice
+  across the zero-height 3+2 break element, so the visual gap was double the
+  declared one. The invisible tap extensions shrank to half the new gap so
+  the two rows' targets meet without overlapping.
+- **Badges wrap, names don't shrink.** Market rows and finale squad rows use
+  the same idiom: the name refuses to shrink (so flex-wrap actually triggers)
+  and the award pills drop to a second line only when they don't fit; a name
+  longer than the whole row still ellipsizes via max-width. Desktop never
+  wraps — by space, not by media query.
+- **The SIGN/TRADE confirm no longer grows its row:** the pill's line box was
+  unconstrained (~28px, taller than the wide row's 25px content box);
+  it's pinned to 24px (12 text + 8 pad + 4 border).
+- **"Championship pedigree" → "Ring chasing"** (ledger + help sheet); the
+  zero state reads "no rings, no pennants."
+- **WAR left, salary right — kept.** Eye Test has no WAR chip, so salary at
+  the far edge is the only layout both difficulties share, and the far-right
+  slot is where SIGN/TRADE confirms (which show a price) appear.
+- **Quality pass, consolidation half:** `AwardPill.svelte` (the award →
+  color/medal-text maps lived identically in PlayerList and Finale),
+  `Sheet.svelte` (backdrop/bottom-sheet/escape/wide-centering chrome was
+  byte-identical across all four modals; headers and cancels stay local
+  because they genuinely vary), `lib/modes.ts` (the difficulty/bank
+  emoji+name tables existed independently in App, Finale, and Home — the HUD
+  chip, share tag, and home pickers now read one table). `isPitcher` and
+  `MANAGER_PER_NET_WIN` are imported where they were inlined; the
+  rings/pennants tally is one engine getter (`game.pedigree`) feeding
+  scoring, the finale chips, and the share string.
+- **Quality pass, deletion half:** dead `.pups`/`.word` classes, a redundant
+  reduced-motion block (app.css already blankets it), the duplicated
+  `.swap`/`.prime` rule bodies, Home's near-identical best-cols branches,
+  and two never-imported exports in settings.ts. The Trade Deadline pill
+  now grays (`off`) exactly like Prime when a card's choice is spent — it
+  was the only powerup missing the class.
+- **Deliberately not consolidated** (checked, left alone): PlayerList ↔
+  PrimePicker row CSS (same look, different anatomies — a shared component
+  would need a prop per difference), the `.qwar`/`.rwar` tier text colors,
+  the hatch gradient, and the pipeline data fields the app never reads
+  (trimming those is a data-regen job, noted for post-beta).
+- **The UI lab (`/?lab`, dev only):** forged `Game` states rendered through
+  the real components — every WAR tier, stacked awards on a long name,
+  all payroll faces, armed/spent powerups, both finale faces (bonus and
+  luxury-tax, stacked-pedigree ×N fallback, 9-star sweep). DEV-guarded
+  dynamic import; the production bundle provably excludes it. Fixture games
+  stub `save()` so the lab can never write the real save slot.

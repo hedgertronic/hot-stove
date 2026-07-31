@@ -32,7 +32,7 @@ look and feel, BUILD wins on architecture.
 
 ## Status
 
-**Milestones 1–4 built and playtested, through the round-14 pass** (2026-07-31):
+**Milestones 1–4 built and playtested, through the round-15 beta-prep pass** (2026-07-31):
 `app/` holds the Svelte 5 + Vite + TS app — full auto-spinning loop (no SPIN
 button; each pick rolls the next card), five powerups (🎟️ Season Ticket, 🚚
 Relocate code-grid picker, ✌️ Double Play with refund-until-second-pick, 🔁 Trade
@@ -94,6 +94,14 @@ pills in a fixed 3+2 (ST/RELO/PT over DP/TD), made player rows one line
 into a "RECORD BOOK · N GAMES" psep, rewrote the subtitle ("Chase 116
 wins"), renamed Hardware to Trophy case, made scouting stars repeat like
 pedigree, and let Prime Time's current season gray out wordlessly.
+Round 15 (beta prep) removed the subtitle, added the BETA pill (shared
+Logo component, home + HUD) and 🔥 favicon, halved the powerup row gap,
+made award pills wrap under long names (market + finale rows), pinned the
+SIGN/TRADE confirm height, renamed pedigree scoring "Ring chasing", and
+ran the pre-release quality pass: AwardPill / Sheet / Logo components,
+lib/modes.ts as the one difficulty/bank naming table, engine `pedigree`
+getter, dead-code deletions, and a dev-only edge-case gallery at /?lab
+(excluded from the production bundle).
 Cards carry age, stat lines, medaled award ballots (MVP2/3, CY2/3), All-Star
 selections, and team-level 💍/🚩 pedigree; `data/players.json` indexes every
 player's seasons for Prime Time. Bundled Nunito keeps the look cross-browser.
