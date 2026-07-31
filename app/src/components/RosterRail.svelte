@@ -1,6 +1,7 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
   import { lastName, signed, slotLabel, warTier } from "../lib/format";
+  import { MANAGER_PER_NET_WIN } from "../lib/scoring";
   import type { CardPlayer } from "../lib/types";
 
   let { game }: { game: Game } = $props();
@@ -42,7 +43,7 @@
         <span>{lastName(game.manager.name)}</span>
         <i>{game.manager.year} {game.manager.team}</i>
         {#if !game.scout}<em class="rwar mgw"
-            >{signed((game.manager.wins - game.manager.losses) * 0.1)} W</em
+            >{signed((game.manager.wins - game.manager.losses) * MANAGER_PER_NET_WIN)} W</em
           >{/if}
       </div>
     {:else}

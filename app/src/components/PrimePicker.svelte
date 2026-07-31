@@ -1,8 +1,10 @@
 <script lang="ts">
   import { loadCard, loadPlayers } from "../lib/data";
+  import { isPitcher } from "../lib/eligibility";
   import type { Game } from "../lib/engine.svelte";
   import { money, posLabel, statLine, warTier } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
+  import Sheet from "./Sheet.svelte";
 
   let { game, onclose }: { game: Game; onclose: () => void } = $props();
 
@@ -69,16 +71,8 @@
   }
 </script>
 
-<div class="backdrop" onclick={onclose} role="presentation">
-  <div
-    class="sheet disp"
-    onclick={(e) => e.stopPropagation()}
-    onkeydown={(e) => e.key === "Escape" && onclose()}
-    role="dialog"
-    aria-label="Pick a season of this player's career"
-    tabindex="-1"
-  >
-    <div class="sheet-h">⭐ PRIME TIME — {listed?.name ?? ""}</div>
+<Sheet {onclose} label="Pick a season of this player's career">
+  <div class="sheet-h">⭐ PRIME TIME — {listed?.name ?? ""}</div>
     <div class="sheet-sub">Sign any year of the career, at that year's price</div>
     {#if failed}
       <div class="note">Couldn't load the career. Try again.</div>
@@ -91,8 +85,9 @@
         {#each seasons as sea ((sea.team + sea.year))}
           {@const plabel = posLabel(sea.p)}
           <button class="srow" disabled={!sea.fits || sea.here} onclick={() => pick(sea)}>
-            <span class="pos" class:pit={sea.p.pos.startsWith("SP") || sea.p.pos === "RP"}
-              class:long={plabel.length > 5}>{plabel}</span>
+            <span class="pos" class:pit={isPitcher(sea.p)} class:long={plabel.length > 5}
+              >{plabel}</span
+            >
             <span class="mid">
               <span class="yr">{sea.year} {sea.teamName}</span>
               <!-- The landed card's own season just grays out like any other
@@ -109,43 +104,9 @@
       </div>
     {/if}
     <button class="btn cancel" onclick={onclose}>Cancel</button>
-  </div>
-</div>
+</Sheet>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(36, 34, 28, 0.45);
-    z-index: 50;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-  }
-  .sheet {
-    background: var(--ground);
-    border: 3px solid var(--ink);
-    border-bottom: 0;
-    border-radius: 18px 18px 0 0;
-    padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
-    width: 100%;
-    max-width: 480px;
-    max-height: 70vh;
-    max-height: 70dvh;
-    overflow-y: auto;
-  }
-  /* Wide: a bottom sheet reads phone-y — center it as a cardstock modal. */
-  @media (min-width: 760px) {
-    .backdrop {
-      align-items: center;
-      padding: 24px;
-    }
-    .sheet {
-      border-bottom: 3px solid var(--ink);
-      border-radius: 18px;
-      padding-bottom: 14px;
-    }
-  }
   .sheet-h {
     text-align: center;
     font-size: 12px;

@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { isPitcher } from "../lib/eligibility";
   import type { Game } from "../lib/engine.svelte";
   import { costTier, lastName, money, posLabel, sortAwards, warTier } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
+  import AwardPill from "./AwardPill.svelte";
 
   let {
     game,
@@ -76,28 +78,6 @@
     game.tdTapPlayer(p);
   }
 
-  const AWARD_CLS: Record<string, string> = {
-    MVP: "mvp",
-    CY: "cy",
-    MVP2: "mvp",
-    CY2: "cy",
-    MVP3: "mvp",
-    CY3: "cy",
-    GG: "gg",
-    SS: "ss",
-    ROY: "roy",
-    AS: "as",
-  };
-  const PILL_TEXT: Record<string, string> = {
-    MVP: "🥇MVP",
-    CY: "🥇CY",
-    MVP2: "🥈MVP",
-    CY2: "🥈CY",
-    MVP3: "🥉MVP",
-    CY3: "🥉CY",
-  };
-
-  const isPitcher = (p: CardPlayer) => p.pos.startsWith("SP") || p.pos === "RP";
   // Team pedigree (💍/🚩) lives beside the team name in the spin banner — the
   // rows only badge individual hardware.
   const hasBadges = (p: CardPlayer) => game.showAwards && p.awards.length > 0;
@@ -121,10 +101,12 @@
     >
       <span class="pos" class:pit={isPitcher(p)} class:long={plabel.length > 5}>{plabel}</span>
       <span class="mid">
-        {#if hero}<span class="hero" title="Hometown Hero — half price">🏠</span>{/if}
-        <span class="pname">{p.name}</span>
+        <span class="nameline">
+          {#if hero}<span class="hero" title="Hometown Hero — half price">🏠</span>{/if}
+          <span class="pname">{p.name}</span>
+        </span>
         {#if hasBadges(p)}<span class="badges"
-            >{#each sortAwards(p.awards) as a}<span class="qb {AWARD_CLS[a] ?? ''}">{PILL_TEXT[a] ?? a}</span>{/each}</span
+            >{#each sortAwards(p.awards) as a}<AwardPill code={a} small />{/each}</span
           >{/if}
       </span>
       <span class="right">
@@ -208,14 +190,25 @@
     font-size: 7.5px;
     letter-spacing: 0.01em;
   }
-  /* One line: name and hardware share the row. The name yields (ellipsis)
-     before the pills do — the pills are the scannable signal. */
+  /* Name and hardware share a line when they fit; the badges wrap to a second
+     line when they don't (narrow phones). The name never shrinks to make room
+     for pills — a name longer than the whole row still ellipsizes via the
+     nameline's max-width. */
   .mid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .nameline {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex: none;
+    max-width: 100%;
     min-width: 0;
-    overflow: hidden;
   }
   .pname {
     font-weight: 800;
@@ -236,32 +229,6 @@
     align-items: center;
     gap: 3px;
     flex: none;
-  }
-  .qb {
-    font-size: 8.5px;
-    font-weight: 800;
-    border: 1.5px solid var(--ink);
-    border-radius: 999px;
-    padding: 0 5px;
-    line-height: 1.5;
-  }
-  .qb.mvp {
-    background: var(--yellow);
-  }
-  .qb.cy {
-    background: var(--sky);
-  }
-  .qb.gg {
-    background: var(--green-wash);
-  }
-  .qb.ss {
-    background: var(--lilac);
-  }
-  .qb.roy {
-    background: var(--pink);
-  }
-  .qb.as {
-    background: var(--amber);
   }
   .right {
     margin-left: auto;
@@ -339,12 +306,9 @@
   .prow.dead .pos.pit {
     background: var(--gray-ink);
   }
-  .prow.swap {
-    background: var(--amber);
-    border: 2.5px dashed var(--ink);
-    opacity: 1;
-    filter: none;
-  }
+  /* TD swap targets and Prime-browsable rows share one "tappable for a
+     powerup" look; the classes stay separate because the tap routes differ. */
+  .prow.swap,
   .prow.prime {
     background: var(--amber);
     border: 2.5px dashed var(--ink);
@@ -354,6 +318,9 @@
   .primetag {
     font-size: 13px;
   }
+  /* Pinned to 24px (12 text + 8 pad + 4 border) so the pill fits the row's
+     content box at both padding tiers — an unconstrained line box made
+     tapping grow the row. */
   .confirm {
     border: 2px solid var(--ink);
     border-radius: 999px;
@@ -361,6 +328,7 @@
     color: var(--card);
     font-weight: 800;
     font-size: 12px;
+    line-height: 1;
     padding: 4px 12px;
     white-space: nowrap;
   }

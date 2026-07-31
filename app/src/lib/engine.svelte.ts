@@ -218,6 +218,15 @@ export class Game {
     return this.slots.reduce((sum, s) => sum + (s?.war ?? 0), 0);
   }
 
+  /** 💍/🚩 season counts across the signed club, manager included — the one
+   * tally scoring, the finale chips, and the share string all read. */
+  get pedigree(): { rings: number; pennants: number } {
+    return {
+      rings: this.slots.filter((s) => s?.ws).length + (this.manager?.ws ? 1 : 0),
+      pennants: this.slots.filter((s) => s?.pen).length + (this.manager?.pen ? 1 : 0),
+    };
+  }
+
   get spend(): number {
     return this.slots.reduce((sum, s) => sum + (s?.costPaid ?? 0), 0);
   }
@@ -788,8 +797,8 @@ export class Game {
       spendM: this.spend,
       budgetM: this.effectiveBudget,
       awardLists: players.map((p) => p.awards),
-      rings: players.filter((p) => p.ws).length + (this.manager?.ws ? 1 : 0),
-      pennants: players.filter((p) => p.pen).length + (this.manager?.pen ? 1 : 0),
+      rings: this.pedigree.rings,
+      pennants: this.pedigree.pennants,
       managerRecord: this.manager ? [this.manager.wins, this.manager.losses] : null,
       scoutHits,
     });

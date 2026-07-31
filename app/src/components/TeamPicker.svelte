@@ -3,6 +3,7 @@
   import { DIVISIONS } from "../lib/divisions";
   import type { Game } from "../lib/engine.svelte";
   import type { Colors } from "../lib/types";
+  import Sheet from "./Sheet.svelte";
 
   let { game, colors, onclose }: { game: Game; colors: Colors; onclose: () => void } = $props();
 
@@ -24,73 +25,31 @@
   }
 </script>
 
-<div class="backdrop" onclick={onclose} role="presentation">
-  <div
-    class="sheet disp"
-    onclick={(e) => e.stopPropagation()}
-    onkeydown={(e) => e.key === "Escape" && onclose()}
-    role="dialog"
-    aria-label="Pick a team"
-    tabindex="-1"
-  >
-    <div class="sheet-h">🚚 RELOCATE — ANY {game.card?.year ?? ""} CLUB</div>
-    {#each divisions as d (d.label)}
-      <div class="div-h">{d.label}</div>
-      <div class="grid">
-        {#each d.teams as t (t.team)}
-          <button
-            class="teambtn"
-            disabled={t.team === game.card?.team}
-            style:background={accentFor(colors, t.franchise)}
-            title={t.name}
-            onclick={() => pick(t.team)}
-          >
-            <!-- Box Score gets the season's October history on the grid
-                 (💍 champ, 🚩 pennant winner); Eye Test stays bare codes. -->
-            {t.team}{#if game.showAwards}{#if t.ws}<span class="pedi">💍</span
-              >{:else if t.pen}<span class="pedi">🚩</span>{/if}{/if}
-          </button>
-        {/each}
-      </div>
-    {/each}
-    <button class="btn cancel" onclick={onclose}>Cancel</button>
-  </div>
-</div>
+<Sheet {onclose} label="Pick a team">
+  <div class="sheet-h">🚚 RELOCATE — ANY {game.card?.year ?? ""} CLUB</div>
+  {#each divisions as d (d.label)}
+    <div class="div-h">{d.label}</div>
+    <div class="grid">
+      {#each d.teams as t (t.team)}
+        <button
+          class="teambtn"
+          disabled={t.team === game.card?.team}
+          style:background={accentFor(colors, t.franchise)}
+          title={t.name}
+          onclick={() => pick(t.team)}
+        >
+          <!-- Box Score gets the season's October history on the grid
+               (💍 champ, 🚩 pennant winner); Eye Test stays bare codes. -->
+          {t.team}{#if game.showAwards}{#if t.ws}<span class="pedi">💍</span
+            >{:else if t.pen}<span class="pedi">🚩</span>{/if}{/if}
+        </button>
+      {/each}
+    </div>
+  {/each}
+  <button class="btn cancel" onclick={onclose}>Cancel</button>
+</Sheet>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(36, 34, 28, 0.45);
-    z-index: 50;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-  }
-  .sheet {
-    background: var(--ground);
-    border: 3px solid var(--ink);
-    border-bottom: 0;
-    border-radius: 18px 18px 0 0;
-    padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
-    width: 100%;
-    max-width: 480px;
-    max-height: 70vh;
-    max-height: 70dvh;
-    overflow-y: auto;
-  }
-  /* Wide: a bottom sheet reads phone-y — center it as a cardstock modal. */
-  @media (min-width: 760px) {
-    .backdrop {
-      align-items: center;
-      padding: 24px;
-    }
-    .sheet {
-      border-bottom: 3px solid var(--ink);
-      border-radius: 18px;
-      padding-bottom: 14px;
-    }
-  }
   .sheet-h {
     text-align: center;
     font-size: 12px;

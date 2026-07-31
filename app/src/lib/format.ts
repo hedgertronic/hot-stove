@@ -1,4 +1,4 @@
-import { eligibleTypes } from "./eligibility";
+import { eligibleTypes, isPitcher } from "./eligibility";
 import type { CardPlayer } from "./types";
 
 /** Normalized display dollars, always in millions ("$136.3M", "$110M", "$0.9M"). */
@@ -73,7 +73,7 @@ const POS_GROUP: Record<string, string> = {
  * every hitter, so it's never listed. */
 export function posLabel(p: CardPlayer): string {
   if (p.pos.includes("/")) return p.pos;
-  if (p.pos.startsWith("SP") || p.pos === "RP") return p.pos;
+  if (isPitcher(p)) return p.pos;
   const primary = POS_GROUP[p.pos];
   const extras = eligibleTypes(p).filter((t) => t !== "FLEX" && t !== primary);
   return [p.pos, ...extras].join("/");
@@ -111,8 +111,7 @@ export function statLine(p: {
   bat?: { avg: number; obp: number; slg: number; hr: number; rbi: number; sb: number };
   pit?: { w: number; l: number; sv: number; era: number; so: number };
 }): string {
-  const pitcher = p.pos.startsWith("SP") || p.pos === "RP";
-  if (pitcher && p.pit)
+  if (isPitcher(p) && p.pit)
     return `${p.pit.w}–${p.pit.l} · ${p.pit.era.toFixed(2)} ERA · ${p.pit.so} K`;
   if (p.bat)
     return `${dot3(p.bat.avg)}/${dot3(p.bat.obp)}/${dot3(p.bat.slg)} · ${p.bat.hr} HR · ${p.bat.rbi} RBI · ${p.bat.sb} SB`;

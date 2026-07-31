@@ -1,20 +1,14 @@
 <script lang="ts">
+  import Sheet from "./Sheet.svelte";
+
   let { onclose }: { onclose: () => void } = $props();
 </script>
 
-<div class="backdrop" onclick={onclose} role="presentation">
-  <div
-    class="sheet disp"
-    onclick={(e) => e.stopPropagation()}
-    onkeydown={(e) => e.key === "Escape" && onclose()}
-    role="dialog"
-    aria-label="How to play"
-    tabindex="-1"
-  >
-    <div class="sheet-h">
-      HOW TO PLAY
-      <button class="x" onclick={onclose} aria-label="Close">✕</button>
-    </div>
+<Sheet {onclose} label="How to play" tall>
+  <div class="sheet-h">
+    HOW TO PLAY
+    <button class="x" onclick={onclose} aria-label="Close">✕</button>
+  </div>
 
     <div class="hsec">THE LOOP</div>
     <ul>
@@ -51,12 +45,12 @@
         <b>Trophy case:</b> MVP +5 · Cy Young +4 · ROY +2 · ballot medals 🥈 +2 / 🥉 +1 ·
         All-Star, Gold Glove, Silver Slugger +1 each.
       </li>
-      <li><b>Pedigree:</b> 💍 +2 / 🚩 +1 per player from a title or pennant season.</li>
+      <li><b>Ring chasing:</b> 💍 +2 / 🚩 +1 per player from a title or pennant season.</li>
       <li><b>Scouting:</b> +1 per signing who makes the dream team.</li>
     </ul>
 
     <div class="hsec">POWERUPS — ONCE PER GAME</div>
-    <ul class="pups">
+    <ul>
       <li><b>🎟️ SEASON TICKET</b> — same franchise, any year.</li>
       <li><b>🚚 RELOCATE</b> — same year, any club.</li>
       <li><b>✌️ DOUBLE PLAY</b> — two signings on one spin; refundable until the second.</li>
@@ -65,43 +59,9 @@
     </ul>
 
     <button class="btn cancel" onclick={onclose}>GOT IT</button>
-  </div>
-</div>
+</Sheet>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(36, 34, 28, 0.45);
-    z-index: 50;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-  }
-  .sheet {
-    background: var(--ground);
-    border: 3px solid var(--ink);
-    border-bottom: 0;
-    border-radius: 18px 18px 0 0;
-    padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
-    width: 100%;
-    max-width: 480px;
-    max-height: 85vh;
-    max-height: 85dvh;
-    overflow-y: auto;
-  }
-  /* Wide: a bottom sheet reads phone-y — center it as a cardstock modal. */
-  @media (min-width: 760px) {
-    .backdrop {
-      align-items: center;
-      padding: 24px;
-    }
-    .sheet {
-      border-bottom: 3px solid var(--ink);
-      border-radius: 18px;
-      padding-bottom: 14px;
-    }
-  }
   .sheet-h {
     text-align: center;
     font-size: 12px;
@@ -150,9 +110,6 @@
   }
   .soft {
     color: var(--muted);
-  }
-  .pups li {
-    font-size: 12px;
   }
   .cancel {
     width: 100%;

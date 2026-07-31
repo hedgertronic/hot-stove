@@ -3,7 +3,8 @@ import type { CardPlayer, SlotType } from "./types";
 /** Positional games threshold for C/IF/OF eligibility (BUILD.md). */
 const MIN_POS_G = 10;
 
-export function isPitcher(p: CardPlayer): boolean {
+/** Structural param so bare `{ pos }` shapes (statLine) qualify too. */
+export function isPitcher(p: { pos: string }): boolean {
   return p.pos.startsWith("SP") || p.pos === "RP";
 }
 

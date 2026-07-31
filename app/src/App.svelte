@@ -3,6 +3,7 @@
   import Finale from "./components/Finale.svelte";
   import HelpModal from "./components/HelpModal.svelte";
   import Home from "./components/Home.svelte";
+  import Logo from "./components/Logo.svelte";
   import PlayerList from "./components/PlayerList.svelte";
   import PowerupRow from "./components/PowerupRow.svelte";
   import PrimePicker from "./components/PrimePicker.svelte";
@@ -13,6 +14,7 @@
   import YearPicker from "./components/YearPicker.svelte";
   import { loadColors, loadIndex, loadMeta, loadOwners } from "./lib/data";
   import { Game, type GameConfig } from "./lib/engine.svelte";
+  import { BANKS, DIFFICULTIES } from "./lib/modes";
   import { loadSettings, saveSettings } from "./lib/settings";
   import type { Colors, GameIndex, Meta, Owners } from "./lib/types";
 
@@ -30,6 +32,14 @@
   let quitArmed = $state(false);
   let quitTimer: ReturnType<typeof setTimeout> | undefined;
   let helpOpen = $state(false);
+
+  // Dev-only UI lab (localhost:5173/?lab): hardcoded edge-case galleries for
+  // every component, so extreme states are reviewable without replaying games.
+  // Dynamic import + DEV guard keep it out of the production bundle.
+  let LabComp = $state<typeof import("./lab/Lab.svelte").default | null>(null);
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has("lab")) {
+    import("./lab/Lab.svelte").then((m) => (LabComp = m.default));
+  }
 
   $effect(() => {
     void (async () => {
@@ -104,33 +114,16 @@
   }
 
   // The header chip is emoji-only; full mode names live in the title/aria-label.
-  const MODE_CHIP: Record<string, string> = {
-    scout: "🔭",
-  };
-  const BANK_CHIP: Record<string, string> = {
-    moneyball: "⚾",
-    blankcheck: "💸",
-  };
-  const MODE_NAME: Record<string, string> = {
-    scout: "Eye Test",
-  };
-  const BANK_NAME: Record<string, string> = {
-    moneyball: "Moneyball",
-    blankcheck: "Blank Check",
-  };
-
-  const modeChip = $derived.by(() => {
-    if (!game) return "";
-    return [BANK_CHIP[game.config.bank] ?? "", MODE_CHIP[game.config.difficulty] ?? ""]
-      .filter(Boolean)
-      .join(" ");
+  // Default modes (classic / standard) show no chip at all.
+  const optIn = $derived.by(() => {
+    if (!game) return [];
+    const out = [];
+    if (game.config.bank !== "classic") out.push(BANKS[game.config.bank]);
+    if (game.config.difficulty !== "standard") out.push(DIFFICULTIES[game.config.difficulty]);
+    return out;
   });
-  const modeTitle = $derived.by(() => {
-    if (!game) return "";
-    return [BANK_NAME[game.config.bank] ?? "", MODE_NAME[game.config.difficulty] ?? ""]
-      .filter(Boolean)
-      .join(" · ");
-  });
+  const modeChip = $derived(optIn.map((m) => m.emoji).join(" "));
+  const modeTitle = $derived(optIn.map((m) => m.name).join(" · "));
 
   // A committed choice, a new card, or leaving the landed phase clears any
   // half-open confirm button.
@@ -151,7 +144,9 @@
 
 <svelte:window onclick={() => (confirmKey = null)} />
 
-{#if bootError}
+{#if LabComp}
+  <LabComp />
+{:else if bootError}
   <div class="boot disp">Couldn't load the league. {bootError}</div>
 {:else if !booted || !colors}
   <div class="boot disp">Warming up the stove…</div>
@@ -160,7 +155,7 @@
 {:else}
   <header class="hud disp">
     <button class="help" onclick={(e) => { e.stopPropagation(); helpOpen = true; }} aria-label="How to play">?</button>
-    <span class="logo">HOT<em>STOVE</em></span>
+    <Logo />
     {#if modeChip}<span class="modechip" title={modeTitle} aria-label={modeTitle}>{modeChip}</span>{/if}
     <button class="quit" class:armed={quitArmed} onclick={tapQuit}>
       {quitArmed ? "QUIT?" : "✕"}
@@ -273,14 +268,6 @@
     padding: 2px 8px;
     font-size: 11px;
     line-height: 1.4;
-  }
-  .logo {
-    font-weight: 800;
-    font-size: 15px;
-  }
-  .logo em {
-    font-style: normal;
-    color: var(--orange);
   }
   /* Wide: two-column game board. The left column is the persistent club
      (roster + bank) and sticks while the right column — spin banner over the

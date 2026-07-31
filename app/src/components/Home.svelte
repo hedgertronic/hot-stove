@@ -1,13 +1,9 @@
 <script lang="ts">
-  import {
-    BLANK_CHECK_BUDGET_M,
-    MONEYBALL_BUDGET_M,
-    type Bank,
-    type Difficulty,
-    type GameConfig,
-  } from "../lib/engine.svelte";
-  import { money, parseSeedCode } from "../lib/format";
+  import { type Bank, type Difficulty, type GameConfig } from "../lib/engine.svelte";
+  import { parseSeedCode } from "../lib/format";
+  import { BANKS, DIFFICULTIES } from "../lib/modes";
   import { bestFor } from "../lib/settings";
+  import Logo from "./Logo.svelte";
 
   let {
     config,
@@ -20,45 +16,13 @@
   // svelte-ignore state_referenced_locally
   let bank = $state<Bank>(config.bank);
 
-  const DIFFS: { key: Difficulty; ic: string; name: string; desc: string }[] = [
-    { key: "standard", ic: "📊", name: "Box Score", desc: "Stats, salaries, and awards" },
-    { key: "scout", ic: "🔭", name: "Eye Test", desc: "No stats, no awards" },
-  ];
-  /** Each fixed-cap card shows its team pill over its payroll pill; Owner's Box
-   * has only a dashed payroll pill (you hire the owner in-game). */
-  const BANKS: {
-    key: Bank;
-    ic: string;
-    name: string;
-    cash: string;
-    team: string;
-    cls: string;
-  }[] = [
-    {
-      key: "classic",
-      ic: "💼",
-      name: "Owner's Box",
-      cash: "$ · · ·",
-      team: "",
-      cls: "open",
-    },
-    {
-      key: "moneyball",
-      ic: "⚾",
-      name: "Moneyball",
-      cash: money(MONEYBALL_BUDGET_M),
-      team: "OAK 2002",
-      cls: "oak",
-    },
-    {
-      key: "blankcheck",
-      ic: "💸",
-      name: "Blank Check",
-      cash: money(BLANK_CHECK_BUDGET_M),
-      team: "NYY 2005",
-      cls: "nyy",
-    },
-  ];
+  // Picker rows come straight from the shared mode table; each fixed-cap card
+  // shows its team pill over its payroll pill, Owner's Box only a dashed one.
+  const DIFFS = (Object.keys(DIFFICULTIES) as Difficulty[]).map((key) => ({
+    key,
+    ...DIFFICULTIES[key],
+  }));
+  const BANK_CARDS = (Object.keys(BANKS) as Bank[]).map((key) => ({ key, ...BANKS[key] }));
 
   const best = $derived(bestFor(difficulty, bank));
 
@@ -81,15 +45,14 @@
 
 <div class="home disp">
   <div class="mast">
-    <div class="biglogo">HOT<em>STOVE</em></div>
-    <div class="tag">Spin for seasons. Sign their stars. Chase 116 wins.</div>
+    <Logo big />
   </div>
 
   <div class="psep">DIFFICULTY</div>
   <div class="seg two">
     {#each DIFFS as d (d.key)}
       <button class="segbtn" class:on={difficulty === d.key} onclick={() => (difficulty = d.key)}>
-        <span class="ic">{d.ic}</span>
+        <span class="ic">{d.emoji}</span>
         <span class="segname">{d.name}</span>
         <span class="segdesc">{d.desc}</span>
       </button>
@@ -98,7 +61,7 @@
 
   <div class="psep">PAYROLL</div>
   <div class="seg three">
-    {#each BANKS as b (b.key)}
+    {#each BANK_CARDS as b (b.key)}
       <button
         class="segbtn bank"
         class:on={bank === b.key}
@@ -106,7 +69,7 @@
         class:bc={b.key === "blankcheck"}
         onclick={() => (bank = b.key)}
       >
-        <span class="ic">{b.ic}</span>
+        <span class="ic">{b.emoji}</span>
         <span class="segname">{b.name}</span>
         <span class="pillrow">
           {#if b.team}<span class="pill team {b.cls}">{b.team}</span>{/if}
@@ -142,29 +105,16 @@
        count live in the dashed separator, not inside the card. -->
   <div class="psep bestsep">RECORD BOOK · {best.games} {best.games === 1 ? "GAME" : "GAMES"}</div>
   <div class="bestbox">
-    {#if best.best !== null}
-      <div class="best-cols">
-        <div class="best-col">
-          <div class="best-n" class:empty={best.bestRecord === null}>{best.bestRecord ?? "—"}</div>
-          <div class="best-cap">BEST RECORD</div>
-        </div>
-        <div class="best-col">
-          <div class="best-n">{best.best.toFixed(1)}</div>
-          <div class="best-cap">BEST SCORE</div>
-        </div>
+    <div class="best-cols">
+      <div class="best-col">
+        <div class="best-n" class:empty={best.bestRecord === null}>{best.bestRecord ?? "—"}</div>
+        <div class="best-cap">BEST RECORD</div>
       </div>
-    {:else}
-      <div class="best-cols">
-        <div class="best-col">
-          <div class="best-n empty">—</div>
-          <div class="best-cap">BEST RECORD</div>
-        </div>
-        <div class="best-col">
-          <div class="best-n empty">—</div>
-          <div class="best-cap">BEST SCORE</div>
-        </div>
+      <div class="best-col">
+        <div class="best-n" class:empty={best.best === null}>{best.best?.toFixed(1) ?? "—"}</div>
+        <div class="best-cap">BEST SCORE</div>
       </div>
-    {/if}
+    </div>
   </div>
 </div>
 
@@ -183,21 +133,6 @@
   .mast {
     text-align: center;
     margin-bottom: 24px;
-  }
-  .biglogo {
-    font-weight: 800;
-    font-size: 34px;
-    letter-spacing: 0.01em;
-  }
-  .biglogo em {
-    font-style: normal;
-    color: var(--orange);
-  }
-  .tag {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--muted);
-    margin-top: 4px;
   }
   .seg {
     display: grid;

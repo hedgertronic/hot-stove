@@ -65,6 +65,7 @@
   <button
     class="pp"
     class:spent={p.tradeDeadline === "spent"}
+    class:off={p.tradeDeadline === "ready" && !canAct}
     class:armed={p.tradeDeadline === "armed"}
     onclick={(e) => {
       e.stopPropagation();
@@ -81,7 +82,9 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 7px;
+    /* The zero-height .brk is its own flex line, so row-gap lands twice
+       (above and below it) — 4px row-gap reads as ~8px between pill rows. */
+    gap: 4px 7px;
     margin: 6px 0 10px;
   }
   .brk {
@@ -113,11 +116,13 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  /* Invisible extension keeps the visual pill small but the tap target ≥44px. */
+  /* Invisible extension grows the tap target without growing the pill. Capped
+     at half the ~8px row spacing so the two rows' targets meet but never
+     overlap (a later pill's extension would otherwise cover the pill above). */
   .pp::after {
     content: "";
     position: absolute;
-    inset: -9px 0;
+    inset: -4px 0;
   }
   .pp:active {
     transform: translateY(1.5px);

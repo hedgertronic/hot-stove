@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Game, SpecialKey } from "../lib/engine.svelte";
   import { money, signed } from "../lib/format";
+  import { MANAGER_PER_NET_WIN } from "../lib/scoring";
 
   let {
     game,
@@ -63,7 +64,7 @@
         ic: "🧢",
         who: c.manager,
         what: game.scout ? "Manager" : `Manager · ${c.wins}–${c.losses}`,
-        val: game.scout ? "" : `${signed((c.wins - c.losses) * 0.1)} W`,
+        val: game.scout ? "" : `${signed((c.wins - c.losses) * MANAGER_PER_NET_WIN)} W`,
         verb: "HIRE",
       });
     }

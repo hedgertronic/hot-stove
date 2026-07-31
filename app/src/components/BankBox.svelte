@@ -190,11 +190,6 @@
       background-position: 28.3px 0;
     }
   }
-  @media (prefers-reduced-motion: reduce) {
-    .fill.unknown {
-      animation: none;
-    }
-  }
   .meter-lbl {
     display: flex;
     justify-content: space-between;

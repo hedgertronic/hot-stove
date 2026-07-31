@@ -44,7 +44,7 @@ export function saveSettings(config: GameConfig): void {
   }
 }
 
-export interface HistoryEntry {
+interface HistoryEntry {
   date: string;
   total: number;
   record: string;
@@ -55,7 +55,7 @@ export interface HistoryEntry {
   v?: number;
 }
 
-export function loadHistory(): HistoryEntry[] {
+function loadHistory(): HistoryEntry[] {
   try {
     const h = JSON.parse(localStorage.getItem("hotstove.history") ?? "[]");
     return Array.isArray(h) ? h : [];

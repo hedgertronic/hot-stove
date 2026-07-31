@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Game } from "../lib/engine.svelte";
+  import Sheet from "./Sheet.svelte";
 
   let { game, onclose }: { game: Game; onclose: () => void } = $props();
 
@@ -18,61 +19,19 @@
   }
 </script>
 
-<div class="backdrop" onclick={onclose} role="presentation">
-  <div
-    class="sheet disp"
-    onclick={(e) => e.stopPropagation()}
-    onkeydown={(e) => e.key === "Escape" && onclose()}
-    role="dialog"
-    aria-label="Pick a season"
-    tabindex="-1"
-  >
-    <div class="sheet-h">🎟️ SEASON TICKET — {game.card?.name ?? ""}</div>
-    <div class="grid">
-      {#each years as y (y)}
-        <button class="yearbtn" disabled={y === game.card?.year} onclick={() => pick(y)}>
-          {y}{#if ped[y]}<span class="pedi">{ped[y] === "ws" ? "💍" : "🚩"}</span>{/if}
-        </button>
-      {/each}
-    </div>
-    <button class="btn cancel" onclick={onclose}>Cancel</button>
+<Sheet {onclose} label="Pick a season">
+  <div class="sheet-h">🎟️ SEASON TICKET — {game.card?.name ?? ""}</div>
+  <div class="grid">
+    {#each years as y (y)}
+      <button class="yearbtn" disabled={y === game.card?.year} onclick={() => pick(y)}>
+        {y}{#if ped[y]}<span class="pedi">{ped[y] === "ws" ? "💍" : "🚩"}</span>{/if}
+      </button>
+    {/each}
   </div>
-</div>
+  <button class="btn cancel" onclick={onclose}>Cancel</button>
+</Sheet>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(36, 34, 28, 0.45);
-    z-index: 50;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-  }
-  .sheet {
-    background: var(--ground);
-    border: 3px solid var(--ink);
-    border-bottom: 0;
-    border-radius: 18px 18px 0 0;
-    padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
-    width: 100%;
-    max-width: 480px;
-    max-height: 70vh;
-    max-height: 70dvh;
-    overflow-y: auto;
-  }
-  /* Wide: a bottom sheet reads phone-y — center it as a cardstock modal. */
-  @media (min-width: 760px) {
-    .backdrop {
-      align-items: center;
-      padding: 24px;
-    }
-    .sheet {
-      border-bottom: 3px solid var(--ink);
-      border-radius: 18px;
-      padding-bottom: 14px;
-    }
-  }
   .sheet-h {
     text-align: center;
     font-size: 12px;

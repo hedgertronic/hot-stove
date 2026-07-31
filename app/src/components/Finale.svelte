@@ -1,7 +1,9 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
   import { lastName, money, seedCode, signed, slotLabel, sortAwards, warTier } from "../lib/format";
-  import { GOAL_POINTS, MARINERS_WINS } from "../lib/scoring";
+  import { BANKS, DIFFICULTIES } from "../lib/modes";
+  import { GOAL_POINTS, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
+  import AwardPill from "./AwardPill.svelte";
 
   let {
     game,
@@ -82,8 +84,7 @@
       amt: signed(p.awardPoints, 0),
       cls: p.awardPoints > 0 ? "plus" : "zero",
     });
-    const rings = game.slots.filter((s) => s?.ws).length + (game.manager?.ws ? 1 : 0);
-    const pennants = game.slots.filter((s) => s?.pen).length + (game.manager?.pen ? 1 : 0);
+    const { rings, pennants } = game.pedigree;
     // One emoji per pedigree season — 💍💍🚩 reads as the actual trophy case.
     // Past 8 emojis (a stacked-pedigree outlier) the row would overflow its
     // single line, so it falls back to the ×N form.
@@ -97,8 +98,8 @@
     }
     out.push({
       key: "pedigree",
-      lbl: "Championship pedigree",
-      why: pedigreeChips.length > 0 ? undefined : "no October pedigree",
+      lbl: "Ring chasing",
+      why: pedigreeChips.length > 0 ? undefined : "no rings, no pennants",
       chips: pedigreeChips.length > 0 ? pedigreeChips : undefined,
       amt: signed(p.ringPoints, 0),
       cls: p.ringPoints > 0 ? "plus" : "zero",
@@ -177,21 +178,16 @@
 
   const TIER_EMOJI = { neg: "🔴", low: "⚪", mid: "🟢", high: "🔵", star: "🟣", elite: "🟡" } as const;
 
-  const DIFF_TAG: Record<string, string> = {
-    standard: "📊 BOX SCORE",
-    scout: "🔭 EYE TEST",
-  };
-  const BANK_TAG: Record<string, string> = {
-    moneyball: " · ⚾ MONEYBALL",
-    blankcheck: " · 💸 BLANK CHECK",
-  };
-
   const beatMariners = $derived(fin.wins > MARINERS_WINS);
   const perfect = $derived(fin.parts.total >= GOAL_POINTS);
   const dreamDenom = $derived(fin.bestManager ? 9 : 8);
 
   function shareText(): string {
-    const tag = (DIFF_TAG[game.config.difficulty] ?? "") + (BANK_TAG[game.config.bank] ?? "");
+    const diff = DIFFICULTIES[game.config.difficulty];
+    const bank = BANKS[game.config.bank];
+    const tag =
+      `${diff.emoji} ${diff.name.toUpperCase()}` +
+      (game.config.bank !== "classic" ? ` · ${bank.emoji} ${bank.name.toUpperCase()}` : "");
     const grid = game.spinLog
       .map((e) => {
         if (e.kind === "owner") return "💰";
@@ -201,8 +197,7 @@
         return TIER_EMOJI[warTier(e.war ?? 0)];
       })
       .join("");
-    const rings = game.slots.filter((s) => s?.ws).length + (game.manager?.ws ? 1 : 0);
-    const pennants = game.slots.filter((s) => s?.pen).length + (game.manager?.pen ? 1 : 0);
+    const { rings, pennants } = game.pedigree;
     const medals = [
       "💍".repeat(Math.min(rings, 8)),
       "🚩".repeat(Math.min(pennants, 8)),
@@ -260,27 +255,6 @@
     seedTimer = setTimeout(() => (seedState = "idle"), 1200);
   }
 
-  const awardCls: Record<string, string> = {
-    MVP: "mvp",
-    CY: "cy",
-    MVP2: "mvp",
-    CY2: "cy",
-    MVP3: "mvp",
-    CY3: "cy",
-    GG: "gg",
-    SS: "ss",
-    ROY: "roy",
-    AS: "as",
-  };
-  const pillText: Record<string, string> = {
-    MVP: "🥇MVP",
-    CY: "🥇CY",
-    MVP2: "🥈MVP",
-    CY2: "🥈CY",
-    MVP3: "🥉MVP",
-    CY3: "🥉CY",
-  };
-
   /** Signed players who are also on the dream team get the ⭐. */
   const starKeys = $derived.by(() => {
     const keys = new Set<string>();
@@ -319,9 +293,7 @@
                 >{c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
               >
             {:else}
-              <span class="qb {awardCls[c.code] ?? ''}"
-                >{pillText[c.code] ?? c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
-              >
+              <AwardPill code={c.code} n={c.n} />
             {/if}
           {/each}
         </span>
@@ -367,16 +339,18 @@
     {#if slot}
       <div class="qrow">
         <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
-        <span class="qname"
-          >{#if starred(slot)}<span class="emo qstar">⭐</span>{/if}{slot.name}
-          <i>{slot.year} {slot.team}</i></span
-        >
-        <span class="qbadges">
-          {#if slot.hero}<span class="emo">🏠</span>{/if}
-          {#each sortAwards(slot.awards) as a}
-            <span class="qb {awardCls[a] ?? ''}">{pillText[a] ?? a}</span>
-          {/each}
-          {#if slot.ws}<span class="emo">💍</span>{:else if slot.pen}<span class="emo">🚩</span>{/if}
+        <span class="qmid">
+          <span class="qname"
+            >{#if starred(slot)}<span class="emo qstar">⭐</span>{/if}{slot.name}
+            <i>{slot.year} {slot.team}</i></span
+          >
+          <span class="qbadges">
+            {#if slot.hero}<span class="emo">🏠</span>{/if}
+            {#each sortAwards(slot.awards) as a}
+              <AwardPill code={a} />
+            {/each}
+            {#if slot.ws}<span class="emo">💍</span>{:else if slot.pen}<span class="emo">🚩</span>{/if}
+          </span>
         </span>
         <span class="qwar {warTier(slot.war)}">{slot.war.toFixed(1)}</span>
       </div>
@@ -385,13 +359,15 @@
   {#if game.manager}
     <div class="qrow skiprow">
       <span class="qpos">MGR</span>
-      <span class="qname"
-        >{#if fin.managerHit}<span class="emo qstar">⭐</span>{/if}{game.manager.name}
-        <i>{game.manager.year} {game.manager.team}</i></span
-      >
-      <span class="qbadges"
-        >{#if game.manager.ws}<span class="emo">💍</span>{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
-      >
+      <span class="qmid">
+        <span class="qname"
+          >{#if fin.managerHit}<span class="emo qstar">⭐</span>{/if}{game.manager.name}
+          <i>{game.manager.year} {game.manager.team}</i></span
+        >
+        <span class="qbadges"
+          >{#if game.manager.ws}<span class="emo">💍</span>{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
+        >
+      </span>
       <span class="qwar">{signed(fin.parts.managerWins)} W</span>
     </div>
   {/if}
@@ -417,13 +393,15 @@
     {#if fin.bestManager}
       <div class="qrow" class:dreamhit={fin.managerHit}>
         <span class="qpos">MGR</span>
-        <span class="qname"
-          >{fin.bestManager.name} <i>{fin.bestManager.year} {fin.bestManager.team}</i></span
-        >
-        <span class="qbadges"
-          >{#if fin.bestManager.ws}<span class="emo">💍</span>{:else if fin.bestManager.pen}<span class="emo">🚩</span>{/if}</span
-        >
-        <span class="qwar">{signed(fin.bestManager.netWins * 0.1)} W</span>
+        <span class="qmid">
+          <span class="qname"
+            >{fin.bestManager.name} <i>{fin.bestManager.year} {fin.bestManager.team}</i></span
+          >
+          <span class="qbadges"
+            >{#if fin.bestManager.ws}<span class="emo">💍</span>{:else if fin.bestManager.pen}<span class="emo">🚩</span>{/if}</span
+          >
+        </span>
+        <span class="qwar">{signed(fin.bestManager.netWins * MANAGER_PER_NET_WIN)} W</span>
       </div>
     {/if}
   </div>
@@ -659,9 +637,23 @@
     color: var(--muted);
     flex: none;
   }
+  /* Name and badges share a line when they fit; the badges wrap below when a
+     decorated player runs out of room (narrow phones). The name never shrinks
+     to make space for pills — past the row width it ellipsizes instead. */
+  .qmid {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 4px;
+    overflow: hidden;
+  }
   .qname {
     font-weight: 800;
     font-size: 13px;
+    flex: none;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -676,34 +668,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    margin-left: 4px;
     flex: none;
-  }
-  .qb {
-    font-size: 9px;
-    font-weight: 800;
-    border: 1.5px solid var(--ink);
-    border-radius: 999px;
-    padding: 0 6px;
-    line-height: 1.5;
-  }
-  .qb.mvp {
-    background: var(--yellow);
-  }
-  .qb.cy {
-    background: var(--sky);
-  }
-  .qb.gg {
-    background: var(--green-wash);
-  }
-  .qb.ss {
-    background: var(--lilac);
-  }
-  .qb.roy {
-    background: var(--pink);
-  }
-  .qb.as {
-    background: var(--amber);
   }
   .emo {
     font-size: 12px;
