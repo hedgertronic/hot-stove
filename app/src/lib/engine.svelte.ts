@@ -147,9 +147,6 @@ export class Game {
   spinKind = $state<SpinKind>("full");
   /** Every distinct card this game has landed on — the scouting yardstick. */
   seen = $state<{ team: string; year: number }[]>([]);
-  /** The one bonus spin granted when the club is complete but Trade Deadline
-   * is still unspent — a last chance to upgrade before the finale. */
-  tdBonus = $state(false);
   /** Sign-time slot ambiguity: rail becomes a slot picker for this player. */
   slotPick = $state<string | null>(null);
   /** TD release picker: rail cells the incoming player could replace. */
@@ -181,9 +178,10 @@ export class Game {
     return this.config.difficulty === "standard";
   }
 
-  /** Scout mode flies blind: names and positions only. */
+  /** Salary shows in every difficulty — Eye Test hides talent signals (WAR,
+   * awards), not the price tag; the cap game is the same either way. */
   get showCost(): boolean {
-    return this.config.difficulty === "standard";
+    return true;
   }
 
   get showAwards(): boolean {
@@ -216,10 +214,6 @@ export class Game {
     );
   }
 
-  get inTdBonus(): boolean {
-    return this.tdBonus;
-  }
-
   get totalWar(): number {
     return this.slots.reduce((sum, s) => sum + (s?.war ?? 0), 0);
   }
@@ -232,6 +226,14 @@ export class Game {
     if (this.config.bank === "moneyball") return MONEYBALL_BUDGET_M;
     if (this.config.bank === "blankcheck") return BLANK_CHECK_BUDGET_M;
     return (this.owner?.budget ?? this.meta.minBudget) * (this.stadium?.mult ?? 1);
+  }
+
+  /** Whether the cap means anything yet: fixed banks always; Owner's Box only
+   * once an owner is hired. Before that, effectiveBudget falls back to the
+   * league-minimum floor (meta.minBudget) — real math, but not the player's
+   * cap, so the UI shouldn't present it as one. */
+  get capKnown(): boolean {
+    return this.fixedCap || this.owner !== null;
   }
 
   get heroActive(): boolean {
@@ -560,8 +562,7 @@ export class Game {
   }
 
   /** Skip a card outright during the post-roster hunt (roster full, still
-   * chasing manager/owner/stadium or riding the TD bonus spin). Pre-roster
-   * spins remain must-act. */
+   * chasing manager/owner/stadium). Pre-roster spins remain must-act. */
   passSpin(): void {
     if (this.phase !== "landed" || this.choicesUsed !== 0 || !this.rosterFull) return;
     this.endSpin();
@@ -569,7 +570,7 @@ export class Game {
 
   /** Whether passSpin/endSpin goes straight to the finale (labels PASS vs FINISH). */
   get willFinishOnPass(): boolean {
-    return this.complete && (this.tdBonus || this.powerups.tradeDeadline !== "ready");
+    return this.complete;
   }
 
   /** Free respin out of a dead card. */
@@ -585,14 +586,8 @@ export class Game {
     if (this.powerups.tradeDeadline === "armed") this.powerups.tradeDeadline = "ready";
     if (this.powerups.prime === "armed") this.powerups.prime = "ready";
     if (this.complete) {
-      // Complete club + unspent Trade Deadline = one bonus spin to upgrade.
-      if (this.powerups.tradeDeadline === "ready" && !this.tdBonus) {
-        this.tdBonus = true;
-        this.phase = "preSpin";
-        this.save();
-      } else {
-        void this.finishGame();
-      }
+      // A complete club ends the game — unspent powerups are just left money.
+      void this.finishGame();
     } else {
       this.phase = "preSpin";
       this.save();
@@ -842,7 +837,6 @@ export class Game {
           rngState: this.rng.state,
           spinCount: this.spinCount,
           seen: this.seen,
-          tdBonus: this.tdBonus,
           phase: this.phase === "spinning" ? "preSpin" : this.phase,
           cardRef: this.card ? { team: this.card.team, year: this.card.year } : null,
           slots: this.slots,
@@ -885,7 +879,8 @@ export class Game {
       game.rng.state = s.rngState;
       game.spinCount = s.spinCount;
       game.seen = s.seen ?? [];
-      game.tdBonus = s.tdBonus ?? false;
+      // (older saves carry a tdBonus field from the retired bonus-spin rule —
+      // ignored; a restored complete club simply finishes on its next endSpin)
       game.slots = s.slots;
       game.owner = s.owner;
       game.stadium = s.stadium;

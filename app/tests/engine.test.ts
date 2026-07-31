@@ -616,24 +616,29 @@ describe("completion and the hunt", () => {
     await vi.waitFor(() => expect(g.phase).toBe("finale"));
   });
 
-  it("an unspent Trade Deadline earns one bonus spin before the finale", async () => {
+  it("an unspent Trade Deadline does not delay the finale — a complete club ends the game", async () => {
     const g = new Game(meta, index, owners, 42, { difficulty: "standard", bank: "moneyball" });
     g.card = card([]);
     g.phase = "landed";
     g.choicesLeft = 1;
     fillSlots(g);
+    expect(g.powerups.tradeDeadline).toBe("ready");
     g.hireManager(); // complete, TD still ready
-    expect(g.phase).toBe("preSpin");
-    expect(g.inTdBonus).toBe(true);
-    expect(g.finale).toBe(null);
-    // the bonus card lands; player waves it off
-    g.card = card([]);
-    g.phase = "landed";
-    g.choicesLeft = 1;
-    g.choicesUsed = 0;
     expect(g.willFinishOnPass).toBe(true);
-    g.passSpin();
     await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    expect(g.finale).not.toBe(null);
+  });
+
+  it("a save from the retired bonus-spin rule (tdBonus field) still restores", async () => {
+    const g = landedGame(card([player({})]));
+    g.save();
+    const saved = JSON.parse(store.get("hotstove.current")!);
+    saved.tdBonus = true; // legacy field
+    saved.cardRef = null; // resume preSpin without a card fetch
+    store.set("hotstove.current", JSON.stringify(saved));
+    const back = await Game.restore(meta, index, owners);
+    expect(back).not.toBeNull();
+    expect(back!.phase).toBe("preSpin");
   });
 });
 

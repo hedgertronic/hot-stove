@@ -109,9 +109,9 @@ describe("difficulty visibility gating", () => {
     expect(g.scout).toBe(false);
   });
 
-  it("scout flies blind: names and positions only", () => {
+  it("scout hides talent signals (WAR, awards) but still shows salary", () => {
     const g = landedGame(card([]), { difficulty: "scout", bank: "classic" });
-    expect([g.showWar, g.showCost, g.showAwards]).toEqual([false, false, false]);
+    expect([g.showWar, g.showCost, g.showAwards]).toEqual([false, true, false]);
     expect(g.scout).toBe(true);
   });
 });
@@ -159,6 +159,15 @@ describe("moneyball", () => {
     g.signPlayer(p);
     g.hireManager();
     expect(g.anyActionable()).toBe(true);
+  });
+
+  it("capKnown: fixed banks always, Owner's Box only once an owner is hired", () => {
+    const mb = landedGame(card([]), MB);
+    expect(mb.capKnown).toBe(true);
+    const ob = landedGame(card([]), { difficulty: "standard", bank: "classic" });
+    expect(ob.capKnown).toBe(false);
+    ob.owner = { name: "x", budget: 100, franchise: "CHC", year: 2016, teamName: "Cubs" };
+    expect(ob.capKnown).toBe(true);
   });
 
   it("config round-trips through save/restore", async () => {

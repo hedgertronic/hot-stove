@@ -30,6 +30,24 @@ export function costTier(costM: number): CostTier {
   return "mid";
 }
 
+/** Canonical hardware order for award pill rows: prestige first (MVP ballot,
+ * then Cy Young ballot, then ROY), fielding/hitting hardware after, All-Star
+ * always last. Unknown codes sort behind everything, original order kept. */
+const AWARD_ORDER = ["MVP", "MVP2", "MVP3", "CY", "CY2", "CY3", "ROY", "GG", "SS", "AS"];
+export function sortAwards(awards: string[]): string[] {
+  const rank = (a: string) => {
+    const i = AWARD_ORDER.indexOf(a);
+    return i === -1 ? AWARD_ORDER.length : i;
+  };
+  return [...awards].sort((a, b) => rank(a) - rank(b));
+}
+
+/** Display label for a roster slot. Internal slot keys are frozen (saves and
+ * data reference them); only the label shifts — FLEX reads as UTIL on screen. */
+export function slotLabel(slot: string): string {
+  return slot === "FLEX" ? "UTIL" : slot;
+}
+
 export function signed(n: number, digits = 1): string {
   const v = n.toFixed(digits);
   return n >= 0 ? `+${v}` : `−${v.replace("-", "")}`;
