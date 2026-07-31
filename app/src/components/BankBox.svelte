@@ -45,6 +45,12 @@
       <span class="hsep">·</span>
       <span class="hire" class:tbd={!game.stadium}>🏟️ {game.stadium ? game.stadium.park : "no stadium yet"}</span>
     </div>
+  {:else}
+    <!-- Fixed-cap modes have no hires; the same line carries the cap's team
+         identity instead, so the box keeps one height across all modes. -->
+    <div class="hires disp">
+      <span class="hire">💰 {game.config.bank === "moneyball" ? "OAK 2002" : "NYY 2005"}</span>
+    </div>
   {/if}
   <div class="meter">
     {#if !capKnown}
@@ -204,5 +210,24 @@
     color: var(--muted);
     font-style: italic;
     font-weight: 700;
+  }
+  /* Wide: the box owns a 350–380px column — scale the math, meter, and labels
+     up a notch so the bank reads at column size instead of phone size. */
+  @media (min-width: 760px) {
+    .bankbox {
+      padding: 10px 12px 12px;
+    }
+    .bankmath {
+      font-size: 13px;
+    }
+    .hires {
+      font-size: 11.5px;
+    }
+    .meter {
+      height: 22px;
+    }
+    .meter-lbl {
+      font-size: 11.5px;
+    }
   }
 </style>

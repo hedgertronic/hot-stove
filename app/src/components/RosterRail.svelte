@@ -167,13 +167,12 @@
      glyphs facing the grid) — three parallel lines, label outermost, same
      content pattern and type scale as the player seats. The width is fixed
      so the grid doesn't reflow when the empty seat gains its name/season
-     lines on hire. 56px, not the cells' 52px height: measured equal (52 vs
-     52) still LOOKS slimmer — the vertical–horizontal illusion — so the
-     rotated seat gets ~8% of optical compensation to read as a match. */
+     lines on hire; it equals the seat cells' min-height, a geometric match
+     between the rotated chair and the upright ones. */
   .mgr {
     grid-column: 1;
     grid-row: 1 / 3;
-    width: 56px;
+    width: 52px;
     border: 2px solid var(--ink);
     border-radius: 9px;
     writing-mode: sideways-lr;
@@ -228,5 +227,44 @@
     font-weight: 800;
     color: var(--orange);
     margin-top: 5px;
+  }
+  /* Wide: the rail owns a 350–380px column — taller seats and a bumped type
+     scale so the club reads at column size. The manager width tracks the
+     wide min-height to keep the geometric match. */
+  @media (min-width: 760px) {
+    .rail {
+      gap: 8px;
+    }
+    .cell {
+      min-height: 62px;
+      padding: 7px 3px 8px;
+    }
+    .cell b {
+      font-size: 10px;
+    }
+    .cell span {
+      font-size: 12.5px;
+    }
+    .cell i {
+      font-size: 9.5px;
+    }
+    .cell.empty b {
+      font-size: 12px;
+    }
+    .mgr {
+      width: 62px;
+    }
+    .mgr b {
+      font-size: 10px;
+    }
+    .mgr span {
+      font-size: 12.5px;
+    }
+    .mgr i {
+      font-size: 9.5px;
+    }
+    .mgr.empty b {
+      font-size: 12px;
+    }
   }
 </style>

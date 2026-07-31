@@ -17,10 +17,11 @@
   interface LedgerRow {
     key: string;
     lbl: string;
-    why: string;
-    /** Award pills rendered in place of the why-line (Hardware row). */
+    /** Small muted text beside the label (after any chips/meter). */
+    why?: string;
+    /** Award pills / emoji chips rendered inline beside the label. */
     chips?: { code: string; n: number }[];
-    /** Miniature spend/bankroll bar rendered under the why-line. */
+    /** Miniature spend/bankroll bar rendered inline beside the label. */
     meter?: { pct: number; over: boolean };
     amt: string;
     cls: "base" | "plus" | "minus" | "zero";
@@ -38,19 +39,28 @@
       amt: p.expectedWins.toFixed(1),
       cls: "base",
     });
+    // One budget row, two faces: the tax and the bonus are mutually exclusive
+    // by construction (bonus is 0 whenever spend exceeds budget), so over cap
+    // the row IS the luxury tax; at/under it's the front-office bonus.
     const overCap = fin.spend > fin.budget;
+    const spendPct = fin.budget > 0 ? (fin.spend / fin.budget) * 100 : 100;
     out.push({
       key: "budget",
-      lbl: "Front-office bonus",
+      lbl: overCap ? "Luxury tax" : "Front-office bonus",
       why: overCap
-        ? "blew past the bankroll — the tax takes it from here"
-        : `${money(fin.spend)} of ${money(fin.budget)} bankroll used (${Math.round((fin.spend / fin.budget) * 100)}%)`,
-      meter: {
-        pct: fin.budget > 0 ? Math.min((fin.spend / fin.budget) * 100, 100) : 100,
-        over: overCap,
-      },
-      amt: signed(p.budgetBonus),
-      cls: p.budgetBonus > 0 ? "plus" : p.budgetBonus < 0 ? "minus" : "zero",
+        ? `${money(fin.spend - fin.budget)} over`
+        : `${Math.round(spendPct)}% used`,
+      meter: { pct: Math.min(spendPct, 100), over: overCap },
+      amt: overCap ? `−${p.luxuryTax.toFixed(1)}` : signed(p.budgetBonus),
+      cls: overCap
+        ? p.luxuryTax > 0
+          ? "minus"
+          : "zero"
+        : p.budgetBonus > 0
+          ? "plus"
+          : p.budgetBonus < 0
+            ? "minus"
+            : "zero",
     });
     const awardCounts = new Map<string, number>();
     for (const s of game.slots) {
@@ -67,7 +77,7 @@
     out.push({
       key: "awards",
       lbl: "Hardware",
-      why: "no award seasons",
+      why: hardwareChips.length > 0 ? undefined : "no award seasons",
       chips: hardwareChips.length > 0 ? hardwareChips : undefined,
       amt: signed(p.awardPoints, 0),
       cls: p.awardPoints > 0 ? "plus" : "zero",
@@ -81,7 +91,7 @@
     out.push({
       key: "pedigree",
       lbl: "Championship pedigree",
-      why: "no October pedigree",
+      why: pedigreeChips.length > 0 ? undefined : "no October pedigree",
       chips: pedigreeChips.length > 0 ? pedigreeChips : undefined,
       amt: signed(p.ringPoints, 0),
       cls: p.ringPoints > 0 ? "plus" : "zero",
@@ -91,22 +101,12 @@
       out.push({
         key: "scouting",
         lbl: "Scouting report",
-        why:
-          fin.scoutHits > 0
-            ? `${fin.scoutHits} of the dream team's ${denom} made your club ⭐`
-            : "none of your picks made the dream team",
+        chips: fin.scoutHits > 0 ? [{ code: "⭐", n: fin.scoutHits }] : undefined,
+        why: fin.scoutHits > 0 ? `of ${denom} found` : `0 of ${denom} found`,
         amt: signed(p.scoutBonus, 0),
         cls: p.scoutBonus > 0 ? "plus" : "zero",
       });
     }
-    out.push({
-      key: "tax",
-      lbl: "Luxury tax",
-      why: p.luxuryTax > 0 ? `${money(fin.spend - fin.budget)} over budget` : "stayed under budget",
-      // Always signed, even at zero — this row can only ever hurt you.
-      amt: `−${p.luxuryTax.toFixed(1)}`,
-      cls: p.luxuryTax > 0 ? "minus" : "zero",
-    });
     return out;
   });
 
@@ -115,7 +115,6 @@
   let dispL = $state(0);
   let dispTotal = $state("0");
   let totalShown = $state(false);
-  let toast = $state("");
 
   function count(set: (v: number) => void, n: number, ms: number) {
     const t0 = performance.now();
@@ -169,7 +168,7 @@
     return () => timers.forEach(clearTimeout);
   });
 
-  const TIER_EMOJI = { neg: "🔴", low: "⚪", mid: "🔵", high: "🟢", star: "🟣", elite: "🟡" } as const;
+  const TIER_EMOJI = { neg: "🔴", low: "⚪", mid: "🟢", high: "🔵", star: "🟣", elite: "🟡" } as const;
 
   const DIFF_TAG: Record<string, string> = {
     standard: "📊 BOX SCORE",
@@ -214,6 +213,10 @@
     ].join("\n");
   }
 
+  /** Clipboard fallback swaps the button's own label (same in-place pattern
+   * as the seed chip); the native share sheet is its own feedback. */
+  let shareState = $state<"idle" | "copied" | "failed">("idle");
+  let shareTimer: ReturnType<typeof setTimeout> | undefined;
   async function share() {
     const text = shareText();
     try {
@@ -226,12 +229,12 @@
     }
     try {
       await navigator.clipboard.writeText(text);
-      toast = "Copied 🔥";
-      setTimeout(() => (toast = ""), 1800);
+      shareState = "copied";
     } catch {
-      toast = "Couldn't copy";
-      setTimeout(() => (toast = ""), 1800);
+      shareState = "failed";
     }
+    clearTimeout(shareTimer);
+    shareTimer = setTimeout(() => (shareState = "idle"), 1200);
   }
 
   /** Copies "#CODE" — the leading # is fine, parseSeedCode strips it.
@@ -300,44 +303,40 @@
 <div class="ledger">
   {#each rows as row, i (row.key)}
     <div class="lrow disp" class:base={row.cls === "base"} class:show={i < shownRows}>
-      <span class="mid">
-        <span class="lbl">{row.lbl}</span>
-        {#if row.chips}
-          <span class="chipline">
-            {#each row.chips as c (c.code)}
-              {#if c.code === "💍" || c.code === "🚩"}
-                <span class="pedchip"
-                  >{c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
-                >
-              {:else}
-                <span class="qb {awardCls[c.code] ?? ''}"
-                  >{pillText[c.code] ?? c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
-                >
-              {/if}
-            {/each}
-          </span>
-        {:else}
-          <span class="why">{row.why}</span>
-        {/if}
-        {#if row.meter}
-          <span class="minimeter" class:mover={row.meter.over}>
-            <span
-              class="minifill"
-              class:mzero={row.meter.pct <= 0}
-              style:width="{row.meter.over ? 100 : row.meter.pct}%"
-            ></span>
-          </span>
-        {/if}
-      </span>
+      <span class="lbl">{row.lbl}</span>
+      {#if row.chips}
+        <span class="chipline">
+          {#each row.chips as c (c.code)}
+            {#if c.code === "💍" || c.code === "🚩" || c.code === "⭐"}
+              <span class="pedchip"
+                >{c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
+              >
+            {:else}
+              <span class="qb {awardCls[c.code] ?? ''}"
+                >{pillText[c.code] ?? c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
+              >
+            {/if}
+          {/each}
+        </span>
+      {/if}
+      {#if row.meter}
+        <span class="minimeter" class:mover={row.meter.over}>
+          <span
+            class="minifill"
+            class:mzero={row.meter.pct <= 0}
+            style:width="{row.meter.over ? 100 : row.meter.pct}%"
+          ></span>
+        </span>
+      {/if}
+      {#if row.why}
+        <span class="why">{row.why}</span>
+      {/if}
       <span class="amt" class:plus={row.cls === "plus"} class:minus={row.cls === "minus"}>{row.amt}</span>
     </div>
   {/each}
   <div class="lrow total disp" class:show={totalShown}>
-    <span class="mid"
-      ><span class="lbl">Final score</span><span class="why"
-        >{fin.spinCount} spins · {money(fin.spend)} payroll</span
-      ></span
-    >
+    <span class="lbl">Final score</span>
+    <span class="why">{fin.spinCount} spins · {money(fin.spend)} payroll</span>
     <span class="amt">{dispTotal}</span>
   </div>
 </div>
@@ -345,9 +344,10 @@
 <div class="fin-actions">
   <button class="btn ghost disp" onclick={onmodes}>Modes <span class="bic">🕹️</span></button>
   <button class="btn disp" onclick={onreplay}>Replay <span class="bic">🔄</span></button>
-  <button class="btn hot disp" onclick={share}>Share <span class="bic">📣</span></button>
+  <button class="btn hot disp" onclick={share}>
+    {#if shareState === "idle"}Share <span class="bic">📣</span>{:else if shareState === "copied"}Copied 🔥{:else}Copy failed{/if}
+  </button>
 </div>
-{#if toast}<div class="toast disp">{toast}</div>{/if}
 
 <button class="seedchip disp" class:ok={seedState === "copied"} title="Copy seed" onclick={copySeed}>
   {seedState === "idle" ? `GAME #${seedCode(game.seed)}` : seedState === "copied" ? "COPIED ✓" : "COPY FAILED"}
@@ -356,6 +356,7 @@
 
 <div class="fin-side">
 <div class="squad disp">
+  <div class="psep">YOUR SQUAD</div>
   {#each game.slots as slot, i}
     {#if slot}
       <div class="qrow">
@@ -392,7 +393,7 @@
 
 {#if fin.best}
   <div class="squad disp">
-    <div class="squad-h">⭐ THE DREAM TEAM</div>
+    <div class="psep">⭐ THE DREAM TEAM</div>
     {#each fin.best.picks as pick, i}
       {@const mine =
         pick != null &&
@@ -428,9 +429,9 @@
 </div>
 
 <style>
-  /* Wide: score story beside the rosters. The dashed squad separators exist
-     to break a vertical stack — in a side column the column gap does that
-     job, so the first squad loses its top rule and aligns with the head. */
+  /* Wide: score story beside the rosters. Each squad's psep header carries
+     its own dashed rule, so the side column needs no extra separators — the
+     first squad just tucks up to align with the head. */
   @media (min-width: 760px) {
     .fin-cols {
       display: grid;
@@ -442,8 +443,6 @@
     }
     .fin-side > .squad:first-child {
       margin-top: 4px;
-      border-top: 0;
-      padding-top: 0;
     }
   }
   .fin-head {
@@ -480,16 +479,18 @@
   .ledger {
     display: grid;
     gap: 7px;
-    min-height: 290px;
   }
+  /* Every row is one line — label, then its visual (pills / emoji chips /
+     mini meter) and small text, amount on the right — at one shared height. */
   .lrow {
     display: flex;
     align-items: center;
     gap: 9px;
+    min-height: 44px;
     border: 2.5px solid var(--ink);
     border-radius: 11px;
     background: var(--card);
-    padding: 8px 12px;
+    padding: 6px 12px;
     opacity: 0;
     transform: translateY(10px) scale(0.97);
   }
@@ -500,26 +501,27 @@
       opacity 0.3s,
       transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-  .lrow .mid {
-    display: flex;
-    flex-direction: column;
-  }
   .lbl {
     font-weight: 800;
     font-size: 13.5px;
+    flex: none;
   }
   .why {
     font-size: 10.5px;
     color: var(--muted);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  /* Hardware row: the same award pills the player rows wear, wrapping if a
-     stacked roster collects many distinct awards. */
+  /* Hardware row: the same award pills the player rows wear, wrapping only
+     if a stacked roster collects many distinct awards. */
   .chipline {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 3px;
-    margin-top: 3px;
+    min-width: 0;
   }
   .mult {
     font-size: 8px;
@@ -533,12 +535,12 @@
     font-weight: 800;
     line-height: 1.5;
   }
-  /* Miniature of the BankBox meter — same colors/hatch, row-scaled. */
+  /* Miniature of the BankBox meter — same colors/hatch, inline row-scaled. */
   .minimeter {
     display: block;
-    max-width: 210px;
+    width: 96px;
+    flex: none;
     height: 8px;
-    margin-top: 4px;
     border: 1.5px solid var(--ink);
     border-radius: 999px;
     background: var(--card);
@@ -608,13 +610,6 @@
     border-style: dashed;
     color: var(--muted);
   }
-  .toast {
-    text-align: center;
-    font-weight: 800;
-    font-size: 12px;
-    color: var(--green-deep);
-    margin-top: 8px;
-  }
   /* The game's seed — quiet, mono; tap to copy it for PLAY A SEED #. */
   .seedchip {
     display: block;
@@ -635,18 +630,11 @@
   .seedchip.ok {
     color: var(--green-deep);
   }
+  /* Each squad opens with a global .psep header (label inline with the
+     dashed rule, same as FRONT OFFICE / PLAYERS on the draft screen), so
+     the block itself carries no separator of its own. */
   .squad {
     margin-top: 16px;
-    border-top: 2.5px dashed var(--dash);
-    padding-top: 12px;
-  }
-  .squad-h {
-    text-align: center;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    margin-bottom: 8px;
   }
   .qrow {
     display: flex;
@@ -716,12 +704,16 @@
     font-size: 12px;
     line-height: 1;
   }
+  /* Default (no tier class) is the manager "+W" rows: wins added, plain green. */
   .qwar {
     margin-left: auto;
     font-weight: 800;
     font-size: 13px;
-    color: var(--war-high);
+    color: var(--green);
     flex: none;
+  }
+  .qwar.high {
+    color: var(--war-high);
   }
   .qwar.elite {
     color: var(--war-elite);

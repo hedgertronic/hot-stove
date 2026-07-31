@@ -29,10 +29,12 @@
   --orange-deep: #d04e08;
   --gray-bg: #e8e2d2;
   --gray-ink: #a09a88;
+  /* WAR ladder follows the universal rarity ramp — gray → green → blue →
+     violet → gold — with rust-red below gray for negative WAR. */
   --war-neg: #b3705f;
   --war-low: #b5afa0;
-  --war-mid: #3b7dd1;
-  --war-high: #2f9e44;
+  --war-mid: #2f9e44;
+  --war-high: #3b7dd1;
   --war-star: #7b5cc4;
   /* Deep enough that white chip text reads (~3:1); still unmistakably gold. */
   --war-elite: #c98a08;

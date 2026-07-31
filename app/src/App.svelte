@@ -170,14 +170,16 @@
   {#if game.phase === "finale" && game.finale}
     <Finale {game} onreplay={newGame} onmodes={goHome} />
   {:else}
-    <!-- Phone: the two columns are plain stacked divs, same order as ever.
-         Wide (≥760px): "your club" (rail/bank/banner/powerups) holds the left
-         rail and the per-card market (specials + players) scrolls on the
-         right, so the spin context never leaves the screen. -->
+    <!-- Phone: the three wrappers are plain stacked divs, same order as ever.
+         Wide (≥760px): the club (rail + bank) holds a sticky left column while
+         the spin banner + powerups sit atop the market (specials + players)
+         on the right — the reel introduces the card the market sells. -->
     <div class="game">
       <div class="gleft">
         <RosterRail {game} />
         <BankBox {game} />
+      </div>
+      <div class="gmid">
         <SpinBanner {game} {colors} />
         {#if game.phase === "landed" && game.card && !game.coldStove}
           <PowerupRow
@@ -230,8 +232,8 @@
     margin-bottom: 10px;
     position: relative;
   }
-  /* The ? and ✕ pills are twins: same border, font, and footprint — the
-     min-width keeps the narrower "?" glyph from shrinking its pill. */
+  /* The ? and ✕ pills are twins: a fixed width (no horizontal padding, text
+     centered) guarantees the same footprint regardless of glyph width. */
   .help,
   .quit {
     position: absolute;
@@ -243,8 +245,8 @@
     font-weight: 800;
     font-size: 10px;
     line-height: 1;
-    padding: 4px 8px;
-    min-width: 26px;
+    padding: 4px 0;
+    width: 28px;
     box-sizing: border-box;
     text-align: center;
     cursor: pointer;
@@ -255,10 +257,13 @@
   .quit {
     right: 0;
   }
+  /* Armed, the pill carries a word ("QUIT?") — it may outgrow the twin width. */
   .quit.armed {
     background: var(--orange);
     color: var(--card);
     border-color: var(--ink);
+    width: auto;
+    padding: 4px 8px;
   }
   /* Emoji-only chip, scaled to sit beside the ?/✕ pills. */
   .modechip {
@@ -278,18 +283,30 @@
     color: var(--orange);
   }
   /* Wide: two-column game board. The left column is the persistent club
-     (roster, bank, spin) and sticks while the market list scrolls; its
-     content is ~450px tall, so it always fits the viewport. */
+     (roster + bank) and sticks while the right column — spin banner over the
+     market — scrolls; the club is well under a viewport tall, so it always
+     fits. */
   @media (min-width: 760px) {
     .game {
       display: grid;
       grid-template-columns: minmax(300px, 350px) minmax(0, 1fr);
-      gap: 24px;
+      grid-template-areas:
+        "left mid"
+        "left right";
+      grid-template-rows: auto 1fr;
+      column-gap: 24px;
       align-items: start;
     }
     .gleft {
+      grid-area: left;
       position: sticky;
       top: 10px;
+    }
+    .gmid {
+      grid-area: mid;
+    }
+    .gright {
+      grid-area: right;
     }
     /* The board and its header share one cap: player rows past ~650px read
        sparse (name → chips gulf), and the ?/✕ pills should hug the board. */
@@ -303,7 +320,7 @@
   @media (min-width: 1100px) {
     .game {
       grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
-      gap: 30px;
+      column-gap: 30px;
     }
   }
   .after > :global(*) {
