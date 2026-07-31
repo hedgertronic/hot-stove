@@ -2,7 +2,8 @@
 
 A daily-style baseball drafting game: spin for random team-seasons (1985–2024), sign
 players at their real salaries, set your bankroll by hiring an owner, and score points.
-Static site, destined for GitHub Pages, linked from hedgertronic.github.io.
+Static site, **live at [hedgertronic.com/hot-stove](https://hedgertronic.com/hot-stove/)**
+(GitHub Pages, deployed from `.github/workflows/deploy.yml` on every push to main).
 
 ## Read in this order
 
@@ -117,9 +118,12 @@ player's seasons for Prime Time. Bundled Nunito keeps the look cross-browser.
 Tests: `cd app && npm test` (scoring parity fixtures generated from
 `pipeline/scoring.py` + engine, mode, and best-roster suites). Dev: `npm run dev`.
 
+**Deployed 2026-07-31** as a public beta at hedgertronic.com/hot-stove/ — direct
+URL only, deliberately unlinked from the personal site during beta.
+
 Remaining: Daily mode (date seed + shared spins + streak — consider seeding from
-the previous day's real MLB results), GitHub Pages deploy workflow. Pipeline
-TODO: hand-verify the 15 `wikipediaOnly` owner entries.
+the previous day's real MLB results). Pipeline TODO: hand-verify the 15
+`wikipediaOnly` owner entries.
 
 ## Constraints that are decisions, not accidents
 
