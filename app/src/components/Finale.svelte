@@ -21,7 +21,7 @@
     why?: string;
     /** Award pills / emoji chips rendered inline beside the label. */
     chips?: { code: string; n: number }[];
-    /** Miniature spend/bankroll bar rendered inline beside the label. */
+    /** Miniature spend/payroll bar rendered inline beside the label. */
     meter?: { pct: number; over: boolean };
     amt: string;
     cls: "base" | "plus" | "minus" | "zero";
@@ -76,7 +76,7 @@
     }));
     out.push({
       key: "awards",
-      lbl: "Hardware",
+      lbl: "Trophy case",
       why: hardwareChips.length > 0 ? undefined : "no award seasons",
       chips: hardwareChips.length > 0 ? hardwareChips : undefined,
       amt: signed(p.awardPoints, 0),
@@ -107,7 +107,8 @@
       out.push({
         key: "scouting",
         lbl: "Scouting report",
-        chips: fin.scoutHits > 0 ? [{ code: "⭐", n: fin.scoutHits }] : undefined,
+        // One star per find, like the pedigree row (max 9 fits the line).
+        chips: fin.scoutHits > 0 ? [{ code: "⭐".repeat(fin.scoutHits), n: 1 }] : undefined,
         why: fin.scoutHits > 0 ? undefined : "none found",
         amt: signed(p.scoutBonus, 0),
         cls: p.scoutBonus > 0 ? "plus" : "zero",
@@ -313,7 +314,7 @@
       {#if row.chips}
         <span class="chipline">
           {#each row.chips as c (c.code)}
-            {#if c.code.startsWith("💍") || c.code.startsWith("🚩") || c.code === "⭐"}
+            {#if c.code.startsWith("💍") || c.code.startsWith("🚩") || c.code.startsWith("⭐")}
               <span class="pedchip"
                 >{c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
               >
@@ -516,7 +517,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  /* Hardware row: the same award pills the player rows wear, wrapping only
+  /* Trophy case row: the same award pills the player rows wear, wrapping only
      if a stacked roster collects many distinct awards. */
   .chipline {
     display: flex;

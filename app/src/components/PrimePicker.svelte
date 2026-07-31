@@ -95,8 +95,9 @@
               class:long={plabel.length > 5}>{plabel}</span>
             <span class="mid">
               <span class="yr">{sea.year} {sea.teamName}</span>
-              {#if sea.here}<span class="sub">that's this card — just sign him</span>
-              {:else if !sea.fits}<span class="sub">no open seat fits this season</span>
+              <!-- The landed card's own season just grays out like any other
+                   unclickable row — its stat line still reads normally. -->
+              {#if !sea.here && !sea.fits}<span class="sub">no open seat fits this season</span>
               {:else if game.showWar && statLine(sea.p)}<span class="sub">{statLine(sea.p)}</span>{/if}
             </span>
             <span class="right">

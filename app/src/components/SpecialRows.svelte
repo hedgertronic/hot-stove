@@ -56,7 +56,7 @@
       // Eye Test withholds the record and win value entirely — they're
       // exactly the quantified signals the mode hides, and a "?" placeholder
       // would just advertise the hole. The stadium ×mult stays: it's
-      // mechanical (it sets your bankroll), not a scouting stat.
+      // mechanical (it sets your payroll), not a scouting stat.
       out.push({
         key: "manager",
         cls: "skip",

@@ -24,8 +24,8 @@
     { key: "standard", ic: "📊", name: "Box Score", desc: "Stats, salaries, and awards" },
     { key: "scout", ic: "🔭", name: "Eye Test", desc: "No stats, no awards" },
   ];
-  /** Each fixed-cap card shows its team pill over its bankroll pill; Owner's Box
-   * has only a dashed bankroll pill (you hire the owner in-game). */
+  /** Each fixed-cap card shows its team pill over its payroll pill; Owner's Box
+   * has only a dashed payroll pill (you hire the owner in-game). */
   const BANKS: {
     key: Bank;
     ic: string;
@@ -60,11 +60,7 @@
     },
   ];
 
-  const DIFF_ICON: Record<Difficulty, string> = { standard: "📊", scout: "🔭" };
-  const BANK_ICON: Record<Bank, string> = { classic: "💼", moneyball: "⚾", blankcheck: "💸" };
-
   const best = $derived(bestFor(difficulty, bank));
-  const comboEmoji = $derived(`${DIFF_ICON[difficulty]} ${BANK_ICON[bank]}`);
 
   // PLAY A SEED: a shared code replays that game's exact card sequence
   // under whatever mode combo is selected above.
@@ -86,7 +82,7 @@
 <div class="home disp">
   <div class="mast">
     <div class="biglogo">HOT<em>STOVE</em></div>
-    <div class="tag">Spin for a team-season. Sign the right players. Stretch the bankroll.</div>
+    <div class="tag">Spin for seasons. Sign their stars. Chase 116 wins.</div>
   </div>
 
   <div class="psep">DIFFICULTY</div>
@@ -100,7 +96,7 @@
     {/each}
   </div>
 
-  <div class="psep">BANKROLL</div>
+  <div class="psep">PAYROLL</div>
   <div class="seg three">
     {#each BANKS as b (b.key)}
       <button
@@ -142,11 +138,10 @@
     <button class="seedlink" onclick={() => (seedOpen = true)}>PLAY A SEED #</button>
   {/if}
 
+  <!-- The bests card is a section like DIFFICULTY/PAYROLL — its name and games
+       count live in the dashed separator, not inside the card. -->
+  <div class="psep bestsep">RECORD BOOK · {best.games} {best.games === 1 ? "GAME" : "GAMES"}</div>
   <div class="bestbox">
-    <div class="best-h">
-      TRACK RECORD {comboEmoji} · {best.games}
-      {best.games === 1 ? "GAME" : "GAMES"}
-    </div>
     {#if best.best !== null}
       <div class="best-cols">
         <div class="best-col">
@@ -378,24 +373,20 @@
     padding: 5px 12px;
     cursor: pointer;
   }
-  .bestbox {
+  /* The separator carries the section's 8px bottom padding, like the others. */
+  .bestsep {
     margin-top: 14px;
+  }
+  .bestbox {
     border: 2.5px solid var(--ink);
     border-radius: 12px;
     background: var(--card);
     padding: 9px 12px 10px;
     text-align: center;
   }
-  .best-h {
-    font-size: 9.5px;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    color: var(--muted);
-  }
   .best-cols {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    margin-top: 3px;
   }
   .best-col + .best-col {
     border-left: 2px dashed var(--dash);

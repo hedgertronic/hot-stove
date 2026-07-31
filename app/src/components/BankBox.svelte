@@ -17,7 +17,7 @@
 <div class="bankbox">
   <div class="bankmath disp">
     {#if game.config.bank === "moneyball"}
-      <span class="chip eff">⚾ {money(cap)} BANKROLL</span>
+      <span class="chip eff">⚾ {money(cap)} PAYROLL</span>
     {:else if game.config.bank === "blankcheck"}
       <span class="chip eff">💸 {money(cap)} BLANK CHECK</span>
     {:else}
@@ -61,7 +61,7 @@
   <div class="meter">
     {#if !capKnown}
       <!-- No owner yet ⇒ no denominator: the bar can't show a share of an
-           unknown bankroll, so a drifting hatch reads as pure uncertainty. -->
+           unknown payroll, so a drifting hatch reads as pure uncertainty. -->
       <div class="fill unknown"></div>
     {:else}
       <div class="fill" class:floorover={over} class:zero={spend <= 0} style:width="{over ? 100 : pct}%"></div>
@@ -72,7 +72,7 @@
     {#if !capKnown}
       <span class="nocap">$??? LEFT</span>
     {:else if over}
-      <span class="warn">{money(spend - cap)} OVER BANKROLL</span>
+      <span class="warn">{money(spend - cap)} OVER PAYROLL</span>
     {:else}
       <span>{money(cap - spend)} LEFT</span>
     {/if}
@@ -172,8 +172,8 @@
     );
     border-right: 0;
   }
-  /* Unknown bankroll: a soft drifting hatch + question marks — a loading bar
-     that admits it doesn't know where it ends. */
+  /* Unknown payroll: a soft drifting hatch — a loading bar that admits it
+     doesn't know where it ends. */
   .fill.unknown {
     width: 100%;
     border-right: 0;

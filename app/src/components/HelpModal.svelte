@@ -27,28 +27,28 @@
       </li>
     </ul>
 
-    <div class="hsec">YOUR BANKROLL</div>
+    <div class="hsec">YOUR PAYROLL</div>
     <ul>
       <li>
-        <b>Owner's Box:</b> hire an owner to set your bankroll, then buy a stadium — its
+        <b>Owner's Box:</b> hire an owner to set your payroll, then buy a stadium — its
         attendance multiplier (×0.85–1.15) scales it.
       </li>
       <li>
         <b>Hometown Hero:</b> owner + stadium from the same franchise lets you sign one
         player who debuted there at the league minimum.
       </li>
-      <li>You <i>can</i> sign past your bankroll — the luxury tax just eats your score.</li>
+      <li>You <i>can</i> sign past your payroll — the luxury tax just eats your score.</li>
     </ul>
 
     <div class="hsec">SCORING</div>
     <ul>
       <li><b>Wins:</b> 50 base + roster WAR + manager (W−L) × 0.1.</li>
       <li>
-        <b>Budget:</b> up to +10 for using your whole bankroll; under half goes negative;
+        <b>Budget:</b> up to +10 for using your whole payroll; under half goes negative;
         −1 per $1M over it.
       </li>
       <li>
-        <b>Hardware:</b> MVP +5 · Cy Young +4 · ROY +2 · ballot medals 🥈 +2 / 🥉 +1 ·
+        <b>Trophy case:</b> MVP +5 · Cy Young +4 · ROY +2 · ballot medals 🥈 +2 / 🥉 +1 ·
         All-Star, Gold Glove, Silver Slugger +1 each.
       </li>
       <li><b>Pedigree:</b> 💍 +2 / 🚩 +1 per player from a title or pennant season.</li>

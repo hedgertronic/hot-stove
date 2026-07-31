@@ -28,7 +28,7 @@ export const DEFAULT_CONFIG: GameConfig = { difficulty: "standard", bank: "class
 
 /** 2002 A's top-4 contracts, normalized (Dye/Justice/Durham/Tejada). */
 export const MONEYBALL_BUDGET_M = 82.9;
-/** 2005 Yankees top-4 — the fattest bankroll in the league. */
+/** 2005 Yankees top-4 — the fattest payroll in the league. */
 export const BLANK_CHECK_BUDGET_M = 248.6;
 
 /** What the reel animates on a given spin: powerup rerolls hold the other

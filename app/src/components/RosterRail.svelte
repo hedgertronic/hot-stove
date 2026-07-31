@@ -32,6 +32,7 @@
 </script>
 
 <div class="railwrap disp" class:pinned={!!pickPlayer}>
+  <div class="psep railhead">YOUR SQUAD</div>
   <div class="rail">
     <!-- The manager's seat anchors the left edge, spanning both rows — one
          club, nine chairs, same visual language throughout. -->
@@ -83,6 +84,11 @@
     background: var(--ground);
     padding: 6px 0 4px;
     margin-bottom: 4px;
+  }
+  /* The section header exists only at width, where the rail reads as the
+     finale-style squad card; the phone grid speaks for itself. */
+  .railhead {
+    display: none;
   }
   .railwrap.pinned {
     position: sticky;
@@ -149,9 +155,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .cell.filled {
-    background: var(--green-wash);
-  }
+  /* Filled seats stay plain card-white, like the finale's squad rows — green
+     is reserved for the finale's dream-team hits. */
   /* An empty seat is an invitation: just the position, centered, waiting. */
   .cell.empty {
     border-style: dashed;
@@ -223,8 +228,9 @@
     text-overflow: ellipsis;
     max-height: 100%;
   }
+  /* The hired manager is pink, matching the finale's MGR row. */
   .mgr.filled {
-    background: var(--green-wash);
+    background: var(--pink);
   }
   .mgr.empty {
     border-style: dashed;
@@ -248,6 +254,9 @@
      squad card — one full-width row per seat (pos · name · season · WAR),
      manager last. Same buttons, same pick states; only the geometry changes. */
   @media (min-width: 760px) {
+    .railhead {
+      display: flex;
+    }
     .rail {
       display: flex;
       flex-direction: column;

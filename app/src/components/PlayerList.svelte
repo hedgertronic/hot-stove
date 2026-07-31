@@ -97,12 +97,6 @@
     CY3: "🥉CY",
   };
 
-  function subText(p: CardPlayer, hero: boolean): string {
-    const base = p.age != null ? `age ${p.age}` : "";
-    if (!hero) return base;
-    return base ? `${base} · 🏠 hometown` : "🏠 hometown";
-  }
-
   const isPitcher = (p: CardPlayer) => p.pos.startsWith("SP") || p.pos === "RP";
   // Team pedigree (💍/🚩) lives beside the team name in the spin banner — the
   // rows only badge individual hardware.
@@ -127,15 +121,11 @@
     >
       <span class="pos" class:pit={isPitcher(p)} class:long={plabel.length > 5}>{plabel}</span>
       <span class="mid">
+        {#if hero}<span class="hero" title="Hometown Hero — half price">🏠</span>{/if}
         <span class="pname">{p.name}</span>
-        {#if subText(p, hero) || hasBadges(p)}
-          <span class="sub">
-            {#if subText(p, hero)}<span class="age">{subText(p, hero)}</span>{/if}
-            {#if hasBadges(p)}<span class="badges"
-                >{#each sortAwards(p.awards) as a}<span class="qb {AWARD_CLS[a] ?? ''}">{PILL_TEXT[a] ?? a}</span>{/each}</span
-              >{/if}
-          </span>
-        {/if}
+        {#if hasBadges(p)}<span class="badges"
+            >{#each sortAwards(p.awards) as a}<span class="qb {AWARD_CLS[a] ?? ''}">{PILL_TEXT[a] ?? a}</span>{/each}</span
+          >{/if}
       </span>
       <span class="right">
         {#if confirmKey === `p:${p.id}` && open && !game.primeArmed}
@@ -177,7 +167,7 @@
     color: inherit;
     text-align: left;
     width: 100%;
-    min-height: 54px;
+    min-height: 46px;
   }
   .prow:active {
     transform: translate(-1px, -1px);
@@ -218,11 +208,14 @@
     font-size: 7.5px;
     letter-spacing: 0.01em;
   }
+  /* One line: name and hardware share the row. The name yields (ellipsis)
+     before the pills do — the pills are the scannable signal. */
   .mid {
     display: flex;
-    flex-direction: column;
-    gap: 1px;
+    align-items: center;
+    gap: 6px;
     min-width: 0;
+    overflow: hidden;
   }
   .pname {
     font-weight: 800;
@@ -232,18 +225,11 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  /* Second line: age + hardware. Keeps the name row clean on narrow screens. */
-  .sub {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    min-width: 0;
-    overflow: hidden;
-  }
-  .age {
-    font-size: 10.5px;
-    color: var(--muted);
-    white-space: nowrap;
+  /* Hometown Hero: the discount's why, kept inline now that the sub-line is
+     gone (the green price already marks the discount itself). */
+  .hero {
+    font-size: 12px;
+    flex: none;
   }
   .badges {
     display: inline-flex;
