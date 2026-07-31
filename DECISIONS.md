@@ -268,3 +268,41 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
 - **Help sheet** (? pill, upper-left): loop, bankroll (incl. Hometown Hero and
   sign-past-the-cap), scoring with medal values, one line per powerup — and it
   documents that TD can also swap in the card's owner/stadium.
+
+## Round 8 — quieter loop, honest cap, labeled numbers (2026-07-31, session 6)
+
+- **The TD completion bonus spin is gone.** Completing the club now ends the
+  game even with Trade Deadline unspent — the bonus spin rewarded *not* using
+  a powerup, and the extra beat diluted the finale. Old saves carrying
+  `tdBonus` still load (field ignored on restore).
+- **No nag lines while hunting front office.** "STILL HIRING: …" and the bonus
+  banner are deleted; when only manager/owner/stadium remain the stove just
+  keeps spinning. The rail's dashed empty seats already say what's missing.
+- **The pre-owner cap is no longer displayed.** `meta.minBudget` ($18.2M, the
+  dataset's cheapest top-4 bankroll) stays as the engine's internal floor, but
+  showing it as "your cap" before an owner was hired read as a bug ("that's
+  gotta be way too low"). Pre-owner BankBox now shows a dashed "$ · · ·",
+  an empty meter, and "CAP — HIRE AN OWNER"; `capKnown` gates it.
+- **Eye Test is the salary list.** Same row anatomy as Box Score (rect tag,
+  age, salary, SIGN $X), sorted by salary desc — price is the mode's one
+  deliberate signal; only WAR and award pills stay hidden. Team-level 💍/🚩
+  now shows beside the club name in every mode (franchise history isn't a
+  stat leak, and pedigree scores in Eye Test too) — and it lives *only* there,
+  not on every player row.
+- **Numbers got units and order.** WAR chips carry a tiny "WAR" unit (rail
+  meta too: "2013 OAK · 4.2 WAR"); award pills and the finale hardware line
+  share one canonical order (MVP → CY → ROY → GG → SS → AS — an All-Star
+  never outranks a Cy Young ballot); luxury tax always shows one decimal
+  ("0.0" unsigned when under). Elite gold chips keep ink text: white on
+  #e0a010 is ~2.3:1 contrast (fails), ink is ~7.2:1.
+- **Vertical manager seat.** The dugout bar became a thin vertical MGR cell
+  left of the 4×2 grid spanning both rows (writing-mode: vertical-lr), no
+  emoji, same type scale as the seats.
+- **FLEX displays as UTIL** everywhere (rail, help, finale); the internal slot
+  key stays FLEX so saves and data files are untouched.
+- **Home:** bank cards show team pill above money pill, Owner's Box gets a
+  single dashed money pill and no team pill, subtext lines dropped; empty
+  leaderboard combos read "0 games played". Finale ballot labels shortened
+  ("MVP 3rd", no "in voting"); dream team uses short codes ("2005 NYY");
+  Modes/Replay/Share are equal thirds, emoji-before-text (⚙️ 🔄 📤 — the 🔥
+  share icon was off-topic).
