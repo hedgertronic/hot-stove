@@ -59,7 +59,9 @@ GitHub Pages (`.github/workflows/deploy.yml`). A red test blocks the deploy.
 ## Roadmap
 
 - Daily mode: date seed, shared spins, streaks.
-- Pipeline: hand-verify the 15 `wikipediaOnly` owner entries.
+- Pipeline: hand-verify the 15 `wikipediaOnly` owner entries; fix 5 players whose
+  debut franchise resolves to a Negro-League code via a Lahman ID collision
+  (they can never trigger Hometown Hero until regenerated).
 
 ## Constraints that are decisions, not accidents
 

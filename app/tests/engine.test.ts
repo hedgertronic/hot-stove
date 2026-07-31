@@ -443,6 +443,30 @@ describe("Hometown Hero", () => {
     g.buyStadium();
     expect(g.heroEligible(outsider)).toBe(false);
   });
+
+  it("Trade Deadline swap-in honors the hero price", () => {
+    const a = player({ pos: "RP", posG: { c: 0, if: 0, of: 0, dh: 0 }, pa: 0, relIP: 60, cost: 20, war: 1 });
+    const b = player({ pos: "RP", posG: { c: 0, if: 0, of: 0, dh: 0 }, pa: 0, relIP: 55, cost: 12, war: 3, debut: "CHC" });
+    const g = landedGame(card([a, b]));
+    g.hireOwner();
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    g.buyStadium();
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    g.signPlayer(a);
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    expect(g.heroActive).toBe(true);
+    g.toggleTradeDeadline();
+    g.tdTapPlayer(b);
+    const floor = (508500 / 87497175) * 160;
+    expect(g.slots[7]?.id).toBe(b.id);
+    expect(g.slots[7]?.hero).toBe(true);
+    expect(g.slots[7]?.costPaid).toBeCloseTo(floor);
+    expect(g.heroUsed).toBe(true);
+    expect(g.powerups.tradeDeadline).toBe("spent");
+  });
 });
 
 describe("visiblePlayers", () => {
