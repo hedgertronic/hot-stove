@@ -686,3 +686,94 @@ describe("finale", () => {
     expect(f.wins + f.losses).toBe(162);
   });
 });
+
+describe("seed reproducibility", () => {
+  // Six distinct cards so the RNG walk has room to differ if it ever drifts.
+  const seedIndex: GameIndex = {
+    yearMin: 1985,
+    yearMax: 2024,
+    cards: [
+      { team: "CHC", year: 2016, franchise: "CHC", name: "Chicago Cubs" },
+      { team: "SEA", year: 2001, franchise: "SEA", name: "Seattle Mariners" },
+      { team: "NYY", year: 2000, franchise: "NYY", name: "New York Yankees" },
+      { team: "OAK", year: 2002, franchise: "OAK", name: "Oakland Athletics" },
+      { team: "BOS", year: 2004, franchise: "BOS", name: "Boston Red Sox" },
+      { team: "ATL", year: 1995, franchise: "ATL", name: "Atlanta Braves" },
+    ],
+  };
+
+  function registerSeedCards(): void {
+    for (const e of seedIndex.cards) {
+      fetchCards[`${e.team}_${e.year}`] = card(
+        [player({ id: `${e.team}${e.year}`, pos: "1B", posG: { c: 0, if: 100, of: 0, dh: 0 } })],
+        { team: e.team, year: e.year, franchise: e.franchise, name: e.name },
+      );
+    }
+  }
+
+  async function sequence(seed: number, act: (g: Game) => void, spins: number): Promise<string[]> {
+    const g = new Game(meta, seedIndex, owners, seed);
+    const seen: string[] = [];
+    for (let i = 0; i < spins; i++) {
+      g.spin();
+      await g.land();
+      seen.push(`${g.card!.team}_${g.card!.year}`);
+      act(g);
+      // Force the next spin regardless of what the action left behind — the
+      // claim under test is that the RNG stream only advances inside spin().
+      g.phase = "preSpin";
+    }
+    return seen;
+  }
+
+  it("same seed → same card sequence, regardless of player actions", async () => {
+    registerSeedCards();
+    const passive = await sequence(1234567, () => {}, 8);
+    const active = await sequence(
+      1234567,
+      (g) => {
+        const p = g.card!.players[0];
+        if (g.playerState(p) === "open") g.signPlayer(p);
+        else if (g.card!.manager && !g.manager) g.hireManager();
+      },
+      8,
+    );
+    expect(active).toEqual(passive);
+    expect(new Set(passive).size).toBeGreaterThan(1); // the walk actually moves
+  });
+});
+
+describe("yearPedigree", () => {
+  const pedIndex: GameIndex = {
+    yearMin: 1985,
+    yearMax: 2024,
+    cards: [
+      { team: "ATL", year: 1991, franchise: "ATL", name: "Atlanta Braves", pen: true },
+      { team: "ATL", year: 1995, franchise: "ATL", name: "Atlanta Braves", ws: true },
+      { team: "ATL", year: 2003, franchise: "ATL", name: "Atlanta Braves" },
+      { team: "MON", year: 1994, franchise: "WSN", name: "Montreal Expos" },
+    ],
+  };
+
+  it("maps flagged years and omits plain ones", () => {
+    const g = new Game(meta, pedIndex, owners, 1);
+    expect(g.yearPedigree("ATL")).toEqual({ 1991: "pen", 1995: "ws" });
+    expect(g.yearPedigree("WSN")).toEqual({});
+  });
+});
+
+describe("index pedigree (real data)", () => {
+  it("exactly one champion per year except strike-1994; SEA has no pennants", async () => {
+    const real = (await import("../../data/index.json")) as unknown as {
+      cards: { team: string; year: number; franchise: string; ws?: boolean; pen?: boolean }[];
+    };
+    const champs = new Map<number, string>();
+    for (const c of real.cards) if (c.ws) champs.set(c.year, c.team);
+    const expectYears = Array.from({ length: 40 }, (_, i) => 1985 + i).filter((y) => y !== 1994);
+    expect([...champs.keys()].sort((a, b) => a - b)).toEqual(expectYears);
+    expect(champs.get(2000)).toBe("NYY");
+    // The Mariners have never won a pennant — data must agree, not flatter.
+    expect(real.cards.some((c) => c.franchise === "SEA" && (c.ws || c.pen))).toBe(false);
+    expect(real.cards.filter((c) => c.pen).length).toBe(39);
+  });
+});

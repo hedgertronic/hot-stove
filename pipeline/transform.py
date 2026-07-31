@@ -373,7 +373,10 @@ class GameData:
             e for pid in self.team_pool.get((team_id, year), set())
             if (e := self._pool_entry(pid, year)) is not None
         ]
-        pool.sort(key=lambda p: p["salary"], reverse=True)
+        # id tie-break: the pool iterates a set, so equal salaries would
+        # otherwise keep arbitrary per-run order and regens wouldn't be
+        # byte-stable (the greedy fill below walks this order).
+        pool.sort(key=lambda p: (-p["salary"], p["id"]))
         used: set[str] = set()
         filled: list[dict[str, Any]] = []
         for slot in SLOTS:
@@ -390,7 +393,7 @@ class GameData:
             e for pid in self.team_pool.get((team_id, year), set())
             if (e := self._pool_entry(pid, year)) is not None
         ]
-        pool.sort(key=lambda p: p["salary"], reverse=True)
+        pool.sort(key=lambda p: (-p["salary"], p["id"]))  # id tie-break: stable regens
         return pool[:TOP_N_CONTRACTS]
 
     def _build_slot8(self) -> None:

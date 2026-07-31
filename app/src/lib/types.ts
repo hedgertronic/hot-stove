@@ -68,6 +68,8 @@ export interface IndexEntry {
   year: number;
   franchise: string;
   name: string;
+  ws?: boolean; // won the World Series (flag present only when true)
+  pen?: boolean; // won the pennant but not the Series
 }
 
 export interface GameIndex {

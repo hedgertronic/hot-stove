@@ -195,8 +195,15 @@ def main() -> None:
         for p in card["players"]:
             player_seasons[p["id"]].append([br, year])
         (cards_dir / f"{br}_{year}.json").write_text(json.dumps(card))
-        index.append({"team": br, "year": year, "franchise": row["franchID"],
-                      "name": row["name"]})
+        entry = {"team": br, "year": year, "franchise": row["franchID"],
+                 "name": row["name"]}
+        # Pedigree flags ride the index (only when true, to keep it lean) so
+        # the Season Ticket year grid can decorate without loading cards.
+        if card["ws"]:
+            entry["ws"] = True
+        elif card["pen"]:
+            entry["pen"] = True
+        index.append(entry)
 
     (DATA_DIR / "index.json").write_text(json.dumps(
         {"yearMin": YEAR_MIN, "yearMax": YEAR_MAX, "cards": index}))

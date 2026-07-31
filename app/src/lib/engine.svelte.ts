@@ -394,6 +394,19 @@ export class Game {
       .sort((a, b) => a - b);
   }
 
+  /** Season Ticket grid decoration: year → "ws" | "pen" for this franchise's
+   * flagged seasons (era-correct team codes come free — the index rows carry
+   * the flags). Unflagged years are simply absent. */
+  yearPedigree(franchise: string): Record<number, "ws" | "pen"> {
+    const out: Record<number, "ws" | "pen"> = {};
+    for (const c of this.index.cards) {
+      if (c.franchise !== franchise) continue;
+      if (c.ws) out[c.year] = "ws";
+      else if (c.pen) out[c.year] = "pen";
+    }
+    return out;
+  }
+
   /** 🎟️ Season Ticket: re-pick any other season of this franchise. Pre-choice only. */
   seasonTicket(year: number): void {
     if (this.phase !== "landed" || this.powerups.seasonTicket !== "ready") return;

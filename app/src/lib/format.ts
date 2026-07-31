@@ -53,6 +53,21 @@ export function signed(n: number, digits = 1): string {
   return n >= 0 ? `+${v}` : `−${v.replace("-", "")}`;
 }
 
+/** Game seed ⇄ shareable code: uppercase base36 of the uint32 seed (≤7 chars). */
+export function seedCode(seed: number): string {
+  return (seed >>> 0).toString(36).toUpperCase();
+}
+
+/** Parse a user-entered seed code (case-insensitive, optional leading #).
+ * Returns null on anything that isn't a uint32 base36 code. */
+export function parseSeedCode(code: string): number | null {
+  const c = code.trim().replace(/^#/, "").toUpperCase();
+  if (!/^[0-9A-Z]{1,7}$/.test(c)) return null;
+  const n = parseInt(c, 36);
+  if (!Number.isInteger(n) || n > 0xffffffff) return null;
+  return n;
+}
+
 /** Rate stat in baseball notation: 0.292 → ".292" (1.000+ keeps its digit). */
 function dot3(a: number): string {
   return a.toFixed(3).replace(/^0\./, ".");
