@@ -182,6 +182,14 @@
   .prow:active {
     transform: translate(-1px, -1px);
   }
+  /* Wide: the market rows are the core read — give the name/sub line and the
+     chips a touch more air (phone packs them by necessity). */
+  @media (min-width: 760px) {
+    .prow {
+      padding: 8px 14px;
+      gap: 12px;
+    }
+  }
   /* Position is a filter cue, not the headline: a compact fixed-width tag so
      the left edge scans as a column. Pitchers flip to filled ink — one subtle
      two-way split (arms vs bats), no rainbow. */
