@@ -579,3 +579,42 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   luxury-tax, stacked-pedigree ×N fallback, 9-star sweep). DEV-guarded
   dynamic import; the production bundle provably excludes it. Fixture games
   stub `save()` so the lab can never write the real save slot.
+
+## Round 16 — the front office joins the game (2026-07-31, session 8)
+
+- **Prime Time works on front-office tiles.** Tapping an open manager /
+  stadium / owner tile with Prime armed opens a career sheet: the manager's
+  whole cross-franchise career (that's the analog of a player's career — the
+  person, not the seat), the park's attendance timeline, the owner's tenure
+  years. Hiring takes that season's record / multiplier / payroll. Backed by
+  `data/specials.json` — a new pipeline emit aggregated from already-built
+  cards (nothing in it required new fetching; regen is byte-stable), fetched
+  lazily like players.json.
+- **No more passing.** The post-roster PASS button is gone: with the roster
+  full, every spin must take one of the card's front-office offerings. Every
+  card in the dataset has a manager, so a pick always exists. The hunt is
+  now a real decision under pressure instead of a free reroll.
+- **The dream team counts awards.** The solver's objective is WAR + award
+  points (score()'s own weighting), so an MVP season can out-rank slightly
+  higher plain WAR; dream rows now wear their award pills to show why a
+  pick won. Rings/pennants deliberately stay out — pedigree is franchise
+  luck, not talent-spotting. `totalWar` still reports pure WAR.
+- **"Front-office bonus" → "Payroll bonus"** (the help sheet's scoring
+  bullet says Payroll too) — the money word is payroll everywhere.
+- **Front-office rows match player rows:** one line, type labels deleted
+  (💰/🏟️/🧢 already say the type), icon column width-locked to the pos
+  tags so the name columns align, meta inline ("1.50M fans", "84–78" —
+  hidden in Eye Test), 46px rows. Prime-armed rows drop the per-row ⭐;
+  amber-dashed is the one "tappable for a powerup" cue.
+- **Columns are structural now.** Prices right-align via flex (not
+  text-align — the user's Safari screenshot showed ragged prices we could
+  not reproduce; flex alignment is engine-proof), the price box is wide
+  enough that WAR chips never shift, and the `.right` column reserves the
+  WAR chip's exact height (26.3px) so SIGN/HIRE confirms can't move a row
+  by a pixel in either direction.
+- **Border weights are a system:** 3px sheets, 2.5px card-level boxes,
+  2px pills/chips, 1.5px tiny inline pills. Finale squad rows and rail
+  seats were the two stragglers at 2px; both promoted.
+- **Favicons are real PNGs** (32/16 + apple-touch-icon on the cream
+  ground) because Safari ignores SVG data-URI icons — same pattern as
+  hedgertronic.com; the tab title drops its 🔥 since the icon carries it.

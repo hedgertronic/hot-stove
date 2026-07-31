@@ -32,7 +32,7 @@ look and feel, BUILD wins on architecture.
 
 ## Status
 
-**Milestones 1–4 built and playtested, through the round-15 beta-prep pass** (2026-07-31):
+**Milestones 1–4 built and playtested, through the round-16 pass** (2026-07-31):
 `app/` holds the Svelte 5 + Vite + TS app — full auto-spinning loop (no SPIN
 button; each pick rolls the next card), five powerups (🎟️ Season Ticket, 🚚
 Relocate code-grid picker, ✌️ Double Play with refund-until-second-pick, 🔁 Trade
@@ -101,7 +101,15 @@ SIGN/TRADE confirm height, renamed pedigree scoring "Ring chasing", and
 ran the pre-release quality pass: AwardPill / Sheet / Logo components,
 lib/modes.ts as the one difficulty/bank naming table, engine `pedigree`
 getter, dead-code deletions, and a dev-only edge-case gallery at /?lab
-(excluded from the production bundle).
+(excluded from the production bundle). Round 16 extended Prime Time to
+front-office tiles (manager career / park timeline / owner tenure via the
+new lazily-fetched data/specials.json pipeline emit), removed the
+post-roster PASS button (a full roster must take a front-office pick each
+spin), made the dream-team solver maximize WAR + award points (dream rows
+show their pills), renamed the bonus row "Payroll bonus", unified
+front-office rows with the player-row one-line anatomy, dropped the
+per-row Prime ⭐, made price/WAR columns structurally aligned and
+tap-stable, normalized border weights, and shipped real PNG favicons.
 Cards carry age, stat lines, medaled award ballots (MVP2/3, CY2/3), All-Star
 selections, and team-level 💍/🚩 pedigree; `data/players.json` indexes every
 player's seasons for Prime Time. Bundled Nunito keeps the look cross-browser.
