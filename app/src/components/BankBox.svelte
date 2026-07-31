@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Game } from "../lib/engine.svelte";
+  import { ownerFor } from "../lib/data";
   import { money } from "../lib/format";
 
   let { game }: { game: Game } = $props();
@@ -46,17 +47,22 @@
       <span class="hire" class:tbd={!game.stadium}>🏟️ {game.stadium ? game.stadium.park : "no stadium yet"}</span>
     </div>
   {:else}
-    <!-- Fixed-cap modes have no hires; the same line carries the cap's team
-         identity instead, so the box keeps one height across all modes. -->
+    <!-- Fixed-cap modes have no hires; the same line carries the real owner
+         whose club sets the cap (owners.json), exactly as classic would show
+         a hired owner, so the box keeps one height across all modes. -->
     <div class="hires disp">
-      <span class="hire">💰 {game.config.bank === "moneyball" ? "OAK 2002" : "NYY 2005"}</span>
+      <span class="hire solo"
+        >💰 {game.config.bank === "moneyball"
+          ? ownerFor(game.owners, "OAK", 2002)
+          : ownerFor(game.owners, "NYY", 2005)}</span
+      >
     </div>
   {/if}
   <div class="meter">
     {#if !capKnown}
       <!-- No owner yet ⇒ no denominator: the bar can't show a share of an
-           unknown bankroll, so it reads as pure uncertainty instead. -->
-      <div class="fill unknown"><span class="qs">? ? ? ? ? ? ? ?</span></div>
+           unknown bankroll, so a drifting hatch reads as pure uncertainty. -->
+      <div class="fill unknown"></div>
     {:else}
       <div class="fill" class:floorover={over} class:zero={spend <= 0} style:width="{over ? 100 : pct}%"></div>
     {/if}
@@ -66,7 +72,7 @@
     {#if !capKnown}
       <span class="nocap">$??? LEFT</span>
     {:else if over}
-      <span class="warn">⚠ {money(spend - cap)} OVER BANKROLL</span>
+      <span class="warn">{money(spend - cap)} OVER BANKROLL</span>
     {:else}
       <span>{money(cap - spend)} LEFT</span>
     {/if}
@@ -127,6 +133,10 @@
     text-overflow: ellipsis;
     max-width: 46%;
   }
+  /* A lone owner line (fixed-cap modes) owns the whole row. */
+  .hire.solo {
+    max-width: 100%;
+  }
   .hire.tbd {
     color: var(--gray-ink);
     font-style: italic;
@@ -173,16 +183,7 @@
       transparent 10px 20px
     );
     background-size: 28.3px 100%;
-    display: grid;
-    place-content: center;
     animation: drift 2.6s linear infinite;
-  }
-  .qs {
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.28em;
-    color: var(--gray-ink);
-    line-height: 1;
   }
   @keyframes drift {
     to {
@@ -215,19 +216,26 @@
      up a notch so the bank reads at column size instead of phone size. */
   @media (min-width: 760px) {
     .bankbox {
-      padding: 10px 12px 12px;
+      padding: 12px 14px 14px;
     }
     .bankmath {
-      font-size: 13px;
+      font-size: 13.5px;
+      gap: 8px;
+    }
+    .chip {
+      padding: 2px 10px;
     }
     .hires {
-      font-size: 11.5px;
+      font-size: 12px;
+      margin-top: 7px;
     }
     .meter {
-      height: 22px;
+      height: 24px;
+      margin-top: 10px;
     }
     .meter-lbl {
       font-size: 11.5px;
+      margin-top: 5px;
     }
   }
 </style>

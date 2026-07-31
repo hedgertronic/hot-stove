@@ -84,10 +84,17 @@
     });
     const rings = game.slots.filter((s) => s?.ws).length + (game.manager?.ws ? 1 : 0);
     const pennants = game.slots.filter((s) => s?.pen).length + (game.manager?.pen ? 1 : 0);
-    // Same chips-with-×N language as Hardware; the emoji need no pill border.
+    // One emoji per pedigree season — 💍💍🚩 reads as the actual trophy case.
+    // Past 8 emojis (a stacked-pedigree outlier) the row would overflow its
+    // single line, so it falls back to the ×N form.
     const pedigreeChips: { code: string; n: number }[] = [];
-    if (rings) pedigreeChips.push({ code: "💍", n: rings });
-    if (pennants) pedigreeChips.push({ code: "🚩", n: pennants });
+    if (rings + pennants > 8) {
+      if (rings) pedigreeChips.push({ code: "💍", n: rings });
+      if (pennants) pedigreeChips.push({ code: "🚩", n: pennants });
+    } else {
+      if (rings) pedigreeChips.push({ code: "💍".repeat(rings), n: 1 });
+      if (pennants) pedigreeChips.push({ code: "🚩".repeat(pennants), n: 1 });
+    }
     out.push({
       key: "pedigree",
       lbl: "Championship pedigree",
@@ -97,12 +104,11 @@
       cls: p.ringPoints > 0 ? "plus" : "zero",
     });
     if (fin.best) {
-      const denom = fin.bestManager ? 9 : 8;
       out.push({
         key: "scouting",
         lbl: "Scouting report",
         chips: fin.scoutHits > 0 ? [{ code: "⭐", n: fin.scoutHits }] : undefined,
-        why: fin.scoutHits > 0 ? `of ${denom} found` : `0 of ${denom} found`,
+        why: fin.scoutHits > 0 ? undefined : "none found",
         amt: signed(p.scoutBonus, 0),
         cls: p.scoutBonus > 0 ? "plus" : "zero",
       });
@@ -307,7 +313,7 @@
       {#if row.chips}
         <span class="chipline">
           {#each row.chips as c (c.code)}
-            {#if c.code === "💍" || c.code === "🚩" || c.code === "⭐"}
+            {#if c.code.startsWith("💍") || c.code.startsWith("🚩") || c.code === "⭐"}
               <span class="pedchip"
                 >{c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
               >
@@ -336,7 +342,6 @@
   {/each}
   <div class="lrow total disp" class:show={totalShown}>
     <span class="lbl">Final score</span>
-    <span class="why">{fin.spinCount} spins · {money(fin.spend)} payroll</span>
     <span class="amt">{dispTotal}</span>
   </div>
 </div>
@@ -362,8 +367,8 @@
       <div class="qrow">
         <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
         <span class="qname"
-          >{#if starred(slot)}<span class="emo">⭐</span>
-          {/if}{slot.name} <i>{slot.year} {slot.team}</i></span
+          >{#if starred(slot)}<span class="emo qstar">⭐</span>{/if}{slot.name}
+          <i>{slot.year} {slot.team}</i></span
         >
         <span class="qbadges">
           {#if slot.hero}<span class="emo">🏠</span>{/if}
@@ -380,8 +385,8 @@
     <div class="qrow skiprow">
       <span class="qpos">MGR</span>
       <span class="qname"
-        >{#if fin.managerHit}<span class="emo">⭐</span>
-        {/if}{game.manager.name} <i>{game.manager.year} {game.manager.team}</i></span
+        >{#if fin.managerHit}<span class="emo qstar">⭐</span>{/if}{game.manager.name}
+        <i>{game.manager.year} {game.manager.team}</i></span
       >
       <span class="qbadges"
         >{#if game.manager.ws}<span class="emo">💍</span>{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
@@ -401,9 +406,7 @@
       <div class="qrow" class:dreamhit={mine}>
         <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
         {#if pick}
-          <span class="qname"
-            >{#if mine}<span class="emo">⭐</span> {/if}{pick.name} <i>{pick.year} {pick.team}</i></span
-          >
+          <span class="qname">{pick.name} <i>{pick.year} {pick.team}</i></span>
           <span class="qwar {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
         {:else}
           <span class="qname empty">—</span>
@@ -414,8 +417,7 @@
       <div class="qrow" class:dreamhit={fin.managerHit}>
         <span class="qpos">MGR</span>
         <span class="qname"
-          >{#if fin.managerHit}<span class="emo">⭐</span>
-          {/if}{fin.bestManager.name} <i>{fin.bestManager.year} {fin.bestManager.team}</i></span
+          >{fin.bestManager.name} <i>{fin.bestManager.year} {fin.bestManager.team}</i></span
         >
         <span class="qbadges"
           >{#if fin.bestManager.ws}<span class="emo">💍</span>{:else if fin.bestManager.pen}<span class="emo">🚩</span>{/if}</span
@@ -527,13 +529,15 @@
     font-size: 8px;
     margin-left: 2px;
   }
-  /* Pedigree chips: the emoji carries the color, so no pill border. */
+  /* Pedigree chips: the emoji carries the color, so no pill border. Slight
+     tracking keeps repeated emoji (💍💍🚩) from fusing into one blob. */
   .pedchip {
     display: inline-flex;
     align-items: center;
     font-size: 12px;
     font-weight: 800;
     line-height: 1.5;
+    letter-spacing: 0.1em;
   }
   /* Miniature of the BankBox meter — same colors/hatch, inline row-scaled. */
   .minimeter {
@@ -704,6 +708,11 @@
     font-size: 12px;
     line-height: 1;
   }
+  /* Star prefix inside a name — the margin (not markup whitespace, which
+     Svelte may collapse) guarantees the gap before the name. */
+  .qstar {
+    margin-right: 4px;
+  }
   /* Default (no tier class) is the manager "+W" rows: wins added, plain green. */
   .qwar {
     margin-left: auto;
@@ -736,6 +745,8 @@
   .skiprow .qwar {
     color: var(--ink);
   }
+  /* The dream team's only "you found this one" cue is the green tint; the
+     matching squad row carries the ⭐ — one cue per list, no repetition. */
   .qrow.dreamhit {
     background: var(--green-wash);
   }

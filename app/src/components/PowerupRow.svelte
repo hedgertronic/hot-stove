@@ -30,7 +30,7 @@
     onclick={(e) => {
       e.stopPropagation();
       if (p.seasonTicket === "ready" && preChoice) onSeasonTicket();
-    }}>🎟️ SEASON TICKET</button
+    }}><span class="lb">🎟️ SEASON TICKET</span></button
   >
   <button
     class="pp"
@@ -39,7 +39,7 @@
     onclick={(e) => {
       e.stopPropagation();
       if (p.relocate === "ready" && preChoice) onRelocate();
-    }}>🚚 RELOCATE</button
+    }}><span class="lb">🚚 RELOCATE</span></button
   >
   <button
     class="pp"
@@ -49,7 +49,7 @@
     onclick={(e) => {
       e.stopPropagation();
       game.toggleDoublePlay();
-    }}>{p.doublePlay === "armed" ? "✌️ PICK 2 — TAP TO UNDO" : "✌️ DOUBLE PLAY"}</button
+    }}><span class="lb">{p.doublePlay === "armed" ? "✌️ PICK 2 — UNDO" : "✌️ DOUBLE PLAY"}</span></button
   >
   <button
     class="pp"
@@ -58,7 +58,7 @@
     onclick={(e) => {
       e.stopPropagation();
       game.toggleTradeDeadline();
-    }}>{tdLabel}</button
+    }}><span class="lb">{tdLabel}</span></button
   >
   <button
     class="pp"
@@ -68,33 +68,49 @@
     onclick={(e) => {
       e.stopPropagation();
       if (p.prime !== "ready" || canAct) game.togglePrime();
-    }}>{primeLabel}</button
+    }}><span class="lb">{primeLabel}</span></button
   >
 </div>
 
 <style>
+  /* A fixed 3+2 lattice (six tracks: top pills span 2, bottom span 3) — the
+     rows stay balanced no matter how a pill's label changes when armed;
+     free-wrapping flex could strand one pill alone on the second row. */
   .pprow {
-    display: flex;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
     gap: 7px;
     margin: 6px 0 10px;
-    flex-wrap: wrap;
   }
   .pp {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
+    display: block;
+    min-width: 0;
+    text-align: center;
     border: 2px solid var(--ink);
     border-radius: 999px;
     background: var(--card);
-    padding: 5px 11px;
-    font-size: 10.5px;
+    padding: 5px 4px;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
     cursor: pointer;
     transition: transform 0.08s;
     font-family: inherit;
     position: relative;
+  }
+  /* The label clips inside the pill; the ::after tap extension stays outside
+     it, unclipped. */
+  .lb {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pp:nth-child(-n + 3) {
+    grid-column: span 2;
+  }
+  .pp:nth-child(n + 4) {
+    grid-column: span 3;
   }
   /* Invisible extension keeps the visual pill small but the tap target ≥44px. */
   .pp::after {
@@ -119,5 +135,13 @@
   .pp.armed {
     background: var(--orange);
     color: var(--card);
+  }
+  /* Wide: the market column has room — let the pills breathe again. */
+  @media (min-width: 760px) {
+    .pp {
+      padding: 5px 8px;
+      font-size: 10.5px;
+      letter-spacing: 0.04em;
+    }
   }
 </style>

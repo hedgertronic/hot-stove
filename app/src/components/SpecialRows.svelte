@@ -53,8 +53,9 @@
       );
     }
     if (c.manager != null) {
-      // Eye Test withholds the record and win value — they're exactly the
-      // quantified signals the mode hides. The stadium ×mult stays: it's
+      // Eye Test withholds the record and win value entirely — they're
+      // exactly the quantified signals the mode hides, and a "?" placeholder
+      // would just advertise the hole. The stadium ×mult stays: it's
       // mechanical (it sets your bankroll), not a scouting stat.
       out.push({
         key: "manager",
@@ -62,7 +63,7 @@
         ic: "🧢",
         who: c.manager,
         what: game.scout ? "Manager" : `Manager · ${c.wins}–${c.losses}`,
-        val: game.scout ? "? W" : `${signed((c.wins - c.losses) * 0.1)} W`,
+        val: game.scout ? "" : `${signed((c.wins - c.losses) * 0.1)} W`,
         verb: "HIRE",
       });
     }
@@ -109,7 +110,7 @@
         <span class="what">{row.what}</span>
       </span>
       {#if confirmKey === `s:${row.key}` && !taken}
-        <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commit(row.key); }} onkeydown={(e) => e.key === "Enter" && commit(row.key)}>{row.verb} {row.val}</span>
+        <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commit(row.key); }} onkeydown={(e) => e.key === "Enter" && commit(row.key)}>{row.val ? `${row.verb} ${row.val}` : row.verb}</span>
       {:else if confirmKey === `w:${row.key}` && swappable}
         <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSwap(row.key); }} onkeydown={(e) => e.key === "Enter" && commitSwap(row.key)}>🔁 SWAP IN</span>
       {:else}

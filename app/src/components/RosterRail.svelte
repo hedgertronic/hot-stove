@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { lastName, slotLabel } from "../lib/format";
+  import { lastName, signed, slotLabel, warTier } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
 
   let { game }: { game: Game } = $props();
@@ -40,6 +40,9 @@
         <b>MGR</b>
         <span>{lastName(game.manager.name)}</span>
         <i>{game.manager.year} {game.manager.team}</i>
+        {#if !game.scout}<em class="rwar mgw"
+            >{signed((game.manager.wins - game.manager.losses) * 0.1)} W</em
+          >{/if}
       </div>
     {:else}
       <div class="mgr empty"><b>MGR</b></div>
@@ -48,11 +51,14 @@
       {#if pickableCells.has(i)}
         <button class="cell pickable" class:vacant={!slot} onclick={() => tapCell(i)}>
           <b>{slotLabel(SLOT_TYPES[i])}</b>
-          {#if slot}<span>{lastName(slot.name)}</span><i>{seatMeta(slot)}</i>{/if}
+          {#if slot}<span>{lastName(slot.name)}</span><i>{seatMeta(slot)}</i>
+            {#if !game.scout}<em class="rwar {warTier(slot.war)}">{slot.war.toFixed(1)}</em>{/if}
+          {/if}
         </button>
       {:else if slot}
         <div class="cell filled">
           <b>{slotLabel(SLOT_TYPES[i])}</b><span>{lastName(slot.name)}</span><i>{seatMeta(slot)}</i>
+          {#if !game.scout}<em class="rwar {warTier(slot.war)}">{slot.war.toFixed(1)}</em>{/if}
         </div>
       {:else}
         <div class="cell empty"><b>{slotLabel(SLOT_TYPES[i])}</b></div>
@@ -95,19 +101,29 @@
     grid-template-columns: auto repeat(4, 1fr);
     gap: 6px;
   }
+  /* Flex centering: the type stack is shorter than the 52px seat, and a block
+     container would park it at the top — the leftover space belongs half
+     above, half below. */
   .cell {
     border: 2px solid var(--ink);
     border-radius: 9px;
     background: var(--card);
     text-align: center;
-    padding: 5px 2px 6px;
+    padding: 5px 2px;
     font-size: 10px;
     line-height: 1.25;
     min-height: 52px;
     font-family: inherit;
     color: inherit;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     width: 100%;
+  }
+  /* WAR lives on the finale-style wide rows only; the phone grid stays a
+     who/when card. */
+  .rwar {
+    display: none;
   }
   .cell b {
     display: block;
@@ -228,43 +244,92 @@
     color: var(--orange);
     margin-top: 5px;
   }
-  /* Wide: the rail owns a 350–380px column — taller seats and a bumped type
-     scale so the club reads at column size. The manager width tracks the
-     wide min-height to keep the geometric match. */
+  /* Wide: the rail owns a 350–380px column, so the club reads as the finale's
+     squad card — one full-width row per seat (pos · name · season · WAR),
+     manager last. Same buttons, same pick states; only the geometry changes. */
   @media (min-width: 760px) {
     .rail {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .cell,
+    .mgr {
+      writing-mode: horizontal-tb;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
       gap: 8px;
-    }
-    .cell {
-      min-height: 62px;
-      padding: 7px 3px 8px;
-    }
-    .cell b {
-      font-size: 10px;
-    }
-    .cell span {
-      font-size: 12.5px;
-    }
-    .cell i {
-      font-size: 9.5px;
-    }
-    .cell.empty b {
-      font-size: 12px;
+      text-align: left;
+      width: 100%;
+      min-height: 36px;
+      padding: 6px 10px;
+      line-height: 1.25;
+      overflow: hidden;
     }
     .mgr {
-      width: 62px;
+      order: 1;
     }
+    .cell b,
     .mgr b {
-      font-size: 10px;
-    }
-    .mgr span {
-      font-size: 12.5px;
-    }
-    .mgr i {
+      width: 34px;
+      flex: none;
       font-size: 9.5px;
     }
+    .cell span,
+    .mgr span {
+      font-size: 13px;
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+    .cell i,
+    .mgr i {
+      font-size: 11px;
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+    .cell.empty,
+    .cell.pickable.vacant,
+    .mgr.empty {
+      display: flex;
+      place-content: unset;
+    }
+    .cell.empty b,
     .mgr.empty b {
-      font-size: 12px;
+      font-size: 9.5px;
+      color: var(--gray-ink);
+      width: 34px;
+    }
+    .rwar {
+      display: block;
+      margin-left: auto;
+      flex: none;
+      font-style: normal;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .rwar.neg {
+      color: var(--war-neg);
+    }
+    .rwar.low {
+      color: var(--gray-ink);
+    }
+    .rwar.mid {
+      color: var(--war-mid);
+    }
+    .rwar.high {
+      color: var(--war-high);
+    }
+    .rwar.star {
+      color: var(--war-star);
+    }
+    .rwar.elite {
+      color: var(--war-elite);
+    }
+    /* Manager net wins aren't a WAR tier — plain green, like the finale. */
+    .rwar.mgw {
+      color: var(--green);
     }
   }
 </style>

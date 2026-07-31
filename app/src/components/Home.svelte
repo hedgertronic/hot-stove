@@ -143,7 +143,10 @@
   {/if}
 
   <div class="bestbox">
-    <div class="best-h">PERSONAL BEST {comboEmoji}</div>
+    <div class="best-h">
+      TRACK RECORD {comboEmoji} · {best.games}
+      {best.games === 1 ? "GAME" : "GAMES"}
+    </div>
     {#if best.best !== null}
       <div class="best-cols">
         <div class="best-col">
@@ -155,7 +158,6 @@
           <div class="best-cap">BEST SCORE</div>
         </div>
       </div>
-      <div class="best-sub">{best.games} {best.games === 1 ? "game" : "games"} played</div>
     {:else}
       <div class="best-cols">
         <div class="best-col">
@@ -167,7 +169,6 @@
           <div class="best-cap">BEST SCORE</div>
         </div>
       </div>
-      <div class="best-sub">0 games played</div>
     {/if}
   </div>
 </div>
@@ -413,10 +414,5 @@
     letter-spacing: 0.1em;
     color: var(--muted);
     margin-bottom: 3px;
-  }
-  .best-sub {
-    font-size: 10.5px;
-    font-weight: 700;
-    color: var(--muted);
   }
 </style>
