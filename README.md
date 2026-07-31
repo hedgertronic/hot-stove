@@ -32,7 +32,7 @@ look and feel, BUILD wins on architecture.
 
 ## Status
 
-**Milestones 1–4 built and playtested, through the round-13 pass** (2026-07-31):
+**Milestones 1–4 built and playtested, through the round-14 pass** (2026-07-31):
 `app/` holds the Svelte 5 + Vite + TS app — full auto-spinning loop (no SPIN
 button; each pick rolls the next card), five powerups (🎟️ Season Ticket, 🚚
 Relocate code-grid picker, ✌️ Double Play with refund-until-second-pick, 🔁 Trade
@@ -86,7 +86,14 @@ RECORD with games inline, stripped redundant uncertainty marks (?-glyph
 meter fill, ⚠ over icon, Eye Test "? W"), centered the rail seat type,
 reduced the ledger's scouting/pedigree rows to bare emoji counts, and left
 each finale roster one dream-team cue (⭐ in the squad, green in the dream
-team).
+team). Round 14 renamed the money word to payroll everywhere, freed green
+for dream-team hits (rail seats are white/pink like the finale squad),
+added a wide YOUR SQUAD rail header, reverted powerups to content-width
+pills in a fixed 3+2 (ST/RELO/PT over DP/TD), made player rows one line
+(age gone, awards inline, 🏠 hero marker), turned the home leaderboard
+into a "RECORD BOOK · N GAMES" psep, rewrote the subtitle ("Chase 116
+wins"), renamed Hardware to Trophy case, made scouting stars repeat like
+pedigree, and let Prime Time's current season gray out wordlessly.
 Cards carry age, stat lines, medaled award ballots (MVP2/3, CY2/3), All-Star
 selections, and team-level 💍/🚩 pedigree; `data/players.json` indexes every
 player's seasons for Prime Time. Bundled Nunito keeps the look cross-browser.

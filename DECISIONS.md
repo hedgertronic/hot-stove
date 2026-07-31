@@ -498,3 +498,33 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   dream team, now with a real 4px gap — CSS margin, since Svelte collapsed
   the markup space); THE DREAM TEAM drops the star and keeps only the green
   tint (= you found this one). Star-in-both-lists was the repetition.
+
+## Round 14 — payroll vocabulary, the quiet leaderboard, green means found (2026-07-31, session 7)
+
+- **Green is reserved for "found on the dream team."** Filled rail seats went
+  card-white (players) and pink (manager), mirroring the finale's squad rows —
+  the drafting screen no longer wears the finale's hit color. The wide rail
+  gained a YOUR SQUAD psep header, so both screens name the same list the
+  same way.
+- **"Bankroll" is gone; the word is payroll.** Home section, bank chip, over
+  state, help sheet, and every comment — completing the round-9 cap sweep.
+  Bankroll is casino vocabulary; baseball says payroll.
+- **The leaderboard is a section, not a card title:** "RECORD BOOK · N GAMES"
+  sits in a psep dashed rule like DIFFICULTY/PAYROLL, no emojis; the card
+  below is just the two record/score columns. ("Track record" lasted one
+  round.)
+- **The subtitle earns its third clause:** "Spin for seasons. Sign their
+  stars. Chase 116 wins." — 116 is the Mariners bar the finale already
+  measures you against.
+- **Powerups: content-width pills, always 3+2** (Season Ticket · Relocate ·
+  Prime Time / Double Play · Trade Deadline — a forced break after the third
+  pill; round 13's stretched lattice lasted one round). Armed labels can't
+  unbalance the rows.
+- **Player rows are one line:** age deleted, award pills inline after the
+  name (name ellipsizes first — the pills are the scannable signal), rows
+  54→46px. Hometown Hero's "why" survives as an inline 🏠 before the name.
+- **"Hardware" is now "Trophy case"**, and scouting stars repeat like
+  pedigree emoji (⭐⭐⭐⭐, no ×N — 9 stars, the max, still fits the 44px row,
+  so no fallback guard needed).
+- **Prime Time's current season just grays out** — the "that's this card"
+  note was explaining what disabled styling already says.
