@@ -170,24 +170,35 @@
   {#if game.phase === "finale" && game.finale}
     <Finale {game} onreplay={newGame} onmodes={goHome} />
   {:else}
-    <RosterRail {game} />
-    <BankBox {game} />
-    <SpinBanner {game} {colors} />
-
-    {#if game.phase === "landed" && game.card && !game.coldStove}
-      <PowerupRow
-        {game}
-        onSeasonTicket={() => (yearPickerOpen = true)}
-        onRelocate={() => (teamPickerOpen = true)}
-      />
-      {#key game.card}
-        <div class="after">
-          <SpecialRows {game} {confirmKey} setConfirm={(k) => (confirmKey = k)} />
-          <div class="psep">PLAYERS</div>
-          <PlayerList {game} {confirmKey} setConfirm={(k) => (confirmKey = k)} />
-        </div>
-      {/key}
-    {/if}
+    <!-- Phone: the two columns are plain stacked divs, same order as ever.
+         Wide (≥760px): "your club" (rail/bank/banner/powerups) holds the left
+         rail and the per-card market (specials + players) scrolls on the
+         right, so the spin context never leaves the screen. -->
+    <div class="game">
+      <div class="gleft">
+        <RosterRail {game} />
+        <BankBox {game} />
+        <SpinBanner {game} {colors} />
+        {#if game.phase === "landed" && game.card && !game.coldStove}
+          <PowerupRow
+            {game}
+            onSeasonTicket={() => (yearPickerOpen = true)}
+            onRelocate={() => (teamPickerOpen = true)}
+          />
+        {/if}
+      </div>
+      <div class="gright">
+        {#if game.phase === "landed" && game.card && !game.coldStove}
+          {#key game.card}
+            <div class="after">
+              <SpecialRows {game} {confirmKey} setConfirm={(k) => (confirmKey = k)} />
+              <div class="psep">PLAYERS</div>
+              <PlayerList {game} {confirmKey} setConfirm={(k) => (confirmKey = k)} />
+            </div>
+          {/key}
+        {/if}
+      </div>
+    </div>
   {/if}
 
   {#if yearPickerOpen}
@@ -265,6 +276,35 @@
   .logo em {
     font-style: normal;
     color: var(--orange);
+  }
+  /* Wide: two-column game board. The left column is the persistent club
+     (roster, bank, spin) and sticks while the market list scrolls; its
+     content is ~450px tall, so it always fits the viewport. */
+  @media (min-width: 760px) {
+    .game {
+      display: grid;
+      grid-template-columns: minmax(300px, 350px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+    .gleft {
+      position: sticky;
+      top: 10px;
+    }
+    /* The board and its header share one cap: player rows past ~650px read
+       sparse (name → chips gulf), and the ?/✕ pills should hug the board. */
+    .hud,
+    .game {
+      max-width: 1020px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  }
+  @media (min-width: 1100px) {
+    .game {
+      grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+      gap: 30px;
+    }
   }
   .after > :global(*) {
     animation: fadeup 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;

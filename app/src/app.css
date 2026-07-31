@@ -128,3 +128,18 @@ button {
     animation: none !important;
   }
 }
+
+/* ---------- width tiers ----------
+   The phone layout (≤759px) is the base and is untouched: these tiers only
+   widen the shell so screens can lay their content side by side. Each screen
+   caps its own content — a wide #app alone must never stretch a column. */
+@media (min-width: 760px) {
+  #app {
+    max-width: 1080px;
+  }
+}
+@media (min-width: 1100px) {
+  #app {
+    max-width: 1150px;
+  }
+}

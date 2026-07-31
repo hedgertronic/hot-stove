@@ -83,6 +83,13 @@
     top: 0;
     z-index: 10;
   }
+  /* Wide: the whole left column is persistently on screen, so the phone's
+     pick-time pin has nothing to do — disable it rather than double-stick. */
+  @media (min-width: 760px) {
+    .railwrap.pinned {
+      position: static;
+    }
+  }
   .rail {
     display: grid;
     grid-template-columns: auto repeat(4, 1fr);

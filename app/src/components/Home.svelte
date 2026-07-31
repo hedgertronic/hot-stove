@@ -176,6 +176,14 @@
   .home {
     padding-top: 7vh;
   }
+  /* Wide: the home screen is a menu, not a workspace — it stays a centered
+     card-width column instead of stretching into the wide shell. */
+  @media (min-width: 760px) {
+    .home {
+      max-width: 540px;
+      margin: 0 auto;
+    }
+  }
   .mast {
     text-align: center;
     margin-bottom: 24px;
