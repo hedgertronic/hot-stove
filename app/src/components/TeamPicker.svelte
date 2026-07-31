@@ -45,7 +45,10 @@
             title={t.name}
             onclick={() => pick(t.team)}
           >
-            {t.team}
+            <!-- Box Score gets the season's October history on the grid
+                 (💍 champ, 🚩 pennant winner); Eye Test stays bare codes. -->
+            {t.team}{#if game.showAwards}{#if t.ws}<span class="pedi">💍</span
+              >{:else if t.pen}<span class="pedi">🚩</span>{/if}{/if}
           </button>
         {/each}
       </div>
@@ -115,6 +118,11 @@
   }
   .teambtn:active {
     transform: translateY(1.5px);
+  }
+  .pedi {
+    margin-left: 2px;
+    font-size: 9px;
+    line-height: 1;
   }
   .teambtn:disabled {
     opacity: 0.32;

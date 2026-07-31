@@ -75,7 +75,6 @@
     margin-bottom: 12px;
   }
   .yearbtn {
-    position: relative;
     border: 2px solid var(--ink);
     border-radius: 9px;
     background: var(--card);
@@ -86,12 +85,11 @@
     cursor: pointer;
     transition: transform 0.08s;
   }
-  /* October pedigree rides the corner so the year stays centered. */
+  /* October pedigree sits inline right after the year, small enough that
+     the year stays the dominant glyph. */
   .pedi {
-    position: absolute;
-    top: 1px;
-    right: 2px;
-    font-size: 8px;
+    margin-left: 3px;
+    font-size: 9px;
     line-height: 1;
   }
   .yearbtn:active {

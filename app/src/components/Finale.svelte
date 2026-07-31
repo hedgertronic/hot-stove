@@ -242,6 +242,18 @@
     }
   }
 
+  /** Copies "#CODE" — the leading # is fine, parseSeedCode strips it. */
+  async function copySeed() {
+    const code = `#${seedCode(game.seed)}`;
+    try {
+      await navigator.clipboard.writeText(code);
+      toast = `Copied ${code}`;
+    } catch {
+      toast = "Couldn't copy";
+    }
+    setTimeout(() => (toast = ""), 1800);
+  }
+
   const awardCls: Record<string, string> = {
     MVP: "mvp",
     CY: "cy",
@@ -307,7 +319,7 @@
 </div>
 {#if toast}<div class="toast disp">{toast}</div>{/if}
 
-<div class="seedchip disp">GAME #{seedCode(game.seed)}</div>
+<button class="seedchip disp" title="Copy seed" onclick={copySeed}>GAME #{seedCode(game.seed)}</button>
 
 <div class="squad disp">
   {#each game.slots as slot, i}
@@ -499,10 +511,15 @@
     color: var(--green-deep);
     margin-top: 8px;
   }
-  /* The game's seed — quiet, mono, copyable by eye into PLAY A SEED #. */
+  /* The game's seed — quiet, mono; tap to copy it for PLAY A SEED #. */
   .seedchip {
+    display: block;
+    margin: 10px auto 0;
+    background: none;
+    border: 0;
+    padding: 4px 8px;
+    cursor: pointer;
     text-align: center;
-    margin-top: 10px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 10px;
     font-weight: 700;

@@ -199,9 +199,10 @@
   .warn {
     color: var(--orange);
   }
+  /* Same size/weight/color as the SPENT label; italic alone marks the unknown. */
   .nocap {
-    color: var(--gray-ink);
+    color: var(--muted);
     font-style: italic;
-    font-weight: 600;
+    font-weight: 700;
   }
 </style>

@@ -31,7 +31,7 @@
   }
 </script>
 
-<div class="railwrap disp">
+<div class="railwrap disp" class:pinned={!!pickPlayer}>
   <div class="rail">
     <!-- The manager's seat anchors the left edge, spanning both rows — one
          club, nine chairs, same visual language throughout. -->
@@ -71,13 +71,17 @@
 </div>
 
 <style>
+  /* The rail doubles as the slot/release picker, so it pins to the top only
+     while a pick is in flight; otherwise it scrolls away with the page. */
   .railwrap {
-    position: sticky;
-    top: 0;
-    z-index: 10;
     background: var(--ground);
     padding: 6px 0 4px;
     margin-bottom: 4px;
+  }
+  .railwrap.pinned {
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
   .rail {
     display: grid;
@@ -154,10 +158,14 @@
   }
   /* The manager reads bottom-to-top up the left rail (y-axis-label style,
      glyphs facing the grid) — three parallel lines, label outermost, same
-     content pattern and type scale as the player seats. */
+     content pattern and type scale as the player seats. The width is fixed
+     at the filled three-line stack (11.7 + 14.3 + 11.05 line boxes + 10px
+     padding + 4px border ≈ 52px) so the grid doesn't reflow when the empty
+     seat gains its name/season lines on hire. */
   .mgr {
     grid-column: 1;
     grid-row: 1 / 3;
+    width: 52px;
     border: 2px solid var(--ink);
     border-radius: 9px;
     writing-mode: sideways-lr;

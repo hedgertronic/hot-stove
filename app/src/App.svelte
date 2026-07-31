@@ -87,6 +87,12 @@
   /** Two-tap quit: abandons the run AND its save, back to the mode screen. */
   function tapQuit(e: MouseEvent) {
     e.stopPropagation();
+    // On the finale there's nothing to abandon (the engine already cleared the
+    // save), so ✕ goes straight home — no QUIT? confirm.
+    if (game?.phase === "finale") {
+      goHome();
+      return;
+    }
     clearTimeout(quitTimer);
     if (quitArmed) {
       Game.clearSave();
@@ -156,11 +162,9 @@
     <button class="help" onclick={(e) => { e.stopPropagation(); helpOpen = true; }} aria-label="How to play">?</button>
     <span class="logo">HOT<em>STOVE</em></span>
     {#if modeChip}<span class="modechip" title={modeTitle} aria-label={modeTitle}>{modeChip}</span>{/if}
-    {#if game.phase !== "finale"}
-      <button class="quit" class:armed={quitArmed} onclick={tapQuit}>
-        {quitArmed ? "QUIT?" : "✕"}
-      </button>
-    {/if}
+    <button class="quit" class:armed={quitArmed} onclick={tapQuit}>
+      {quitArmed ? "QUIT?" : "✕"}
+    </button>
   </header>
 
   {#if game.phase === "finale" && game.finale}
