@@ -20,7 +20,7 @@
     <ul>
       <li>The stove spins you a random team-season, 1985–2024.</li>
       <li>Take <b>one</b> thing per spin — sign a player or make a front-office hire.</li>
-      <li>Fill all 8 seats: C · IF ×2 · OF · FLEX · SP ×2 · RP.</li>
+      <li>Fill all 8 seats: C · IF ×2 · OF · UTIL · SP ×2 · RP.</li>
       <li>
         The club is complete at 8 players + a manager
         <span class="soft">(+ an owner and stadium in Owner's Box)</span>.

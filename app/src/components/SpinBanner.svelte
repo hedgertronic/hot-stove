@@ -84,18 +84,6 @@
     step();
   });
 
-  /** Seats still open once the roster is full — the hunt line. */
-  const stillHiring = $derived.by(() => {
-    if (!game.rosterFull || game.complete) return [];
-    const out: string[] = [];
-    if (!game.manager) out.push("MANAGER");
-    if (!game.fixedCap) {
-      if (!game.owner) out.push("OWNER");
-      if (!game.stadium) out.push("STADIUM");
-    }
-    return out;
-  });
-
   const showPass = $derived(
     game.phase === "landed" && game.choicesUsed === 0 && game.rosterFull && !game.coldStove,
   );
@@ -108,7 +96,9 @@
     </div>
     <div class="bline team">
       <div class="tname" bind:this={tmEl} style:color={cardView.color}>{cardView.tm}</div>
-      {#if game.phase === "landed" && game.card && game.showAwards}
+      <!-- Team pedigree shows in every mode: it's franchise history, not a stat
+           leak, and 💍/🚩 players score in Eye Test too. -->
+      {#if game.phase === "landed" && game.card}
         {#if game.card.ws}<span class="pedigree" title="Won the World Series">💍</span>
         {:else if game.card.pen}<span class="pedigree" title="Won the pennant">🚩</span>{/if}
       {/if}
@@ -116,12 +106,6 @@
   {:else}
     <div class="bline"><span class="yr idle">····</span></div>
     <div class="bline team"><div class="tname idle">HOT STOVE</div></div>
-  {/if}
-
-  {#if game.inTdBonus}
-    <div class="hunt bonus">🔁 BONUS SPIN — TRADE DEADLINE IS STILL LOADED</div>
-  {:else if stillHiring.length > 0}
-    <div class="hunt">STILL HIRING: {stillHiring.join(" · ")}</div>
   {/if}
 </div>
 
@@ -192,16 +176,6 @@
   }
   .pedigree {
     font-size: 15px;
-  }
-  .hunt {
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    color: var(--orange);
-    margin-top: 6px;
-  }
-  .hunt.bonus {
-    color: var(--green-deep);
   }
   .spinbtn {
     width: 100%;

@@ -21,8 +21,8 @@
     { key: "standard", ic: "📊", name: "Box Score", desc: "Stats, salaries, and awards" },
     { key: "scout", ic: "🔭", name: "Eye Test", desc: "No stats, no salaries" },
   ];
-  /** Each bank card shows its bankroll pill + team pill: Owner's Box leaves
-   * both dashed (you hire the owner in-game); the fixed caps come pre-signed. */
+  /** Each fixed-cap card shows its team pill over its bankroll pill; Owner's Box
+   * has only a dashed bankroll pill (you hire the owner in-game). */
   const BANKS: {
     key: Bank;
     ic: string;
@@ -30,16 +30,14 @@
     cash: string;
     team: string;
     cls: string;
-    desc: string;
   }[] = [
     {
       key: "classic",
       ic: "💼",
       name: "Owner's Box",
       cash: "$ · · ·",
-      team: "· · ·",
+      team: "",
       cls: "open",
-      desc: "Hire an owner to set your budget",
     },
     {
       key: "moneyball",
@@ -48,7 +46,6 @@
       cash: money(MONEYBALL_BUDGET_M),
       team: "OAK 2002",
       cls: "oak",
-      desc: "The 2002 A's bankroll",
     },
     {
       key: "blankcheck",
@@ -57,7 +54,6 @@
       cash: money(BLANK_CHECK_BUDGET_M),
       team: "NYY 2005",
       cls: "nyy",
-      desc: "The 2005 Yankees' bankroll",
     },
   ];
 
@@ -98,10 +94,9 @@
         <span class="ic">{b.ic}</span>
         <span class="segname">{b.name}</span>
         <span class="pillrow">
+          {#if b.team}<span class="pill team {b.cls}">{b.team}</span>{/if}
           <span class="pill cash {b.cls}">{b.cash}</span>
-          <span class="pill team {b.cls}">{b.team}</span>
         </span>
-        <span class="segdesc">{b.desc}</span>
       </button>
     {/each}
   </div>
@@ -133,7 +128,7 @@
           <div class="best-cap">BEST SCORE</div>
         </div>
       </div>
-      <div class="best-sub">no games yet in this mode — set the bar</div>
+      <div class="best-sub">0 games played</div>
     {/if}
   </div>
 </div>
@@ -217,12 +212,16 @@
     color: var(--muted);
     max-width: 150px;
   }
+  /* flex:1 + centering keeps Owner's Box's single pill balanced against the
+     two-pill fixed-cap cards in the same grid row. */
   .pillrow {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 4px;
     margin-top: 3px;
+    flex: 1;
   }
   .pill {
     display: inline-block;

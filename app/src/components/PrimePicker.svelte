@@ -99,8 +99,8 @@
               {:else if game.showWar && statLine(sea.p)}<span class="sub">{statLine(sea.p)}</span>{/if}
             </span>
             <span class="right">
-              {#if game.showWar}<span class="warchip {warTier(sea.p.war)}">{sea.p.war.toFixed(1)}</span>{/if}
-              {#if game.showCost}<span class="cost">{money(sea.p.cost)}</span>{/if}
+              {#if game.showWar}<span class="warchip {warTier(sea.p.war)}">{sea.p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
+              <span class="cost">{money(sea.p.cost)}</span>
             </span>
           </button>
         {/each}
@@ -257,6 +257,13 @@
   .warchip.elite {
     background: var(--war-elite);
     color: var(--ink);
+  }
+  .warchip .unit {
+    font-size: 6.5px;
+    letter-spacing: 0.05em;
+    opacity: 0.85;
+    margin-left: 2px;
+    vertical-align: 1.5px;
   }
   .cost {
     font-weight: 800;

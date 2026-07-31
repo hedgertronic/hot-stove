@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { lastName } from "../lib/format";
+  import { lastName, slotLabel } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
 
   let { game }: { game: Game } = $props();
@@ -28,40 +28,38 @@
    * that's the number you weigh when Trade Deadline asks who to release. */
   function seatMeta(s: { year: number; team: string; war: number }): string {
     const id = `${s.year} ${s.team}`;
-    return game.showWar ? `${id} · ${s.war.toFixed(1)}` : id;
+    return game.showWar ? `${id} · ${s.war.toFixed(1)} WAR` : id;
   }
 </script>
 
 <div class="railwrap disp">
   <div class="rail">
+    <!-- The manager's seat anchors the left edge, spanning both rows — one
+         club, nine chairs, same visual language throughout. -->
+    {#if game.manager}
+      <div class="mgr filled">
+        <b>MGR</b>
+        <span>{lastName(game.manager.name)}</span>
+        <i>{game.manager.year} {game.manager.team}</i>
+      </div>
+    {:else}
+      <div class="mgr empty"><b>MGR</b></div>
+    {/if}
     {#each game.slots as slot, i}
       {#if pickableCells.has(i)}
         <button class="cell pickable" class:vacant={!slot} onclick={() => tapCell(i)}>
-          <b>{SLOT_TYPES[i]}</b>
+          <b>{slotLabel(SLOT_TYPES[i])}</b>
           {#if slot}<span>{lastName(slot.name)}</span><i>{seatMeta(slot)}</i>{/if}
         </button>
       {:else if slot}
         <div class="cell filled">
-          <b>{SLOT_TYPES[i]}</b><span>{lastName(slot.name)}</span><i>{seatMeta(slot)}</i>
+          <b>{slotLabel(SLOT_TYPES[i])}</b><span>{lastName(slot.name)}</span><i>{seatMeta(slot)}</i>
         </div>
       {:else}
-        <div class="cell empty"><b>{SLOT_TYPES[i]}</b></div>
+        <div class="cell empty"><b>{slotLabel(SLOT_TYPES[i])}</b></div>
       {/if}
     {/each}
   </div>
-  <!-- The dugout: the manager's seat, same visual language as the eight player
-       seats — one club, nine chairs. -->
-  {#if game.manager}
-    <div class="dugout filled">
-      <b>🧢 MGR</b>
-      <span class="mgrname">{lastName(game.manager.name)}</span>
-      <i>{game.manager.year} {game.manager.team}</i>
-      {#if game.showAwards && game.manager.ws}<span class="emo">💍</span
-        >{:else if game.showAwards && game.manager.pen}<span class="emo">🚩</span>{/if}
-    </div>
-  {:else}
-    <div class="dugout empty"><b>🧢 MGR</b></div>
-  {/if}
   {#if pickPlayer}
     <div class="railhint">
       {#if game.slotPick}
@@ -84,7 +82,7 @@
   }
   .rail {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: auto repeat(4, 1fr);
     gap: 6px;
   }
   .cell {
@@ -155,49 +153,55 @@
       transform: translateY(-2px);
     }
   }
-  .dugout {
-    margin-top: 6px;
+  /* The manager reads top-to-bottom down the left rail: label, then name,
+     then season — same type scale as the player seats, just rotated. */
+  .mgr {
+    grid-column: 1;
+    grid-row: 1 / 3;
     border: 2px solid var(--ink);
     border-radius: 9px;
+    writing-mode: vertical-lr;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 4px 8px;
-    min-height: 28px;
-    font-size: 10px;
+    gap: 2px;
+    padding: 4px 3px;
+    line-height: 1.25;
+    overflow: hidden;
   }
-  .dugout b {
+  .mgr b {
     font-size: 9px;
     letter-spacing: 0.07em;
     color: var(--muted);
   }
-  .dugout .mgrname {
+  .mgr span {
     font-weight: 800;
     font-size: 11px;
+    max-height: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .dugout i {
+  .mgr i {
     font-style: normal;
-    font-size: 9px;
+    font-size: 8.5px;
     color: var(--muted);
     font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: 100%;
   }
-  .dugout .emo {
-    font-size: 11px;
-    line-height: 1;
-  }
-  .dugout.filled {
+  .mgr.filled {
     background: var(--green-wash);
   }
-  .dugout.empty {
+  .mgr.empty {
     border-style: dashed;
     background: transparent;
     color: var(--gray-ink);
   }
-  .dugout.empty b {
+  .mgr.empty b {
+    font-size: 11px;
     color: var(--gray-ink);
   }
   .railhint {

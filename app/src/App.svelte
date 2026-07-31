@@ -199,23 +199,11 @@
     margin-bottom: 10px;
     position: relative;
   }
-  .help {
-    position: absolute;
-    left: 0;
-    border: 2px solid var(--ink);
-    border-radius: 999px;
-    background: var(--card);
-    color: var(--muted);
-    font-family: inherit;
-    font-weight: 800;
-    font-size: 10px;
-    line-height: 1;
-    padding: 4px 8px;
-    cursor: pointer;
-  }
+  /* The ? and ✕ pills are twins: same border, font, and footprint — the
+     min-width keeps the narrower "?" glyph from shrinking its pill. */
+  .help,
   .quit {
     position: absolute;
-    right: 0;
     border: 2px solid var(--ink);
     border-radius: 999px;
     background: var(--card);
@@ -225,7 +213,16 @@
     font-size: 10px;
     line-height: 1;
     padding: 4px 8px;
+    min-width: 26px;
+    box-sizing: border-box;
+    text-align: center;
     cursor: pointer;
+  }
+  .help {
+    left: 0;
+  }
+  .quit {
+    right: 0;
   }
   .quit.armed {
     background: var(--orange);

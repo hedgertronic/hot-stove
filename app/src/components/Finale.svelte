@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { lastName, money, signed, warTier } from "../lib/format";
+  import { lastName, money, signed, slotLabel, sortAwards, warTier } from "../lib/format";
   import { GOAL_POINTS, MARINERS_WINS } from "../lib/scoring";
 
   let {
@@ -17,10 +17,10 @@
   const AWARD_NAMES: Record<string, string> = {
     MVP: "MVP",
     CY: "Cy Young",
-    MVP2: "MVP runner-up",
-    CY2: "Cy Young runner-up",
-    MVP3: "MVP 3rd in voting",
-    CY3: "Cy Young 3rd in voting",
+    MVP2: "MVP 2nd",
+    CY2: "Cy Young 2nd",
+    MVP3: "MVP 3rd",
+    CY3: "Cy Young 3rd",
     ROY: "Rookie of the Year",
     GG: "Gold Glove",
     SS: "Silver Slugger",
@@ -65,14 +65,20 @@
     const awardCounts = new Map<string, number>();
     for (const s of game.slots) {
       for (const a of s?.awards ?? []) {
-        const name = AWARD_NAMES[a] ?? a;
-        awardCounts.set(name, (awardCounts.get(name) ?? 0) + 1);
+        awardCounts.set(a, (awardCounts.get(a) ?? 0) + 1);
       }
     }
+    // Canonical award order (MVP → CY → … → AS), matching the player-row pills.
+    const hardwareWhy =
+      awardCounts.size === 0
+        ? "no award seasons"
+        : sortAwards([...awardCounts.keys()])
+            .map((a) => `${awardCounts.get(a)} ${AWARD_NAMES[a] ?? a}`)
+            .join(" · ");
     out.push({
       key: "awards",
       lbl: "Hardware",
-      why: countWhy(awardCounts, "no award seasons"),
+      why: hardwareWhy,
       amt: signed(p.awardPoints, 0),
       cls: p.awardPoints > 0 ? "plus" : "zero",
     });
@@ -105,7 +111,7 @@
       key: "tax",
       lbl: "Luxury tax",
       why: p.luxuryTax > 0 ? `${money(fin.spend - fin.budget)} over the cap` : "stayed under the cap",
-      amt: `−${p.luxuryTax % 1 === 0 ? p.luxuryTax.toFixed(0) : p.luxuryTax.toFixed(1)}`,
+      amt: p.luxuryTax > 0 ? `−${p.luxuryTax.toFixed(1)}` : "0.0",
       cls: p.luxuryTax > 0 ? "minus" : "zero",
     });
     return out;
@@ -292,9 +298,9 @@
 </div>
 
 <div class="fin-actions">
-  <button class="btn ghost disp" onclick={onmodes}><span class="bic">⚙</span> Modes</button>
-  <button class="btn disp" onclick={onreplay}>Replay <span class="bic">↻</span></button>
-  <button class="btn hot disp" onclick={share}>Share <span class="bic">🔥</span></button>
+  <button class="btn ghost disp" onclick={onmodes}><span class="bic">⚙️</span> Modes</button>
+  <button class="btn disp" onclick={onreplay}><span class="bic">🔄</span> Replay</button>
+  <button class="btn hot disp" onclick={share}><span class="bic">📤</span> Share</button>
 </div>
 {#if toast}<div class="toast disp">{toast}</div>{/if}
 
@@ -302,14 +308,14 @@
   {#each game.slots as slot, i}
     {#if slot}
       <div class="qrow">
-        <span class="qpos">{SLOT_TYPES[i]}</span>
+        <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
         <span class="qname"
           >{#if starred(slot)}<span class="emo">⭐</span>
           {/if}{slot.name} <i>{slot.year}</i></span
         >
         <span class="qbadges">
           {#if slot.hero}<span class="emo">🏠</span>{/if}
-          {#each slot.awards as a}
+          {#each sortAwards(slot.awards) as a}
             <span class="qb {awardCls[a] ?? ''}">{pillText[a] ?? a}</span>
           {/each}
           {#if slot.ws}<span class="emo">💍</span>{:else if slot.pen}<span class="emo">🚩</span>{/if}
@@ -341,10 +347,10 @@
         pick != null &&
         game.slots.some((s) => s && s.id === pick.id && s.year === pick.year && s.team === pick.team)}
       <div class="qrow" class:dreamhit={mine}>
-        <span class="qpos">{SLOT_TYPES[i]}</span>
+        <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
         {#if pick}
           <span class="qname"
-            >{#if mine}<span class="emo">⭐</span> {/if}{pick.name} <i>{pick.year} {pick.teamName}</i></span
+            >{#if mine}<span class="emo">⭐</span> {/if}{pick.name} <i>{pick.year} {pick.team}</i></span
           >
           <span class="qwar {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
         {:else}
@@ -357,7 +363,7 @@
         <span class="qpos">MGR</span>
         <span class="qname"
           >{#if fin.managerHit}<span class="emo">⭐</span>
-          {/if}{fin.bestManager.name} <i>{fin.bestManager.year} {fin.bestManager.teamName}</i></span
+          {/if}{fin.bestManager.name} <i>{fin.bestManager.year} {fin.bestManager.team}</i></span
         >
         <span class="qbadges"
           >{#if fin.bestManager.ws}<span class="emo">💍</span>{:else if fin.bestManager.pen}<span class="emo">🚩</span>{/if}</span
@@ -459,7 +465,7 @@
   }
   .fin-actions {
     display: grid;
-    grid-template-columns: 1fr 1.2fr 1.2fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 9px;
     margin-top: 13px;
   }
@@ -470,6 +476,7 @@
     justify-content: center;
     gap: 5px;
     padding: 7px 8px;
+    font-size: 13px;
   }
   .bic {
     font-size: 19px;

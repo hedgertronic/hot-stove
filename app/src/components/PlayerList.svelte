@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Game } from "../lib/engine.svelte";
-  import { costTier, lastName, money, warTier } from "../lib/format";
+  import { costTier, lastName, money, sortAwards, warTier } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
 
   let {
@@ -18,15 +18,17 @@
     expanded = false;
   });
 
-  // Box Score reads talent-first (WAR desc); Eye Test is alphabetical — any
-  // other order would leak information the mode is supposed to hide.
-  // Below-replacement rows are filtered engine-side (visiblePlayers).
+  // Box Score reads talent-first (WAR desc); Eye Test reads money-first —
+  // salary is the one signal that mode deliberately shows, so the list ranks
+  // by it. Below-replacement rows are filtered engine-side (visiblePlayers).
   const sorted = $derived.by(() => {
     const ps = [...game.visiblePlayers];
     if (game.scout)
       return ps.sort(
         (a, b) =>
-          lastName(a.name).localeCompare(lastName(b.name)) || a.name.localeCompare(b.name),
+          b.cost - a.cost ||
+          lastName(a.name).localeCompare(lastName(b.name)) ||
+          a.name.localeCompare(b.name),
       );
     return ps.sort((a, b) => b.war - a.war || b.cost - a.cost);
   });
@@ -96,17 +98,18 @@
   };
 
   function subText(p: CardPlayer, hero: boolean): string {
-    const base = game.scout ? "" : p.age != null ? `age ${p.age}` : "";
+    const base = p.age != null ? `age ${p.age}` : "";
     if (!hero) return base;
     return base ? `${base} · 🏠 hometown` : "🏠 hometown";
   }
 
   const isPitcher = (p: CardPlayer) => p.pos.startsWith("SP") || p.pos === "RP";
-  const hasBadges = (p: CardPlayer) =>
-    game.showAwards && (p.awards.length > 0 || p.ws || p.pen);
+  // Team pedigree (💍/🚩) lives beside the team name in the spin banner — the
+  // rows only badge individual hardware.
+  const hasBadges = (p: CardPlayer) => game.showAwards && p.awards.length > 0;
 </script>
 
-<div class="plist disp" class:scoutmode={game.scout}>
+<div class="plist disp">
   {#each visible as p (p.id)}
     {@const playable = game.rowPlayable(p)}
     {@const open = game.playerState(p) === "open"}
@@ -128,20 +131,20 @@
           <span class="sub">
             {#if subText(p, hero)}<span class="age">{subText(p, hero)}</span>{/if}
             {#if hasBadges(p)}<span class="badges"
-                >{#each p.awards as a}<span class="qb {AWARD_CLS[a] ?? ''}">{PILL_TEXT[a] ?? a}</span>{/each}{#if p.ws}<span class="emo">💍</span>{:else if p.pen}<span class="emo">🚩</span>{/if}</span
+                >{#each sortAwards(p.awards) as a}<span class="qb {AWARD_CLS[a] ?? ''}">{PILL_TEXT[a] ?? a}</span>{/each}</span
               >{/if}
           </span>
         {/if}
       </span>
       <span class="right">
         {#if confirmKey === `p:${p.id}` && open && !game.primeArmed}
-          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSign(p); }} onkeydown={(e) => e.key === "Enter" && commitSign(p)}>SIGN {game.showCost ? money(price) : "✍️"}</span>
+          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSign(p); }} onkeydown={(e) => e.key === "Enter" && commitSign(p)}>SIGN {money(price)}</span>
         {:else if confirmKey === `t:${p.id}` && swappable && !game.primeArmed}
-          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => e.key === "Enter" && commitTrade(p)}>TRADE FOR {game.showCost ? money(price) : "✍️"}</span>
+          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => e.key === "Enter" && commitTrade(p)}>TRADE FOR {money(price)}</span>
         {:else}
           {#if primeable}<span class="primetag">⭐</span>{/if}
-          {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}</span>{/if}
-          {#if game.showCost}<span class="cost {hero ? 'cheap' : costTier(price)}">{money(price)}</span>{/if}
+          {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
+          <span class="cost {hero ? 'cheap' : costTier(price)}">{money(price)}</span>
         {/if}
       </span>
     </button>
@@ -200,14 +203,6 @@
   .pos.pit {
     background: var(--ink);
     color: var(--card);
-  }
-  /* Eye Test keeps the classic scouting circle — position is the only intel. */
-  .scoutmode .pos {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    font-size: 10.5px;
-    padding: 0;
   }
   .mid {
     display: flex;
@@ -268,10 +263,6 @@
   .qb.as {
     background: var(--amber);
   }
-  .emo {
-    font-size: 10px;
-    line-height: 1;
-  }
   .right {
     margin-left: auto;
     display: flex;
@@ -279,7 +270,8 @@
     gap: 7px;
     flex: none;
   }
-  /* WAR is the decision number — biggest thing on the right. */
+  /* WAR is the decision number — biggest thing on the right. The tiny unit
+     label answers "4.2 what?" without competing with the number. */
   .warchip {
     display: inline-block;
     min-width: 42px;
@@ -291,6 +283,13 @@
     line-height: 1.65;
     padding: 0 5px;
     color: var(--card);
+  }
+  .warchip .unit {
+    font-size: 6.5px;
+    letter-spacing: 0.05em;
+    opacity: 0.85;
+    margin-left: 2px;
+    vertical-align: 1.5px;
   }
   .warchip.neg {
     background: var(--war-neg);

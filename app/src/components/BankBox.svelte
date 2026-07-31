@@ -6,8 +6,11 @@
 
   const spend = $derived(game.spend);
   const cap = $derived(game.effectiveBudget);
-  const over = $derived(spend > cap);
-  const pct = $derived(cap > 0 ? Math.min((spend / cap) * 100, 100) : 100);
+  // Before an owner is hired the engine's budget is only the minBudget floor —
+  // a data artifact, not a real cap. Don't render it as one.
+  const capKnown = $derived(game.capKnown);
+  const over = $derived(capKnown && spend > cap);
+  const pct = $derived(!capKnown ? 0 : cap > 0 ? Math.min((spend / cap) * 100, 100) : 100);
 </script>
 
 <div class="bankbox">
@@ -32,7 +35,7 @@
       {#if game.owner}
         <span class="chip eff">{money(cap)}</span>
       {:else}
-        <span class="chip ghost">{money(cap)}</span>
+        <span class="chip ghost">$ · · ·</span>
       {/if}
     {/if}
   </div>
@@ -44,11 +47,13 @@
     </div>
   {/if}
   <div class="meter">
-    <div class="fill" class:floorover={over} class:zero={spend <= 0} style:width="{over ? 100 : pct}%"></div>
+    <div class="fill" class:floorover={over} class:zero={spend <= 0 || !capKnown} style:width="{over ? 100 : pct}%"></div>
   </div>
   <div class="meter-lbl disp">
     <span>SPENT {money(spend)}</span>
-    {#if over}
+    {#if !capKnown}
+      <span class="nocap">CAP — HIRE AN OWNER</span>
+    {:else if over}
       <span class="warn">⚠ {money(spend - cap)} OVER CAP</span>
     {:else}
       <span>{money(cap - spend)} LEFT</span>
@@ -155,5 +160,10 @@
   }
   .warn {
     color: var(--orange);
+  }
+  .nocap {
+    color: var(--gray-ink);
+    font-style: italic;
+    font-weight: 600;
   }
 </style>
