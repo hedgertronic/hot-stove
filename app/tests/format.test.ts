@@ -1,5 +1,54 @@
 import { describe, expect, it } from "vitest";
-import { parseSeedCode, seedCode, slotLabel, sortAwards } from "../src/lib/format";
+import { parseSeedCode, posLabel, seedCode, slotLabel, sortAwards, warTier } from "../src/lib/format";
+import type { CardPlayer } from "../src/lib/types";
+
+describe("warTier", () => {
+  it("buckets the six-rung ladder at 0/2/4/6/8", () => {
+    expect(warTier(-0.1)).toBe("neg");
+    expect(warTier(0)).toBe("low");
+    expect(warTier(1.9)).toBe("low");
+    expect(warTier(2)).toBe("mid");
+    expect(warTier(3.9)).toBe("mid");
+    expect(warTier(4)).toBe("high");
+    expect(warTier(5.9)).toBe("high");
+    expect(warTier(6)).toBe("star");
+    expect(warTier(7.9)).toBe("star");
+    expect(warTier(8)).toBe("elite");
+    expect(warTier(11.9)).toBe("elite");
+  });
+});
+
+describe("posLabel", () => {
+  const player = (pos: string, posG: { c: number; if: number; of: number; dh: number }) =>
+    ({ pos, posG }) as CardPlayer;
+  const G = (c = 0, ifG = 0, of = 0, dh = 0) => ({ c, if: ifG, of, dh });
+
+  it("passes two-way seasons through whole", () => {
+    expect(posLabel(player("SP/DH", G(0, 0, 7, 126)))).toBe("SP/DH");
+  });
+
+  it("keeps pure pitchers bare", () => {
+    expect(posLabel(player("SP", G()))).toBe("SP");
+    expect(posLabel(player("RP", G()))).toBe("RP");
+  });
+
+  it("appends extra specialist groups earned by games (10+)", () => {
+    expect(posLabel(player("2B", G(0, 100, 12)))).toBe("2B/OF");
+    expect(posLabel(player("C", G(90, 15, 0)))).toBe("C/IF");
+    expect(posLabel(player("LF", G(0, 30, 100)))).toBe("LF/IF");
+    expect(posLabel(player("C", G(80, 12, 11)))).toBe("C/IF/OF");
+  });
+
+  it("does not list a group the primary position already implies", () => {
+    expect(posLabel(player("2B", G(0, 150, 9)))).toBe("2B");
+    expect(posLabel(player("CF", G(0, 0, 140)))).toBe("CF");
+  });
+
+  it("DH implies no specialist group; earned groups still append", () => {
+    expect(posLabel(player("DH", G(0, 0, 0, 140)))).toBe("DH");
+    expect(posLabel(player("DH", G(0, 10, 0, 120)))).toBe("DH/IF");
+  });
+});
 
 describe("sortAwards", () => {
   it("orders the full ladder: MVP ballot, CY ballot, ROY, GG, SS, AS", () => {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Game } from "../lib/engine.svelte";
-  import { costTier, lastName, money, sortAwards, warTier } from "../lib/format";
+  import { costTier, lastName, money, posLabel, sortAwards, warTier } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
 
   let {
@@ -117,6 +117,7 @@
     {@const primeable = game.primeArmed && playable}
     {@const hero = game.heroEligible(p)}
     {@const price = game.priceFor(p)}
+    {@const plabel = posLabel(p)}
     <button
       class="prow"
       class:dead={!playable}
@@ -124,7 +125,7 @@
       class:prime={primeable}
       onclick={(e) => tap(p, e)}
     >
-      <span class="pos" class:pit={isPitcher(p)}>{p.pos.split("/")[0]}</span>
+      <span class="pos" class:pit={isPitcher(p)} class:long={plabel.length > 5}>{plabel}</span>
       <span class="mid">
         <span class="pname">{p.name}</span>
         {#if subText(p, hero) || hasBadges(p)}
@@ -203,6 +204,11 @@
   .pos.pit {
     background: var(--ink);
     color: var(--card);
+  }
+  /* Multi-group labels ("C/IF/OF") shrink to keep the fixed-width column. */
+  .pos.long {
+    font-size: 7.5px;
+    letter-spacing: 0.01em;
   }
   .mid {
     display: flex;
@@ -303,9 +309,12 @@
   .warchip.high {
     background: var(--war-high);
   }
+  .warchip.star {
+    background: var(--war-star);
+  }
+  /* White text on gold — user's call; the gold is deepened to carry it. */
   .warchip.elite {
     background: var(--war-elite);
-    color: var(--ink);
   }
   .cost {
     font-weight: 800;

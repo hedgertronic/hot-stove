@@ -1,7 +1,7 @@
 <script lang="ts">
   import { loadCard, loadPlayers } from "../lib/data";
   import type { Game } from "../lib/engine.svelte";
-  import { money, statLine, warTier } from "../lib/format";
+  import { money, posLabel, statLine, warTier } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
 
   let { game, onclose }: { game: Game; onclose: () => void } = $props();
@@ -89,9 +89,10 @@
     {:else}
       <div class="list">
         {#each seasons as sea ((sea.team + sea.year))}
+          {@const plabel = posLabel(sea.p)}
           <button class="srow" disabled={!sea.fits || sea.here} onclick={() => pick(sea)}>
             <span class="pos" class:pit={sea.p.pos.startsWith("SP") || sea.p.pos === "RP"}
-              >{sea.p.pos.split("/")[0]}</span>
+              class:long={plabel.length > 5}>{plabel}</span>
             <span class="mid">
               <span class="yr">{sea.year} {sea.teamName}</span>
               {#if sea.here}<span class="sub">that's this card — just sign him</span>
@@ -204,6 +205,11 @@
     background: var(--ink);
     color: var(--card);
   }
+  /* Multi-group labels ("C/IF/OF") shrink to keep the fixed-width column. */
+  .pos.long {
+    font-size: 7.5px;
+    letter-spacing: 0.01em;
+  }
   .mid {
     display: flex;
     flex-direction: column;
@@ -254,9 +260,12 @@
   .warchip.high {
     background: var(--war-high);
   }
+  .warchip.star {
+    background: var(--war-star);
+  }
+  /* White text on gold — user's call; the gold is deepened to carry it. */
   .warchip.elite {
     background: var(--war-elite);
-    color: var(--ink);
   }
   .warchip .unit {
     font-size: 9px;

@@ -33,7 +33,9 @@
   --war-low: #b5afa0;
   --war-mid: #3b7dd1;
   --war-high: #2f9e44;
-  --war-elite: #e0a010;
+  --war-star: #7b5cc4;
+  /* Deep enough that white chip text reads (~3:1); still unmistakably gold. */
+  --war-elite: #c98a08;
   --amber: #fff4d6;
   --dash: #d5cdb6;
   --disp: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;

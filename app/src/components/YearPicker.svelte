@@ -89,7 +89,9 @@
      the year stays the dominant glyph. */
   .pedi {
     margin-left: 3px;
-    font-size: 9px;
+    /* Emoji render below their nominal size — 11px sits balanced with the
+       13px year. */
+    font-size: 11px;
     line-height: 1;
   }
   .yearbtn:active {

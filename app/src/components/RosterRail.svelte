@@ -159,13 +159,14 @@
   /* The manager reads bottom-to-top up the left rail (y-axis-label style,
      glyphs facing the grid) — three parallel lines, label outermost, same
      content pattern and type scale as the player seats. The width is fixed
-     at the filled three-line stack (11.7 + 14.3 + 11.05 line boxes + 10px
-     padding + 4px border ≈ 52px) so the grid doesn't reflow when the empty
-     seat gains its name/season lines on hire. */
+     so the grid doesn't reflow when the empty seat gains its name/season
+     lines on hire. 56px, not the cells' 52px height: measured equal (52 vs
+     52) still LOOKS slimmer — the vertical–horizontal illusion — so the
+     rotated seat gets ~8% of optical compensation to read as a match. */
   .mgr {
     grid-column: 1;
     grid-row: 1 / 3;
-    width: 52px;
+    width: 56px;
     border: 2px solid var(--ink);
     border-radius: 9px;
     writing-mode: sideways-lr;

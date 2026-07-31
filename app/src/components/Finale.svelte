@@ -14,30 +14,16 @@
   const reduced =
     typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const AWARD_NAMES: Record<string, string> = {
-    MVP: "MVP",
-    CY: "Cy Young",
-    MVP2: "MVP 2nd",
-    CY2: "Cy Young 2nd",
-    MVP3: "MVP 3rd",
-    CY3: "Cy Young 3rd",
-    ROY: "Rookie of the Year",
-    GG: "Gold Glove",
-    SS: "Silver Slugger",
-    AS: "All-Star",
-  };
-
   interface LedgerRow {
     key: string;
     lbl: string;
     why: string;
+    /** Award pills rendered in place of the why-line (Hardware row). */
+    chips?: { code: string; n: number }[];
+    /** Miniature spend/bankroll bar rendered under the why-line. */
+    meter?: { pct: number; over: boolean };
     amt: string;
     cls: "base" | "plus" | "minus" | "zero";
-  }
-
-  function countWhy(counts: Map<string, number>, empty: string): string {
-    if (counts.size === 0) return empty;
-    return [...counts.entries()].map(([k, n]) => `${n} ${k}`).join(" · ");
   }
 
   const rows = $derived.by((): LedgerRow[] => {
@@ -59,6 +45,10 @@
       why: overCap
         ? "blew past the bankroll — the tax takes it from here"
         : `${money(fin.spend)} of ${money(fin.budget)} bankroll used (${Math.round((fin.spend / fin.budget) * 100)}%)`,
+      meter: {
+        pct: fin.budget > 0 ? Math.min((fin.spend / fin.budget) * 100, 100) : 100,
+        over: overCap,
+      },
       amt: signed(p.budgetBonus),
       cls: p.budgetBonus > 0 ? "plus" : p.budgetBonus < 0 ? "minus" : "zero",
     });
@@ -68,29 +58,31 @@
         awardCounts.set(a, (awardCounts.get(a) ?? 0) + 1);
       }
     }
-    // Canonical award order (MVP → CY → … → AS), matching the player-row pills.
-    const hardwareWhy =
-      awardCounts.size === 0
-        ? "no award seasons"
-        : sortAwards([...awardCounts.keys()])
-            .map((a) => `${awardCounts.get(a)} ${AWARD_NAMES[a] ?? a}`)
-            .join(" · ");
+    // Canonical award order (MVP → CY → … → AS) as the same pills the player
+    // rows wear, with a ×N when an award repeats across the roster.
+    const hardwareChips = sortAwards([...awardCounts.keys()]).map((a) => ({
+      code: a,
+      n: awardCounts.get(a)!,
+    }));
     out.push({
       key: "awards",
       lbl: "Hardware",
-      why: hardwareWhy,
+      why: "no award seasons",
+      chips: hardwareChips.length > 0 ? hardwareChips : undefined,
       amt: signed(p.awardPoints, 0),
       cls: p.awardPoints > 0 ? "plus" : "zero",
     });
     const rings = game.slots.filter((s) => s?.ws).length + (game.manager?.ws ? 1 : 0);
     const pennants = game.slots.filter((s) => s?.pen).length + (game.manager?.pen ? 1 : 0);
-    const pedigree = new Map<string, number>();
-    if (rings) pedigree.set(rings === 1 ? "ring 💍" : "rings 💍", rings);
-    if (pennants) pedigree.set(pennants === 1 ? "pennant 🚩" : "pennants 🚩", pennants);
+    // Same chips-with-×N language as Hardware; the emoji need no pill border.
+    const pedigreeChips: { code: string; n: number }[] = [];
+    if (rings) pedigreeChips.push({ code: "💍", n: rings });
+    if (pennants) pedigreeChips.push({ code: "🚩", n: pennants });
     out.push({
       key: "pedigree",
       lbl: "Championship pedigree",
-      why: countWhy(pedigree, "no October pedigree"),
+      why: "no October pedigree",
+      chips: pedigreeChips.length > 0 ? pedigreeChips : undefined,
       amt: signed(p.ringPoints, 0),
       cls: p.ringPoints > 0 ? "plus" : "zero",
     });
@@ -177,7 +169,7 @@
     return () => timers.forEach(clearTimeout);
   });
 
-  const TIER_EMOJI = { neg: "🔴", low: "⚪", mid: "🔵", high: "🟢", elite: "🟡" } as const;
+  const TIER_EMOJI = { neg: "🔴", low: "⚪", mid: "🔵", high: "🟢", star: "🟣", elite: "🟡" } as const;
 
   const DIFF_TAG: Record<string, string> = {
     standard: "📊 BOX SCORE",
@@ -242,16 +234,20 @@
     }
   }
 
-  /** Copies "#CODE" — the leading # is fine, parseSeedCode strips it. */
+  /** Copies "#CODE" — the leading # is fine, parseSeedCode strips it.
+   * Feedback swaps the chip's own text (no toast line, no layout shift). */
+  let seedState = $state<"idle" | "copied" | "failed">("idle");
+  let seedTimer: ReturnType<typeof setTimeout> | undefined;
   async function copySeed() {
     const code = `#${seedCode(game.seed)}`;
     try {
       await navigator.clipboard.writeText(code);
-      toast = `Copied ${code}`;
+      seedState = "copied";
     } catch {
-      toast = "Couldn't copy";
+      seedState = "failed";
     }
-    setTimeout(() => (toast = ""), 1800);
+    clearTimeout(seedTimer);
+    seedTimer = setTimeout(() => (seedState = "idle"), 1200);
   }
 
   const awardCls: Record<string, string> = {
@@ -298,7 +294,35 @@
 <div class="ledger">
   {#each rows as row, i (row.key)}
     <div class="lrow disp" class:base={row.cls === "base"} class:show={i < shownRows}>
-      <span class="mid"><span class="lbl">{row.lbl}</span><span class="why">{row.why}</span></span>
+      <span class="mid">
+        <span class="lbl">{row.lbl}</span>
+        {#if row.chips}
+          <span class="chipline">
+            {#each row.chips as c (c.code)}
+              {#if c.code === "💍" || c.code === "🚩"}
+                <span class="pedchip"
+                  >{c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
+                >
+              {:else}
+                <span class="qb {awardCls[c.code] ?? ''}"
+                  >{pillText[c.code] ?? c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
+                >
+              {/if}
+            {/each}
+          </span>
+        {:else}
+          <span class="why">{row.why}</span>
+        {/if}
+        {#if row.meter}
+          <span class="minimeter" class:mover={row.meter.over}>
+            <span
+              class="minifill"
+              class:mzero={row.meter.pct <= 0}
+              style:width="{row.meter.over ? 100 : row.meter.pct}%"
+            ></span>
+          </span>
+        {/if}
+      </span>
       <span class="amt" class:plus={row.cls === "plus"} class:minus={row.cls === "minus"}>{row.amt}</span>
     </div>
   {/each}
@@ -319,7 +343,9 @@
 </div>
 {#if toast}<div class="toast disp">{toast}</div>{/if}
 
-<button class="seedchip disp" title="Copy seed" onclick={copySeed}>GAME #{seedCode(game.seed)}</button>
+<button class="seedchip disp" class:ok={seedState === "copied"} title="Copy seed" onclick={copySeed}>
+  {seedState === "idle" ? `GAME #${seedCode(game.seed)}` : seedState === "copied" ? "COPIED ✓" : "COPY FAILED"}
+</button>
 
 <div class="squad disp">
   {#each game.slots as slot, i}
@@ -458,6 +484,56 @@
     font-size: 10.5px;
     color: var(--muted);
   }
+  /* Hardware row: the same award pills the player rows wear, wrapping if a
+     stacked roster collects many distinct awards. */
+  .chipline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px;
+    margin-top: 3px;
+  }
+  .mult {
+    font-size: 8px;
+    margin-left: 2px;
+  }
+  /* Pedigree chips: the emoji carries the color, so no pill border. */
+  .pedchip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.5;
+  }
+  /* Miniature of the BankBox meter — same colors/hatch, row-scaled. */
+  .minimeter {
+    display: block;
+    max-width: 210px;
+    height: 8px;
+    margin-top: 4px;
+    border: 1.5px solid var(--ink);
+    border-radius: 999px;
+    background: var(--card);
+    overflow: hidden;
+  }
+  .minifill {
+    display: block;
+    height: 100%;
+    background: var(--green);
+    border-right: 1.5px solid var(--ink);
+  }
+  .minifill.mzero {
+    border-right: 0;
+    background: transparent;
+  }
+  .minimeter.mover .minifill {
+    background: repeating-linear-gradient(
+      -45deg,
+      var(--orange) 0 8px,
+      var(--orange-deep) 8px 16px
+    );
+    border-right: 0;
+  }
   .amt {
     margin-left: auto;
     font-weight: 800;
@@ -525,6 +601,11 @@
     font-weight: 700;
     letter-spacing: 0.14em;
     color: var(--muted);
+    /* Wide enough for the longest label so the copy feedback can't jiggle it. */
+    min-width: 15ch;
+  }
+  .seedchip.ok {
+    color: var(--green-deep);
   }
   .squad {
     margin-top: 16px;
@@ -616,6 +697,9 @@
   }
   .qwar.elite {
     color: var(--war-elite);
+  }
+  .qwar.star {
+    color: var(--war-star);
   }
   .qwar.low {
     color: var(--gray-ink);

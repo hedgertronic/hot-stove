@@ -121,7 +121,9 @@
   }
   .pedi {
     margin-left: 2px;
-    font-size: 9px;
+    /* Emoji render below their nominal size — 11px sits balanced with the
+       13px codes. */
+    font-size: 11px;
     line-height: 1;
   }
   .teambtn:disabled {
