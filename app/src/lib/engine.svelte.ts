@@ -165,8 +165,12 @@ export class Game {
   /** Prime picker, front-office flavor: which open tile is being browsed. */
   primeSpecial = $state<SpecialKey | null>(null);
   finale = $state<FinaleResult | null>(null);
+  /** The pending card's fetch failed (connection dropped mid-spin) — the
+   * banner offers a retry instead of leaving the reel spinning forever. */
+  loadFailed = $state(false);
 
   private pendingCard: Promise<Card> | null = null;
+  private pendingEntry: IndexEntry | null = null;
 
   constructor(
     meta: Meta,
@@ -389,12 +393,28 @@ export class Game {
     this.phase = "spinning";
     this.spinKind = kind;
     this.spinCount += 1;
+    this.pendingEntry = entry;
+    this.loadFailed = false;
     this.pendingCard = loadCard(entry.team, entry.year);
+  }
+
+  /** Re-issue a failed card fetch (the cache evicts rejections, so this hits
+   * the network again). The caller awaits land() afterward, same as a spin. */
+  retrySpin(): void {
+    if (!this.loadFailed || !this.pendingEntry) return;
+    this.loadFailed = false;
+    this.pendingCard = loadCard(this.pendingEntry.team, this.pendingEntry.year);
   }
 
   async land(): Promise<void> {
     if (!this.pendingCard) return;
-    this.card = await this.pendingCard;
+    try {
+      this.card = await this.pendingCard;
+    } catch {
+      this.pendingCard = null;
+      this.loadFailed = true;
+      return;
+    }
     this.pendingCard = null;
     this.phase = "landed";
     this.choicesLeft = 1;

@@ -18,14 +18,22 @@ export const loadColors = () => j<Colors>("data/colors.json");
 
 /** Player-seasons index (~0.5MB) — fetched lazily, only when Prime is armed. */
 export function loadPlayers(): Promise<PlayerSeasons> {
-  playersCache ??= j<PlayerSeasons>("data/players.json");
+  if (!playersCache) {
+    playersCache = j<PlayerSeasons>("data/players.json");
+    // Rejections evict themselves — a dropped connection must not poison the
+    // cache, or every retry would replay the same stale failure.
+    playersCache.catch(() => (playersCache = null));
+  }
   return playersCache;
 }
 
 /** Front-office timelines (~175KB) — fetched lazily, only when Prime Time is
  * pointed at a manager/stadium/owner tile. */
 export function loadSpecials(): Promise<SpecialsIndex> {
-  specialsCache ??= j<SpecialsIndex>("data/specials.json");
+  if (!specialsCache) {
+    specialsCache = j<SpecialsIndex>("data/specials.json");
+    specialsCache.catch(() => (specialsCache = null));
+  }
   return specialsCache;
 }
 
@@ -34,6 +42,7 @@ export function loadCard(team: string, year: number): Promise<Card> {
   let p = cardCache.get(key);
   if (!p) {
     p = j<Card>(`data/cards/${key}.json`);
+    p.catch(() => cardCache.delete(key));
     cardCache.set(key, p);
   }
   return p;

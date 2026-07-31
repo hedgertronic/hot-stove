@@ -857,3 +857,47 @@ describe("index pedigree (real data)", () => {
     expect(real.cards.filter((c) => c.pen).length).toBe(39);
   });
 });
+
+describe("mid-spin fetch failure", () => {
+  const seaIndex: GameIndex = {
+    yearMin: 1985,
+    yearMax: 2024,
+    cards: [{ team: "SEA", year: 1995, franchise: "SEA", name: "Seattle Mariners" }],
+  };
+  const seaCard = () =>
+    card([player({})], { year: 1995, team: "SEA", franchise: "SEA", name: "Seattle Mariners" });
+
+  it("a dropped fetch sets loadFailed instead of sticking the spin", async () => {
+    delete fetchCards.SEA_1995;
+    const g = new Game(meta, seaIndex, owners, 42);
+    g.spin();
+    expect(g.phase).toBe("spinning");
+    await g.land();
+    expect(g.loadFailed).toBe(true);
+    expect(g.phase).toBe("spinning");
+    expect(g.card).toBe(null);
+  });
+
+  it("retrySpin refetches (rejections aren't cached) and the game continues", async () => {
+    delete fetchCards.SEA_1995;
+    const g = new Game(meta, seaIndex, owners, 42);
+    g.spin();
+    await g.land();
+    expect(g.loadFailed).toBe(true);
+    fetchCards.SEA_1995 = seaCard(); // connection restored
+    g.retrySpin();
+    expect(g.loadFailed).toBe(false);
+    await g.land();
+    expect(g.loadFailed).toBe(false);
+    expect(g.phase).toBe("landed");
+    expect(g.card?.team).toBe("SEA");
+    delete fetchCards.SEA_1995;
+  });
+
+  it("retrySpin is a no-op unless a fetch actually failed", () => {
+    const g = new Game(meta, seaIndex, owners, 42);
+    g.retrySpin();
+    expect(g.phase).toBe("preSpin");
+    expect(g.loadFailed).toBe(false);
+  });
+});

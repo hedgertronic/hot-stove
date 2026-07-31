@@ -53,8 +53,11 @@
     const land = async () => {
       const prevName = game.card?.name;
       await game.land();
-      landedAnim = true;
       running = false;
+      // Fetch failed (connection dropped): the reel freezes and the retry
+      // button takes over — retry() re-runs this landing, not the effect.
+      if (game.loadFailed) return;
+      landedAnim = true;
       // A Season Ticket crossover (Expos↔Nationals) changes the club name on a
       // "year" spin — pulse both halves so the rename doesn't appear silently.
       const renamed = kind === "year" && game.card?.name !== prevName;
@@ -84,6 +87,12 @@
     step();
   });
 
+  async function retry() {
+    game.retrySpin();
+    await game.land();
+    if (game.loadFailed) return; // still offline — the button stays
+    landedAnim = true;
+  }
 </script>
 
 <div class="banner disp" class:landed={landedAnim} class:stale={game.phase === "preSpin" && !!game.card}>
@@ -106,7 +115,12 @@
   {/if}
 </div>
 
-{#if game.coldStove}
+{#if game.loadFailed}
+  <div class="cold disp">
+    <div class="coldmsg">📡 SIGNAL LOST — the card didn't come through</div>
+    <button class="btn spinbtn disp" onclick={retry}>TAP TO RETRY</button>
+  </div>
+{:else if game.coldStove}
   <div class="cold disp">
     <div class="coldmsg">🥶 COLD STOVE — nothing left to take here</div>
     <button class="btn spinbtn disp" onclick={() => game.coldRespin()}>SPIN AGAIN — FREE</button>
