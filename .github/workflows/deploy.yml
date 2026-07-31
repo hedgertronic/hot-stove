@@ -3,6 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    # Docs and design mocks never reach dist/ — skip the deploy for them.
+    paths-ignore: ["**.md", "design/**"]
   workflow_dispatch:
 
 permissions:
