@@ -11,10 +11,14 @@ const store = new Map<string, string>();
   removeItem: (k: string) => void store.delete(k),
 };
 
-// loadCard goes through fetch; serve registered cards, 404 anything else
-// (finale reloads of unregistered cards fail → best roster falls back to null).
+// loadCard/loadSpecials go through fetch; serve registered cards and the
+// specials index, 404 anything else (finale reloads of unregistered cards
+// fail → best roster falls back to null).
 const fetchCards: Record<string, Card> = {};
+const fetchSpecials: Record<string, unknown[]> = {};
 vi.stubGlobal("fetch", async (url: unknown) => {
+  if (String(url).endsWith("data/specials.json"))
+    return { ok: true, json: async () => fetchSpecials };
   const m = String(url).match(/cards\/([A-Z0-9]+)_(\d{4})\.json$/);
   const c = m ? fetchCards[`${m[1]}_${m[2]}`] : undefined;
   return c ? { ok: true, json: async () => c } : { ok: false, status: 404 };
@@ -624,7 +628,6 @@ describe("completion and the hunt", () => {
     fillSlots(g);
     expect(g.powerups.tradeDeadline).toBe("ready");
     g.hireManager(); // complete, TD still ready
-    expect(g.willFinishOnPass).toBe(true);
     await vi.waitFor(() => expect(g.phase).toBe("finale"));
     expect(g.finale).not.toBe(null);
   });
@@ -642,21 +645,98 @@ describe("completion and the hunt", () => {
   });
 });
 
-describe("passSpin", () => {
-  it("is a no-op before the roster is full", () => {
-    const g = landedGame(card([player({})]));
-    g.passSpin();
-    expect(g.phase).toBe("landed");
-  });
-
-  it("skips a hunt card without consuming anything", () => {
+describe("the front-office hunt has no pass", () => {
+  it("the engine exposes no pass path — skipping a hunt card is impossible", () => {
     const g = landedGame(card([]));
     fillSlots(g);
-    expect(g.willFinishOnPass).toBe(false);
-    g.passSpin();
-    expect(g.phase).toBe("preSpin");
-    expect(g.finale).toBe(null);
+    expect((g as unknown as Record<string, unknown>).passSpin).toBeUndefined();
+    expect((g as unknown as Record<string, unknown>).willFinishOnPass).toBeUndefined();
+  });
+
+  it("a hunt card stays landed until a front-office pick commits", () => {
+    const g = landedGame(card([]));
+    fillSlots(g);
+    expect(g.phase).toBe("landed");
+    expect(g.coldStove).toBe(false); // the manager tile is always takeable
+    g.hireManager();
+    expect(g.choicesUsed).toBe(1);
+    expect(g.phase).toBe("preSpin"); // owner + stadium still open → next spin
+  });
+});
+
+describe("applyPrimeSpecial", () => {
+  const specialsFixture = [
+    { team: "CHC", year: 2015, name: "Chicago Cubs", park: "Wrigley Field",
+      mgr: "Joe Maddon", w: 97, l: 65, att: 0.81, mult: 1.09, budget: 120.4 },
+    { team: "CHC", year: 2016, name: "Chicago Cubs", park: "Wrigley Field",
+      mgr: "Joe Maddon", w: 103, l: 58, att: 0.86, mult: 1.11, budget: 136.3 },
+  ];
+
+  function primedGame(which: "manager" | "owner" | "stadium", bank: "classic" | "moneyball" = "classic"): Game {
+    fetchSpecials.CHC = specialsFixture;
+    const g = new Game(meta, index, owners, 42, { difficulty: "standard", bank });
+    g.card = card([player({})]);
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    g.powerups.prime = "armed";
+    g.primeSpecial = which;
+    return g;
+  }
+
+  it("hires the chosen year's manager, with pedigree from the index rows", async () => {
+    const g = primedGame("manager");
+    expect(await g.applyPrimeSpecial("CHC", 2015)).toBe(true);
+    expect(g.manager).toMatchObject({
+      name: "Joe Maddon", wins: 97, losses: 65, year: 2015, team: "CHC", ws: false, pen: false,
+    });
+    expect(g.powerups.prime).toBe("spent");
+    expect(g.choicesUsed).toBe(1);
+    expect(g.primeSpecial).toBe(null);
+  });
+
+  it("hires the chosen year's owner at that year's payroll", async () => {
+    const g = primedGame("owner");
+    expect(await g.applyPrimeSpecial("CHC", 2015)).toBe(true);
+    expect(g.owner).toMatchObject({
+      name: "Ricketts family", budget: 120.4, franchise: "CHC", year: 2015,
+    });
+    expect(g.powerups.prime).toBe("spent");
+  });
+
+  it("buys the chosen year's park at that year's multiplier", async () => {
+    const g = primedGame("stadium");
+    expect(await g.applyPrimeSpecial("CHC", 2015)).toBe(true);
+    expect(g.stadium).toMatchObject({
+      park: "Wrigley Field", mult: 1.09, franchise: "CHC", year: 2015,
+    });
+  });
+
+  it("fixed-cap banks cannot prime an owner or stadium", async () => {
+    const g = primedGame("owner", "moneyball");
+    expect(await g.applyPrimeSpecial("CHC", 2015)).toBe(false);
+    expect(g.owner).toBe(null);
+    expect(g.powerups.prime).toBe("armed"); // nothing consumed
+  });
+
+  it("is a no-op when prime is not armed or the year is unknown", async () => {
+    const g = primedGame("manager");
+    g.powerups.prime = "ready";
+    expect(await g.applyPrimeSpecial("CHC", 2015)).toBe(false);
+    g.powerups.prime = "armed";
+    expect(await g.applyPrimeSpecial("CHC", 1901)).toBe(false);
+    expect(g.manager).toBe(null);
     expect(g.choicesUsed).toBe(0);
+  });
+
+  it("primeTapSpecial only opens for armed prime on an open tile", () => {
+    const g = primedGame("manager");
+    g.primeSpecial = null;
+    g.primeTapSpecial("manager");
+    expect(g.primeSpecial).toBe("manager");
+    g.primeSpecial = null;
+    hiredManager(g); // seat now taken
+    g.primeTapSpecial("manager");
+    expect(g.primeSpecial).toBe(null);
   });
 });
 

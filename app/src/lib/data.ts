@@ -1,8 +1,9 @@
-import type { Card, Colors, GameIndex, Meta, Owners, PlayerSeasons } from "./types";
+import type { Card, Colors, GameIndex, Meta, Owners, PlayerSeasons, SpecialsIndex } from "./types";
 
 const base = import.meta.env.BASE_URL;
 const cardCache = new Map<string, Promise<Card>>();
 let playersCache: Promise<PlayerSeasons> | null = null;
+let specialsCache: Promise<SpecialsIndex> | null = null;
 
 async function j<T>(path: string): Promise<T> {
   const res = await fetch(base + path);
@@ -19,6 +20,13 @@ export const loadColors = () => j<Colors>("data/colors.json");
 export function loadPlayers(): Promise<PlayerSeasons> {
   playersCache ??= j<PlayerSeasons>("data/players.json");
   return playersCache;
+}
+
+/** Front-office timelines (~175KB) — fetched lazily, only when Prime Time is
+ * pointed at a manager/stadium/owner tile. */
+export function loadSpecials(): Promise<SpecialsIndex> {
+  specialsCache ??= j<SpecialsIndex>("data/specials.json");
+  return specialsCache;
 }
 
 export function loadCard(team: string, year: number): Promise<Card> {

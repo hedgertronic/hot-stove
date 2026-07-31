@@ -103,3 +103,58 @@ describe("bestRoster", () => {
     expect(best.picks.every((p) => p === null)).toBe(true);
   });
 });
+
+describe("bestRoster awards in the objective", () => {
+  it("an award-heavy lower-WAR season beats a plain higher-WAR one", () => {
+    // Same human, two seasons (one may play): 5.0 WAR + MVP (5 pts) = 10
+    // value > 9.0 WAR plain. A same-slot rival wouldn't work here — FLEX
+    // catches every hitter, so two catchers would simply both roster.
+    const mvpSeason = player({ pos: "C", posG: C, war: 5, awards: ["MVP"], id: "star" });
+    const plainSeason = player({ pos: "C", posG: C, war: 9, id: "star" });
+    const best = bestRoster([
+      card([mvpSeason], { year: 2001 }),
+      card([plainSeason], { year: 2002 }),
+    ]);
+    const chosen = best.picks.filter((p) => p?.id === "star");
+    expect(chosen).toHaveLength(1);
+    expect(chosen[0]?.year).toBe(2001);
+    // totalWar reports the WAR of the chosen picks, not the objective value.
+    expect(best.totalWar).toBeCloseTo(5, 1);
+  });
+
+  it("awards break a WAR tie deterministically", () => {
+    // Same human, equal WAR, one season has a Gold Glove: the award is worth
+    // a real point, so that season wins regardless of card order.
+    const gg = player({ pos: "C", posG: C, war: 6, awards: ["GG"], id: "dup" });
+    const plain = player({ pos: "C", posG: C, war: 6, id: "dup" });
+    for (const cards of [
+      [card([plain], { year: 2001 }), card([gg], { year: 2002 })],
+      [card([gg], { year: 2002 }), card([plain], { year: 2001 })],
+    ]) {
+      const chosen = bestRoster(cards).picks.filter((p) => p?.id === "dup");
+      expect(chosen).toHaveLength(1);
+      expect(chosen[0]?.year).toBe(2002);
+      expect(chosen[0]?.awards).toEqual(["GG"]);
+    }
+  });
+
+  it("matches the WAR-only objective when no season has awards", () => {
+    const players = [
+      player({ pos: "SS", posG: IF, war: 9 }),
+      player({ pos: "2B", posG: IF, war: 8 }),
+      player({ pos: "3B", posG: IF, war: 7 }),
+      player({ pos: "CF", posG: OF, war: 5 }),
+    ];
+    const best = bestRoster([card(players)]);
+    expect(best.totalWar).toBeCloseTo(29, 1);
+    expect(best.picks[4]?.war).toBe(7); // 3B still routes to FLEX
+  });
+
+  it("a below-replacement season with a big award can now make the roster", () => {
+    // −0.5 WAR + MVP (5 pts) = 4.5 value: the objective says it belongs.
+    const oddMvp = player({ pos: "C", posG: C, war: -0.5, awards: ["MVP"], id: "odd" });
+    const best = bestRoster([card([oddMvp])]);
+    expect(best.picks[0]?.id).toBe("odd");
+    expect(best.totalWar).toBeCloseTo(-0.5, 1);
+  });
+});

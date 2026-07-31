@@ -248,12 +248,14 @@
     margin-left: 2.5px;
     vertical-align: 1px;
   }
+  /* Structural right-alignment, same as the market rows' price column. */
   .cost {
+    display: inline-flex;
+    justify-content: flex-end;
     font-weight: 800;
     font-size: 13px;
     white-space: nowrap;
-    min-width: 48px;
-    text-align: right;
+    min-width: 56px;
   }
   .cancel {
     width: 100%;

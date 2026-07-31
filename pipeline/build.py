@@ -6,6 +6,9 @@ Output layout (all consumed by the static frontend):
   data/meta.json         constants + per-year normalization tables
   data/cards/{BR}_{year}.json   full card, fetched on demand at spin time
   data/owners.json       owner names by franchise (hand-curated, flavor only)
+  data/specials.json     per-franchise front-office timeline (manager/park/
+                         attendance/budget per season) for Prime Time on
+                         manager/stadium/owner tiles — fetched lazily
 """
 
 from __future__ import annotations
@@ -156,6 +159,7 @@ def main() -> None:
     index, empty_slots = [], 0
     min_budget = None  # league-minimum bankroll: the no-owner floor (meta.minBudget)
     player_seasons: dict[str, list[list]] = defaultdict(list)  # bbrefID -> [[br, year]]
+    specials: dict[str, list[dict]] = defaultdict(list)  # franchID -> FO timeline
 
     for (year, br), row in sorted(gd.team_rows.items()):
         factor = gd.proration[year]
@@ -194,6 +198,12 @@ def main() -> None:
         min_budget = card["budget"] if min_budget is None else min(min_budget, card["budget"])
         for p in card["players"]:
             player_seasons[p["id"]].append([br, year])
+        specials[row["franchID"]].append({
+            "team": br, "year": year, "name": row["name"], "park": row["park"],
+            "mgr": card["manager"], "w": card["wins"], "l": card["losses"],
+            "att": card["attendancePct"], "mult": card["stadiumMult"],
+            "budget": card["budget"],
+        })
         (cards_dir / f"{br}_{year}.json").write_text(json.dumps(card))
         entry = {"team": br, "year": year, "franchise": row["franchID"],
                  "name": row["name"]}
@@ -210,6 +220,10 @@ def main() -> None:
     (DATA_DIR / "players.json").write_text(json.dumps(
         {pid: sorted(seasons, key=lambda s: s[1])
          for pid, seasons in sorted(player_seasons.items())},
+        separators=(",", ":")))
+    (DATA_DIR / "specials.json").write_text(json.dumps(
+        {fr: sorted(entries, key=lambda e: (e["year"], e["team"]))
+         for fr, entries in sorted(specials.items())},
         separators=(",", ":")))
     (DATA_DIR / "meta.json").write_text(json.dumps({
         "displayAvgM": DISPLAY_AVG_M,

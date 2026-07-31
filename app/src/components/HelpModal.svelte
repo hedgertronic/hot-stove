@@ -38,7 +38,7 @@
     <ul>
       <li><b>Wins:</b> 50 base + roster WAR + manager (W−L) × 0.1.</li>
       <li>
-        <b>Budget:</b> up to +10 for using your whole payroll; under half goes negative;
+        <b>Payroll:</b> up to +10 for using your whole payroll; under half goes negative;
         −1 per $1M over it.
       </li>
       <li>
@@ -55,7 +55,10 @@
       <li><b>🚚 RELOCATE</b> — same year, any club.</li>
       <li><b>✌️ DOUBLE PLAY</b> — two signings on one spin; refundable until the second.</li>
       <li><b>🔁 TRADE DEADLINE</b> — swap a signed player (or your owner or stadium) for this card's.</li>
-      <li><b>⭐ PRIME TIME</b> — browse an unsigned player's whole career, sign any season.</li>
+      <li>
+        <b>⭐ PRIME TIME</b> — browse an unsigned player's whole career — or an unhired
+        manager's, stadium's, or owner's history — and take any season of it.
+      </li>
     </ul>
 
     <button class="btn cancel" onclick={onclose}>GOT IT</button>

@@ -48,7 +48,7 @@
     const spendPct = fin.budget > 0 ? (fin.spend / fin.budget) * 100 : 100;
     out.push({
       key: "budget",
-      lbl: overCap ? "Luxury tax" : "Front-office bonus",
+      lbl: overCap ? "Luxury tax" : "Payroll bonus",
       why: overCap
         ? `${money(fin.spend - fin.budget)} over`
         : `${Math.round(spendPct)}% used`,
@@ -383,7 +383,17 @@
       <div class="qrow" class:dreamhit={mine}>
         <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
         {#if pick}
-          <span class="qname">{pick.name} <i>{pick.year} {pick.team}</i></span>
+          <!-- Awards show WHY the solver chose this season — they count in
+               its objective now, not just WAR. -->
+          <span class="qmid">
+            <span class="qname">{pick.name} <i>{pick.year} {pick.team}</i></span>
+            <span class="qbadges">
+              {#each sortAwards(pick.awards) as a}
+                <AwardPill code={a} />
+              {/each}
+              {#if pick.ws}<span class="emo">💍</span>{:else if pick.pen}<span class="emo">🚩</span>{/if}
+            </span>
+          </span>
           <span class="qwar {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
         {:else}
           <span class="qname empty">—</span>
@@ -624,7 +634,8 @@
     align-items: center;
     gap: 8px;
     background: var(--card);
-    border: 2px solid var(--ink);
+    /* Card-level box weight (2.5px), matching the market/ledger rows. */
+    border: 2.5px solid var(--ink);
     border-radius: 10px;
     padding: 5px 9px;
     margin-bottom: 6px;

@@ -2,12 +2,21 @@
  * All gameplay randomness flows through `this.rng` (one mulberry32 stream per
  * seed). The displayed record is deterministic (rounded expected wins). */
 import { bestRoster, type BestRoster } from "./bestroster";
-import { loadCard, ownerFor } from "./data";
+import { loadCard, loadSpecials, ownerFor } from "./data";
 import { eligibleTypes } from "./eligibility";
 import { Rng, randomSeed } from "./rng";
 import { displayRecord, score } from "./scoring";
 import { SLOT_TYPES } from "./types";
-import type { Card, CardPlayer, GameIndex, IndexEntry, Meta, Owners, ScoreParts } from "./types";
+import type {
+  Card,
+  CardPlayer,
+  GameIndex,
+  IndexEntry,
+  Meta,
+  Owners,
+  ScoreParts,
+  SpecialSeason,
+} from "./types";
 
 export { SLOT_TYPES };
 
@@ -153,6 +162,8 @@ export class Game {
   releasePick = $state<string | null>(null);
   /** Prime picker: id of the LISTED player whose career is being browsed. */
   primePick = $state<string | null>(null);
+  /** Prime picker, front-office flavor: which open tile is being browsed. */
+  primeSpecial = $state<SpecialKey | null>(null);
   finale = $state<FinaleResult | null>(null);
 
   private pendingCard: Promise<Card> | null = null;
@@ -490,6 +501,7 @@ export class Game {
     } else if (this.powerups.prime === "armed") {
       this.powerups.prime = "ready";
       this.primePick = null;
+      this.primeSpecial = null;
     }
     this.save();
   }
@@ -502,6 +514,16 @@ export class Game {
   primeTapPlayer(p: CardPlayer): void {
     if (!this.primeArmed || this.isRostered(p)) return;
     this.primePick = p.id;
+  }
+
+  /** Armed Prime, tap an OPEN front-office tile: browse that special's
+   * timeline (the manager's career, the park's attendance history, the
+   * owner's tenure). Taken tiles aren't browsable — the seat is filled. */
+  primeTapSpecial(which: SpecialKey): void {
+    if (!this.primeArmed || this.specialTaken(which) || !this.card) return;
+    if (which !== "manager" && this.fixedCap) return;
+    if (which === "manager" && !this.managerAvailable) return;
+    this.primeSpecial = which;
   }
 
   /** Sign a DIFFERENT season of the browsed player's career, at that season's
@@ -528,6 +550,59 @@ export class Game {
     return true;
   }
 
+  /** Hire a DIFFERENT year's version of the browsed front-office special —
+   * that season's manager record, attendance multiplier, or owner payroll.
+   * Mirrors applyPrime: consumes the powerup and the spin's choice. The
+   * pedigree flags (💍/🚩) for a manager hire come from the index rows. */
+  async applyPrimeSpecial(team: string, year: number): Promise<boolean> {
+    if (this.powerups.prime !== "armed" || this.primeSpecial === null) return false;
+    if (this.phase !== "landed" || this.choicesLeft === 0) return false;
+    const which = this.primeSpecial;
+    if (this.specialTaken(which)) return false;
+    const specials = await loadSpecials();
+    let franchise: string | null = null;
+    let entry: SpecialSeason | undefined;
+    for (const [fr, list] of Object.entries(specials)) {
+      const e = list.find((s) => s.team === team && s.year === year);
+      if (e) {
+        franchise = fr;
+        entry = e;
+        break;
+      }
+    }
+    if (!entry || franchise === null) return false;
+    if (which === "manager") {
+      if (entry.mgr == null) return false;
+      const idx = this.index.cards.find((c) => c.team === team && c.year === year);
+      this.manager = {
+        name: entry.mgr,
+        wins: entry.w,
+        losses: entry.l,
+        year,
+        team,
+        teamName: entry.name,
+        ws: idx?.ws === true,
+        pen: idx?.pen === true,
+      };
+    } else if (which === "owner") {
+      if (this.fixedCap) return false;
+      this.owner = {
+        name: ownerFor(this.owners, franchise, year),
+        budget: entry.budget,
+        franchise,
+        year,
+        teamName: entry.name,
+      };
+    } else {
+      if (this.fixedCap) return false;
+      this.stadium = { park: entry.park, mult: entry.mult, franchise, year };
+    }
+    this.powerups.prime = "spent";
+    this.primeSpecial = null;
+    this.consumeChoice({ kind: which });
+    return true;
+  }
+
   private disarmToggles(): void {
     if (this.powerups.doublePlay === "armed") {
       this.powerups.doublePlay = "ready";
@@ -542,6 +617,7 @@ export class Game {
     this.slotPick = null;
     this.releasePick = null;
     this.primePick = null;
+    this.primeSpecial = null;
   }
 
   // ---------- choices ----------
@@ -581,18 +657,6 @@ export class Game {
   finishSpin(): void {
     if (this.phase !== "landed" || this.choicesUsed === 0) return;
     this.endSpin();
-  }
-
-  /** Skip a card outright during the post-roster hunt (roster full, still
-   * chasing manager/owner/stadium). Pre-roster spins remain must-act. */
-  passSpin(): void {
-    if (this.phase !== "landed" || this.choicesUsed !== 0 || !this.rosterFull) return;
-    this.endSpin();
-  }
-
-  /** Whether passSpin/endSpin goes straight to the finale (labels PASS vs FINISH). */
-  get willFinishOnPass(): boolean {
-    return this.complete;
   }
 
   /** Free respin out of a dead card. */

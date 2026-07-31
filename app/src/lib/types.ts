@@ -106,3 +106,25 @@ export interface ScoreParts {
 
 /** Player-seasons index (data/players.json): every card a player appears on. */
 export type PlayerSeasons = Record<string, [string, number][]>;
+
+/** One franchise-season's front office (data/specials.json): the numbers a
+ * Prime Time hire of that year's manager/stadium/owner would lock in. */
+export interface SpecialSeason {
+  team: string;
+  year: number;
+  /** Full club name that season ("Chicago Cubs"). */
+  name: string;
+  park: string;
+  mgr: string | null;
+  w: number;
+  l: number;
+  /** Attendance percentile within the year, 0–1. */
+  att: number;
+  /** Stadium payroll multiplier (0.85–1.15). */
+  mult: number;
+  /** Normalized owner payroll, display $M. */
+  budget: number;
+}
+
+/** Franchise → season timeline, sorted by year. */
+export type SpecialsIndex = Record<string, SpecialSeason[]>;

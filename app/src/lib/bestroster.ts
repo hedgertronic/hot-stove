@@ -1,6 +1,10 @@
-/** WAR-optimal roster from the cards a game actually spun — the finale's
- * "best possible squad" yardstick. Money is ignored on purpose: the yardstick
- * answers "did you spot the talent?", not "could you afford it?".
+/** Score-optimal roster from the cards a game actually spun — the finale's
+ * "best possible squad" yardstick. The objective is WAR + award points (the
+ * same 1-point-per-win weighting score() uses), so an MVP season can out-rank
+ * a slightly higher plain WAR. Money is ignored on purpose: the yardstick
+ * answers "did you spot the talent?", not "could you afford it?". Rings and
+ * pennants stay out of the objective too — pedigree is franchise luck, not
+ * talent-spotting.
  *
  * Exact solve: slot types have tiny capacities (C1 IF2 OF1 FLEX1 SP2 RP1), so
  * a DP over the 2·3·2·2·3·2 = 144 capacity states is instant. Players are
@@ -9,6 +13,7 @@
  * iteration order + strict-improvement updates, so ties always resolve the
  * same way on every device. */
 import { eligibleTypes } from "./eligibility";
+import { AWARD_POINTS } from "./scoring";
 import type { Card, CardPlayer, SlotType } from "./types";
 
 export interface BestPick {
@@ -44,8 +49,13 @@ const SLOT_INDICES: Record<SlotType, number[]> = {
 
 interface Season {
   pick: BestPick;
+  /** WAR + award points — what the DP maximizes. */
+  value: number;
   types: number[]; // TYPE_ORDER indices
 }
+
+const awardPts = (awards: string[]): number =>
+  awards.reduce((sum, a) => sum + (AWARD_POINTS[a] ?? 0), 0);
 
 const RADIX = CAPACITY.map((c) => c + 1);
 const STATES = RADIX.reduce((a, b) => a * b, 1); // 144
@@ -62,8 +72,10 @@ export function bestRoster(cards: Card[]): BestRoster {
   const groups = new Map<string, Season[]>();
   for (const card of cards) {
     for (const p of card.players) {
-      if (p.war <= 0) continue; // can never improve a WAR-max roster
+      const value = p.war + awardPts(p.awards);
+      if (value <= 0) continue; // can never improve a value-max roster
       const season: Season = {
+        value,
         pick: {
           id: p.id,
           name: p.name,
@@ -85,7 +97,7 @@ export function bestRoster(cards: Card[]): BestRoster {
   }
   const groupList = [...groups.values()];
 
-  // dp[state] = best WAR after considering groups so far; parents rebuild picks.
+  // dp[state] = best value after considering groups so far; parents rebuild picks.
   let dp = new Float64Array(STATES).fill(-1);
   dp[0] = 0;
   const parents: Int32Array[] = []; // packed: prevState*4096 + seasonIdx*8 + typeIdx (or -1 = skip)
@@ -99,9 +111,9 @@ export function bestRoster(cards: Card[]): BestRoster {
         for (let ti = 0; ti < season.types.length; ti++) {
           const ns = fill(s, season.types[ti]);
           if (ns < 0) continue;
-          const w = dp[s] + season.pick.war;
-          if (w > next[ns]) {
-            next[ns] = w;
+          const v = dp[s] + season.value;
+          if (v > next[ns]) {
+            next[ns] = v;
             parent[ns] = s * 4096 + si * 8 + season.types[ti];
           }
         }
@@ -135,5 +147,7 @@ export function bestRoster(cards: Card[]): BestRoster {
     seats[type] = seat + 1;
     picks[SLOT_INDICES[TYPE_ORDER[type]][seat]] = pick;
   }
-  return { picks, totalWar: Math.round(dp[bestState] * 10) / 10 };
+  // dp holds value (WAR + awards); the reported total stays pure WAR.
+  const totalWar = chosen.reduce((sum, c) => sum + c.pick.war, 0);
+  return { picks, totalWar: Math.round(totalWar * 10) / 10 };
 }

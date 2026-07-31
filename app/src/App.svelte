@@ -8,6 +8,7 @@
   import PowerupRow from "./components/PowerupRow.svelte";
   import PrimePicker from "./components/PrimePicker.svelte";
   import RosterRail from "./components/RosterRail.svelte";
+  import SpecialPrimePicker from "./components/SpecialPrimePicker.svelte";
   import SpecialRows from "./components/SpecialRows.svelte";
   import SpinBanner from "./components/SpinBanner.svelte";
   import TeamPicker from "./components/TeamPicker.svelte";
@@ -206,6 +207,9 @@
   {/if}
   {#if game.primePick !== null}
     <PrimePicker {game} onclose={() => game?.togglePrime()} />
+  {/if}
+  {#if game.primeSpecial !== null}
+    <SpecialPrimePicker {game} onclose={() => game?.togglePrime()} />
   {/if}
   {#if helpOpen}
     <HelpModal onclose={() => (helpOpen = false)} />

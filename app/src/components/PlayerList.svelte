@@ -115,7 +115,6 @@
         {:else if confirmKey === `t:${p.id}` && swappable && !game.primeArmed}
           <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => e.key === "Enter" && commitTrade(p)}>TRADE FOR {money(price)}</span>
         {:else}
-          {#if primeable}<span class="primetag">⭐</span>{/if}
           {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
           <span class="cost {hero ? 'cheap' : costTier(price)}">{money(price)}</span>
         {/if}
@@ -230,12 +229,16 @@
     gap: 3px;
     flex: none;
   }
+  /* min-height = the WAR chip's exact height (13.5px × 1.65 line + 4px
+     border), so swapping the chip+price for the shorter confirm pill can't
+     change the row height — the tap must not make the card twitch. */
   .right {
     margin-left: auto;
     display: flex;
     align-items: center;
     gap: 7px;
     flex: none;
+    min-height: 26.3px;
   }
   /* WAR is the decision number — biggest thing on the right. The tiny unit
      label answers "4.2 what?" without competing with the number. */
@@ -277,12 +280,16 @@
   .warchip.elite {
     background: var(--war-elite);
   }
+  /* Structural right-alignment (flex, not text-align) so every engine agrees,
+     and a box wide enough for "$20.5M"-class prices — the WAR chips form a
+     straight column because the price column never grows. */
   .cost {
+    display: inline-flex;
+    justify-content: flex-end;
     font-weight: 800;
     font-size: 13px;
     white-space: nowrap;
-    min-width: 50px;
-    text-align: right;
+    min-width: 56px;
   }
   .cost.cheap {
     color: var(--green);
@@ -314,9 +321,6 @@
     border: 2.5px dashed var(--ink);
     opacity: 1;
     filter: none;
-  }
-  .primetag {
-    font-size: 13px;
   }
   /* Pinned to 24px (12 text + 8 pad + 4 border) so the pill fits the row's
      content box at both padding tiers — an unconstrained line box made

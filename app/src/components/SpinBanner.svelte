@@ -84,9 +84,6 @@
     step();
   });
 
-  const showPass = $derived(
-    game.phase === "landed" && game.choicesUsed === 0 && game.rosterFull && !game.coldStove,
-  );
 </script>
 
 <div class="banner disp" class:landed={landedAnim} class:stale={game.phase === "preSpin" && !!game.card}>
@@ -116,10 +113,6 @@
   </div>
 {:else if game.phase === "landed" && game.choicesUsed > 0 && game.choicesLeft > 0}
   <button class="btn donebtn disp" onclick={() => game.finishSpin()}>DONE — KEEP ✌️ ▸</button>
-{:else if showPass}
-  <button class="btn passbtn disp" onclick={() => game.passSpin()}>
-    {game.willFinishOnPass ? "FINISH ▸" : "PASS ▸"}
-  </button>
 {/if}
 
 <style>
@@ -182,17 +175,11 @@
     margin: 4px 0 12px;
     min-height: 48px;
   }
-  .donebtn,
-  .passbtn {
+  .donebtn {
     width: 100%;
     margin: 4px 0 10px;
     font-size: 13px;
     padding: 7px 12px;
-  }
-  .passbtn {
-    background: transparent;
-    border-style: dashed;
-    color: var(--muted);
   }
   .cold {
     text-align: center;

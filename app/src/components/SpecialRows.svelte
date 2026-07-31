@@ -22,7 +22,8 @@
     cls: string;
     ic: string;
     who: string;
-    what: string;
+    /** Inline muted meta after the name — the icon already names the type. */
+    meta: string;
     val: string;
     verb: string;
   }
@@ -38,7 +39,7 @@
           cls: "",
           ic: "💰",
           who: game.ownerName,
-          what: "Owner",
+          meta: "",
           val: money(c.budget),
           verb: "HIRE",
         },
@@ -47,7 +48,7 @@
           cls: "stad",
           ic: "🏟️",
           who: c.park,
-          what: `Stadium · ${fans(c.attendance)}`,
+          meta: fans(c.attendance),
           val: `×${c.stadiumMult.toFixed(2)}`,
           verb: "BUY",
         },
@@ -63,7 +64,7 @@
         cls: "skip",
         ic: "🧢",
         who: c.manager,
-        what: game.scout ? "Manager" : `Manager · ${c.wins}–${c.losses}`,
+        meta: game.scout ? "" : `${c.wins}–${c.losses}`,
         val: game.scout ? "" : `${signed((c.wins - c.losses) * MANAGER_PER_NET_WIN)} W`,
         verb: "HIRE",
       });
@@ -87,6 +88,10 @@
     e.stopPropagation();
     if (!canAct) return;
     const taken = game.specialTaken(row.key);
+    if (!taken && game.primeArmed) {
+      game.primeTapSpecial(row.key);
+      return;
+    }
     if (!taken) setConfirm(confirmKey === `s:${row.key}` ? null : `s:${row.key}`);
     else if (tdArmed) setConfirm(confirmKey === `w:${row.key}` ? null : `w:${row.key}`);
   }
@@ -99,16 +104,18 @@
   {#each rows as row (row.key)}
     {@const taken = game.specialTaken(row.key)}
     {@const swappable = taken && tdArmed && canAct}
+    {@const primeable = !taken && game.primeArmed && canAct}
     <button
       class="srow {row.cls}"
       class:taken={taken && !swappable}
       class:swap={swappable}
+      class:prime={primeable}
       onclick={(e) => tap(row, e)}
     >
       <span class="ic">{row.ic}</span>
       <span class="mid">
         <span class="who">{row.who}</span>
-        <span class="what">{row.what}</span>
+        {#if row.meta}<span class="meta">{row.meta}</span>{/if}
       </span>
       {#if confirmKey === `s:${row.key}` && !taken}
         <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commit(row.key); }} onkeydown={(e) => e.key === "Enter" && commit(row.key)}>{row.val ? `${row.verb} ${row.val}` : row.verb}</span>
@@ -127,6 +134,8 @@
     gap: 7px;
     margin-bottom: 10px;
   }
+  /* Same anatomy as the player rows (.prow): one line, fixed-width type
+     column left, name that ellipsizes first, value at the right edge. */
   .srow {
     display: flex;
     align-items: center;
@@ -134,35 +143,55 @@
     border: 2.5px solid var(--ink);
     border-radius: 11px;
     background: var(--yellow);
-    padding: 7px 10px;
+    padding: 6px 10px;
     cursor: pointer;
     transition: transform 0.08s;
     font-family: inherit;
     color: inherit;
     text-align: left;
     width: 100%;
-    min-height: 48px;
+    min-height: 46px;
+  }
+  @media (min-width: 760px) {
+    .srow {
+      padding: 8px 14px;
+      gap: 12px;
+    }
   }
   .srow:active {
     transform: translate(-1px, -1px);
   }
+  /* The icon IS the type label — fixed width like .pos so front-office
+     names align vertically with the player names below them. */
   .srow .ic {
+    width: 38px;
+    text-align: center;
     font-size: 19px;
+    /* line-height 1 keeps the emoji's line box from outgrowing the row —
+       without it the wide tier sat ~3px taller than the player rows. */
+    line-height: 1;
+    flex: none;
   }
   .mid {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 6px;
     min-width: 0;
+    overflow: hidden;
   }
   .who {
     font-weight: 800;
-    font-size: 13.5px;
-    line-height: 1.2;
+    font-size: 14px;
+    line-height: 1.15;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .what {
+  .meta {
     font-size: 11px;
     color: var(--muted-2);
     font-weight: 600;
+    flex: none;
   }
   .val {
     margin-left: auto;
@@ -185,19 +214,25 @@
   .srow.taken:active {
     transform: none;
   }
-  .srow.taken .what,
+  .srow.taken .meta,
   .srow.taken .val {
     color: var(--gray-ink);
   }
-  .srow.swap {
+  /* Armed Prime marks open tiles browsable with the same amber-dashed look
+     the player rows use — one "tappable for a powerup" language. */
+  .srow.swap,
+  .srow.prime {
     background: var(--amber);
     border-style: dashed;
     color: var(--ink);
     filter: none;
   }
-  .srow.swap .what {
+  .srow.swap .meta,
+  .srow.prime .meta {
     color: var(--muted-2);
   }
+  /* Pinned to 24px (12 text + 8 pad + 4 border) like the player rows'
+     confirm — an unconstrained line box made tapping change the row height. */
   .confirm {
     margin-left: auto;
     border: 2px solid var(--ink);
@@ -206,6 +241,7 @@
     color: var(--card);
     font-weight: 800;
     font-size: 12px;
+    line-height: 1;
     padding: 4px 12px;
     white-space: nowrap;
   }
