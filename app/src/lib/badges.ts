@@ -63,6 +63,16 @@ export interface BadgeDef {
    * trophy-case slot — a visible empty slot is an invitation, and inviting
    * someone to lose 100 games inverts the incentive. */
   ironic?: boolean;
+  /** A discovery rather than a target. Its locked slot shows a question mark
+   * instead of its name.
+   *
+   * The split is between badges you can *aim at* and badges you *find*. A
+   * performance badge names a thing to go do — win 103 games, spend the whole
+   * payroll, field eight All-Stars — and naming it is the direction the case
+   * owes the player. A secret is a fact about a specific season or person, and
+   * naming it turns discovery into a shopping list: "🏦 DEFERRED MONEY" on a
+   * locked slot is just an instruction to go look up Bonilla. */
+  secret?: boolean;
   /** Plain-language trigger, shown when a player opens an earned badge in the
    * trophy case. Written as the condition they met, not as a rule they should
    * chase — locked badges never reveal it. */
@@ -449,6 +459,7 @@ export const BADGES: BadgeDef[] = [
   },
   {
     key: "twoway",
+    secret: true,
     emoji: "🃏",
     label: "THE TWO-WAY GUY",
     rarity: "rare",
@@ -485,6 +496,7 @@ export const BADGES: BadgeDef[] = [
   },
   {
     key: "playermanager",
+    secret: true,
     emoji: "📋",
     label: "PLAYER-MANAGER",
     rarity: "ultra",
@@ -528,6 +540,7 @@ export const BADGES: BadgeDef[] = [
   // ---- era: seasons with an asterisk, whatever the reason ----
   {
     key: "strike",
+    secret: true,
     emoji: "✊",
     label: "PICKET LINE",
     rarity: "uncommon",
@@ -537,6 +550,7 @@ export const BADGES: BadgeDef[] = [
   },
   {
     key: "covid",
+    secret: true,
     emoji: "🦠",
     label: "SOCIAL DISTANCING",
     rarity: "uncommon",
@@ -546,6 +560,7 @@ export const BADGES: BadgeDef[] = [
   },
   {
     key: "signstealing",
+    secret: true,
     emoji: "🗑️",
     label: "STOLEN SIGNS",
     rarity: "rare",
@@ -555,6 +570,7 @@ export const BADGES: BadgeDef[] = [
   },
   {
     key: "deferred",
+    secret: true,
     emoji: "🏦",
     label: "DEFERRED MONEY",
     rarity: "rare",
@@ -564,6 +580,7 @@ export const BADGES: BadgeDef[] = [
   },
   {
     key: "crossed",
+    secret: true,
     emoji: "🚧",
     label: "CROSSED THE LINE",
     rarity: "ultra",
@@ -573,6 +590,7 @@ export const BADGES: BadgeDef[] = [
   },
   {
     key: "recordbook",
+    secret: true,
     emoji: "📖",
     label: "REWROTE THE RECORD BOOK",
     rarity: "ultra",
@@ -582,6 +600,7 @@ export const BADGES: BadgeDef[] = [
   },
   {
     key: "chase",
+    secret: true,
     emoji: "💥",
     label: "THE CHASE",
     rarity: "rare",

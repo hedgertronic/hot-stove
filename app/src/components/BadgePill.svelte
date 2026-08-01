@@ -28,10 +28,24 @@
   class:animate
   title={locked ? undefined : badge.label}
 >
-  {#if locked}
-    <!-- The name, never the emoji and never the `how`. A name is direction —
-         "MATCHED THE 2016 CUBS" sends you to look up what they did — while the
-         trigger behind it stays the reward for earning the badge. -->
+  {#if locked && badge.ironic}
+    <!-- An anti-trophy gives up nothing at all, not even its glyph. The rule it
+         protects is the incentive: a slot a player can read as "lose 100 games"
+         is an invitation to throw a season, and 💀 beside a question mark reads
+         exactly that way. Anonymous, it only says something is there. -->
+    <span aria-hidden="true">? ? ?</span>
+    <span class="sr">An undiscovered badge</span>
+  {:else if locked && badge.secret}
+    <!-- A discovery shows its glyph and withholds its name: enough of a hint to
+         be worth wondering about, not enough to become an errand. -->
+    {badge.emoji}
+    <span aria-hidden="true">? ? ?</span>
+    <span class="sr">An undiscovered badge</span>
+  {:else if locked}
+    <!-- Glyph and name, never the `how`. A name is direction — "MATCHED THE
+         2016 CUBS" sends you to look up what they did — while the trigger
+         behind it stays the reward for earning the badge. -->
+    {badge.emoji}
     {badge.label}
     <span class="sr">Not yet earned</span>
   {:else}

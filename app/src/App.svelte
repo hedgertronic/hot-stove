@@ -158,7 +158,7 @@
 {:else}
   <header class="hud disp">
     <button class="help" onclick={(e) => { e.stopPropagation(); helpOpen = true; }} aria-label="How to play">?</button>
-    <button class="help trophy" onclick={(e) => { e.stopPropagation(); trophyOpen = true; }} aria-label="Trophy case">🏆</button>
+    <button class="help trophy" onclick={(e) => { e.stopPropagation(); trophyOpen = true; }} aria-label="Trophy case"><svg class="tico" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 2h6v3.2a3 3 0 0 1-6 0V2Z M4 2.8H2.3v1.1a2 2 0 0 0 1.9 2 M10 2.8h1.7v1.1a2 2 0 0 1-1.9 2 M7 8.4v2.2 M4.6 11.9h4.8"/></svg></button>
     <Logo />
     {#if modeChip}<span class="modechip" title={modeTitle} aria-label={modeTitle}>{modeChip}</span>{/if}
     <button class="quit" class:armed={quitArmed} onclick={tapQuit}>
@@ -267,7 +267,20 @@
      on the way to opening a sheet. */
   .trophy {
     left: 32px;
-    font-size: 12px;
+  }
+  /* Line art rather than an emoji: the ?/✕ pills are 10px text glyphs, and a
+     colour emoji dropped into that geometry sits low and reads as a sticker on
+     a control. Stroked ink matches the punch mark the home rows already use. */
+  .tico {
+    width: 13px;
+    height: 13px;
+    display: block;
+    margin: 0 auto;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .quit {
     right: 0;

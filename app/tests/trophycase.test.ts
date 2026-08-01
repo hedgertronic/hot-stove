@@ -180,30 +180,63 @@ describe("the trophy case sheet", () => {
     expect(body).toContain("RING BEARERS");
     expect(body).not.toContain(BADGE_BY_KEY.cooperstown.how);
     expect(body).not.toContain(BADGE_BY_KEY.rings.how);
-    expect(body).not.toContain(BADGE_BY_KEY.rings.emoji);
-    expect(lockedSlots(body)).toBe(COLLECTIBLE.length - 2);
+    // The glyph rides along on a locked pill — it is a hint, not the answer.
+    expect(body).toContain(BADGE_BY_KEY.rings.emoji);
+    expect(lockedSlots(body)).toBe(BADGES.length - 2);
   });
 
-  /* Every locked pill carries this one string and nothing else does, so
-   * counting it is the cheapest exact read of the silhouette board. */
-  function lockedSlots(body: string): number {
+  /* Locked pills carry one of two screen-reader strings and nothing else does,
+   * so counting them is the cheapest exact read of the silhouette board. A
+   * named locked badge says "Not yet earned"; a secret one, which withholds its
+   * name as well, says "An undiscovered badge". */
+  function namedSlots(body: string): number {
     return (body.match(/Not yet earned/g) ?? []).length;
   }
+  function secretSlots(body: string): number {
+    return (body.match(/An undiscovered badge/g) ?? []).length;
+  }
+  function lockedSlots(body: string): number {
+    return namedSlots(body) + secretSlots(body);
+  }
 
-  it("silhouettes every collectible and no anti-trophy on a fresh case", () => {
+  it("withholds the name of a secret but not of a performance badge", () => {
     seed();
-    // 22, not 29: an empty slot is an invitation, and nobody is invited to
-    // lose 100 games. The count is the whole ironic-exclusion rule.
-    expect(lockedSlots(modal())).toBe(COLLECTIBLE.length);
+    const body = modal();
+    // A performance badge names the thing to go do — that is the direction the
+    // case owes the player.
+    expect(body).toContain("MATCHED THE 2016 CUBS");
+    expect(body).toContain("PERFECT SEASON");
+    // A secret is a fact about one season or person. Naming it would turn
+    // discovery into an errand: "go look up Bonilla".
+    expect(body).not.toContain("DEFERRED MONEY");
+    expect(body).not.toContain("PICKET LINE");
+    expect(body).not.toContain("PLAYER-MANAGER");
+    // Both classes render "? ? ?": a secret keeps its glyph as a hint, an
+    // anti-trophy gives up even that.
+    expect(secretSlots(body)).toBe(BADGES.filter((b) => b.secret || b.ironic).length);
+    expect(body).not.toContain(BADGE_BY_KEY.skull.emoji);
   });
 
-  it("gives an earned anti-trophy a pill but never a locked slot", () => {
+  it("slots every badge on a fresh case but counts only the collectible ones", () => {
+    seed();
+    const body = modal();
+    // Every badge gets a slot, anti-trophies included — but theirs is fully
+    // anonymous, so it invites nothing.
+    expect(lockedSlots(body)).toBe(BADGES.length);
+    // The fraction still counts only what can be chased.
+    expect(body).toContain(`0 OF ${COLLECTIBLE.length}`);
+    expect(COLLECTIBLE.length).toBeLessThan(BADGES.length);
+  });
+
+  it("names an anti-trophy only once it is earned", () => {
     seed(game(["skull"]));
     const body = modal();
     expect(body).toContain("100-LOSS CLUB");
+    expect(body).toContain(BADGE_BY_KEY.skull.emoji);
+    // It never enters the fraction, earned or not.
     expect(body).toContain(`0 OF ${COLLECTIBLE.length}`);
-    // Earning one anti-trophy adds a pill without moving the locked board.
-    expect(lockedSlots(body)).toBe(COLLECTIBLE.length);
+    // And earning it converts its anonymous slot rather than adding one.
+    expect(lockedSlots(body)).toBe(BADGES.length - 1);
   });
 
   it("heads each rarity band with its tier word, so rarity is not color alone", () => {
@@ -214,11 +247,16 @@ describe("the trophy case sheet", () => {
     }
   });
 
-  it("heads the ironic band only once an anti-trophy is earned", () => {
+  it("heads the ironic band from the start but keeps it anonymous", () => {
+    // The band is always there — the case shows the shape of the whole set —
+    // but until one is earned it says nothing about what is in it.
     seed(game(["crystal"]));
-    expect(modal()).not.toContain(">ironic<");
+    const before = modal();
+    expect(before).toContain(">ironic<");
+    expect(before).not.toContain("100-LOSS CLUB");
+    expect(before).not.toContain(BADGE_BY_KEY.skull.emoji);
     seed(game(["crystal", "skull"]));
-    expect(modal()).toContain(">ironic<");
+    expect(modal()).toContain("100-LOSS CLUB");
   });
 
   it("files an earned badge and a locked one in the same rarity band", () => {

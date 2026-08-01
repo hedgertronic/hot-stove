@@ -31,16 +31,23 @@
 
   function slots(rarity: Rarity): CaseSlot[] {
     const band = BADGES.filter((b) => b.rarity === rarity);
-    // Earned first, then the silhouettes still out there. Anti-trophies never
-    // get a locked slot: an empty slot is an invitation, and inviting someone
-    // to lose 100 games inverts the incentive.
+    // Earned, then named silhouettes, then the question marks — most legible to
+    // least, so a band reads left to right as "have / could aim at / no idea".
+    //
+    // Anti-trophies DO get a locked slot, but a fully anonymous one: BadgePill
+    // withholds their glyph as well as their name. The constraint that matters
+    // was never "no slot", it was "no invitation" — a slot reading "💀 100-LOSS
+    // CLUB" tells a player how to farm it, and "? ? ?" tells them nothing. They
+    // still sit outside the progress fraction, which is counted from
+    // COLLECTIBLE and never from what is on screen.
+    const locked = band.filter((b) => !earnedCount.has(b.key));
+    const anonymous = (b: BadgeDef) => b.secret === true || b.ironic === true;
     return [
       ...band
         .filter((b) => earnedCount.has(b.key))
         .map((b) => ({ def: b, count: earnedCount.get(b.key)!, locked: false })),
-      ...band
-        .filter((b) => !b.ironic && !earnedCount.has(b.key))
-        .map((b) => ({ def: b, count: 1, locked: true })),
+      ...locked.filter((b) => !anonymous(b)).map((b) => ({ def: b, count: 1, locked: true })),
+      ...locked.filter(anonymous).map((b) => ({ def: b, count: 1, locked: true })),
     ];
   }
 
@@ -74,13 +81,11 @@
   {#each sections as s (s.rarity)}
     <div class="band">
       <div class="bandcap">{s.rarity}</div>
-      <!-- Focusable so the band is reachable by keyboard: it is a scroll
-           container, and its offscreen pills are unreachable without arrow
-           keys. Deliberately a noninteractive element with tabindex — that
-           is the scrollable-region pattern WCAG 2.1.1 asks for, and it is
-           the exception the lint rule cannot see. -->
-      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-      <div class="bandrow" role="group" aria-label="{s.rarity} badges" tabindex="0">
+      <!-- No tabindex: the band wraps rather than scrolls, so every pill is on
+           screen and reachable by tabbing the buttons themselves. The
+           scrollable-region pattern WCAG 2.1.1 asks for only applies to a
+           container that hides content, and this one no longer does. -->
+      <div class="bandrow" role="group" aria-label="{s.rarity} badges">
         {#each s.items as slot (slot.def.key)}
           {#if slot.locked}
             <BadgePill badge={slot.def} count={slot.count} locked />
@@ -157,33 +162,15 @@
     text-transform: uppercase;
     margin-bottom: 3px;
   }
-  /* The band scrolls in x by itself; the sheet never does. Grid rather than
-     flex so the pills keep their content width — a flex child shrinks below it
-     and the row would compress instead of overflowing — and because the pills
-     come from BadgePill, whose class this scoped CSS cannot reach.
-
-     overflow-x: auto, never hidden: `hidden` on one axis computes the other to
-     auto, which makes a scroll container out of anything above the pinned
-     roster rail. The padding-bottom leaves room for a scrollbar so the x bar
-     cannot induce a y bar of its own. */
+  /* The band wraps; the sheet is the only thing that scrolls, and only in y.
+     A horizontal scroller hid pills behind an edge with no affordance for them
+     — on macOS the scrollbar is an invisible overlay until you already know to
+     drag — so the whole case is one vertical column now. Nothing is off-screen
+     that a thumb cannot reach by the gesture the sheet already uses. */
   .bandrow {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: max-content;
-    justify-content: start;
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-    scrollbar-width: thin;
-    padding-bottom: 4px;
-  }
-  .bandrow > :global(.brag),
-  .bandrow > .slot {
-    scroll-snap-align: start;
-  }
-  .bandrow:focus-visible {
-    outline: 3px solid var(--blue);
-    outline-offset: 2px;
   }
   /* A bare wrapper: the pill keeps its own shape, the button contributes none. */
   .slot {
