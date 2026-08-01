@@ -76,9 +76,14 @@ export interface BadgeDef {
   label: string;
   rarity: Rarity;
   axis: BadgeAxis;
-  /** An anti-trophy: rendered dashed and muted, and never given a locked
-   * trophy-case slot — a visible empty slot is an invitation, and inviting
-   * someone to lose 100 games inverts the incentive. */
+  /** An anti-trophy. It sits outside the progress fraction — nobody chases a
+   * 100-loss season, so it belongs to neither side of the ratio — and its
+   * locked slot is anonymized: glyph kept, name withheld.
+   *
+   * The constraint that matters is "no invitation", not "no slot". A slot
+   * reading "💀 100-LOSS CLUB" tells a player how to farm it; "? ? ?" tells
+   * them nothing, and inviting someone to lose 100 games inverts the
+   * incentive. Earned, it wears a solid brick pill — a citation you got. */
   ironic?: boolean;
   /** A discovery rather than a target. Its locked slot shows a question mark
    * instead of its name.
@@ -1023,8 +1028,10 @@ export const BADGE_BY_KEY: Record<string, BadgeDef> = Object.fromEntries(
   BADGES.map((b) => [b.key, b]),
 );
 
-/** Badges eligible for a locked trophy-case slot — everything you would chase.
- * Anti-trophies are excluded on purpose; they show up only once earned. */
+/** The denominator of the trophy case's progress fraction — everything you
+ * would chase. Anti-trophies are excluded on purpose: they belong to neither
+ * side of the ratio, so earning one must not move the fraction. They still get
+ * a slot in the case, which is a separate question this list does not answer. */
 export const COLLECTIBLE = BADGES.filter((b) => !b.ironic);
 
 /** The one on-field badge a win total earns, or null. Crown supersedes every

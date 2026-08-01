@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BADGES, RARITY_ORDER, type BadgeDef, type Rarity } from "../lib/badges";
+  import { BADGES, BADGE_BY_KEY, RARITY_ORDER, type BadgeDef, type Rarity } from "../lib/badges";
   import { badgeCase } from "../lib/settings";
   import BadgePill from "./BadgePill.svelte";
   import Sheet from "./Sheet.svelte";
@@ -62,7 +62,7 @@
    * protect. One at a time: the detail is a single node under the band that
    * holds the open pill, so nothing is rendered for any badge but that one. */
   let opened = $state<string | null>(null);
-  const shown = $derived(opened === null ? null : (BADGES.find((b) => b.key === opened) ?? null));
+  const shown = $derived(opened === null ? null : (BADGE_BY_KEY[opened] ?? null));
 
   function toggle(key: string) {
     opened = opened === key ? null : key;
@@ -89,7 +89,7 @@
       <div class="bandrow" role="group" aria-label="{s.rarity} badges">
         {#each s.items as slot (slot.def.key)}
           {#if slot.locked}
-            <BadgePill badge={slot.def} count={slot.count} locked />
+            <BadgePill badge={slot.def} locked />
           {:else}
             <!-- The pill itself comes from BadgePill and is not interactive, so
                  the button is a bare wrapper: no box of its own, the pill's

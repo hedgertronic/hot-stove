@@ -1043,3 +1043,49 @@ the value, `Rarity` derives from it, and both consumers read it.
 cap as an argument, which is right, but four was measured against a season
 averaging ~1.5 badges and the set has grown a lot since. Worth re-measuring
 against the bot study before assuming four is still the number.
+
+### Review findings, and the four left for tonight
+
+A duplication/decomposition review over everything since the last deploy found
+no correctness bugs. Three things were wrong enough to fix on the spot: two doc
+comments in `badges.ts` asserted rules the code does not follow (`ironic` said
+anti-trophies are "never given a locked trophy-case slot" — the case gives them
+an anonymized one; `COLLECTIBLE` called itself slot-eligibility when it is the
+progress fraction's denominator), and `TrophyModal` reimplemented a key lookup
+with `BADGES.find()` where `BADGE_BY_KEY` exists. False rationale is worse than
+no rationale — the next person reading it "fixes" working code.
+
+Left deliberately, all of it cosmetic or placement:
+
+**7. The trophy button is copy-pasted between the HUD and the home screen.**
+`App.svelte` and `Home.svelte` carry byte-identical copies of the button markup
+including its hand-tuned 6-segment SVG path, the `.tico` rules, and the `.help`
+geometry block — comments included. A tweak to the drawing has to be made twice
+and a mismatch is invisible until the two screens are compared side by side.
+Extract a `TrophyButton.svelte`, or promote `.help`/`.tico` to `app.css` the way
+`.psep` already is. `Home.svelte`'s `right: auto` is redundant there.
+
+**8. The WAR-tier color ramp is pasted into two components.** `Finale.svelte`'s
+`.tamt.*` and `Home.svelte`'s `.brec.*` duplicate six tier→color rules including
+a hardcoded `#e0a010` that deliberately overrides `--war-elite`. Change the
+token and neither follows; change one hex and the finale stamp disagrees with
+the record book. Wants a `--war-elite-stamp` in `app.css`. Fold into the outline
+unification pass (item 1) — same surfaces, same sitting.
+
+**9. `badgeCase()` is in `settings.ts`, which is scoped to mode persistence.**
+It reads history and badges and returns collection state; it lives there only
+because `bestFor()` does, and its own comment argues those are different
+objects. `badges.ts` imports nothing but `scoring`, so moving it closes no
+cycle. Placement only, no behavior.
+
+**10. `.x` close-button CSS is identical in `HelpModal` and `TrophyModal`.**
+Checked against `Sheet.svelte`'s claim that headers belong to the caller: that
+claim holds — six components import `Sheet`, all six define their own
+`.sheet-h`, and only these two carry an `.x`. A two-file duplication, not a
+`Sheet` omission. Worth an optional `dismissable` prop only if a third appears.
+
+**On `badgeCase()`'s tile sort:** it is currently unobserved. `TrophyModal`
+consumes `tiles` as a lookup map and a length check, and re-derives display
+order itself from `BADGES`. The sort was kept anyway: the function returns an
+array, an array implies an order, and returning map-insertion order would
+silently bite whatever renders `tiles` directly next. It is pinned by a test.
