@@ -15,23 +15,25 @@ import { money } from "./format";
 export interface DifficultyInfo {
   emoji: string;
   name: string;
-  /** Home-screen card subtitle. */
+  /** Home-screen row meta — terse dot-joined terms, rendered in caps. */
   desc: string;
 }
 
 export const DIFFICULTIES: Record<Difficulty, DifficultyInfo> = {
-  standard: { emoji: "📊", name: "Box Score", desc: "Stats, salaries, and awards" },
-  scout: { emoji: "🔭", name: "Eye Test", desc: "No stats, no awards" },
+  standard: { emoji: "📊", name: "Box Score", desc: "Stats · salaries · awards" },
+  scout: { emoji: "🔭", name: "Eye Test", desc: "No stats · no awards" },
 };
 
 export interface BankInfo {
   emoji: string;
   name: string;
-  /** Home-screen payroll pill ("$ · · ·" until the owner is hired in classic). */
+  /** Home-screen payroll pill. Classic's is a blank — payroll is unknown
+   * until an owner is hired in-game — and Home draws it dashed. */
   cash: string;
-  /** Home-screen team-identity pill; empty for classic (no team yet). */
+  /** Home-screen team-identity chip beside the name; empty for classic
+   * (no team yet). */
   team: string;
-  /** Home-screen pill styling hook (open / oak / nyy). */
+  /** Home-screen chip styling hook (open / oak / nyy). */
   cls: string;
 }
 

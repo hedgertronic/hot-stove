@@ -7,7 +7,6 @@ import type { BestManager, FinaleResult } from "../lib/engine.svelte";
 import type { BestPick, BestRoster } from "../lib/bestroster";
 import type { Card, CardPlayer, GameIndex, Meta, Owners } from "../lib/types";
 
-/** heroPrice = salaryFloor/avgSlot8 × displayAvgM → 0.3/48 × 160 = $1M. */
 const YEARS = ["1994", "1998", "2001", "2002", "2004", "2005"];
 export const stubMeta: Meta = {
   displayAvgM: 160,
@@ -20,7 +19,7 @@ export const stubMeta: Meta = {
 };
 
 /** Spins never run in the lab, so the index stays empty. */
-export const stubIndex: GameIndex = { yearMin: 1985, yearMax: 2024, cards: [] };
+export const stubIndex: GameIndex = { yearMin: 1985, yearMax: 2025, cards: [] };
 
 /** Real owner entries for the fixed-cap BankBox line (OAK 2002 / NYY 2005). */
 export const stubOwners: Owners = {
@@ -145,9 +144,8 @@ const marketPlayers = () => [
   mkPlayer({ name: "Freddy Garcia", pos: "SP", war: 4.9, cost: 26.1, awards: ["AS"] }),
 ];
 
-/** Box Score market: every WAR tier, spendy/cheap costs, a 🏠 hero (owner +
- * stadium are both SEA), a wrapped-badges long name, and a dead row (Edgar
- * is already rostered). */
+/** Box Score market: every WAR tier, spendy/cheap costs, a wrapped-badges
+ * long name, and a dead row (Edgar is already rostered). */
 export function marketGame(): Game {
   return forgeGame(CLASSIC, (g) => {
     g.card = mkCard({ players: marketPlayers() });
@@ -176,6 +174,39 @@ export function tdGame(): Game {
     });
     fillRoster(g);
     g.powerups.tradeDeadline = "armed";
+  });
+}
+
+/** Armed 🏠 Homegrown: the market filters to debut-matching rows at the
+ * flat $1M (HOMEGROWN_PRICE_M); everyone else is hard-gray until disarm.
+ * The grayed rows span every WAR tier so the faded-tier treatment (gray rows
+ * keep a washed chip/salary hue) can be judged across the whole ramp. */
+export function hdGame(): Game {
+  return forgeGame(CLASSIC, (g) => {
+    g.card = mkCard({
+      players: [
+        mkPlayer({ name: "Ichiro Suzuki", pos: "RF", war: 7.7, cost: 14, debut: "SEA", awards: ["MVP", "ROY", "GG", "AS"] }),
+        mkPlayer({ name: "Freddy Garcia", pos: "SP", war: 4.9, cost: 26.1, debut: "SEA", awards: ["AS"] }),
+        mkPlayer({ name: "Alex Rodriguez", pos: "SS", war: 8.5, cost: 27, awards: ["MVP2", "GG", "SS", "AS"] }),
+        mkPlayer({ name: "Edgar Martinez", pos: "DH", war: 6.5, cost: 11, awards: ["SS", "AS"] }),
+        mkPlayer({ name: "Bret Boone", pos: "2B", war: 5.2, cost: 9, awards: ["SS"] }),
+        mkPlayer({ name: "Mark McLemore", pos: "LF", war: 2.5, cost: 3 }),
+        mkPlayer({ name: "Jeff Nelson", pos: "RP", war: 1.2, cost: 3.1 }),
+      ],
+    });
+    g.powerups.hometown = "armed";
+  });
+}
+
+/** ⭐ armed, browsing the open 🧢 tile: the manager career sheet
+ * (SpecialPrimePicker) pulls the card skipper's real specials.json timeline
+ * — Piniella's 23 cross-franchise seasons, MOY pills, negative-value TBD
+ * years, and the grayed "here" row (SEA 2001). */
+export function specialPrimeGame(): Game {
+  return forgeGame(CLASSIC, (g) => {
+    g.card = mkCard();
+    g.powerups.prime = "armed";
+    g.primeSpecial = "manager";
   });
 }
 
@@ -358,7 +389,9 @@ function forgeFinale(opts: {
 
 /** Under cap: front-office-bonus ledger face, 💍💍🚩 pedigree, a full 9-⭐
  * scouting sweep (every squad row starred, every dream row green). Includes
- * the decorated long-name squad row (badge wrap proof) and a 🏠 hero. */
+ * the decorated long-name squad row (badge wrap proof) and a 🏠 discount
+ * signing. Badges: the full positive trio — 101 wins (💯), $95M of the
+ * $96.7M cap spent (bonus 9.6 → 💵), 9 scout hits (🔮). */
 export function finaleUnder(): Game {
   const slots = [
     mkSigned({ id: "salty", name: "Jarrod Saltalamacchia", pos: "C", war: 2.1, costPaid: 4.2, awards: ["MVP3", "GG", "SS", "AS"], ws: true }),
@@ -370,12 +403,13 @@ export function finaleUnder(): Game {
     mkSigned({ name: "Freddy Garcia", pos: "SP", war: 4.9, costPaid: 8, awards: ["AS"] }),
     mkSigned({ name: "Kazuhiro Sasaki", pos: "RP", war: 1.9, costPaid: 7, awards: ["ROY"] }),
   ];
-  return forgeFinale({ slots, spend: 91.2, budget: 96.7, scoutSweep: true });
+  return forgeFinale({ slots, spend: 95.0, budget: 96.7, scoutSweep: true });
 }
 
 /** Over cap: luxury-tax ledger face, and a stacked pedigree (8💍 + 2🚩 > 8
  * emojis) that must fall back to the ×N chips. One scout hit, one empty
- * dream-team seat. */
+ * dream-team seat. No badges: an accidental $19.3M bust sits under 💸's
+ * $25M bar, and 87 wins reaches no rung. */
 export function finaleOver(): Game {
   const ws = (name: string, pos: string, war: number, costPaid: number) =>
     mkSigned({ name, pos, war, costPaid, ws: true });
@@ -390,4 +424,97 @@ export function finaleOver(): Game {
     ws("Mariano Rivera", "RP", 3.6, 16),
   ];
   return forgeFinale({ slots, spend: 116, budget: 96.7, scoutSweep: false });
+}
+
+/** 🔱 brag, no 🏆: a bought superteam. 71.7 WAR → 128.7 expected wins (129–33
+ * beats the 2001 Mariners' 116), but the $31.3M luxury tax on the $128M
+ * payroll drags the total to 133.4 — a 133–29 season record, short of 162.
+ * The overrun clears 💸's $25M bar, so the pill row reads 🔱 + 💸: glory and
+ * the tax bill on one line. */
+export function finaleMariners(): Game {
+  const slots = [
+    mkSigned({ name: "Iván Rodríguez", pos: "C", war: 6.4, costPaid: 12, year: 1999, team: "TEX", teamName: "Texas Rangers", awards: ["MVP", "GG", "AS"] }),
+    mkSigned({ name: "Cal Ripken Jr.", pos: "SS", war: 11.5, costPaid: 21, year: 1991, team: "BAL", teamName: "Baltimore Orioles", awards: ["MVP", "GG", "SS", "AS"] }),
+    mkSigned({ name: "Craig Biggio", pos: "2B", war: 9.4, costPaid: 14, year: 1997, team: "HOU", teamName: "Houston Astros", awards: ["GG", "SS", "AS"] }),
+    mkSigned({ name: "Barry Bonds", pos: "LF", war: 11.9, costPaid: 24, year: 2001, team: "SFG", teamName: "San Francisco Giants", awards: ["MVP", "SS", "AS"] }),
+    mkSigned({ name: "Mark McGwire", pos: "1B", war: 7.5, costPaid: 13, year: 1998, team: "STL", teamName: "St. Louis Cardinals", awards: ["SS", "AS"] }),
+    mkSigned({ name: "Pedro Martínez", pos: "SP", war: 11.7, costPaid: 22, year: 2000, team: "BOS", teamName: "Boston Red Sox", awards: ["CY", "AS"] }),
+    mkSigned({ name: "Greg Maddux", pos: "SP", war: 9.7, costPaid: 15, year: 1995, team: "ATL", teamName: "Atlanta Braves", awards: ["CY", "GG", "AS"], ws: true }),
+    mkSigned({ name: "Billy Wagner", pos: "RP", war: 3.6, costPaid: 7, year: 1999, team: "HOU", teamName: "Houston Astros", awards: ["AS"] }),
+  ];
+  return forgeFinale({ slots, spend: 128, budget: 96.7, scoutSweep: false });
+}
+
+/** 🏆 PERFECT SEASON (and 🔱 — a real perfect game clears both): 74.1 WAR,
+ * near-cap payroll, big trophy case, and a 9-⭐ sweep push the total to
+ * 186.7 ≥ 162, so the record caps at 162–0 while the points line beneath
+ * keeps the exact 186.7. Four badges qualify (🔱 🏆 💵 🔮) — the row's
+ * three-pill cap drops 🔮, the proof the wall can't happen. */
+export function finalePerfect(): Game {
+  const slots = [
+    mkSigned({ name: "Mike Piazza", pos: "C", war: 8.7, costPaid: 11, year: 1997, team: "LAD", teamName: "Los Angeles Dodgers", awards: ["MVP2", "SS", "AS"] }),
+    mkSigned({ name: "Cal Ripken Jr.", pos: "SS", war: 11.5, costPaid: 16, year: 1991, team: "BAL", teamName: "Baltimore Orioles", awards: ["MVP", "GG", "SS", "AS"] }),
+    mkSigned({ name: "Alex Rodriguez", pos: "SS", war: 9.4, costPaid: 13, year: 2000, team: "SEA", teamName: "Seattle Mariners", awards: ["SS", "AS"] }),
+    mkSigned({ name: "Barry Bonds", pos: "LF", war: 11.8, costPaid: 15, year: 2002, team: "SFG", teamName: "San Francisco Giants", awards: ["MVP", "SS", "AS"], pen: true }),
+    mkSigned({ name: "Frank Thomas", pos: "DH", war: 6.3, costPaid: 9, year: 1994, team: "CHW", teamName: "Chicago White Sox", awards: ["MVP", "AS"] }),
+    mkSigned({ name: "Pedro Martínez", pos: "SP", war: 11.7, costPaid: 14, year: 2000, team: "BOS", teamName: "Boston Red Sox", awards: ["CY", "AS"] }),
+    mkSigned({ name: "Randy Johnson", pos: "SP", war: 10.4, costPaid: 12, year: 2001, team: "ARI", teamName: "Arizona Diamondbacks", awards: ["CY", "AS"], ws: true }),
+    mkSigned({ name: "Mariano Rivera", pos: "RP", war: 4.3, costPaid: 5, year: 1996, team: "NYY", teamName: "New York Yankees", ws: true }),
+  ];
+  return forgeFinale({ slots, spend: 95, budget: 96.7, scoutSweep: true });
+}
+
+/** 💀 100-LOSS CLUB: 4.0 WAR of washed veterans → 61 expected wins, a
+ * 61–101 on-field record. The payroll still blows the cap by $3.3M — which
+ * stays UNBADGED (💸 needs a $25M overrun; an ordinary bust is just the tax
+ * row). The skull is the only pill. */
+export function finaleBad(): Game {
+  const slots = [
+    mkSigned({ name: "Jason Varitek", pos: "C", war: 0.4, costPaid: 10, year: 2008, team: "BOS", teamName: "Boston Red Sox", awards: ["AS"] }),
+    mkSigned({ name: "Ryan Howard", pos: "1B", war: 0.6, costPaid: 20, year: 2011, team: "PHI", teamName: "Philadelphia Phillies" }),
+    mkSigned({ name: "Alfonso Soriano", pos: "2B", war: 0.5, costPaid: 17, year: 2009, team: "CHC", teamName: "Chicago Cubs" }),
+    mkSigned({ name: "Vernon Wells", pos: "CF", war: 0.3, costPaid: 21, year: 2011, team: "LAA", teamName: "Los Angeles Angels" }),
+    mkSigned({ name: "Adam Dunn", pos: "DH", war: 0.7, costPaid: 12, year: 2012, team: "CHW", teamName: "Chicago White Sox", awards: ["AS"] }),
+    mkSigned({ name: "Barry Zito", pos: "SP", war: 0.6, costPaid: 18, year: 2008, team: "SFG", teamName: "San Francisco Giants" }),
+    mkSigned({ name: "Carl Pavano", pos: "SP", war: 0.5, costPaid: 11, year: 2005, team: "NYY", teamName: "New York Yankees" }),
+    mkSigned({ name: "Jonathan Papelbon", pos: "RP", war: 0.4, costPaid: 8, year: 2016, team: "WSN", teamName: "Washington Nationals" }),
+  ];
+  return forgeFinale({ slots, spend: 100, budget: 96.7, scoutSweep: false });
+}
+
+/** 💸 MORTGAGED THE FARM: a $145M payroll of albatross contracts against the
+ * $96.7M cap — a $48.3M overrun, comfortably past the badge's $25M bar —
+ * carrying a 13.5-WAR roster to 71 wins. The tax drags the total to 24.2.
+ * The dashed pill is the only one that fires: 71–91 reaches no on-field
+ * rung, so the finale wears exactly one anti-trophy. */
+export function finaleMortgaged(): Game {
+  const slots = [
+    mkSigned({ name: "Joe Mauer", pos: "C", war: 2.6, costPaid: 18, year: 2014, team: "MIN", teamName: "Minnesota Twins" }),
+    mkSigned({ name: "Albert Pujols", pos: "1B", war: 0.8, costPaid: 14, year: 2013, team: "LAA", teamName: "Los Angeles Angels" }),
+    mkSigned({ name: "Robinson Canó", pos: "2B", war: 3.0, costPaid: 20, year: 2018, team: "SEA", teamName: "Seattle Mariners" }),
+    mkSigned({ name: "Jacoby Ellsbury", pos: "CF", war: 1.5, costPaid: 17, year: 2015, team: "NYY", teamName: "New York Yankees" }),
+    mkSigned({ name: "Miguel Cabrera", pos: "DH", war: 0.9, costPaid: 22, year: 2017, team: "DET", teamName: "Detroit Tigers" }),
+    mkSigned({ name: "David Price", pos: "SP", war: 2.4, costPaid: 24, year: 2017, team: "BOS", teamName: "Boston Red Sox" }),
+    mkSigned({ name: "Zack Greinke", pos: "SP", war: 2.2, costPaid: 22, year: 2016, team: "ARI", teamName: "Arizona Diamondbacks" }),
+    mkSigned({ name: "Craig Kimbrel", pos: "RP", war: 0.1, costPaid: 8, year: 2019, team: "CHC", teamName: "Chicago Cubs" }),
+  ];
+  return forgeFinale({ slots, spend: 145, budget: 96.7, scoutSweep: false });
+}
+
+/** 🧾 POCKETED THE DIFFERENCE: $35M spent of a $96.7M cap (36%) on a
+ * scrap-heap roster — 12.0 WAR, 69–93, a losing record with $61.7M left in
+ * the owner's pocket. The under-half-cap payroll also eats a −2.8
+ * front-office penalty, so the ledger and the pill tell the same joke. */
+export function finalePocketed(): Game {
+  const slots = [
+    mkSigned({ name: "Jeff Mathis", pos: "C", war: 0.6, costPaid: 2, year: 2018, team: "ARI", teamName: "Arizona Diamondbacks" }),
+    mkSigned({ name: "Yuniesky Betancourt", pos: "SS", war: 0.3, costPaid: 1, year: 2013, team: "MIL", teamName: "Milwaukee Brewers" }),
+    mkSigned({ name: "Ronny Cedeño", pos: "2B", war: 1.9, costPaid: 2, year: 2011, team: "PIT", teamName: "Pittsburgh Pirates" }),
+    mkSigned({ name: "Juan Pierre", pos: "LF", war: 2.6, costPaid: 3, year: 2012, team: "PHI", teamName: "Philadelphia Phillies" }),
+    mkSigned({ name: "Delmon Young", pos: "DH", war: 1.2, costPaid: 6, year: 2012, team: "DET", teamName: "Detroit Tigers" }),
+    mkSigned({ name: "Liván Hernández", pos: "SP", war: 2.4, costPaid: 5, year: 2011, team: "WSN", teamName: "Washington Nationals" }),
+    mkSigned({ name: "Bronson Arroyo", pos: "SP", war: 2.0, costPaid: 9, year: 2014, team: "ARI", teamName: "Arizona Diamondbacks" }),
+    mkSigned({ name: "Fernando Rodney", pos: "RP", war: 1.0, costPaid: 7, year: 2018, team: "MIN", teamName: "Minnesota Twins" }),
+  ];
+  return forgeFinale({ slots, spend: 35, budget: 96.7, scoutSweep: false });
 }

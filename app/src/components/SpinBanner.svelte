@@ -125,9 +125,10 @@
     <div class="coldmsg">🥶 COLD STOVE — nothing left to take here</div>
     <button class="btn spinbtn disp" onclick={() => game.coldRespin()}>SPIN AGAIN — FREE</button>
   </div>
-{:else if game.phase === "landed" && game.choicesUsed > 0 && game.choicesLeft > 0}
-  <button class="btn donebtn disp" onclick={() => game.finishSpin()}>DONE — KEEP ✌️ ▸</button>
 {/if}
+<!-- Mid-Double-Play (one pick down, one live) has no separate finish button:
+     tapping the armed ✌️ pill is the one exit, refunding the powerup — the
+     same toggle the player armed it with. -->
 
 <style>
   .banner {
@@ -188,12 +189,6 @@
     width: 100%;
     margin: 4px 0 12px;
     min-height: 48px;
-  }
-  .donebtn {
-    width: 100%;
-    margin: 4px 0 10px;
-    font-size: 13px;
-    padding: 7px 12px;
   }
   .cold {
     text-align: center;

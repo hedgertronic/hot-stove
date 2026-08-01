@@ -106,10 +106,10 @@ describe("bestRoster", () => {
 
 describe("bestRoster awards in the objective", () => {
   it("an award-heavy lower-WAR season beats a plain higher-WAR one", () => {
-    // Same human, two seasons (one may play): 5.0 WAR + MVP (5 pts) = 10
+    // Same human, two seasons (one may play): 7.0 WAR + MVP (3 pts) = 10
     // value > 9.0 WAR plain. A same-slot rival wouldn't work here — FLEX
     // catches every hitter, so two catchers would simply both roster.
-    const mvpSeason = player({ pos: "C", posG: C, war: 5, awards: ["MVP"], id: "star" });
+    const mvpSeason = player({ pos: "C", posG: C, war: 7, awards: ["MVP"], id: "star" });
     const plainSeason = player({ pos: "C", posG: C, war: 9, id: "star" });
     const best = bestRoster([
       card([mvpSeason], { year: 2001 }),
@@ -119,7 +119,7 @@ describe("bestRoster awards in the objective", () => {
     expect(chosen).toHaveLength(1);
     expect(chosen[0]?.year).toBe(2001);
     // totalWar reports the WAR of the chosen picks, not the objective value.
-    expect(best.totalWar).toBeCloseTo(5, 1);
+    expect(best.totalWar).toBeCloseTo(7, 1);
   });
 
   it("awards break a WAR tie deterministically", () => {
@@ -151,7 +151,7 @@ describe("bestRoster awards in the objective", () => {
   });
 
   it("a below-replacement season with a big award can now make the roster", () => {
-    // −0.5 WAR + MVP (5 pts) = 4.5 value: the objective says it belongs.
+    // −0.5 WAR + MVP (3 pts) = 2.5 value: the objective says it belongs.
     const oddMvp = player({ pos: "C", posG: C, war: -0.5, awards: ["MVP"], id: "odd" });
     const best = bestRoster([card([oddMvp])]);
     expect(best.picks[0]?.id).toBe("odd");

@@ -6,7 +6,7 @@ import {
   SLOT_TYPES,
   type GameConfig,
 } from "../src/lib/engine.svelte";
-import { statLine } from "../src/lib/format";
+import { recordFromTotal, statLine } from "../src/lib/format";
 import { bestFor, loadSettings, saveSettings } from "../src/lib/settings";
 import type { Card, CardPlayer, GameIndex, Meta, Owners } from "../src/lib/types";
 
@@ -249,6 +249,39 @@ describe("bestFor leaderboard", () => {
     expect(bestFor("standard", "classic")).toEqual({ best: 131.5, bestRecord: "104–58", games: 3 });
     expect(bestFor("scout", "classic")).toEqual({ best: 100, bestRecord: "91–71", games: 1 });
     expect(bestFor("standard", "blankcheck")).toEqual({ best: null, bestRecord: null, games: 0 });
+  });
+
+  it("the home BEST SEASON derives from the best TOTAL, not the stored record", () => {
+    store.set(
+      "hotstove.history",
+      JSON.stringify([
+        // The stored record is the OLD expected-wins record and must be ignored:
+        // 131.5 points resolve to 132–30 (star tier), not the stored "104-58".
+        { v: 2, date: "2026-07-30", total: 131.5, record: "104-58", spins: 10, difficulty: "standard", bank: "classic" },
+        { v: 2, date: "2026-07-30", total: 110, record: "95-67", spins: 10, difficulty: "standard", bank: "classic" },
+      ]),
+    );
+    const best = bestFor("standard", "classic");
+    expect(best.best).toBe(131.5);
+    expect(recordFromTotal(best.best!)).toEqual({ wins: 132, losses: 30, tier: "star" });
+  });
+});
+
+describe("recordFromTotal ladder (home record book + finale stamp)", () => {
+  it("rounds points to wins, clamps to the 162-game season", () => {
+    expect(recordFromTotal(90.4)).toEqual({ wins: 90, losses: 72, tier: "mid" });
+    expect(recordFromTotal(-12)).toEqual({ wins: 0, losses: 162, tier: "neg" });
+    expect(recordFromTotal(185)).toEqual({ wins: 162, losses: 0, tier: "elite" });
+  });
+
+  it("tier thresholds sit on the game's landmarks", () => {
+    expect(recordFromTotal(64).tier).toBe("neg"); // sub-.400
+    expect(recordFromTotal(65).tier).toBe("low"); // .400 floor
+    expect(recordFromTotal(81).tier).toBe("mid"); // .500
+    expect(recordFromTotal(100).tier).toBe("high"); // 100-win club
+    expect(recordFromTotal(116).tier).toBe("star"); // the Mariners line
+    expect(recordFromTotal(145).tier).toBe("elite"); // gold
+    expect(recordFromTotal(140).tier).toBe("star"); // violet below the gold line
   });
 });
 

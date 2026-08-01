@@ -2,6 +2,7 @@
   import type { Game, SpecialKey } from "../lib/engine.svelte";
   import { money, signed } from "../lib/format";
   import { MANAGER_PER_NET_WIN } from "../lib/scoring";
+  import AwardPill from "./AwardPill.svelte";
 
   let {
     game,
@@ -24,6 +25,8 @@
     who: string;
     /** Inline muted meta after the name — the icon already names the type. */
     meta: string;
+    /** Manager of the Year pill (award visibility: Box Score only). */
+    moty?: boolean;
     val: string;
     verb: string;
   }
@@ -65,6 +68,7 @@
         ic: "🧢",
         who: c.manager,
         meta: game.scout ? "" : `${c.wins}–${c.losses}`,
+        moty: game.showAwards && c.managerMoty === true,
         val: game.scout ? "" : `${signed((c.wins - c.losses) * MANAGER_PER_NET_WIN)} W`,
         verb: "HIRE",
       });
@@ -88,7 +92,9 @@
     e.stopPropagation();
     if (!canAct) return;
     const taken = game.specialTaken(row.key);
-    if (!taken && game.primeArmed) {
+    // ⭐ browses managers only — an armed Prime never claims the owner or
+    // stadium tap, so those tiles keep their plain hire confirm.
+    if (!taken && game.primeArmed && row.key === "manager") {
       game.primeTapSpecial(row.key);
       return;
     }
@@ -104,7 +110,7 @@
   {#each rows as row (row.key)}
     {@const taken = game.specialTaken(row.key)}
     {@const swappable = taken && tdArmed && canAct}
-    {@const primeable = !taken && game.primeArmed && canAct}
+    {@const primeable = !taken && row.key === "manager" && game.primeArmed && canAct}
     <button
       class="srow {row.cls}"
       class:taken={taken && !swappable}
@@ -116,11 +122,12 @@
       <span class="mid">
         <span class="who">{row.who}</span>
         {#if row.meta}<span class="meta">{row.meta}</span>{/if}
+        {#if row.moty}<AwardPill code="MOY" small />{/if}
       </span>
       {#if confirmKey === `s:${row.key}` && !taken}
         <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commit(row.key); }} onkeydown={(e) => e.key === "Enter" && commit(row.key)}>{row.val ? `${row.verb} ${row.val}` : row.verb}</span>
       {:else if confirmKey === `w:${row.key}` && swappable}
-        <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSwap(row.key); }} onkeydown={(e) => e.key === "Enter" && commitSwap(row.key)}>🔁 SWAP IN</span>
+        <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSwap(row.key); }} onkeydown={(e) => e.key === "Enter" && commitSwap(row.key)}>🔁 TRADE IN</span>
       {:else}
         <span class="val">{row.val}</span>
       {/if}
@@ -218,8 +225,9 @@
   .srow.taken .val {
     color: var(--gray-ink);
   }
-  /* Armed Prime marks open tiles browsable with the same amber-dashed look
-     the player rows use — one "tappable for a powerup" language. */
+  /* Armed Prime marks the open manager tile browsable with the same
+     amber-dashed look the player rows use — one "tappable for a powerup"
+     language. Owner and stadium tiles are never Prime targets. */
   .srow.swap,
   .srow.prime {
     background: var(--amber);

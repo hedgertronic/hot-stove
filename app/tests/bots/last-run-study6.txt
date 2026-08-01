@@ -1,0 +1,11 @@
+=== Study 6: manager multiplier M, post-hoc over 2000 Classic games/bot ===
+bot / M             >116    >110    >100  max W    mean     p90  >=162
+powerups 0.10      0.10%   3.60%  53.40%    118   134.0   146.0      5
+powerups 0.15      0.10%   6.50%  58.55%    121   134.9   147.4      8
+powerups 0.20      1.05%   9.60%  62.20%    124   135.7   148.9     12
+powerups 0.25      3.15%  15.40%  65.40%    127   136.5   150.8     16
+baseline 0.10      0.00%   0.05%   2.35%    111   110.0   123.9      0
+baseline 0.20      0.00%   0.15%   6.40%    115   111.3   125.9      0
+
+(post-hoc: same played games per bot, M applied at rescore; hire-time
+ policy still values managers at 0.1x — see file header caveat)

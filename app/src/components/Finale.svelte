@@ -1,8 +1,8 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { lastName, money, seedCode, signed, slotLabel, sortAwards, warTier } from "../lib/format";
+  import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, warTier } from "../lib/format";
   import { BANKS, DIFFICULTIES } from "../lib/modes";
-  import { GOAL_POINTS, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
+  import { GAMES, GOAL_POINTS, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
   import AwardPill from "./AwardPill.svelte";
 
   let {
@@ -26,20 +26,24 @@
     /** Miniature spend/payroll bar rendered inline beside the label. */
     meter?: { pct: number; over: boolean };
     amt: string;
-    cls: "base" | "plus" | "minus" | "zero";
+    cls: "plus" | "minus" | "zero";
   }
 
   const rows = $derived.by((): LedgerRow[] => {
     const p = fin.parts;
     const out: LedgerRow[] = [];
+    // The base line of the ledger: expected wins, unsigned — it's the opening
+    // balance every signed row below adjusts, and it sums into the total to
+    // the tenth. The markup renders the animated dispWins in its place. The
+    // share string keeps the integer fin.wins–fin.losses record.
     out.push({
       key: "wins",
-      lbl: "Expected wins",
+      lbl: "Baseline wins",
       why: game.manager
-        ? `50 base + ${fin.totalWar.toFixed(1)} WAR + ${lastName(game.manager.name)} ${signed(p.managerWins)}`
-        : `50 base + ${fin.totalWar.toFixed(1)} team WAR · no manager`,
+        ? `50 + ${fin.totalWar.toFixed(1)} WAR + ${lastName(game.manager.name)} ${signed(p.managerWins)}`
+        : `50 + ${fin.totalWar.toFixed(1)} WAR, no manager`,
       amt: p.expectedWins.toFixed(1),
-      cls: "base",
+      cls: "zero",
     });
     // One budget row, two faces: the tax and the bonus are mutually exclusive
     // by construction (bonus is 0 whenever spend exceeds budget), so over cap
@@ -70,6 +74,10 @@
         awardCounts.set(a, (awardCounts.get(a) ?? 0) + 1);
       }
     }
+    // The skipper's Manager of the Year is trophy-case hardware too (+2 is
+    // inside p.awardPoints); sortAwards parks unknown codes last, so MOY
+    // trails the player pills.
+    if (game.manager?.moty) awardCounts.set("MOY", 1);
     // Canonical award order (MVP → CY → … → AS) as the same pills the player
     // rows wear, with a ×N when an award repeats across the roster.
     const hardwareChips = sortAwards([...awardCounts.keys()]).map((a) => ({
@@ -119,10 +127,20 @@
   });
 
   let shownRows = $state(0);
-  let dispW = $state(0);
-  let dispL = $state(0);
+  let dispWins = $state(0);
+  let dispRecW = $state(0);
+  let dispRecL = $state(0);
   let dispTotal = $state("0");
   let totalShown = $state(false);
+  let bragsShown = $state(false);
+
+  /** Record + tier come from the shared ladder (lib/format.recordFromTotal)
+   * so the home record book resolves totals identically. PERFECT SEASON stays
+   * keyed to the exact total, not the capped record. */
+  const rec = $derived(recordFromTotal(fin.parts.total, GAMES, MARINERS_WINS));
+  const recWins = $derived(rec.wins);
+  const recLosses = $derived(rec.losses);
+  const recTier = $derived(rec.tier);
 
   function count(set: (v: number) => void, n: number, ms: number) {
     const t0 = performance.now();
@@ -143,44 +161,115 @@
     }
   }
 
+  /* Three beats: rows deal out on a steady cadence, a held pause before the
+   * total stamp lands (with its count-up and confetti), then the brag pills
+   * thunk in once the number has settled. */
   $effect(() => {
     if (reduced) {
-      dispW = fin.wins;
-      dispL = fin.losses;
-      shownRows = rows.length + 1;
+      dispWins = fin.parts.expectedWins;
+      shownRows = rows.length;
       totalShown = true;
+      bragsShown = true;
+      dispRecW = recWins;
+      dispRecL = recLosses;
       dispTotal = fin.parts.total.toFixed(1);
       return;
     }
-    count((v) => (dispW = v), fin.wins, 900);
-    count((v) => (dispL = v), fin.losses, 900);
     const timers: ReturnType<typeof setTimeout>[] = [];
-    for (let i = 0; i <= rows.length; i++) {
+    for (let i = 0; i < rows.length; i++) {
       timers.push(
         setTimeout(() => {
           shownRows = i + 1;
-          if (i === rows.length) {
-            totalShown = true;
-            const t0 = performance.now();
-            const tick = (now: number) => {
-              const prog = Math.min((now - t0) / 700, 1);
-              dispTotal = (fin.parts.total * (1 - Math.pow(1 - prog, 3))).toFixed(1);
-              if (prog < 1) requestAnimationFrame(tick);
-            };
-            requestAnimationFrame(tick);
-            void confettiPop();
-          }
-        }, 1000 + i * 500),
+          // The base row counts up as it lands, not before — it's invisible
+          // until the reveal reaches it.
+          if (i === 0) count((v) => (dispWins = v), fin.parts.expectedWins, 900);
+        }, 900 + i * 450),
       );
     }
+    // The extra 350ms is the drumroll: one row-beat plus a hold.
+    const totalAt = 900 + rows.length * 450 + 350;
+    timers.push(
+      setTimeout(() => {
+        totalShown = true;
+        // One eased clock drives the whole resolution: the record plays out
+        // from 0–0 — wins and losses accruing together like a season passing
+        // game by game — while the exact points tick up in lockstep beneath.
+        const t0 = performance.now();
+        const tick = (now: number) => {
+          const prog = Math.min((now - t0) / 900, 1);
+          const ease = 1 - Math.pow(1 - prog, 3);
+          dispRecW = Math.round(recWins * ease);
+          dispRecL = Math.round(recLosses * ease);
+          dispTotal = (fin.parts.total * ease).toFixed(1);
+          if (prog < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+        void confettiPop();
+      }, totalAt),
+    );
+    // Brags wait for the count-up to settle — they annotate the final number.
+    timers.push(setTimeout(() => (bragsShown = true), totalAt + 1000));
     return () => timers.forEach(clearTimeout);
   });
 
   const TIER_EMOJI = { neg: "🔴", low: "⚪", mid: "🟢", high: "🔵", star: "🟣", elite: "🟡" } as const;
 
+  /* ---- Badges: three rungs plus the goal pill; at most three pills render.
+   *
+   * Every trigger is calibrated against 2000-game bot runs (tests/bots/,
+   * baseline → powerups; frequencies in parens):
+   *   on-field rung  🔱 >116 wins (0–0.1%) ⊃ 💯 ≥100 wins (2–53%) |
+   *                  💀 ≥100 losses (0% — bots never tank; only a genuinely
+   *                  thrown season earns the skull)
+   *   money rung     💸 ≥$25M over cap (0.05–0.25%; the typical accidental
+   *                  bust is single-digit $M over and stays unbadged) |
+   *                  💵 payroll bonus ≥9.5, i.e. ≥97.5% of the cap spent
+   *                  without busting (16–30%) | 🧾 ≤60% of the cap spent AND
+   *                  a losing record (0–0.15%). The three faces are mutually
+   *                  exclusive by construction: over cap zeroes the bonus,
+   *                  and ≥97.5% spent can't be ≤60%.
+   *   scout rung     🔮 ≥7 of the dream team actually drafted (0.25–2%)
+   *   goal           🏆 total ≥162, its own axis — stacks with any rung.
+   */
+  const FARM_TAX_M = 25; // $M over cap before the overrun earns its pill
+  const DIME_BONUS = 9.5; // payroll bonus at ≥97.5% of cap, unbusted
+  const CHEAP_PCT = 0.6; // spend/cap at or below this is a pocketed payroll
+  const CRYSTAL_HITS = 7; // dream-team picks found (of 8, or 9 with a manager)
+
   const beatMariners = $derived(fin.wins > MARINERS_WINS);
+  /* 💯 is the attainable on-field rung under 🔱, which supersedes it — a
+   * Mariners-beater is obviously in the club. */
+  const hundredClub = $derived(fin.wins >= 100 && !beatMariners);
+  const hundredLosses = $derived(fin.losses >= 100);
   const perfect = $derived(fin.parts.total >= GOAL_POINTS);
+  const mortgaged = $derived(fin.spend - fin.budget >= FARM_TAX_M);
+  const everyDime = $derived(fin.parts.budgetBonus >= DIME_BONUS);
+  const pocketed = $derived(fin.spend <= fin.budget * CHEAP_PCT && fin.wins < fin.losses);
+  const crystalBall = $derived(fin.scoutHits >= CRYSTAL_HITS);
   const dreamDenom = $derived(fin.bestManager ? 9 : 8);
+
+  interface Brag {
+    key: string;
+    label: string;
+    /** Pill treatment: "" sky (record) · club/gold/cash/scout fills ·
+     * irony = the dashed anti-trophy. */
+    cls: "" | "club" | "gold" | "cash" | "scout" | "irony";
+  }
+  const brags = $derived.by((): Brag[] => {
+    const out: Brag[] = [];
+    if (beatMariners) out.push({ key: "trident", label: "🔱 BEAT THE 2001 MARINERS", cls: "" });
+    else if (hundredClub) out.push({ key: "club", label: "💯 100-WIN CLUB", cls: "club" });
+    else if (hundredLosses) out.push({ key: "skull", label: "💀 100-LOSS CLUB", cls: "irony" });
+    if (perfect) out.push({ key: "gold", label: "🏆 PERFECT SEASON", cls: "gold" });
+    if (mortgaged) out.push({ key: "farm", label: "💸 MORTGAGED THE FARM", cls: "irony" });
+    else if (everyDime) out.push({ key: "dime", label: "💵 SPENT EVERY DIME", cls: "cash" });
+    else if (pocketed) out.push({ key: "pocket", label: "🧾 POCKETED THE DIFFERENCE", cls: "irony" });
+    if (crystalBall) out.push({ key: "crystal", label: "🔮 CRYSTAL BALL", cls: "scout" });
+    // Four can fire at once (🔱 + 🏆 + 💵 + 🔮 — the lab's perfect-season
+    // game); the pill row caps at three, dropping from the scout end. The
+    // share string keeps all of them — emoji cost nothing there.
+    return out.slice(0, 3);
+  });
 
   function shareText(): string {
     const diff = DIFFICULTIES[game.config.difficulty];
@@ -201,16 +290,22 @@
     const medals = [
       "💍".repeat(Math.min(rings, 8)),
       "🚩".repeat(Math.min(pennants, 8)),
-      fin.best ? `⭐${fin.scoutHits}/${dreamDenom}` : "",
+      fin.best ? `⭐${fin.scoutHits}/${dreamDenom}${crystalBall ? " 🔮" : ""}` : "",
     ]
       .filter(Boolean)
       .join(" ");
+    // Badges ride their fact's line, emoji-only: the on-field rung stamps the
+    // record, the money rung stamps the payroll, 🔮 stamps the scout tally,
+    // and PERFECT SEASON keeps its words on the total. No three-pill cap
+    // here — a line never carries more than its own rung's one emoji.
+    const recBadge = beatMariners ? " 🔱" : hundredClub ? " 💯" : hundredLosses ? " 💀" : "";
+    const bankBadge = mortgaged ? " 💸" : everyDime ? " 💵" : pocketed ? " 🧾" : "";
     // The seed code ends the string: paste it into PLAY A SEED # on the home
     // screen to replay this exact card sequence.
     return [
       `HOT STOVE ${tag}`,
       grid,
-      `${fin.wins}–${fin.losses}${beatMariners ? " 🔱" : ""} · 💰 ${money(fin.spend)}/${money(fin.budget)}`,
+      `${fin.wins}–${fin.losses}${recBadge} · 💰 ${money(fin.spend)}/${money(fin.budget)}${bankBadge}`,
       `${medals ? `${medals} · ` : ""}🏆 ${fin.parts.total.toFixed(1)}${perfect ? " · PERFECT SEASON" : ""} · #${seedCode(game.seed)}`,
     ].join("\n");
   }
@@ -266,24 +361,15 @@
 </script>
 
 <!-- Phone: the two halves are plain stacked divs, same order as ever. Wide
-     (≥760px): the score story (record, ledger, actions, seed) sits beside the
+     (≥760px): the score story (ledger, badges, actions, seed) sits beside the
      rosters (squad + dream team) so the reveal and the receipts share the
      screen. -->
 <div class="fin-cols">
 <div class="fin-main">
-<div class="fin-head disp">
-  <div class="rec">{Math.round(dispW)}–{Math.round(dispL)}</div>
-  {#if beatMariners && totalShown}
-    <div class="brag">🔱 BEAT THE 2001 MARINERS</div>
-  {/if}
-  {#if perfect && totalShown}
-    <div class="brag gold">🏆 PERFECT SEASON</div>
-  {/if}
-</div>
-
+<div class="psep">THE LEDGER</div>
 <div class="ledger">
   {#each rows as row, i (row.key)}
-    <div class="lrow disp" class:base={row.cls === "base"} class:show={i < shownRows}>
+    <div class="lrow disp" class:show={i < shownRows}>
       <span class="lbl">{row.lbl}</span>
       {#if row.chips}
         <span class="chipline">
@@ -310,14 +396,33 @@
       {#if row.why}
         <span class="why">{row.why}</span>
       {/if}
-      <span class="amt" class:plus={row.cls === "plus"} class:minus={row.cls === "minus"}>{row.amt}</span>
+      <!-- The base row shows the animated wins count-up as its amount; every
+           other row's amount is the precomputed string. -->
+      <span class="amt" class:plus={row.cls === "plus"} class:minus={row.cls === "minus"}
+        >{row.key === "wins" ? dispWins.toFixed(1) : row.amt}</span
+      >
     </div>
   {/each}
-  <div class="lrow total disp" class:show={totalShown}>
-    <span class="lbl">Final score</span>
-    <span class="amt">{dispTotal}</span>
-  </div>
 </div>
+
+<!-- The final stamp: no box, no header — the season the points resolve into.
+     The giant tier-colored W–L record is self-announcing; the exact total in
+     small type beneath reconciles the ledger to the tenth while the record
+     carries the drama. -->
+<div class="total-stamp disp" class:show={totalShown}>
+  <span class="tamt {recTier}">{dispRecW}–{dispRecL}</span>
+  <span class="tpts">{dispTotal} PTS</span>
+</div>
+
+{#if bragsShown && brags.length > 0}
+  <div class="brags">
+    {#each brags as b, i (b.key)}
+      <!-- Pills thunk in one at a time, left to right — a short trophy line,
+           not a wall (the derivation caps at three). -->
+      <div class="brag {b.cls}" style:animation-delay="{i * 0.12}s">{b.label}</div>
+    {/each}
+  </div>
+{/if}
 
 <div class="fin-actions">
   <button class="btn ghost disp" onclick={onmodes}>Modes <span class="bic">🕹️</span></button>
@@ -432,22 +537,22 @@
       max-width: 1020px;
       margin: 0 auto;
     }
+    /* Both columns open with a psep header, so the first squad sheds its
+       stacked-layout gap to sit level with THE LEDGER. */
     .fin-side > .squad:first-child {
-      margin-top: 4px;
+      margin-top: 0;
     }
   }
-  .fin-head {
-    text-align: center;
-    margin: 10px 0 12px;
-  }
-  .rec {
-    font-size: 46px;
-    font-weight: 800;
-    line-height: 1;
+  /* Brag badges pop with the total, right under the stamp they qualify —
+     up to three pills on one wrapping, centered line. */
+  .brags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 8px;
+    margin-top: 12px;
   }
   .brag {
-    display: inline-block;
-    margin-top: 7px;
     border: 2px solid var(--ink);
     border-radius: 999px;
     background: var(--sky);
@@ -459,7 +564,26 @@
   }
   .brag.gold {
     background: var(--yellow);
-    margin-left: 6px;
+  }
+  /* Quieter than 🔱's sky — the club is the attainable rung. */
+  .brag.club {
+    background: var(--card);
+  }
+  /* Money-precision green; the cap spent to the last percent. */
+  .brag.cash {
+    background: var(--green-wash);
+  }
+  /* The scouting chase wears the one warm fill no other pill uses. */
+  .brag.scout {
+    background: var(--pink);
+  }
+  /* The anti-trophy: ironic badges (💀 💸 🧾) get the ghost treatment —
+     dashed hairline, no fill, muted ink. A citation, not a prize. */
+  .brag.irony {
+    border-style: dashed;
+    border-color: var(--gray-ink);
+    background: transparent;
+    color: var(--muted);
   }
   @keyframes thunk-in {
     from {
@@ -467,8 +591,17 @@
       transform: scale(0.6);
     }
   }
+  /* Reduced motion: pills are simply there — no thunk, no stagger. */
+  @media (prefers-reduced-motion: reduce) {
+    .brag {
+      animation: none;
+    }
+  }
   .ledger {
     display: grid;
+    /* minmax(0,…): the track must be able to shrink below the rows' intrinsic
+       width, or one long why-string widens every row past the phone screen. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 7px;
   }
   /* Every row is one line — label, then its visual (pills / emoji chips /
@@ -563,27 +696,90 @@
     font-size: 16px;
     white-space: nowrap;
   }
-  .lrow.base {
-    background: var(--green-wash);
-  }
   .amt.plus {
     color: var(--green);
   }
   .amt.minus {
     color: var(--orange);
   }
-  .lrow.total {
-    background: var(--yellow);
-    border-width: 3px;
+  /* The final stamp: unboxed, unlabeled, and by far the biggest type on the
+     page — the season record the points resolve into. Every other section
+     opens with a psep header; the payoff is the one block that doesn't need
+     a name. Whitespace alone separates it from the ledger, and it sits
+     centered on the same axis as the brags, buttons, and seed chip, so the
+     whole payoff stack reads as one ceremony. The exact points sit quiet
+     beneath the record — the tenth-precise number the ledger actually sums
+     to. */
+  .total-stamp {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 14px;
+    opacity: 0;
   }
-  .lrow.total .amt {
-    font-size: 21px;
+  .total-stamp.show {
+    opacity: 1;
+    animation: stamp-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
+  @keyframes stamp-in {
+    from {
+      opacity: 0;
+      transform: scale(0.82);
+    }
+  }
+  .tamt {
+    font-size: 54px;
+    font-weight: 900;
+    line-height: 1.05;
+    font-variant-numeric: tabular-nums;
+  }
+  /* The record wears the game's WAR-ladder palette, keyed to its win count —
+     the same color language every player chip already taught. */
+  .tamt.neg {
+    color: var(--war-neg);
+  }
+  .tamt.low {
+    color: var(--war-low);
+  }
+  .tamt.mid {
+    color: var(--war-mid);
+  }
+  .tamt.high {
+    color: var(--war-high);
+  }
+  .tamt.star {
+    color: var(--war-star);
+  }
+  .tamt.elite {
+    /* Brighter than --war-elite on purpose: at 54px/900 the token's #c98a08
+       reads brown; true gold needs the extra chroma at stamp size. */
+    color: #e0a010;
+  }
+  /* The exact points, quiet and tabular under the record — it reconciles the
+     ledger (rows sum to this, not to the rounded record) and tells 162.5
+     apart from a 185 blowout when the record caps at 162–0. */
+  .tpts {
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  /* The exits keep their distance: the stamp (and any brags) is the payoff
+     moment, and the buttons are the next scene. This override lives BELOW the
+     wide-layout block, so it must carry its own media query to win. */
   .fin-actions {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 9px;
-    margin-top: 13px;
+    margin-top: 28px;
+  }
+  @media (min-width: 760px) {
+    /* The score column has spare height beside the rosters — a wider moat. */
+    .fin-actions {
+      margin-top: 48px;
+    }
   }
   .fin-actions .btn {
     min-height: 48px;

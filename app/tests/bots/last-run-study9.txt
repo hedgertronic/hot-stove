@@ -1,0 +1,8 @@
+=== Study 9: Prime Time tile bans, 2000 paired Classic games/arm, M=0.1 ===
+arm                mean     p90     max  >=162    bank  bonus
+A all             135.7   148.9   174.5     12   162.6    6.1
+B players+mgr     135.7   149.4   174.5     12   151.9    6.4
+C players-only    135.6   149.4   174.5     11   151.8    6.4
+
+arm A prime usage: spent in 100% of games — player 56%, owner 44%, stadium 0%, manager 0% of spends
+arm A prime-on-owner: fired in 44% of games; chosen bank richer than the landed tile's by $70.5M on average

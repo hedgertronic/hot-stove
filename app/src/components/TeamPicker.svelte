@@ -1,23 +1,18 @@
 <script lang="ts">
   import { accentFor } from "../lib/data";
-  import { DIVISIONS } from "../lib/divisions";
+  import { divisionsForYear } from "../lib/divisions";
   import type { Game } from "../lib/engine.svelte";
   import type { Colors } from "../lib/types";
   import Sheet from "./Sheet.svelte";
 
   let { game, colors, onclose }: { game: Game; colors: Colors; onclose: () => void } = $props();
 
-  // Grouped by current division; expansion clubs missing from an early year
-  // just leave a shorter row. tests/divisions.test.ts proves the map covers
-  // every franchise in the data, so nothing can drop out silently.
-  const divisions = $derived.by(() => {
-    if (!game.card) return [];
-    const byFranchise = new Map(game.teamsForYear(game.card.year).map((t) => [t.franchise, t]));
-    return DIVISIONS.map((d) => ({
-      label: d.label,
-      teams: d.franchises.flatMap((f) => byFranchise.get(f) ?? []),
-    })).filter((d) => d.teams.length > 0);
-  });
+  // Grouped by the spun season's actual league + division (index rows carry
+  // lg/div) — pre-1994 years show four groups, Houston sits in the NL until
+  // 2013, etc. tests/divisions.test.ts pins the discriminating cases.
+  const divisions = $derived.by(() =>
+    game.card ? divisionsForYear(game.teamsForYear(game.card.year)) : [],
+  );
 
   function pick(team: string) {
     onclose();

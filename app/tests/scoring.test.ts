@@ -14,6 +14,7 @@ interface Fixture {
     pennants: number;
     manager_record: [number, number] | null;
     scout_hits: number;
+    manager_moty: boolean;
   };
   expect: Record<string, number>;
 }
@@ -30,6 +31,7 @@ describe("scoring parity with pipeline/scoring.py", () => {
         pennants: f.args.pennants,
         managerRecord: f.args.manager_record,
         scoutHits: f.args.scout_hits,
+        managerMoty: f.args.manager_moty,
       });
       expect(parts).toEqual(f.expect);
     });
@@ -37,7 +39,7 @@ describe("scoring parity with pipeline/scoring.py", () => {
 });
 
 describe("manager folds into the win total", () => {
-  it("the 2001 Mariners' manager adds +7.0 wins, not separate points", () => {
+  it("the 2001 Mariners' manager adds +14.0 wins, not separate points", () => {
     const p = score({
       totalWar: 20,
       spendM: 50,
@@ -45,8 +47,8 @@ describe("manager folds into the win total", () => {
       awardLists: [],
       managerRecord: [116, 46],
     });
-    expect(p.expectedWins).toBeCloseTo(77.0, 5);
-    expect(p.managerWins).toBeCloseTo(7.0, 5);
+    expect(p.expectedWins).toBeCloseTo(84.0, 5);
+    expect(p.managerWins).toBeCloseTo(14.0, 5);
     expect("skipperPoints" in p).toBe(false);
   });
 
@@ -59,5 +61,29 @@ describe("manager folds into the win total", () => {
       managerRecord: [116, 46],
     });
     expect(p.expectedWins).toBe(162);
+  });
+});
+
+describe("Manager of the Year is trophy-case hardware", () => {
+  const args = {
+    totalWar: 30,
+    spendM: 50,
+    budgetM: 100,
+    awardLists: [["MVP"]],
+    managerRecord: [97, 65] as [number, number],
+  };
+
+  it("adds exactly +2 to awardPoints, leaving the win column untouched", () => {
+    const plain = score(args);
+    const moty = score({ ...args, managerMoty: true });
+    expect(moty.awardPoints).toBe(plain.awardPoints + 2);
+    expect(moty.expectedWins).toBe(plain.expectedWins);
+    expect(moty.managerWins).toBe(plain.managerWins);
+    expect(moty.total).toBeCloseTo(plain.total + 2, 5);
+  });
+
+  it("a non-MotY manager adds 0 (omitted and explicit false agree)", () => {
+    expect(score({ ...args, managerMoty: false })).toEqual(score(args));
+    expect(score(args).awardPoints).toBe(3); // the MVP only
   });
 });

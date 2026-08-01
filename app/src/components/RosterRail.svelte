@@ -3,6 +3,7 @@
   import { lastName, signed, slotLabel, warTier } from "../lib/format";
   import { MANAGER_PER_NET_WIN } from "../lib/scoring";
   import type { CardPlayer } from "../lib/types";
+  import AwardPill from "./AwardPill.svelte";
 
   let { game }: { game: Game } = $props();
 
@@ -25,6 +26,15 @@
     else game.tdRelease(pickPlayer, i);
   }
 
+  // Phone: the pick-time sticky pin is bounded by the rail's parent column,
+  // so a tap deep in the player list leaves the rail off-screen — bring it
+  // back when a pick starts. `nearest` no-ops when it's already visible
+  // (the wide layout's persistent left column, short lists).
+  let wrapEl = $state<HTMLElement | undefined>();
+  $effect(() => {
+    if (pickPlayer) wrapEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+
   /** Seat sub-line: season identity only ("2013 OAK") — the rail is the
    * roster's who/when, not a stat sheet; WAR lives on the list rows. */
   function seatMeta(s: { year: number; team: string }): string {
@@ -32,7 +42,7 @@
   }
 </script>
 
-<div class="railwrap disp" class:pinned={!!pickPlayer}>
+<div class="railwrap disp" class:pinned={!!pickPlayer} bind:this={wrapEl}>
   <div class="psep railhead">YOUR SQUAD</div>
   <div class="rail">
     <!-- The manager's seat anchors the left edge, spanning both rows — one
@@ -42,6 +52,9 @@
         <b>MGR</b>
         <span>{lastName(game.manager.name)}</span>
         <i>{game.manager.year} {game.manager.team}</i>
+        {#if game.showAwards && game.manager.moty}<span class="moy"
+            ><AwardPill code="MOY" small /></span
+          >{/if}
         {#if !game.scout}<em class="rwar mgw"
             >{signed((game.manager.wins - game.manager.losses) * MANAGER_PER_NET_WIN)} W</em
           >{/if}
@@ -67,15 +80,8 @@
       {/if}
     {/each}
   </div>
-  {#if pickPlayer}
-    <div class="railhint">
-      {#if game.slotPick}
-        TAP A SLOT FOR {lastName(pickPlayer.name).toUpperCase()}
-      {:else}
-        🔁 TAP A PLAYER TO RELEASE FOR {lastName(pickPlayer.name).toUpperCase()}
-      {/if}
-    </div>
-  {/if}
+  <!-- No hint line during picks: the row's orange pending pill plus the lit
+       nudging cells are the cues — one cue per state, no redundant copy. -->
 </div>
 
 <style>
@@ -128,8 +134,10 @@
     width: 100%;
   }
   /* WAR lives on the finale-style wide rows only; the phone grid stays a
-     who/when card. */
-  .rwar {
+     who/when card. The manager's MOY pill follows the same rule — the
+     sideways phone seat has no room for hardware. */
+  .rwar,
+  .moy {
     display: none;
   }
   .cell b {
@@ -244,13 +252,6 @@
     font-size: 11px;
     color: var(--gray-ink);
   }
-  .railhint {
-    text-align: center;
-    font-size: 10.5px;
-    font-weight: 800;
-    color: var(--orange);
-    margin-top: 5px;
-  }
   /* Wide: the rail owns a 350–380px column, so the club reads as the finale's
      squad card — one full-width row per seat (pos · name · season · WAR),
      manager last. Same buttons, same pick states; only the geometry changes. */
@@ -318,6 +319,10 @@
       font-style: normal;
       font-weight: 800;
       font-size: 13px;
+    }
+    .moy {
+      display: block;
+      flex: none;
     }
     .rwar.neg {
       color: var(--war-neg);

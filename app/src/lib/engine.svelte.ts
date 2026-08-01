@@ -5,7 +5,7 @@ import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadSpecials, ownerFor } from "./data";
 import { eligibleTypes } from "./eligibility";
 import { Rng, randomSeed } from "./rng";
-import { displayRecord, score } from "./scoring";
+import { MANAGER_MOTY_POINTS, MANAGER_PER_NET_WIN, displayRecord, score } from "./scoring";
 import { SLOT_TYPES } from "./types";
 import type {
   Card,
@@ -21,7 +21,13 @@ import type {
 export { SLOT_TYPES };
 
 export type Phase = "preSpin" | "spinning" | "landed" | "finale";
-export type PowerupKey = "seasonTicket" | "relocate" | "doublePlay" | "tradeDeadline" | "prime";
+export type PowerupKey =
+  | "seasonTicket"
+  | "relocate"
+  | "doublePlay"
+  | "tradeDeadline"
+  | "prime"
+  | "hometown";
 export type PowerupState = "ready" | "armed" | "spent";
 export type PlayerRowState = "open" | "dead";
 
@@ -35,10 +41,12 @@ export interface GameConfig {
 
 export const DEFAULT_CONFIG: GameConfig = { difficulty: "standard", bank: "classic" };
 
-/** 2002 A's top-4 contracts, normalized (Dye/Justice/Durham/Tejada). */
-export const MONEYBALL_BUDGET_M = 82.9;
-/** 2005 Yankees top-4 — the fattest payroll in the league. */
-export const BLANK_CHECK_BUDGET_M = 248.6;
+/** 2002 A's top-4 contracts (Dye/Justice/Durham/Tejada) through the bankroll
+ * curve (widen × scale) — must equal the OAK_2002 card's budget. */
+export const MONEYBALL_BUDGET_M = 51.5;
+/** 2005 Yankees top-4 — the fattest payroll in the league — through the same
+ * curve — must equal the NYY_2005 card's budget. */
+export const BLANK_CHECK_BUDGET_M = 203.2;
 
 /** What the reel animates on a given spin: powerup rerolls hold the other
  * half of the banner constant (Season Ticket keeps the team, Relocate keeps
@@ -58,6 +66,8 @@ export interface Signed {
   teamName: string;
   franchise: string;
   costPaid: number;
+  /** Signed at the 🏠 Homegrown flat price. (The field name predates the
+   * powerup; it stays for save and finale compatibility.) */
   hero: boolean;
   prorated: number;
 }
@@ -86,9 +96,13 @@ export interface ManagerPick {
   teamName: string;
   ws: boolean;
   pen: boolean;
+  /** Won the BBWAA Manager of the Year that season (+2 trophy-case points).
+   * Optional so pre-MotY saves restore as-is (absent reads as false). */
+  moty?: boolean;
 }
 
-/** The winningest manager among every card this game landed on. */
+/** The most valuable manager among every card this game landed on:
+ * maximizes netWins × 0.1 + (MotY ? 2 : 0), the skipper's full score value. */
 export interface BestManager {
   name: string;
   team: string;
@@ -97,6 +111,7 @@ export interface BestManager {
   ws: boolean;
   pen: boolean;
   netWins: number;
+  moty?: boolean;
 }
 
 export type SpecialKey = "owner" | "stadium" | "manager";
@@ -123,9 +138,16 @@ export interface FinaleResult {
   scoutHits: number;
 }
 
+/** 🏠 Homegrown's flat sticker price ($1.0M normalized), clamped per-player
+ * to the listed price — the discount must never cost MORE than a plain sign
+ * (floor-priced players in cheap-floor years list below $1M). */
+export const HOMEGROWN_PRICE_M = 1.0;
+
 const SAVE_KEY = "hotstove.current";
 const HISTORY_KEY = "hotstove.history";
-const SAVE_VERSION = 4;
+/** v5 = 🏠 Homegrown is a sixth powerup; v4 saves migrate on restore
+ * (heroUsed → the hometown powerup's ready/spent state). */
+const SAVE_VERSION = 5;
 
 export class Game {
   meta: Meta;
@@ -147,10 +169,10 @@ export class Game {
     doublePlay: "ready",
     tradeDeadline: "ready",
     prime: "ready",
+    hometown: "ready",
   });
   choicesLeft = $state(0);
   choicesUsed = $state(0);
-  heroUsed = $state(false);
   spinCount = $state(0);
   spinLog = $state<SpinLogEntry[]>([]);
   spinKind = $state<SpinKind>("full");
@@ -162,8 +184,9 @@ export class Game {
   releasePick = $state<string | null>(null);
   /** Prime picker: id of the LISTED player whose career is being browsed. */
   primePick = $state<string | null>(null);
-  /** Prime picker, front-office flavor: which open tile is being browsed. */
-  primeSpecial = $state<SpecialKey | null>(null);
+  /** Prime picker, front-office flavor: the manager tile is the only
+   * browsable special — owner and stadium are never Prime targets. */
+  primeSpecial = $state<"manager" | null>(null);
   finale = $state<FinaleResult | null>(null);
   /** The pending card's fetch failed (connection dropped mid-spin) — the
    * banner offers a retry instead of leaving the reel spinning forever. */
@@ -260,25 +283,6 @@ export class Game {
     return this.fixedCap || this.owner !== null;
   }
 
-  get heroActive(): boolean {
-    return (
-      !this.heroUsed &&
-      this.owner !== null &&
-      this.stadium !== null &&
-      this.owner.franchise === this.stadium.franchise
-    );
-  }
-
-  get heroFranchise(): string | null {
-    return this.heroActive ? this.owner!.franchise : null;
-  }
-
-  /** Normalized league-minimum price for the current card's year. */
-  get heroPrice(): number {
-    if (!this.card) return 0;
-    const y = String(this.card.year);
-    return (this.meta.salaryFloor[y] / this.meta.avgSlot8[y]) * this.meta.displayAvgM;
-  }
 
   get ownerName(): string {
     if (!this.card) return "";
@@ -328,20 +332,42 @@ export class Game {
    * armed Prime follows the same gray-out rules as a plain sign). */
   rowPlayable(p: CardPlayer): boolean {
     if (this.phase !== "landed" || this.choicesLeft === 0) return false;
-    if (this.playerState(p) === "open") return true;
+    if (this.hometownBlocks(p)) return false;
+    return this.playerState(p) === "open" || this.tdCandidate(p);
+  }
+
+  /** An armed 🏠 filters the market like Trade Deadline filters seats: only
+   * debut-eligible rows stay live; every other unsigned row is hard-gray and
+   * untappable until the discount is disarmed. */
+  private hometownBlocks(p: CardPlayer): boolean {
+    return this.powerups.hometown === "armed" && !this.discountEligible(p);
+  }
+
+  /** Whether an armed Trade Deadline claims this row's tap: any unrostered
+   * player with at least one occupied eligible seat is a trade candidate —
+   * even when an open seat could also take them directly (a catcher can
+   * replace the rostered C while the FLEX seat sits open; disarm to sign
+   * plainly into the open seat instead). */
+  tdCandidate(p: CardPlayer): boolean {
     return (
       this.powerups.tradeDeadline === "armed" &&
+      !this.hometownBlocks(p) &&
       !this.isRostered(p) &&
       this.occupiedSlotsFor(p).length > 0
     );
   }
 
-  heroEligible(p: CardPlayer): boolean {
-    return this.heroFranchise !== null && p.debut === this.heroFranchise;
+  /** Whether an armed 🏠 Homegrown reprices this row: the player debuted
+   * with the current spin's franchise. Signing gates (rostered, no open
+   * seat) are handled by the usual tappability rules, not here. */
+  discountEligible(p: CardPlayer): boolean {
+    return (
+      this.powerups.hometown === "armed" && this.card !== null && p.debut === this.card.franchise
+    );
   }
 
   priceFor(p: CardPlayer): number {
-    return this.heroEligible(p) ? this.heroPrice : p.cost;
+    return this.discountEligible(p) ? Math.min(HOMEGROWN_PRICE_M, p.cost) : p.cost;
   }
 
   /** Occupied slot indices the incoming player could replace (TD). */
@@ -530,19 +556,38 @@ export class Game {
     return this.powerups.prime === "armed";
   }
 
+  /** 🏠 Homegrown arming toggle (the hometown discount): while armed, the
+   * market filters to unsigned players who DEBUTED with this spin's
+   * franchise, repriced to the flat HOMEGROWN_PRICE_M; every other row
+   * grays. Signing one at the discount spends the powerup; disarming
+   * restores the list without spending it. A card with no debut-eligible
+   * players still arms — the whole list grays until disarm. (The internal
+   * powerup key stays "hometown".) */
+  toggleHometown(): void {
+    if (this.phase !== "landed" || this.choicesLeft === 0) return;
+    if (this.powerups.hometown === "ready") {
+      this.powerups.hometown = "armed";
+    } else if (this.powerups.hometown === "armed") {
+      this.powerups.hometown = "ready";
+    }
+    this.save();
+  }
+
   /** Armed Prime, tap a listed player: browse their whole career. */
   primeTapPlayer(p: CardPlayer): void {
     if (!this.primeArmed || this.isRostered(p)) return;
     this.primePick = p.id;
   }
 
-  /** Armed Prime, tap an OPEN front-office tile: browse that special's
-   * timeline (the manager's career, the park's attendance history, the
-   * owner's tenure). Taken tiles aren't browsable — the seat is filled. */
+  /** Armed Prime, tap the OPEN manager tile: browse that skipper's whole
+   * career. Prime targets are PLAYERS and MANAGERS only — owner and stadium
+   * tiles never open a timeline (DECISIONS.md Round 17: owner-Priming was
+   * pure bank-shopping, and banning it is score-neutral). A taken tile
+   * isn't browsable — the seat is filled. */
   primeTapSpecial(which: SpecialKey): void {
+    if (which !== "manager") return;
     if (!this.primeArmed || this.specialTaken(which) || !this.card) return;
-    if (which !== "manager" && this.fixedCap) return;
-    if (which === "manager" && !this.managerAvailable) return;
+    if (!this.managerAvailable) return;
     this.primeSpecial = which;
   }
 
@@ -570,56 +615,39 @@ export class Game {
     return true;
   }
 
-  /** Hire a DIFFERENT year's version of the browsed front-office special —
-   * that season's manager record, attendance multiplier, or owner payroll.
+  /** Hire a DIFFERENT season of the browsed manager's career — that
+   * season's record, with pedigree flags (💍/🚩) from the index rows.
    * Mirrors applyPrime: consumes the powerup and the spin's choice. The
-   * pedigree flags (💍/🚩) for a manager hire come from the index rows. */
+   * manager is Prime's only front-office target (see primeTapSpecial). */
   async applyPrimeSpecial(team: string, year: number): Promise<boolean> {
-    if (this.powerups.prime !== "armed" || this.primeSpecial === null) return false;
+    if (this.powerups.prime !== "armed" || this.primeSpecial !== "manager") return false;
     if (this.phase !== "landed" || this.choicesLeft === 0) return false;
-    const which = this.primeSpecial;
-    if (this.specialTaken(which)) return false;
+    if (this.specialTaken("manager")) return false;
     const specials = await loadSpecials();
-    let franchise: string | null = null;
     let entry: SpecialSeason | undefined;
-    for (const [fr, list] of Object.entries(specials)) {
+    for (const list of Object.values(specials)) {
       const e = list.find((s) => s.team === team && s.year === year);
       if (e) {
-        franchise = fr;
         entry = e;
         break;
       }
     }
-    if (!entry || franchise === null) return false;
-    if (which === "manager") {
-      if (entry.mgr == null) return false;
-      const idx = this.index.cards.find((c) => c.team === team && c.year === year);
-      this.manager = {
-        name: entry.mgr,
-        wins: entry.w,
-        losses: entry.l,
-        year,
-        team,
-        teamName: entry.name,
-        ws: idx?.ws === true,
-        pen: idx?.pen === true,
-      };
-    } else if (which === "owner") {
-      if (this.fixedCap) return false;
-      this.owner = {
-        name: ownerFor(this.owners, franchise, year),
-        budget: entry.budget,
-        franchise,
-        year,
-        teamName: entry.name,
-      };
-    } else {
-      if (this.fixedCap) return false;
-      this.stadium = { park: entry.park, mult: entry.mult, franchise, year };
-    }
+    if (!entry || entry.mgr == null) return false;
+    const idx = this.index.cards.find((c) => c.team === team && c.year === year);
+    this.manager = {
+      name: entry.mgr,
+      wins: entry.w,
+      losses: entry.l,
+      year,
+      team,
+      teamName: entry.name,
+      ws: idx?.ws === true,
+      pen: idx?.pen === true,
+      moty: entry.moty === true,
+    };
     this.powerups.prime = "spent";
     this.primeSpecial = null;
-    this.consumeChoice({ kind: which });
+    this.consumeChoice({ kind: "manager" });
     return true;
   }
 
@@ -630,6 +658,7 @@ export class Game {
     }
     if (this.powerups.tradeDeadline === "armed") this.powerups.tradeDeadline = "ready";
     if (this.powerups.prime === "armed") this.powerups.prime = "ready";
+    if (this.powerups.hometown === "armed") this.powerups.hometown = "ready";
     this.clearTransients();
   }
 
@@ -642,7 +671,7 @@ export class Game {
 
   // ---------- choices ----------
 
-  private makeSigned(c: Card, p: CardPlayer, costPaid: number, hero: boolean): Signed {
+  private makeSigned(c: Card, p: CardPlayer, costPaid: number, discounted: boolean): Signed {
     return {
       id: p.id,
       name: p.name,
@@ -656,7 +685,7 @@ export class Game {
       teamName: c.name,
       franchise: c.franchise,
       costPaid,
-      hero,
+      hero: discounted,
       prorated: c.prorated,
     };
   }
@@ -673,7 +702,9 @@ export class Game {
     else this.save();
   }
 
-  /** Forfeit a remaining Double Play pick and move on (DP refunds). */
+  /** Forfeit a remaining Double Play pick and move on (DP refunds). The UI
+   * has no button for this — disarming the ✌️ pill is the player's exit —
+   * but bots and tests use it as the programmatic equivalent. */
   finishSpin(): void {
     if (this.phase !== "landed" || this.choicesUsed === 0) return;
     this.endSpin();
@@ -691,6 +722,7 @@ export class Game {
     if (this.powerups.doublePlay === "armed") this.powerups.doublePlay = "ready";
     if (this.powerups.tradeDeadline === "armed") this.powerups.tradeDeadline = "ready";
     if (this.powerups.prime === "armed") this.powerups.prime = "ready";
+    if (this.powerups.hometown === "armed") this.powerups.hometown = "ready";
     if (this.complete) {
       // A complete club ends the game — unspent powerups are just left money.
       void this.finishGame();
@@ -704,6 +736,7 @@ export class Game {
    * rail becomes a slot picker (DECISIONS.md #4) — re-call with slotIdx. */
   signPlayer(p: CardPlayer, slotIdx?: number): void {
     if (this.phase !== "landed" || this.choicesLeft === 0) return;
+    if (this.hometownBlocks(p)) return;
     if (this.playerState(p) !== "open") return;
     const open = this.openSlotsFor(p);
     const specialist = open.filter((i) => SLOT_TYPES[i] !== "FLEX");
@@ -722,9 +755,9 @@ export class Game {
         return;
       }
     }
-    const hero = this.heroEligible(p);
-    this.slots[idx] = this.makeSigned(this.card!, p, this.priceFor(p), hero);
-    if (hero) this.heroUsed = true;
+    const discounted = this.discountEligible(p);
+    this.slots[idx] = this.makeSigned(this.card!, p, this.priceFor(p), discounted);
+    if (discounted) this.powerups.hometown = "spent";
     this.consumeChoice({ kind: "sign", war: p.war });
   }
 
@@ -769,16 +802,19 @@ export class Game {
       teamName: c.name,
       ws: c.ws,
       pen: c.pen,
+      moty: c.managerMoty === true,
     };
     this.consumeChoice({ kind: "manager" });
   }
 
   // ---------- Trade Deadline swaps ----------
 
-  /** Armed TD, tap a gray player: pick who they replace (or complete if only one). */
+  /** Armed TD, tap a trade candidate: pick who they replace (or complete if
+   * only one seat is eligible). Open rows count too — arming TD routes the
+   * tap through the trade, so an open seat elsewhere never blocks a swap. */
   tdTapPlayer(p: CardPlayer): void {
-    if (this.powerups.tradeDeadline !== "armed" || this.choicesLeft === 0) return;
-    if (this.playerState(p) !== "dead" || this.isRostered(p)) return;
+    if (this.phase !== "landed" || this.choicesLeft === 0) return;
+    if (!this.tdCandidate(p)) return;
     const occupied = this.occupiedSlotsFor(p);
     if (occupied.length === 0) return;
     if (occupied.length === 1) this.completeSwap(p, occupied[0]);
@@ -795,9 +831,11 @@ export class Game {
   }
 
   private completeSwap(p: CardPlayer, idx: number): void {
-    const hero = this.heroEligible(p);
-    this.slots[idx] = this.makeSigned(this.card!, p, this.priceFor(p), hero);
-    if (hero) this.heroUsed = true;
+    // TD + 🏠 both armed: a debut-eligible trade-in commits at the discounted
+    // price and consumes both powerups.
+    const discounted = this.discountEligible(p);
+    this.slots[idx] = this.makeSigned(this.card!, p, this.priceFor(p), discounted);
+    if (discounted) this.powerups.hometown = "spent";
     this.powerups.tradeDeadline = "spent";
     this.consumeChoice({ kind: "swap", war: p.war });
   }
@@ -828,6 +866,7 @@ export class Game {
         teamName: c.name,
         ws: c.ws,
         pen: c.pen,
+        moty: c.managerMoty === true,
       };
     }
     this.powerups.tradeDeadline = "spent";
@@ -840,16 +879,21 @@ export class Game {
     const players = this.slots.filter((s): s is Signed => s !== null);
     // Reload every card this game landed on (all memoized from play) and
     // solve for the WAR-max roster — the finale's scouting yardstick. The
-    // dream team also gets a manager: the winningest one available.
+    // dream team also gets a manager: the most valuable one available, by the
+    // skipper's full score value (netWins × 0.1 + 2 if Manager of the Year).
     let best: BestRoster | null = null;
     let bestManager: BestManager | null = null;
+    let bestManagerValue = -Infinity;
     try {
       const cards = await Promise.all(this.seen.map((s) => loadCard(s.team, s.year)));
       best = bestRoster(cards);
       for (const c of cards) {
         if (c.manager == null) continue;
         const netWins = c.wins - c.losses;
-        if (bestManager === null || netWins > bestManager.netWins) {
+        const moty = c.managerMoty === true;
+        const value = netWins * MANAGER_PER_NET_WIN + (moty ? MANAGER_MOTY_POINTS : 0);
+        if (bestManager === null || value > bestManagerValue) {
+          bestManagerValue = value;
           bestManager = {
             name: c.manager,
             team: c.team,
@@ -858,6 +902,7 @@ export class Game {
             ws: c.ws,
             pen: c.pen,
             netWins,
+            moty,
           };
         }
       }
@@ -885,6 +930,7 @@ export class Game {
       pennants: this.pedigree.pennants,
       managerRecord: this.manager ? [this.manager.wins, this.manager.losses] : null,
       scoutHits,
+      managerMoty: this.manager?.moty === true,
     });
     const [wins, losses] = displayRecord(parts.expectedWins);
     this.finale = {
@@ -952,7 +998,6 @@ export class Game {
           powerups: this.powerups,
           choicesLeft: this.choicesLeft,
           choicesUsed: this.choicesUsed,
-          heroUsed: this.heroUsed,
           spinLog: this.spinLog,
         }),
       );
@@ -980,7 +1025,10 @@ export class Game {
     if (!raw) return null;
     try {
       const s = JSON.parse(raw);
-      if (s.v !== SAVE_VERSION) return null;
+      if (s.v !== SAVE_VERSION && s.v !== 4) return null;
+      // v4 → v5: the Hometown Hero combo became the 🏠 Homegrown powerup; an
+      // in-flight save's heroUsed maps to the powerup's spent/ready state.
+      if (s.v === 4) s.powerups = { ...s.powerups, hometown: s.heroUsed ? "spent" : "ready" };
       const game = new Game(meta, index, owners, s.seed, s.config ?? DEFAULT_CONFIG);
       game.rng.state = s.rngState;
       game.spinCount = s.spinCount;
@@ -994,7 +1042,6 @@ export class Game {
       game.powerups = s.powerups;
       game.choicesLeft = s.choicesLeft;
       game.choicesUsed = s.choicesUsed;
-      game.heroUsed = s.heroUsed;
       game.spinLog = s.spinLog;
       if (s.cardRef && s.phase === "landed") {
         game.card = await loadCard(s.cardRef.team, s.cardRef.year);
@@ -1002,6 +1049,7 @@ export class Game {
         // A reload mid-picker restores to the base landed state.
         if (game.powerups.tradeDeadline === "armed") game.powerups.tradeDeadline = "ready";
         if (game.powerups.prime === "armed") game.powerups.prime = "ready";
+        if (game.powerups.hometown === "armed") game.powerups.hometown = "ready";
         if (game.powerups.doublePlay === "armed") {
           game.powerups.doublePlay = "ready";
           game.choicesLeft = Math.max(0, game.choicesLeft - 1);

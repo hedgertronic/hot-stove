@@ -117,3 +117,28 @@ export function statLine(p: {
     return `${dot3(p.bat.avg)}/${dot3(p.bat.obp)}/${dot3(p.bat.slg)} · ${p.bat.hr} HR · ${p.bat.rbi} RBI · ${p.bat.sb} SB`;
   return "";
 }
+
+/** The season record a points total resolves into, with its rung on the WAR
+ * ladder the whole game speaks: round the points to a win count, clamp to the
+ * 162-game season (a blown-out negative total is an 0–162 season; ≥162 caps
+ * at 162–0 and the exact points disambiguate). Tier thresholds sit on the
+ * game's landmarks: .500 (81) / the 100-win season / 116 = the Mariners line
+ * the 🔱 badge celebrates / 145+ is genuinely elite (~p90 of skilled play at
+ * the 0.2 manager multiplier) and takes the gold; below .500 grays out,
+ * sub-.400 goes brick. Used
+ * by the finale stamp and the home record book — one ladder, two screens. */
+export function recordFromTotal(
+  total: number,
+  games = 162,
+  marinersWins = 116,
+): { wins: number; losses: number; tier: WarTier } {
+  const wins = Math.min(Math.max(Math.round(total), 0), games);
+  const tier: WarTier =
+    wins >= 145 ? "elite"
+    : wins >= marinersWins ? "star"
+    : wins >= 100 ? "high"
+    : wins >= games / 2 ? "mid"
+    : wins >= Math.ceil(games * 0.4) ? "low"
+    : "neg";
+  return { wins, losses: games - wins, tier };
+}

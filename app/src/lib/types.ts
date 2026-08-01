@@ -41,6 +41,9 @@ export interface Card {
   wins: number;
   losses: number;
   manager: string | null;
+  /** The primary manager won the BBWAA Manager of the Year that season
+   * (present only when true, like the index's ws/pen). */
+  managerMoty?: boolean;
   ws: boolean;
   pen: boolean;
   attendance: number;
@@ -68,6 +71,8 @@ export interface IndexEntry {
   year: number;
   franchise: string;
   name: string;
+  lg?: "AL" | "NL"; // that season's actual league (Lahman Teams)
+  div?: "E" | "C" | "W"; // that season's actual division (no "C" pre-1994)
   ws?: boolean; // won the World Series (flag present only when true)
   pen?: boolean; // won the pennant but not the Series
 }
@@ -116,6 +121,8 @@ export interface SpecialSeason {
   name: string;
   park: string;
   mgr: string | null;
+  /** The manager won the BBWAA Manager of the Year that season (only when true). */
+  moty?: boolean;
   w: number;
   l: number;
   /** Attendance percentile within the year, 0–1. */

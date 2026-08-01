@@ -60,11 +60,12 @@
       game.primeTapPlayer(p);
       return;
     }
-    if (game.playerState(p) === "open") {
-      setConfirm(confirmKey === `p:${p.id}` ? null : `p:${p.id}`);
-    } else {
-      // playable but no open seat ⇒ armed Trade Deadline swap target
+    // An armed Trade Deadline claims the tap even when the player also has
+    // an open seat — disarm to sign plainly into the open seat instead.
+    if (game.tdCandidate(p)) {
       setConfirm(confirmKey === `t:${p.id}` ? null : `t:${p.id}`);
+    } else if (game.playerState(p) === "open") {
+      setConfirm(confirmKey === `p:${p.id}` ? null : `p:${p.id}`);
     }
   }
 
@@ -87,9 +88,9 @@
   {#each visible as p (p.id)}
     {@const playable = game.rowPlayable(p)}
     {@const open = game.playerState(p) === "open"}
-    {@const swappable = playable && !open}
+    {@const swappable = playable && game.tdCandidate(p)}
     {@const primeable = game.primeArmed && playable}
-    {@const hero = game.heroEligible(p)}
+    {@const discounted = game.discountEligible(p)}
     {@const price = game.priceFor(p)}
     {@const plabel = posLabel(p)}
     <button
@@ -102,7 +103,6 @@
       <span class="pos" class:pit={isPitcher(p)} class:long={plabel.length > 5}>{plabel}</span>
       <span class="mid">
         <span class="nameline">
-          {#if hero}<span class="hero" title="Hometown Hero — half price">🏠</span>{/if}
           <span class="pname">{p.name}</span>
         </span>
         {#if hasBadges(p)}<span class="badges"
@@ -110,13 +110,18 @@
           >{/if}
       </span>
       <span class="right">
-        {#if confirmKey === `p:${p.id}` && open && !game.primeArmed}
+        {#if game.slotPick === p.id}
+          <!-- The picker lives in the rail — point there, cardstock-terse. -->
+          <span class="confirm hint">↑ PICK A SLOT</span>
+        {:else if game.releasePick === p.id}
+          <span class="confirm hint">↑ TAP WHO TO TRADE AWAY</span>
+        {:else if confirmKey === `p:${p.id}` && open && !swappable && !game.primeArmed}
           <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSign(p); }} onkeydown={(e) => e.key === "Enter" && commitSign(p)}>SIGN {money(price)}</span>
         {:else if confirmKey === `t:${p.id}` && swappable && !game.primeArmed}
           <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => e.key === "Enter" && commitTrade(p)}>TRADE FOR {money(price)}</span>
         {:else}
           {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
-          <span class="cost {hero ? 'cheap' : costTier(price)}">{money(price)}</span>
+          <span class="cost {discounted ? 'cheap' : costTier(price)}">{money(price)}</span>
         {/if}
       </span>
     </button>
@@ -217,12 +222,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  /* Hometown Hero: the discount's why, kept inline now that the sub-line is
-     gone (the green price already marks the discount itself). */
-  .hero {
-    font-size: 12px;
-    flex: none;
-  }
   .badges {
     display: inline-flex;
     align-items: center;
@@ -302,7 +301,19 @@
     border-color: var(--gray-ink);
     opacity: 0.55;
     cursor: default;
+  }
+  /* A dead row still whispers its tier: the identity bits (position tag,
+     name, award pills) go monochrome, but the WAR chip and salary keep their
+     hue — faded by the row's opacity and a mild desaturation — so a gold you
+     can't reach still reads gold ("need Trade Deadline for him"). Modes that
+     hide a chip render nothing here, so nothing new leaks. */
+  .prow.dead .pos,
+  .prow.dead .mid {
     filter: grayscale(1);
+  }
+  .prow.dead .warchip,
+  .prow.dead .cost {
+    filter: saturate(0.7);
   }
   .prow.dead:active {
     transform: none;
@@ -335,6 +346,12 @@
     line-height: 1;
     padding: 4px 12px;
     white-space: nowrap;
+  }
+  /* Pending pick: the next tap belongs to the rail, not this row — the pill
+     goes orange (the rail hint's color) and points up at it. */
+  .confirm.hint {
+    background: var(--orange);
+    border-color: var(--ink);
   }
   .more {
     text-align: center;

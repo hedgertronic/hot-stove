@@ -15,6 +15,7 @@
     SS: "ss",
     ROY: "roy",
     AS: "as",
+    MOY: "moy",
   };
   const PILL_TEXT: Record<string, string> = {
     MVP: "🥇MVP",
@@ -61,6 +62,12 @@
   }
   .qb.as {
     background: var(--amber);
+  }
+  /* Manager of the Year wears the skipper's pink — manager surfaces (the
+     Skipper row, the MGR seat) are pink throughout; the text tells it apart
+     from ROY, which only ever sits on player rows. */
+  .qb.moy {
+    background: var(--pink);
   }
   .mult {
     font-size: 8px;

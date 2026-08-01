@@ -1,10 +1,10 @@
 /** Score-optimal roster from the cards a game actually spun — the finale's
- * "best possible squad" yardstick. The objective is WAR + award points (the
- * same 1-point-per-win weighting score() uses), so an MVP season can out-rank
- * a slightly higher plain WAR. Money is ignored on purpose: the yardstick
- * answers "did you spot the talent?", not "could you afford it?". Rings and
- * pennants stay out of the objective too — pedigree is franchise luck, not
- * talent-spotting.
+ * "best possible squad" yardstick. The objective is WAR + award points +
+ * ring/pennant points (the same 1-point-per-win weighting score() uses), so
+ * an MVP season or a championship teammate can out-rank a slightly higher
+ * plain WAR — you can see a champion's 💍 coming when the card is in front
+ * of you. Money is ignored on purpose: the yardstick answers "did you spot
+ * the value?", not "could you afford it?".
  *
  * Exact solve: slot types have tiny capacities (C1 IF2 OF1 FLEX1 SP2 RP1), so
  * a DP over the 2·3·2·2·3·2 = 144 capacity states is instant. Players are
@@ -13,7 +13,7 @@
  * iteration order + strict-improvement updates, so ties always resolve the
  * same way on every device. */
 import { eligibleTypes } from "./eligibility";
-import { AWARD_POINTS } from "./scoring";
+import { AWARD_POINTS, PENNANT_POINTS, RING_POINTS } from "./scoring";
 import type { Card, CardPlayer, SlotType } from "./types";
 
 export interface BestPick {
@@ -49,7 +49,7 @@ const SLOT_INDICES: Record<SlotType, number[]> = {
 
 interface Season {
   pick: BestPick;
-  /** WAR + award points — what the DP maximizes. */
+  /** WAR + award points + ring/pennant points — what the DP maximizes. */
   value: number;
   types: number[]; // TYPE_ORDER indices
 }
@@ -72,7 +72,11 @@ export function bestRoster(cards: Card[]): BestRoster {
   const groups = new Map<string, Season[]>();
   for (const card of cards) {
     for (const p of card.players) {
-      const value = p.war + awardPts(p.awards);
+      const value =
+        p.war +
+        awardPts(p.awards) +
+        (p.ws ? RING_POINTS : 0) +
+        (p.pen ? PENNANT_POINTS : 0);
       if (value <= 0) continue; // can never improve a value-max roster
       const season: Season = {
         value,

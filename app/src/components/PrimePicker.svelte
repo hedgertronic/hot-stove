@@ -2,7 +2,7 @@
   import { loadCard, loadPlayers } from "../lib/data";
   import { isPitcher } from "../lib/eligibility";
   import type { Game } from "../lib/engine.svelte";
-  import { money, posLabel, statLine, warTier } from "../lib/format";
+  import { costTier, money, posLabel, warTier } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
   import Sheet from "./Sheet.svelte";
 
@@ -17,7 +17,6 @@
   interface Season {
     team: string;
     year: number;
-    teamName: string;
     p: CardPlayer;
     /** Season fits an open roster seat → signable. */
     fits: boolean;
@@ -47,7 +46,6 @@
               ? {
                   team: card.team,
                   year: card.year,
-                  teamName: card.name,
                   p,
                   fits: game.openSlotsFor(p).length > 0,
                   here: card.team === game.card?.team && card.year === game.card?.year,
@@ -88,16 +86,14 @@
             <span class="pos" class:pit={isPitcher(sea.p)} class:long={plabel.length > 5}
               >{plabel}</span
             >
-            <span class="mid">
-              <span class="yr">{sea.year} {sea.teamName}</span>
-              <!-- The landed card's own season just grays out like any other
-                   unclickable row — its stat line still reads normally. -->
-              {#if !sea.here && !sea.fits}<span class="sub">no open seat fits this season</span>
-              {:else if game.showWar && statLine(sea.p)}<span class="sub">{statLine(sea.p)}</span>{/if}
-            </span>
+            <!-- One line per season, market-row anatomy: year + team code,
+                 WAR chip, tinted price. Unsignable rows (current card's own
+                 season, no fitting open seat) just gray — no explanatory
+                 copy, same as every other gray row in the game. -->
+            <span class="yr">{sea.year} {sea.team}</span>
             <span class="right">
               {#if game.showWar}<span class="warchip {warTier(sea.p.war)}">{sea.p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
-              <span class="cost">{money(sea.p.cost)}</span>
+              <span class="cost {costTier(sea.p.cost)}">{money(sea.p.cost)}</span>
             </span>
           </button>
         {/each}
@@ -153,8 +149,16 @@
   }
   .srow:disabled {
     opacity: 0.45;
-    filter: grayscale(1);
     cursor: default;
+  }
+  /* Same faded-tier idiom as the market's dead rows: identity goes
+     monochrome, the WAR chip and price keep a washed but recognizable hue. */
+  .srow:disabled .pos {
+    filter: grayscale(1);
+  }
+  .srow:disabled .warchip,
+  .srow:disabled .cost {
+    filter: saturate(0.7);
   }
   .srow:disabled:active {
     transform: none;
@@ -184,21 +188,10 @@
     font-size: 7.5px;
     letter-spacing: 0.01em;
   }
-  .mid {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
   .yr {
     font-weight: 800;
     font-size: 13px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .sub {
-    font-size: 10px;
-    color: var(--muted);
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -248,7 +241,8 @@
     margin-left: 2.5px;
     vertical-align: 1px;
   }
-  /* Structural right-alignment, same as the market rows' price column. */
+  /* Structural right-alignment and tint tiers, same as the market rows'
+     price column. */
   .cost {
     display: inline-flex;
     justify-content: flex-end;
@@ -256,6 +250,12 @@
     font-size: 13px;
     white-space: nowrap;
     min-width: 56px;
+  }
+  .cost.cheap {
+    color: var(--green);
+  }
+  .cost.spendy {
+    color: var(--orange);
   }
   .cancel {
     width: 100%;

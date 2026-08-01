@@ -9,8 +9,8 @@ export const GAMES = 162;
 
 /** MVP2/CY2 (and 3) are award-vote ballot finishes; AS is an All-Star selection. */
 export const AWARD_POINTS: Record<string, number> = {
-  MVP: 5,
-  CY: 4,
+  MVP: 3,
+  CY: 3,
   MVP2: 2,
   CY2: 2,
   MVP3: 1,
@@ -20,9 +20,12 @@ export const AWARD_POINTS: Record<string, number> = {
   GG: 1,
   SS: 1,
 };
-export const RING_POINTS = 2; // per player whose team won the World Series that season
+export const RING_POINTS = 3; // per player whose team won the World Series that season
 export const PENNANT_POINTS = 1; // per player whose team won the pennant but lost the Series
-export const MANAGER_PER_NET_WIN = 0.1; // hired manager: (team W − team L) × this, in WINS
+export const MANAGER_PER_NET_WIN = 0.2; // hired manager: (team W − team L) × this, in WINS
+/** Hired manager won the BBWAA Manager of the Year that season. Hardware, not
+ * wins: it joins the awardPoints (trophy case) sum, never the managerWins term. */
+export const MANAGER_MOTY_POINTS = 2;
 export const SCOUT_HIT_POINTS = 1.0; // per drafted pick who's in the dream team
 
 export const LUXURY_TAX_PER_M = 1.0;
@@ -82,6 +85,7 @@ export function score(args: {
   pennants?: number;
   managerRecord?: [number, number] | null;
   scoutHits?: number;
+  managerMoty?: boolean;
 }): ScoreParts {
   const {
     totalWar,
@@ -92,13 +96,15 @@ export function score(args: {
     pennants = 0,
     managerRecord = null,
     scoutHits = 0,
+    managerMoty = false,
   } = args;
   const mw = managerRecord ? (managerRecord[0] - managerRecord[1]) * MANAGER_PER_NET_WIN : 0;
   const parts: ScoreParts = {
     expectedWins: round1(expectedWins(totalWar, mw)),
     managerWins: round1(mw),
     budgetBonus: round1(budgetBonus(spendM, budgetM)),
-    awardPoints: awardPoints(awardLists),
+    // The skipper's MotY is hardware like any player award — trophy case.
+    awardPoints: awardPoints(awardLists) + (managerMoty ? MANAGER_MOTY_POINTS : 0),
     ringPoints: rings * RING_POINTS + pennants * PENNANT_POINTS,
     scoutBonus: round1(scoutHits * SCOUT_HIT_POINTS),
     luxuryTax: round1(luxuryTax(spendM, budgetM)),

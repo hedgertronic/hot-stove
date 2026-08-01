@@ -12,7 +12,7 @@
 
     <div class="hsec">THE LOOP</div>
     <ul>
-      <li>The stove spins you a random team-season, 1985–2024.</li>
+      <li>The stove spins you a random team-season, 1985–2025.</li>
       <li>Take <b>one</b> thing per spin — sign a player or make a front-office hire.</li>
       <li>Fill all 8 seats: C · IF ×2 · OF · UTIL · SP ×2 · RP.</li>
       <li>
@@ -27,25 +27,21 @@
         <b>Owner's Box:</b> hire an owner to set your payroll, then buy a stadium — its
         attendance multiplier (×0.85–1.15) scales it.
       </li>
-      <li>
-        <b>Hometown Hero:</b> owner + stadium from the same franchise lets you sign one
-        player who debuted there at the league minimum.
-      </li>
       <li>You <i>can</i> sign past your payroll — the luxury tax just eats your score.</li>
     </ul>
 
     <div class="hsec">SCORING</div>
     <ul>
-      <li><b>Wins:</b> 50 base + roster WAR + manager (W−L) × 0.1.</li>
+      <li><b>Wins:</b> 50 base + roster WAR + manager (W−L) × 0.2.</li>
       <li>
         <b>Payroll:</b> up to +10 for using your whole payroll; under half goes negative;
         −1 per $1M over it.
       </li>
       <li>
-        <b>Trophy case:</b> MVP +5 · Cy Young +4 · ROY +2 · ballot medals 🥈 +2 / 🥉 +1 ·
-        All-Star, Gold Glove, Silver Slugger +1 each.
+        <b>Trophy case:</b> MVP +3 · Cy Young +3 · ROY +2 · ballot medals 🥈 +2 / 🥉 +1 ·
+        All-Star, Gold Glove, Silver Slugger +1 each · your skipper's Manager of the Year +2.
       </li>
-      <li><b>Ring chasing:</b> 💍 +2 / 🚩 +1 per player from a title or pennant season.</li>
+      <li><b>Ring chasing:</b> 💍 +3 / 🚩 +1 per player from a title or pennant season.</li>
       <li><b>Scouting:</b> +1 per signing who makes the dream team.</li>
     </ul>
 
@@ -54,10 +50,14 @@
       <li><b>🎟️ SEASON TICKET</b> — same franchise, any year.</li>
       <li><b>🚚 RELOCATE</b> — same year, any club.</li>
       <li><b>✌️ DOUBLE PLAY</b> — two signings on one spin; refundable until the second.</li>
-      <li><b>🔁 TRADE DEADLINE</b> — swap a signed player (or your owner or stadium) for this card's.</li>
+      <li><b>🔁 TRADE DEADLINE</b> — trade a signed player (or your owner or stadium) for this card's.</li>
       <li>
-        <b>⭐ PRIME TIME</b> — browse an unsigned player's whole career — or an unhired
-        manager's, stadium's, or owner's history — and take any season of it.
+        <b>⭐ PRIME TIME</b> — browse an unsigned player's — or an unhired
+        manager's — whole career and take any season of it.
+      </li>
+      <li>
+        <b>🏠 HOMEGROWN</b> — arm it for a hometown discount: players who
+        <i>debuted</i> with this spin's club sign for $1M.
       </li>
     </ul>
 

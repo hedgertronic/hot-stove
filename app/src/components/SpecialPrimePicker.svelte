@@ -1,48 +1,29 @@
 <script lang="ts">
   import { loadSpecials } from "../lib/data";
-  import type { Game, SpecialKey } from "../lib/engine.svelte";
-  import { money, signed } from "../lib/format";
+  import type { Game } from "../lib/engine.svelte";
+  import { signed } from "../lib/format";
   import { MANAGER_PER_NET_WIN } from "../lib/scoring";
   import type { SpecialSeason } from "../lib/types";
+  import AwardPill from "./AwardPill.svelte";
   import Sheet from "./Sheet.svelte";
 
   let { game, onclose }: { game: Game; onclose: () => void } = $props();
 
-  const which = $derived(game.primeSpecial);
-
-  /** Sheet header: what's being browsed, in the tile's own vocabulary. */
-  const head = $derived.by(() => {
-    const c = game.card;
-    if (!c || !which) return { ic: "", who: "", sub: "" };
-    if (which === "manager")
-      return {
-        ic: "🧢",
-        who: c.manager ?? "",
-        sub: "Hire any season of the career, at that season's record",
-      };
-    if (which === "stadium")
-      return {
-        ic: "🏟️",
-        who: c.park,
-        sub: "Buy any year of the park, at that year's attendance",
-      };
-    return {
-      ic: "💰",
-      who: game.ownerName,
-      sub: "Hire any year of the tenure, at that year's payroll",
-    };
-  });
+  /** The card's skipper, whose cross-franchise career fills the sheet. The
+   * manager is Prime's only front-office target — owner and stadium tiles
+   * never reach this picker. */
+  const skipper = $derived(game.primeSpecial !== null ? (game.card?.manager ?? "") : "");
 
   interface Row {
     team: string;
     year: number;
-    /** Main line: "1996 New York Yankees". */
-    label: string;
-    /** Muted second line (record; empty in Eye Test or when redundant). */
-    sub: string;
-    /** Right-edge value (net wins / ×mult / payroll). */
+    /** Muted record ("93–69"; empty in Eye Test). */
+    rec: string;
+    /** Manager of the Year season (award visibility: Box Score only). */
+    moty: boolean;
+    /** Right-edge win value ("+4.8 W"; empty in Eye Test). */
     val: string;
-    /** The landed card's own season — take it the normal way. */
+    /** The landed card's own season — hire it the normal way. */
     here: boolean;
   }
   let rows = $state<Row[] | null>(null);
@@ -50,56 +31,26 @@
   let busy = $state(false);
 
   $effect(() => {
-    const kind = which;
+    const name = skipper;
     const c = game.card;
     rows = null;
     failed = false;
-    if (!kind || !c) return;
+    if (!name || !c) return;
     void (async () => {
       try {
+        // A manager's career crosses franchises; scan the whole index.
         const specials = await loadSpecials();
-        let picks: (SpecialSeason & { franchise: string })[] = [];
-        if (kind === "manager") {
-          // A manager's career crosses franchises; scan the whole index.
-          for (const [franchise, list] of Object.entries(specials))
-            for (const s of list) if (s.mgr === c.manager) picks.push({ ...s, franchise });
-        } else if (kind === "stadium") {
-          picks = (specials[c.franchise] ?? [])
-            .filter((s) => s.park === c.park)
-            .map((s) => ({ ...s, franchise: c.franchise }));
-        } else {
-          const tenure = game.owners.franchises[c.franchise]?.owners.find(
-            (o) => o.from <= c.year && (o.to === null || c.year < o.to),
-          );
-          picks = (specials[c.franchise] ?? [])
-            .filter(
-              (s) =>
-                tenure !== undefined &&
-                tenure.from <= s.year &&
-                (tenure.to === null || s.year < tenure.to),
-            )
-            .map((s) => ({ ...s, franchise: c.franchise }));
-        }
+        const picks: SpecialSeason[] = [];
+        for (const list of Object.values(specials))
+          for (const s of list) if (s.mgr === name) picks.push(s);
         rows = picks
           .sort((a, b) => a.year - b.year || a.team.localeCompare(b.team))
           .map((s) => ({
             team: s.team,
             year: s.year,
-            label: `${s.year} ${s.name}`,
-            sub:
-              kind === "manager" && !game.scout
-                ? `${s.w}–${s.l}`
-                : kind === "stadium"
-                  ? `${Math.round(s.att * 100)}th pct attendance`
-                  : "",
-            val:
-              kind === "manager"
-                ? game.scout
-                  ? ""
-                  : `${signed((s.w - s.l) * MANAGER_PER_NET_WIN)} W`
-                : kind === "stadium"
-                  ? `×${s.mult.toFixed(2)}`
-                  : money(s.budget),
+            rec: game.scout ? "" : `${s.w}–${s.l}`,
+            moty: game.showAwards && s.moty === true,
+            val: game.scout ? "" : `${signed((s.w - s.l) * MANAGER_PER_NET_WIN)} W`,
             here: s.team === c.team && s.year === c.year,
           }));
       } catch {
@@ -117,11 +68,11 @@
   }
 </script>
 
-<Sheet {onclose} label="Pick a year of this front-office hire">
-  <div class="sheet-h">⭐ PRIME TIME — {head.ic} {head.who}</div>
-  <div class="sheet-sub">{head.sub}</div>
+<Sheet {onclose} label="Pick a season of this manager's career">
+  <div class="sheet-h">⭐ PRIME TIME — 🧢 {skipper}</div>
+  <div class="sheet-sub">Hire any season of the career, at that season's record</div>
   {#if failed}
-    <div class="note">Couldn't load the timeline. Try again.</div>
+    <div class="note">Couldn't load the career. Try again.</div>
   {:else if rows === null}
     <div class="note">Pulling the file…</div>
   {:else if rows.length <= 1}
@@ -129,12 +80,20 @@
   {:else}
     <div class="list">
       {#each rows as row ((row.team + row.year))}
+        <!-- One line per season, market-row anatomy like the player career
+             sheet: fixed-width 🧢 tag, year + team code, then the season's
+             real metric — muted W–L and the win value — at the right edge.
+             Every season fits (this sheet only opens on an open manager
+             seat), so only the landed card's own year grays out. -->
         <button class="srow" disabled={row.here} onclick={() => pick(row)}>
-          <span class="mid">
-            <span class="yr">{row.label}</span>
-            {#if row.sub}<span class="sub">{row.sub}</span>{/if}
+          <span class="tag">🧢</span>
+          <span class="yr"
+            >{row.year} {row.team}{#if row.moty}&nbsp;<AwardPill code="MOY" small />{/if}</span
+          >
+          <span class="right">
+            {#if row.rec}<span class="rec">{row.rec}</span>{/if}
+            {#if row.val}<span class="val">{row.val}</span>{/if}
           </span>
-          <span class="val">{row.val}</span>
         </button>
       {/each}
     </div>
@@ -187,39 +146,67 @@
   .srow:active {
     transform: translate(-1px, -1px);
   }
-  /* The landed card's own year grays out like any other unclickable row. */
+  /* Same faded-tier idiom as the player career sheet's dead rows: identity
+     goes monochrome, the metric keeps a washed but readable presence. */
   .srow:disabled {
     opacity: 0.45;
-    filter: grayscale(1);
     cursor: default;
+  }
+  .srow:disabled .tag {
+    filter: grayscale(1);
+  }
+  .srow:disabled .rec,
+  .srow:disabled .val {
+    filter: saturate(0.7);
   }
   .srow:disabled:active {
     transform: none;
   }
-  .mid {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
+  /* Fixed-width leading tag, same geometry as the player rows' position
+     chip; the 🧢 IS the type label, on the skipper's pink. */
+  .tag {
+    width: 38px;
+    border-radius: 7px;
+    background: var(--pink);
+    border: 2px solid var(--ink);
+    display: grid;
+    place-content: center;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1;
+    padding: 4px 0;
+    flex: none;
   }
   .yr {
     font-weight: 800;
     font-size: 13px;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .sub {
-    font-size: 10px;
-    color: var(--muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .val {
+  .right {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex: none;
+  }
+  .rec {
+    font-size: 11px;
+    color: var(--muted-2);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  /* Structural right-alignment like the player rows' price column, wide
+     enough that "+14.0 W" and "−4.2 W" line up. */
+  .val {
+    display: inline-flex;
+    justify-content: flex-end;
     font-weight: 800;
     font-size: 13px;
     white-space: nowrap;
+    min-width: 56px;
   }
   .cancel {
     width: 100%;
