@@ -3,7 +3,6 @@
   import { lastName, signed, slotLabel, warTier } from "../lib/format";
   import { MANAGER_PER_NET_WIN } from "../lib/scoring";
   import type { CardPlayer } from "../lib/types";
-  import AwardPill from "./AwardPill.svelte";
 
   let { game }: { game: Game } = $props();
 
@@ -26,23 +25,34 @@
     else game.tdRelease(pickPlayer, i);
   }
 
-  // Phone: the pick-time sticky pin is bounded by the rail's parent column,
-  // so a tap deep in the player list leaves the rail off-screen — bring it
-  // back when a pick starts. `nearest` no-ops when it's already visible
-  // (the wide layout's persistent left column, short lists).
-  let wrapEl = $state<HTMLElement | undefined>();
+  // Phone: while a pick is in flight the rail leaves the flow and pins to the
+  // viewport (see the .pinned rule), so a spacer holds the column's height and
+  // the bank box below it doesn't jump up under the player's finger mid-tap.
+  // The resting height is the honest one — measured while the rail is still in
+  // flow — with the live measurement as the cold-start fallback.
+  let railH = $state(0);
+  let restH = $state(0);
   $effect(() => {
-    if (pickPlayer) wrapEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (!pickPlayer) restH = railH;
   });
+  const gapH = $derived(pickPlayer ? restH || railH : 0);
 
   /** Seat sub-line: season identity only ("2013 OAK") — the rail is the
    * roster's who/when, not a stat sheet; WAR lives on the list rows. */
   function seatMeta(s: { year: number; team: string }): string {
     return `${s.year} ${s.team}`;
   }
+
+  /** Tier band class for a filled seat, or "" when the mode hides WAR. Gated
+   * on `showWar` — the very flag that gates the numeral — because a color
+   * that encodes the WAR bucket leaks the talent read just as surely as the
+   * digits do, and Eye Test's whole premise is that it can't be read. */
+  function tierClass(s: { war: number } | null): string {
+    return s && game.showWar ? `war-${warTier(s.war)}` : "";
+  }
 </script>
 
-<div class="railwrap disp" class:pinned={!!pickPlayer} bind:this={wrapEl}>
+<div class="railwrap disp" class:pinned={!!pickPlayer} bind:clientHeight={railH}>
   <div class="psep railhead">YOUR SQUAD</div>
   <div class="rail">
     <!-- The manager's seat anchors the left edge, spanning both rows — one
@@ -52,9 +62,6 @@
         <b>MGR</b>
         <span>{lastName(game.manager.name)}</span>
         <i>{game.manager.year} {game.manager.team}</i>
-        {#if game.showAwards && game.manager.moty}<span class="moy"
-            ><AwardPill code="MOY" small /></span
-          >{/if}
         {#if !game.scout}<em class="rwar mgw"
             >{signed((game.manager.wins - game.manager.losses) * MANAGER_PER_NET_WIN)} W</em
           >{/if}
@@ -64,16 +71,20 @@
     {/if}
     {#each game.slots as slot, i}
       {#if pickableCells.has(i)}
-        <button class="cell pickable" class:vacant={!slot} onclick={() => tapCell(i)}>
+        <button
+          class="cell pickable {tierClass(slot)}"
+          class:vacant={!slot}
+          onclick={() => tapCell(i)}
+        >
           <b>{slotLabel(SLOT_TYPES[i])}</b>
           {#if slot}<span>{lastName(slot.name)}</span><i>{seatMeta(slot)}</i>
-            {#if !game.scout}<em class="rwar {warTier(slot.war)}">{slot.war.toFixed(1)}</em>{/if}
+            {#if game.showWar}<em class="rwar {warTier(slot.war)}">{slot.war.toFixed(1)}</em>{/if}
           {/if}
         </button>
       {:else if slot}
-        <div class="cell filled">
+        <div class="cell filled {tierClass(slot)}">
           <b>{slotLabel(SLOT_TYPES[i])}</b><span>{lastName(slot.name)}</span><i>{seatMeta(slot)}</i>
-          {#if !game.scout}<em class="rwar {warTier(slot.war)}">{slot.war.toFixed(1)}</em>{/if}
+          {#if game.showWar}<em class="rwar {warTier(slot.war)}">{slot.war.toFixed(1)}</em>{/if}
         </div>
       {:else}
         <div class="cell empty"><b>{slotLabel(SLOT_TYPES[i])}</b></div>
@@ -83,6 +94,8 @@
   <!-- No hint line during picks: the row's orange pending pill plus the lit
        nudging cells are the cues — one cue per state, no redundant copy. -->
 </div>
+<!-- Placeholder for the pinned rail's vacated flow height (phone only). -->
+{#if gapH}<div class="railgap" style="height:{gapH}px"></div>{/if}
 
 <style>
   /* The rail doubles as the slot/release picker, so it pins to the top only
@@ -97,16 +110,39 @@
   .railhead {
     display: none;
   }
+  /* Phone pin: `fixed`, not `sticky`. A sticky box can only travel inside its
+     parent's box, and the rail's parent is the short club column (rail + bank
+     box) — sticking would end a few dozen pixels down the page, exactly where
+     the player list the user is scrolling begins. Fixed answers to the
+     viewport instead, so the release picker stays reachable for the whole
+     scroll. Full-bleed with the shell's own 14px gutter re-applied (the
+     document flow supplied it before), capped and centered to the shell width.
+     z-index 10 keeps it over the list and under the sheets (z 50). */
   .railwrap.pinned {
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 10;
+    max-width: 480px;
+    margin: 0 auto 4px;
+    padding: calc(6px + env(safe-area-inset-top)) 14px 4px;
   }
-  /* Wide: the whole left column is persistently on screen, so the phone's
-     pick-time pin has nothing to do — disable it rather than double-stick. */
+  .railgap {
+    margin-bottom: 4px;
+  }
+  /* Wide: the whole left column is persistently on screen (it sticks as a
+     unit), so the phone's pick-time pin has nothing to do — the rail stays in
+     flow and its spacer collapses. */
   @media (min-width: 760px) {
     .railwrap.pinned {
       position: static;
+      max-width: none;
+      margin: 0 0 4px;
+      padding: 6px 0 4px;
+    }
+    .railgap {
+      display: none;
     }
   }
   .rail {
@@ -133,12 +169,38 @@
     justify-content: center;
     width: 100%;
   }
-  /* WAR lives on the finale-style wide rows only; the phone grid stays a
-     who/when card. The manager's MOY pill follows the same rule — the
-     sideways phone seat has no room for hardware. */
-  .rwar,
-  .moy {
+  /* The WAR numeral lives on the finale-style wide rows only; the sideways
+     phone seat has no room for it, and the phone grid reads as a who/when
+     card. No hardware anywhere in the rail — the seats carry name and season,
+     nothing else, and the manager's MOY pill waits for the finale. */
+  .rwar {
     display: none;
+  }
+  /* Phone tier band: with the numeral gone, each filled seat wears its WAR
+     bucket as a color band along its bottom edge. An inset band rather than a
+     background wash because the release picker needs the seat to say
+     "tappable" (amber) and "5.2-WAR guy" at the same time, and a wash can only
+     say one; inset also means it rides inside the ink border and costs no
+     layout — it's a band, not a drop shadow. Redundant by design: the numeral
+     itself returns at width and the name identifies the pick, so no decision
+     rests on hue alone. */
+  .cell.war-neg {
+    box-shadow: inset 0 -4px 0 var(--war-neg);
+  }
+  .cell.war-low {
+    box-shadow: inset 0 -4px 0 var(--war-low);
+  }
+  .cell.war-mid {
+    box-shadow: inset 0 -4px 0 var(--war-mid);
+  }
+  .cell.war-high {
+    box-shadow: inset 0 -4px 0 var(--war-high);
+  }
+  .cell.war-star {
+    box-shadow: inset 0 -4px 0 var(--war-star);
+  }
+  .cell.war-elite {
+    box-shadow: inset 0 -4px 0 var(--war-elite);
   }
   .cell b {
     display: block;
@@ -312,6 +374,17 @@
       color: var(--gray-ink);
       width: 34px;
     }
+    /* The number itself carries the tier here, so the band stands down. The
+       full class list is repeated because a media query adds no specificity —
+       a bare `.cell` would lose to `.cell.war-high` at every width. */
+    .cell.war-neg,
+    .cell.war-low,
+    .cell.war-mid,
+    .cell.war-high,
+    .cell.war-star,
+    .cell.war-elite {
+      box-shadow: none;
+    }
     .rwar {
       display: block;
       margin-left: auto;
@@ -319,10 +392,6 @@
       font-style: normal;
       font-weight: 800;
       font-size: 13px;
-    }
-    .moy {
-      display: block;
-      flex: none;
     }
     .rwar.neg {
       color: var(--war-neg);

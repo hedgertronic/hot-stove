@@ -94,8 +94,10 @@
     const taken = game.specialTaken(row.key);
     // ⭐ browses managers only — an armed Prime never claims the owner or
     // stadium tap, so those tiles keep their plain hire confirm.
-    if (!taken && game.primeArmed && row.key === "manager") {
-      game.primeTapSpecial(row.key);
+    if (!taken && game.primeArmed) {
+      if (row.key === "manager") game.primeTapSpecial(row.key);
+      // Owner and stadium are grayed while Prime is armed; the tap is dead
+      // even if a browser ever delivers one through the disabled button.
       return;
     }
     if (!taken) setConfirm(confirmKey === `s:${row.key}` ? null : `s:${row.key}`);
@@ -111,11 +113,19 @@
     {@const taken = game.specialTaken(row.key)}
     {@const swappable = taken && tdArmed && canAct}
     {@const primeable = !taken && row.key === "manager" && game.primeArmed && canAct}
+    <!-- ⭐ browses managers only. While Prime is armed, an unhired owner or
+         stadium has no move at all, so it wears the same gray the taken rows
+         wear — availability is binary, and the affordance must match. A TAKEN
+         owner/stadium is excluded: an armed Trade Deadline still swaps it, and
+         that amber path outranks Prime's blackout. Derived from the live
+         primeArmed getter, so disarming restores the rows. -->
+    {@const primeBlocked = !taken && row.key !== "manager" && game.primeArmed}
     <button
       class="srow {row.cls}"
-      class:taken={taken && !swappable}
+      class:taken={(taken && !swappable) || primeBlocked}
       class:swap={swappable}
       class:prime={primeable}
+      disabled={primeBlocked}
       onclick={(e) => tap(row, e)}
     >
       <span class="ic">{row.ic}</span>
@@ -124,7 +134,7 @@
         {#if row.meta}<span class="meta">{row.meta}</span>{/if}
         {#if row.moty}<AwardPill code="MOY" small />{/if}
       </span>
-      {#if confirmKey === `s:${row.key}` && !taken}
+      {#if confirmKey === `s:${row.key}` && !taken && !primeBlocked}
         <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commit(row.key); }} onkeydown={(e) => e.key === "Enter" && commit(row.key)}>{row.val ? `${row.verb} ${row.val}` : row.verb}</span>
       {:else if confirmKey === `w:${row.key}` && swappable}
         <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSwap(row.key); }} onkeydown={(e) => e.key === "Enter" && commitSwap(row.key)}>🔁 TRADE IN</span>

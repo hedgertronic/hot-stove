@@ -114,7 +114,7 @@
           <!-- The picker lives in the rail — point there, cardstock-terse. -->
           <span class="confirm hint">↑ PICK A SLOT</span>
         {:else if game.releasePick === p.id}
-          <span class="confirm hint">↑ TAP WHO TO TRADE AWAY</span>
+          <span class="confirm hint">↑ TAP WHO TO TRADE</span>
         {:else if confirmKey === `p:${p.id}` && open && !swappable && !game.primeArmed}
           <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSign(p); }} onkeydown={(e) => e.key === "Enter" && commitSign(p)}>SIGN {money(price)}</span>
         {:else if confirmKey === `t:${p.id}` && swappable && !game.primeArmed}

@@ -5,7 +5,7 @@ import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadSpecials, ownerFor } from "./data";
 import { eligibleTypes } from "./eligibility";
 import { Rng, randomSeed } from "./rng";
-import { MANAGER_MOTY_POINTS, MANAGER_PER_NET_WIN, displayRecord, score } from "./scoring";
+import { displayRecord, score } from "./scoring";
 import { SLOT_TYPES } from "./types";
 import type {
   Card,
@@ -101,8 +101,11 @@ export interface ManagerPick {
   moty?: boolean;
 }
 
-/** The most valuable manager among every card this game landed on:
- * maximizes netWins × 0.1 + (MotY ? 2 : 0), the skipper's full score value. */
+/** The dream club's skipper, solved jointly with its roster — the manager
+ * seat competes for the same scarce resource the bats do, since a card
+ * supplies one pick and the dugout is one of them. Valued at
+ * netWins × MANAGER_PER_NET_WIN + (MotY ? MANAGER_MOTY_POINTS : 0), the
+ * skipper's full score contribution. */
 export interface BestManager {
   name: string;
   team: string;
@@ -877,35 +880,17 @@ export class Game {
 
   private async finishGame(): Promise<void> {
     const players = this.slots.filter((s): s is Signed => s !== null);
-    // Reload every card this game landed on (all memoized from play) and
-    // solve for the WAR-max roster — the finale's scouting yardstick. The
-    // dream team also gets a manager: the most valuable one available, by the
-    // skipper's full score value (netWins × 0.1 + 2 if Manager of the Year).
+    // Reload every card this game landed on (all memoized from play) and solve
+    // for the best club those cards could have produced — the finale's scouting
+    // yardstick. Roster and skipper come out of one joint solve: a spin buys one
+    // thing from the card it lands on, so the dream manager competes with the
+    // dream team for cards (bestroster.ts carries the full rules).
     let best: BestRoster | null = null;
     let bestManager: BestManager | null = null;
-    let bestManagerValue = -Infinity;
     try {
       const cards = await Promise.all(this.seen.map((s) => loadCard(s.team, s.year)));
       best = bestRoster(cards);
-      for (const c of cards) {
-        if (c.manager == null) continue;
-        const netWins = c.wins - c.losses;
-        const moty = c.managerMoty === true;
-        const value = netWins * MANAGER_PER_NET_WIN + (moty ? MANAGER_MOTY_POINTS : 0);
-        if (bestManager === null || value > bestManagerValue) {
-          bestManagerValue = value;
-          bestManager = {
-            name: c.manager,
-            team: c.team,
-            year: c.year,
-            teamName: c.name,
-            ws: c.ws,
-            pen: c.pen,
-            netWins,
-            moty,
-          };
-        }
-      }
+      bestManager = best.manager ?? null;
     } catch {
       /* offline mid-game: finish without the yardstick */
     }

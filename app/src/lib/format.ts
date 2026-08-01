@@ -121,12 +121,29 @@ export function statLine(p: {
 /** The season record a points total resolves into, with its rung on the WAR
  * ladder the whole game speaks: round the points to a win count, clamp to the
  * 162-game season (a blown-out negative total is an 0–162 season; ≥162 caps
- * at 162–0 and the exact points disambiguate). Tier thresholds sit on the
- * game's landmarks: .500 (81) / the 100-win season / 116 = the Mariners line
- * the 🔱 badge celebrates / 145+ is genuinely elite (~p90 of skilled play at
- * the 0.2 manager multiplier) and takes the gold; below .500 grays out,
- * sub-.400 goes brick. Used
- * by the finale stamp and the home record book — one ladder, two screens. */
+ * at 162–0 and the exact points disambiguate).
+ *
+ * Every rung sits on a landmark a baseball fan already knows: .500 (81) grays
+ * out, the century mark (100) goes green, the Mariners line (116) the 🔱 badge
+ * celebrates goes blue, 135 takes the violet, and 155 takes the gold. A losing
+ * season — anything under .500 — goes brick.
+ *
+ * The ramp is calibrated so a color means roughly the same "how impressive is
+ * this" here as it does on a WAR chip, measured over 20,000 paired bot seeds
+ * per population: gold fires in 4.2% of strong-play games (was 22.3% at the old
+ * 145) and violet in 52%; against no-powerup play, violet is 2.4% versus the
+ * 2.5% of visible card seasons that earn a violet WAR chip.
+ *
+ * Exact rarity-matching is unreachable and deliberately not attempted: wins
+ * clamp at 162, and strong play already crosses 162 in ~1% of games — above the
+ * 0.67% of seasons that earn gold. Matching the lower rungs would mean printing
+ * a 138–24 season in blue as below-average, which is incoherent next to a
+ * literal win-loss record no matter how correct its frequency. Landmarks win
+ * below gold; the math only sets the top.
+ *
+ * Used by the finale stamp and the home record book — one ladder, two screens.
+ * Note the record book reads a personal best (a max over many games), so its
+ * stamp runs hotter than these per-game rates by construction. */
 export function recordFromTotal(
   total: number,
   games = 162,
@@ -134,11 +151,11 @@ export function recordFromTotal(
 ): { wins: number; losses: number; tier: WarTier } {
   const wins = Math.min(Math.max(Math.round(total), 0), games);
   const tier: WarTier =
-    wins >= 145 ? "elite"
-    : wins >= marinersWins ? "star"
-    : wins >= 100 ? "high"
-    : wins >= games / 2 ? "mid"
-    : wins >= Math.ceil(games * 0.4) ? "low"
+    wins >= 155 ? "elite"
+    : wins >= 135 ? "star"
+    : wins >= marinersWins ? "high"
+    : wins >= 100 ? "mid"
+    : wins >= games / 2 ? "low"
     : "neg";
   return { wins, losses: games - wins, tier };
 }

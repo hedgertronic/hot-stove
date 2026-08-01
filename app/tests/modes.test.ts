@@ -263,25 +263,33 @@ describe("bestFor leaderboard", () => {
     );
     const best = bestFor("standard", "classic");
     expect(best.best).toBe(131.5);
-    expect(recordFromTotal(best.best!)).toEqual({ wins: 132, losses: 30, tier: "star" });
+    expect(recordFromTotal(best.best!)).toEqual({ wins: 132, losses: 30, tier: "high" });
   });
 });
 
 describe("recordFromTotal ladder (home record book + finale stamp)", () => {
   it("rounds points to wins, clamps to the 162-game season", () => {
-    expect(recordFromTotal(90.4)).toEqual({ wins: 90, losses: 72, tier: "mid" });
+    expect(recordFromTotal(90.4)).toEqual({ wins: 90, losses: 72, tier: "low" });
     expect(recordFromTotal(-12)).toEqual({ wins: 0, losses: 162, tier: "neg" });
     expect(recordFromTotal(185)).toEqual({ wins: 162, losses: 0, tier: "elite" });
   });
 
   it("tier thresholds sit on the game's landmarks", () => {
-    expect(recordFromTotal(64).tier).toBe("neg"); // sub-.400
-    expect(recordFromTotal(65).tier).toBe("low"); // .400 floor
-    expect(recordFromTotal(81).tier).toBe("mid"); // .500
-    expect(recordFromTotal(100).tier).toBe("high"); // 100-win club
-    expect(recordFromTotal(116).tier).toBe("star"); // the Mariners line
-    expect(recordFromTotal(145).tier).toBe("elite"); // gold
-    expect(recordFromTotal(140).tier).toBe("star"); // violet below the gold line
+    expect(recordFromTotal(80).tier).toBe("neg"); // a losing season goes brick
+    expect(recordFromTotal(81).tier).toBe("low"); // .500
+    expect(recordFromTotal(100).tier).toBe("mid"); // the 100-win club
+    expect(recordFromTotal(116).tier).toBe("high"); // the Mariners line
+    expect(recordFromTotal(135).tier).toBe("star"); // violet
+    expect(recordFromTotal(155).tier).toBe("elite"); // gold
+  });
+
+  /* Each rung is pinned one win below its threshold too, so a boundary that
+   * drifts by a single win can't slip through. */
+  it("holds the rung immediately below each landmark", () => {
+    expect(recordFromTotal(154).tier).toBe("star");
+    expect(recordFromTotal(134).tier).toBe("high");
+    expect(recordFromTotal(115).tier).toBe("mid");
+    expect(recordFromTotal(99).tier).toBe("low");
   });
 });
 

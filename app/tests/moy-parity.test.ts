@@ -57,7 +57,11 @@ describe("Manager of the Year pill parity", () => {
     for (const body of [std, sct]) expect(body).not.toContain("MOY");
   });
 
-  it("MGR rail seat: the hired manager's MOY pill in Box Score only", () => {
+  /* The rail carries no hardware at all — not the skipper's MOY, not a
+   * player's MVP. It's a compact who/when card, and on a phone a trailing
+   * pill is the first thing to get cut off. Every hidden award waits for the
+   * finale, which is the game's one reveal surface. */
+  it("MGR rail seat: no MOY pill in either mode, MotY skipper or not", () => {
     const { std, sct } = pair(
       RosterRail,
       (g) => {
@@ -76,30 +80,10 @@ describe("Manager of the Year pill parity", () => {
       },
       (g) => ({ game: g }),
     );
-    expect(std).toContain("MOY");
-    expect(sct).not.toContain("MOY");
-    for (const body of [std, sct]) expect(body).toContain("Piniella");
-  });
-
-  it("a restored pre-MotY save (manager without the field) renders no pill", () => {
-    const { std, sct } = pair(
-      RosterRail,
-      (g) => {
-        g.card = mkCard();
-        // Old ManagerPick shape: no moty key at all.
-        g.manager = {
-          name: "Lou Piniella",
-          wins: 116,
-          losses: 46,
-          year: 2001,
-          team: "SEA",
-          teamName: "Seattle Mariners",
-          ws: false,
-          pen: true,
-        };
-      },
-      (g) => ({ game: g }),
-    );
-    for (const body of [std, sct]) expect(body).not.toContain("MOY");
+    // The skipper still reads as himself; only the hardware is withheld.
+    for (const body of [std, sct]) {
+      expect(body).not.toContain("MOY");
+      expect(body).toContain("Piniella");
+    }
   });
 });

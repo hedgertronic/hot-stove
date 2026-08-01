@@ -1,8 +1,8 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
   import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, warTier } from "../lib/format";
-  import { BANKS, DIFFICULTIES } from "../lib/modes";
   import { GAMES, GOAL_POINTS, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
+  import { shareBadges, shareText as shareResult } from "../lib/share";
   import AwardPill from "./AwardPill.svelte";
 
   let {
@@ -212,7 +212,6 @@
     return () => timers.forEach(clearTimeout);
   });
 
-  const TIER_EMOJI = { neg: "🔴", low: "⚪", mid: "🟢", high: "🔵", star: "🟣", elite: "🟡" } as const;
 
   /* ---- Badges: three rungs plus the goal pill; at most three pills render.
    *
@@ -246,7 +245,6 @@
   const everyDime = $derived(fin.parts.budgetBonus >= DIME_BONUS);
   const pocketed = $derived(fin.spend <= fin.budget * CHEAP_PCT && fin.wins < fin.losses);
   const crystalBall = $derived(fin.scoutHits >= CRYSTAL_HITS);
-  const dreamDenom = $derived(fin.bestManager ? 9 : 8);
 
   interface Brag {
     key: string;
@@ -271,43 +269,31 @@
     return out.slice(0, 3);
   });
 
-  function shareText(): string {
-    const diff = DIFFICULTIES[game.config.difficulty];
-    const bank = BANKS[game.config.bank];
-    const tag =
-      `${diff.emoji} ${diff.name.toUpperCase()}` +
-      (game.config.bank !== "classic" ? ` · ${bank.emoji} ${bank.name.toUpperCase()}` : "");
-    const grid = game.spinLog
-      .map((e) => {
-        if (e.kind === "owner") return "💰";
-        if (e.kind === "stadium") return "🏟️";
-        if (e.kind === "manager") return "🧢";
-        if (e.kind === "swap") return "🔁";
-        return TIER_EMOJI[warTier(e.war ?? 0)];
-      })
-      .join("");
-    const { rings, pennants } = game.pedigree;
-    const medals = [
-      "💍".repeat(Math.min(rings, 8)),
-      "🚩".repeat(Math.min(pennants, 8)),
-      fin.best ? `⭐${fin.scoutHits}/${dreamDenom}${crystalBall ? " 🔮" : ""}` : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-    // Badges ride their fact's line, emoji-only: the on-field rung stamps the
-    // record, the money rung stamps the payroll, 🔮 stamps the scout tally,
-    // and PERFECT SEASON keeps its words on the total. No three-pill cap
-    // here — a line never carries more than its own rung's one emoji.
-    const recBadge = beatMariners ? " 🔱" : hundredClub ? " 💯" : hundredLosses ? " 💀" : "";
-    const bankBadge = mortgaged ? " 💸" : everyDime ? " 💵" : pocketed ? " 🧾" : "";
-    // The seed code ends the string: paste it into PLAY A SEED # on the home
-    // screen to replay this exact card sequence.
-    return [
-      `HOT STOVE ${tag}`,
-      grid,
-      `${fin.wins}–${fin.losses}${recBadge} · 💰 ${money(fin.spend)}/${money(fin.budget)}${bankBadge}`,
-      `${medals ? `${medals} · ` : ""}🏆 ${fin.parts.total.toFixed(1)}${perfect ? " · PERFECT SEASON" : ""} · #${seedCode(game.seed)}`,
-    ].join("\n");
+  /** The shareable string. Facts in, string out — lib/share owns the format,
+   * including the record, which it derives from the total so a shared record
+   * can never disagree with the stamp above it. The grid is the finished
+   * roster rather than the spin log, which is what makes it a fixed 3×3: one
+   * seat per cell, the same shape every game. Badge thresholds run on
+   * baseline wins, which is why they arrive as their own fact set. */
+  function buildShare(): string {
+    return shareResult({
+      difficulty: game.config.difficulty,
+      bank: game.config.bank,
+      total: fin.parts.total,
+      // parts.managerWins is 0 with no skipper hired, which is a legitimate
+      // rung on the ladder; null is what says "nobody in the chair".
+      managerWins: game.manager ? fin.parts.managerWins : null,
+      roster: game.slots.map((s) => s?.war ?? null),
+      badges: shareBadges({
+        baselineWins: fin.wins,
+        baselineLosses: fin.losses,
+        total: fin.parts.total,
+        spendM: fin.spend,
+        budgetM: fin.budget,
+        budgetBonus: fin.parts.budgetBonus,
+        scoutHits: fin.scoutHits,
+      }),
+    });
   }
 
   /** Clipboard fallback swaps the button's own label (same in-place pattern
@@ -315,7 +301,7 @@
   let shareState = $state<"idle" | "copied" | "failed">("idle");
   let shareTimer: ReturnType<typeof setTimeout> | undefined;
   async function share() {
-    const text = shareText();
+    const text = buildShare();
     try {
       if (navigator.share) {
         await navigator.share({ text });
@@ -469,8 +455,13 @@
           >{#if fin.managerHit}<span class="emo qstar">⭐</span>{/if}{game.manager.name}
           <i>{game.manager.year} {game.manager.team}</i></span
         >
+        <!-- The finale is where hidden hardware comes out, so the skipper's
+             Manager of the Year shows in every mode — same pill, same
+             awards-then-pedigree order as the player rows above. -->
         <span class="qbadges"
-          >{#if game.manager.ws}<span class="emo">💍</span>{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
+          >{#if game.manager.moty}<AwardPill code="MOY" />{/if}{#if game.manager.ws}<span
+              class="emo">💍</span
+            >{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
         >
       </span>
       <span class="qwar">{signed(fin.parts.managerWins)} W</span>
@@ -512,8 +503,14 @@
           <span class="qname"
             >{fin.bestManager.name} <i>{fin.bestManager.year} {fin.bestManager.team}</i></span
           >
+          <!-- MotY is worth +2 in the solver's objective, so the pill shows
+               WHY this skipper won the seat — the same reason the dream
+               players wear their award pills. Optional-chained: the flag is
+               absent on pre-MotY saved finales. -->
           <span class="qbadges"
-            >{#if fin.bestManager.ws}<span class="emo">💍</span>{:else if fin.bestManager.pen}<span class="emo">🚩</span>{/if}</span
+            >{#if fin.bestManager?.moty}<AwardPill code="MOY" />{/if}{#if fin.bestManager.ws}<span
+                class="emo">💍</span
+              >{:else if fin.bestManager.pen}<span class="emo">🚩</span>{/if}</span
           >
         </span>
         <span class="qwar">{signed(fin.bestManager.netWins * MANAGER_PER_NET_WIN)} W</span>

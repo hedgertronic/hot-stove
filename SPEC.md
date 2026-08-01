@@ -107,15 +107,15 @@ expected wins = 47.7 + Σ WAR          (replacement-level baseline, capped at 16
 
 ## Difficulty ladder
 
-1. **Rookie:** everything visible, including award badges on player rows.
-2. **Standard (default):** WAR and salary visible; award badges hidden. Awards still
-   score — knowing Bryant's 2016 was the MVP year is the hidden edge, revealed at the
-   finale.
-3. **Scout mode:** traditional stat lines only (AVG/HR/SB · W-L/ERA/SV); WAR and cost
-   hidden until signing. Salary sort keeps the list order from leaking WAR. Requires
-   stat lines in cards (pipeline TODO).
-4. **Eye Test mode:** names and positions only, listed alphabetically. Draft on memory
-   alone.
+Two rungs, labeled **BALL KNOWLEDGE** on the home screen. Internal keys are
+`standard` / `scout` and are frozen — saves and the record book index on them.
+
+1. 📊 **Box Score** (`standard`, default): WAR, salary, and award badges all visible.
+2. 🔭 **Eye Test** (`scout`): traditional stat lines only (AVG/HR/SB · W–L/ERA/SV).
+   WAR and award badges hidden — knowing Bryant's 2016 was the MVP year is the hidden
+   edge, revealed at the finale. **Salary stays visible**: Eye Test hides talent
+   signals, not the price tag, so the cap game is identical in both rungs. Salary sort
+   keeps the list order from leaking WAR.
 
 ## Modes
 

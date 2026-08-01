@@ -76,7 +76,12 @@
     <Logo big />
   </div>
 
-  <div class="psep">DIFFICULTY</div>
+  <!-- The ladder measures how much baseball you already know, not how hard the
+       game is set to: Rookie shows every number, Eye Test hands you names and
+       trusts your memory. The label says so. The internal `difficulty` key,
+       the Difficulty type, and the DIFFICULTIES table keep their names —
+       saves and data reference them. -->
+  <div class="psep">BALL KNOWLEDGE</div>
   <div class="rows">
     {#each DIFFS as d (d.key)}
       <button

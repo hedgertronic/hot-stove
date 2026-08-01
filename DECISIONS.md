@@ -691,7 +691,7 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   read it unchanged; it now means "signed at the discount price."
 - **Manager of the Year is trophy-case hardware (+2).** A hired skipper who
   won the BBWAA Manager of the Year that season adds a flat +2 to the
-  awards (trophy case) total — never to the win column, whose (W−L) × 0.1
+  awards (trophy case) total — never to the win column, whose (W−L) × 0.2
   stays untouched. BBWAA only (it starts 1983, covering the whole 1985–2025
   era); the TSN parallel ballot is ignored so the same season can't
   double-award. The flag rides the card as `managerMoty` and the specials
@@ -699,7 +699,7 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   Prime Time's manager career sheet marks MotY seasons. The MOY pill wears
   the skipper's pink and follows award visibility (Box Score only; the
   finale reveals it to everyone). The dream team's manager pick now
-  maximizes netWins × 0.1 + (MotY ? 2 : 0) — a 2025 Pat Murphy (97–65,
+  maximizes netWins × 0.2 + (MotY ? 2 : 0) — a 2025 Pat Murphy (97–65,
   MotY) outranks a plain 99–63.
 - **⭐ Prime Time is players + managers only.** Owner and stadium tiles no
   longer light up or open a timeline while ⭐ is armed — the manager tile

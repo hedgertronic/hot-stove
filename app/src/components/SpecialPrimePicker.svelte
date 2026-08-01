@@ -80,20 +80,22 @@
   {:else}
     <div class="list">
       {#each rows as row ((row.team + row.year))}
-        <!-- One line per season, market-row anatomy like the player career
-             sheet: fixed-width 🧢 tag, year + team code, then the season's
-             real metric — muted W–L and the win value — at the right edge.
+        <!-- The card's own manager row, one field swapped: the FRONT OFFICE
+             row leads with the skipper's name, and here the person is fixed
+             while the season varies, so the lead is year + team code. Every
+             other beat matches SpecialRows' skipper row — full pink card,
+             bare 🧢 in the fixed-width type column, muted W–L riding right
+             beside the label, MOY pill after it, win value at the right edge.
              Every season fits (this sheet only opens on an open manager
              seat), so only the landed card's own year grays out. -->
         <button class="srow" disabled={row.here} onclick={() => pick(row)}>
-          <span class="tag">🧢</span>
-          <span class="yr"
-            >{row.year} {row.team}{#if row.moty}&nbsp;<AwardPill code="MOY" small />{/if}</span
-          >
-          <span class="right">
-            {#if row.rec}<span class="rec">{row.rec}</span>{/if}
-            {#if row.val}<span class="val">{row.val}</span>{/if}
+          <span class="ic">🧢</span>
+          <span class="mid">
+            <span class="who">{row.year} {row.team}</span>
+            {#if row.rec}<span class="meta">{row.rec}</span>{/if}
+            {#if row.moty}<AwardPill code="MOY" small />{/if}
           </span>
+          {#if row.val}<span class="val">{row.val}</span>{/if}
         </button>
       {/each}
     </div>
@@ -127,11 +129,14 @@
     gap: 6px;
     margin-bottom: 12px;
   }
+  /* The whole card carries the skipper's pink, exactly like the FRONT OFFICE
+     manager row — the tint is what makes a manager row read as a manager row,
+     and a lone tinted tag on a white card broke that language. */
   .srow {
     display: flex;
     align-items: center;
     gap: 9px;
-    background: var(--card);
+    background: var(--pink);
     border: 2.5px solid var(--ink);
     border-radius: 11px;
     padding: 6px 10px;
@@ -146,67 +151,60 @@
   .srow:active {
     transform: translate(-1px, -1px);
   }
-  /* Same faded-tier idiom as the player career sheet's dead rows: identity
-     goes monochrome, the metric keeps a washed but readable presence. */
+  /* Unavailable rows speak the taken-tile language from the draft screen:
+     the whole card drops to gray and goes monochrome. There is no hidden
+     tier to whisper here — a manager season is a record, not a WAR chip. */
   .srow:disabled {
-    opacity: 0.45;
+    background: var(--gray-bg);
+    color: var(--gray-ink);
     cursor: default;
-  }
-  .srow:disabled .tag {
     filter: grayscale(1);
   }
-  .srow:disabled .rec,
+  .srow:disabled .meta,
   .srow:disabled .val {
-    filter: saturate(0.7);
+    color: var(--gray-ink);
   }
   .srow:disabled:active {
     transform: none;
   }
-  /* Fixed-width leading tag, same geometry as the player rows' position
-     chip; the 🧢 IS the type label, on the skipper's pink. */
-  .tag {
+  /* The emoji IS the type label — fixed width like the player rows' position
+     chip, so both career sheets align their labels on the same column. */
+  .ic {
     width: 38px;
-    border-radius: 7px;
-    background: var(--pink);
-    border: 2px solid var(--ink);
-    display: grid;
-    place-content: center;
     text-align: center;
-    font-size: 14px;
+    font-size: 19px;
+    /* line-height 1 keeps the emoji's line box from outgrowing the row. */
     line-height: 1;
-    padding: 4px 0;
     flex: none;
   }
-  .yr {
-    font-weight: 800;
-    font-size: 13px;
+  .mid {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     min-width: 0;
+    overflow: hidden;
+  }
+  .who {
+    font-weight: 800;
+    font-size: 14px;
+    line-height: 1.15;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .right {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    flex: none;
-  }
-  .rec {
+  /* The record rides beside the season label, the way the FRONT OFFICE row
+     puts "84–78" beside the skipper's name. */
+  .meta {
     font-size: 11px;
     color: var(--muted-2);
     font-weight: 600;
-    white-space: nowrap;
+    flex: none;
   }
-  /* Structural right-alignment like the player rows' price column, wide
-     enough that "+14.0 W" and "−4.2 W" line up. */
   .val {
-    display: inline-flex;
-    justify-content: flex-end;
+    margin-left: auto;
     font-weight: 800;
-    font-size: 13px;
+    font-size: 14px;
     white-space: nowrap;
-    min-width: 56px;
   }
   .cancel {
     width: 100%;

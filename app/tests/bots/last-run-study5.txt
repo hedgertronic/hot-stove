@@ -1,5 +1,5 @@
 === Study 5: 🔱 on-field wins > 116, 2000 games/run ===
 run                     >116    >110    >100  max W
 Classic baseline       0.00%   0.15%   6.40%    115
-Classic powerups       1.05%   9.60%  62.20%    124
+Classic powerups       1.45%   9.90%  61.65%    124
 BlankCheck powerups    2.75%  20.65%  78.80%    127

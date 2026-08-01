@@ -2,8 +2,9 @@
   import { loadCard, loadPlayers } from "../lib/data";
   import { isPitcher } from "../lib/eligibility";
   import type { Game } from "../lib/engine.svelte";
-  import { costTier, money, posLabel, warTier } from "../lib/format";
+  import { costTier, money, posLabel, sortAwards, warTier } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
+  import AwardPill from "./AwardPill.svelte";
   import Sheet from "./Sheet.svelte";
 
   let { game, onclose }: { game: Game; onclose: () => void } = $props();
@@ -60,6 +61,12 @@
     })();
   });
 
+  /** Award pills follow the market rows' rule exactly: hardware is Box Score
+   * knowledge. Eye Test hides which season was the MVP year — that hidden
+   * edge is the mode, and the career sheet is the one screen where leaking it
+   * would hand over the whole answer at once. */
+  const hasBadges = (p: CardPlayer) => game.showAwards && p.awards.length > 0;
+
   async function pick(sea: Season) {
     if (busy || !sea.fits || sea.here) return;
     busy = true;
@@ -86,11 +93,19 @@
             <span class="pos" class:pit={isPitcher(sea.p)} class:long={plabel.length > 5}
               >{plabel}</span
             >
-            <!-- One line per season, market-row anatomy: year + team code,
-                 WAR chip, tinted price. Unsignable rows (current card's own
-                 season, no fitting open seat) just gray — no explanatory
-                 copy, same as every other gray row in the game. -->
-            <span class="yr">{sea.year} {sea.team}</span>
+            <!-- The market row with one field swapped: the list leads with the
+                 player's NAME, and here the player is fixed while the season
+                 varies, so the lead is year + team code. Award pills follow it
+                 inline and wrap to a second line on narrow phones, the same
+                 badges-wrap-names-don't idiom the market rows use. Unsignable
+                 rows (current card's own season, no fitting open seat) just
+                 gray — no explanatory copy, same as every other gray row. -->
+            <span class="mid">
+              <span class="yr">{sea.year} {sea.team}</span>
+              {#if hasBadges(sea.p)}<span class="badges"
+                  >{#each sortAwards(sea.p.awards) as a}<AwardPill code={a} small />{/each}</span
+                >{/if}
+            </span>
             <span class="right">
               {#if game.showWar}<span class="warchip {warTier(sea.p.war)}">{sea.p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
               <span class="cost {costTier(sea.p.cost)}">{money(sea.p.cost)}</span>
@@ -153,7 +168,8 @@
   }
   /* Same faded-tier idiom as the market's dead rows: identity goes
      monochrome, the WAR chip and price keep a washed but recognizable hue. */
-  .srow:disabled .pos {
+  .srow:disabled .pos,
+  .srow:disabled .mid {
     filter: grayscale(1);
   }
   .srow:disabled .warchip,
@@ -188,13 +204,33 @@
     font-size: 7.5px;
     letter-spacing: 0.01em;
   }
+  /* Season label and hardware share a line when they fit; the pills wrap to a
+     second line when they don't. The label never shrinks to make room for
+     pills — same rule as the market rows, where the pills are the scannable
+     signal and the name holds its size. */
+  .mid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    min-width: 0;
+    overflow: hidden;
+  }
   .yr {
     font-weight: 800;
     font-size: 13px;
+    flex: none;
+    max-width: 100%;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex: none;
   }
   .right {
     margin-left: auto;
