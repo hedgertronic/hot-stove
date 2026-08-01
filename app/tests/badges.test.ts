@@ -49,6 +49,7 @@ const f = (over: Partial<BadgeFacts> = {}): BadgeFacts => ({ ...BASE, ...over })
 
 /** A finished club, one entry per filled slot. */
 const player = (over: Partial<BadgeRosterEntry> = {}): BadgeRosterEntry => ({
+  id: "someguy01",
   war: 3.0,
   awards: [],
   year: 2004,
@@ -113,9 +114,10 @@ describe("the on-field axis is exclusive", () => {
     for (const w of [0, 50, 62, 81, 90, 97, 99, 101, 102, 115]) {
       const losses = GAMES - w;
       const got = only(earnedBadges(f({ baselineWins: w, baselineLosses: losses })), ONFIELD);
-      // The skull shares this axis, so a season bad enough still lands one
-      // badge — the floor of the ladder, not a gap in it.
+      // The two anti-trophies share this axis, so a season bad enough still
+      // lands one badge — the floor of the ladder, not a gap in it.
       if (w >= HUNDRED_WINS) expect(got, `${w} wins`).toEqual(["hundred"]);
+      else if (w === 0) expect(got, `${w} wins`).toEqual(["worst"]);
       else if (losses >= 100) expect(got, `${w} wins`).toEqual(["skull"]);
       else expect(got, `${w} wins`).toEqual([]);
     }

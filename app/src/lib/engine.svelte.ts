@@ -931,6 +931,7 @@ export class Game {
       budgetBonus: parts.budgetBonus,
       scoutHits,
       roster: players.map((p) => ({
+        id: p.id,
         war: p.war,
         awards: p.awards,
         year: p.year,

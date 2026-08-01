@@ -51,10 +51,10 @@ beforeEach(() => store.clear());
 
 describe("badgeCase", () => {
   it("pins the collectible denominator to the badge table", () => {
-    // 21 is the number the summary line prints; it lives in badges.ts, and a
+    // The summary line prints this denominator; it lives in badges.ts, and a
     // table edit must move the fraction here rather than silently anywhere.
-    expect(COLLECTIBLE.length).toBe(21);
-    expect(BADGES.length).toBe(26);
+    expect(COLLECTIBLE.length).toBe(22);
+    expect(BADGES.length).toBe(28);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 
@@ -133,7 +133,7 @@ describe("the trophy case section on the home screen", () => {
     seed(game(["crystal", "twoway", "skull"]));
     const body = home();
     expect(body).toContain("TROPHY CASE");
-    expect(body).toContain("2 OF 21");
+    expect(body).toContain(`2 OF ${COLLECTIBLE.length}`);
     expect(body).toContain("<details");
     // Closed by default: the home screen is a menu, not a gallery.
     expect(body).not.toMatch(/<details[^>]*\sopen/);
@@ -153,12 +153,13 @@ describe("the trophy case section on the home screen", () => {
     seed(game(["skull"]));
     const body = home();
     expect(body).toContain("100-LOSS CLUB");
-    expect(body).toContain("0 OF 21");
+    expect(body).toContain(`0 OF ${COLLECTIBLE.length}`);
   });
 
   it("prints the tier word beside each tile, so rarity is not color alone", () => {
-    seed(game(["crown", "crystal"]));
+    seed(game(["crown", "mariners", "crystal"]));
     const body = home();
+    expect(body).toContain(">legend<");
     expect(body).toContain(">ultra<");
     expect(body).toContain(">rare<");
   });
@@ -174,7 +175,7 @@ describe("the trophy case section on the home screen", () => {
   it("says so plainly when nothing is earned yet", () => {
     seed();
     const body = home();
-    expect(body).toContain("TROPHY CASE · 0 OF 21");
+    expect(body).toContain(`TROPHY CASE · 0 OF ${COLLECTIBLE.length}`);
     expect(body).toContain("No badges yet");
   });
 });

@@ -398,7 +398,7 @@ describe("line width budget", () => {
   });
 
   it("keeps every line inside the absolute budget at worst case", () => {
-    expect(MAX_LEN).toBe(71);
+    expect(MAX_LEN).toBe(75);
     const s = shareText({
       ...BASE,
       total: 104.3,

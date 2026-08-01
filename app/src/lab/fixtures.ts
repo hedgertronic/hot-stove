@@ -382,6 +382,7 @@ function forgeFinale(opts: {
       budgetBonus: parts.budgetBonus,
       scoutHits,
       roster: opts.slots.map((s) => ({
+        id: s.id,
         war: s.war,
         awards: s.awards,
         year: s.year,

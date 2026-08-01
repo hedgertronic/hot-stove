@@ -39,7 +39,12 @@ import { GOAL_POINTS } from "./scoring";
  *    badges are a scorecard.
  */
 
-export type Rarity = "common" | "uncommon" | "rare" | "ultra" | "irony";
+/** The collection ladder. `legend` sits above `ultra` and holds the two badges
+ * that say "you maxed out an axis" rather than "this was rare" — the frequency
+ * gap between them and ultra is small, the statement is not. It is styled
+ * inverted from every other tier (ink fill, gold text) so it reads as beyond
+ * the ladder rather than one more rung on it. */
+export type Rarity = "legend" | "ultra" | "rare" | "uncommon" | "common" | "irony";
 
 /** Which slot a badge competes for. Within an exclusive axis exactly one badge
  * fires; `roster`, `era`, and `goal` stack freely. */
@@ -64,6 +69,8 @@ export interface BadgeDef {
 
 /** Per-season facts the roster badges read, one entry per filled slot. */
 export interface BadgeRosterEntry {
+  /** Stable player id ("ohtansh01") — the deferred-money badge names people. */
+  id: string;
   war: number;
   awards: string[];
   year: number;
@@ -122,6 +129,23 @@ function isScandal(p: { team: string | null; year: number | null }): boolean {
   return p.team === SCANDAL_TEAM && p.year !== null && SCANDAL_YEARS.includes(p.year);
 }
 
+/** The two contracts baseball tells stories about paying off for decades:
+ * Bonilla in a Mets uniform and Ohtani in a Dodgers one. Both are keyed to the
+ * club rather than the player alone, because it is the pairing that carries
+ * the folklore — Bonilla in Pittsburgh is just a good third baseman.
+ *
+ * The Bonilla side is deliberately his 1992–95 Mets tenure rather than the
+ * 1999 season the deferral actually bought out. That 1999 season is not
+ * draftable: he hit .160 over 60 games and the card build filters him off the
+ * NYM 1999 roster entirely, so a literal trigger could never fire. */
+const DEFERRED: Record<string, string> = {
+  bonilbo01: "NYM",
+  ohtansh01: "LAD",
+};
+function isDeferred(p: { id: string; team: string }): boolean {
+  return DEFERRED[p.id] === p.team;
+}
+
 /** The champion rungs, keyed on the exact win total that matches them. Every
  * total is a real club's real record; 🔱 is the record rung (see the file
  * comment) and 👑 is the only rung that names no club. */
@@ -138,24 +162,26 @@ export const HUNDRED_WINS = 100;
 
 export const BADGES: BadgeDef[] = [
   // ---- on-field: exactly one fires, resolved crown → named rung → 💯 ----
-  { key: "crown", emoji: "👑", label: "BEST RECORD OF ALL TIME", rarity: "ultra", axis: "onfield", freq: 1.33 },
+  { key: "crown", emoji: "👑", label: "BEST RECORD OF ALL TIME", rarity: "legend", axis: "onfield", freq: 1.33 },
   { key: "mariners", emoji: "🔱", label: "MATCHED THE 2001 MARINERS", rarity: "ultra", axis: "onfield", freq: 0.63 },
   { key: "yankees", emoji: "🗽", label: "MATCHED THE 1998 YANKEES", rarity: "ultra", axis: "onfield", freq: 1.4 },
-  /* The four champion rungs measure 4.29–5.95% — one statistical cluster
-   * straddling the 5% RARE/UNCOMMON line, three nominally under it. They are
-   * all UNCOMMON anyway: matching a champion is one achievement class, and
-   * splitting a 1.7pp spread across two pill colors would read as arbitrary
-   * next to each other. The rarity break that carries real information is the
-   * ULTRA rungs above them, which measure 4-9× rarer. */
-  { key: "mets", emoji: "🍎", label: "MATCHED THE 1986 METS", rarity: "uncommon", axis: "onfield", freq: 4.29 },
-  { key: "astros", emoji: "🚀", label: "MATCHED THE 2022 ASTROS", rarity: "uncommon", axis: "onfield", freq: 4.92 },
+  /* The champion rungs climb in rarity with the win total they name, which is
+   * also what the measurement says: 4.29 / 4.92 / 4.99 / 5.95 percent, rarest
+   * first. The split falls on the 5% band line between the Astros and the Red
+   * Sox, so the tier a player sees and the frequency they actually hit agree. */
+  { key: "mets", emoji: "🍎", label: "MATCHED THE 1986 METS", rarity: "rare", axis: "onfield", freq: 4.29 },
+  { key: "astros", emoji: "🚀", label: "MATCHED THE 2022 ASTROS", rarity: "rare", axis: "onfield", freq: 4.92 },
   { key: "cubs", emoji: "🐻", label: "MATCHED THE 2016 CUBS", rarity: "uncommon", axis: "onfield", freq: 5.95 },
   { key: "redsox", emoji: "🧦", label: "MATCHED THE 2004 RED SOX", rarity: "uncommon", axis: "onfield", freq: 4.99 },
   { key: "hundred", emoji: "💯", label: "100-WIN CLUB", rarity: "common", axis: "onfield", freq: 47.37 },
+  /* The floor, and the exact mirror of 👑 at the ceiling. It supersedes 💀 the
+   * same way the crown supersedes a named rung: an 0–162 season is not merely
+   * a 100-loss season, and the pill should say the worse thing. */
+  { key: "worst", emoji: "📉", label: "WORST RECORD OF ALL TIME", rarity: "irony", axis: "onfield", ironic: true, freq: 0 },
   { key: "skull", emoji: "💀", label: "100-LOSS CLUB", rarity: "irony", axis: "onfield", ironic: true, freq: 0 },
 
   // ---- the goal, its own axis ----
-  { key: "perfect", emoji: "🏆", label: "PERFECT SEASON", rarity: "ultra", axis: "goal", freq: 1.01 },
+  { key: "perfect", emoji: "🏆", label: "PERFECT SEASON", rarity: "legend", axis: "goal", freq: 1.01 },
 
   // ---- payroll: exactly one fires ----
   { key: "farm", emoji: "💸", label: "MORTGAGED THE FARM", rarity: "irony", axis: "payroll", ironic: true, freq: 0.5 },
@@ -174,12 +200,13 @@ export const BADGES: BadgeDef[] = [
   { key: "rings", emoji: "💍", label: "RING BEARERS", rarity: "ultra", axis: "roster", freq: 1.48 },
   { key: "skipper", emoji: "🧢", label: "PUSHED THE RIGHT BUTTONS", rarity: "uncommon", axis: "roster", freq: 9.91 },
   { key: "nohardware", emoji: "🕸️", label: "EMPTY TROPHY CASE", rarity: "irony", axis: "roster", ironic: true, freq: 0 },
-  { key: "noallstars", emoji: "🏖️", label: "NOT ONE ALL-STAR", rarity: "irony", axis: "roster", ironic: true, freq: 0 },
+  { key: "noallstars", emoji: "🏖️", label: "NOBODY MADE THE TRIP", rarity: "irony", axis: "roster", ironic: true, freq: 0 },
 
   // ---- era: seasons with an asterisk, whatever the reason ----
   { key: "strike", emoji: "✊", label: "PICKET LINE", rarity: "uncommon", axis: "era", freq: 19.14 },
   { key: "covid", emoji: "🦠", label: "SOCIAL DISTANCING", rarity: "uncommon", axis: "era", freq: 18.51 },
-  { key: "signstealing", emoji: "🗑️", label: "BANGING SCHEME", rarity: "rare", axis: "era", freq: 4.31 },
+  { key: "signstealing", emoji: "🗑️", label: "STOLEN SIGNS", rarity: "rare", axis: "era", freq: 4.31 },
+  { key: "deferred", emoji: "🏦", label: "DEFERRED MONEY", rarity: "rare", axis: "era", freq: null },
 ];
 
 export const BADGE_BY_KEY: Record<string, BadgeDef> = Object.fromEntries(
@@ -213,6 +240,7 @@ export function earnedBadges(f: BadgeFacts): string[] {
 
   const field = onFieldBadge(f.baselineWins);
   if (field) out.push(field);
+  else if (f.baselineWins === 0) out.push("worst");
   else if (f.baselineLosses >= 100) out.push("skull");
 
   if (f.total >= GOAL_POINTS) out.push("perfect");
@@ -242,6 +270,7 @@ export function earnedBadges(f: BadgeFacts): string[] {
   if (roster.some((p) => p.year === 2020)) out.push("covid");
   if (roster.some(isScandal) || isScandal({ team: f.managerTeam, year: f.managerYear }))
     out.push("signstealing");
+  if (roster.some(isDeferred)) out.push("deferred");
 
   return out;
 }
