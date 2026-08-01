@@ -32,16 +32,30 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
    fire before any choice is committed this spin. Rerolling disarms (does **not**
    spend) an armed ✌️/🔁. Season Ticket excludes the current year; Relocate excludes
    the current team.
-8. **Hometown Hero surfacing.** When owner+stadium franchises match and the hero is
-   unused, a slim 🏠 strip appears under the powerup row, and every eligible player row
-   (debut == that franchise) shows 🏠 with its price rewritten to that season's
-   normalized league minimum. Signing one consumes the hero. Roster full + TD unspent:
-   hero rows stay live through the TD swap flow at hero price (burns TD and hero
-   together). Hero pricing applies at commit time only — no retroactive repricing.
+8. **🏠 Homegrown surfacing (the hometown discount).** The sixth powerup is an arming
+   toggle (TD/Prime pattern) that FILTERS the market: while armed, unsigned rows whose
+   player *debuted*
+   with the current spin's franchise keep normal active styling with the price
+   rewritten to a flat $1.0M (HOMEGROWN_PRICE_M, clamped to the listed price —
+   floor-priced players in cheap-floor years list below $1M, and the discount must
+   never cost more than a plain sign); every other unsigned row is
+   hard-gray and untappable (no per-row marker — the repriced value plus the gray
+   contrast is the signal; signed rows keep their 🏠). Front-office rows are untouched
+   — the filter is market-only, and committing a special while armed disarms the
+   discount at spin end without spending it. Signing a discounted row spends the
+   powerup (plus the spin's choice, as any sign does). Disarming restores the list
+   without spending; rerolls (🎟️/🚚) disarm it, never spend it — same rule as ✌️/🔁.
+   TD + 🏠 both armed: only debut-eligible rows are swap targets, and a swap-in
+   commits at the discounted price and spends both. A card with no debut-eligible
+   players still arms — the whole list grays, which is its own feedback; disarm
+   restores it. Discount pricing applies at commit time only — no retroactive
+   repricing. Works in every difficulty and bank (it never depended on owner/stadium
+   spins).
 9. **Effective bankroll** = `(owner ? owner.budget : minBudget) × (stadium ? mult : 1)`.
    The stadium multiplier applies to the league-minimum floor too — you bought the
-   park. Real floor from data: **$18.2M** (2021 Orioles), not the mock's illustrative
-   $45.1M. Punitive as intended.
+   park. Real floor from data: **$15.0M** (the BANKROLL_MIN_M clamp; 2021 Orioles
+   and five other teardowns rest on it), not the mock's illustrative $45.1M.
+   Punitive as intended.
 10. **Overspend is always allowed** — the luxury tax is the brake, never a hard block.
     Meter switches to the striped warning fill past the cap.
 11. **Sim seed = game seed.** One mulberry32 stream per game drives spins *and* the
@@ -96,9 +110,9 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
 - **Rookie badges:** award pills (MVP/CY/ROY/GG/SS in trophy colors) plus 💍/🚩 inline
   after the name, sized down so rows don't stretch.
 - **Moneyball bank:** single "⚾ $82.9M HARD CAP" chip replaces the owner × stadium
-  math; owner/stadium rows never render; skipper still hires. Hometown Hero is
-  naturally unreachable (needs owner + stadium). Share strings and history entries are
-  tagged with the mode.
+  math; owner/stadium rows never render; skipper still hires. The 🏠 Homegrown
+  discount works here too — it keys off the spin's franchise, not the owner/stadium.
+  Share strings and history entries are tagged with the mode.
 
 ## Round 5 — mode consolidation, scouting yardstick, Prime (2026-07-30, session 3)
 
@@ -128,7 +142,7 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   MVP2/CY2 (+2) for award-vote runners-up from Lahman AwardsSharePlayers (🥈 pills).
 - **⭐ Prime, the fifth powerup.** Arm it → tap a rostered player → browse every other
   season of their career (from `data/players.json`, lazy ~0.5MB) → re-sign that year:
-  new WAR/cost/awards/pedigree, real contract price (hero pricing doesn't travel),
+  new WAR/cost/awards/pedigree, real contract price (discount pricing doesn't travel),
   and the new season must still fit the slot. Free action (doesn't consume the
   spin's choice), one per game.
 - **Relocate is a picker now**, symmetric with Season Ticket: any club from the same
@@ -189,7 +203,7 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   powerup. Slot ambiguity auto-resolves specialist-first; the browsed card does
   not count as scouted for the dream team.
 - **Double Play refunds.** Only consumed when the second pick actually commits;
-  disarming after pick one (armed pill reads "PICK 2 — TAP TO UNDO") or moving on
+  disarming after pick one (the armed pill itself is the exit) or moving on
   refunds it.
 - **Season Ticket / Relocate land instantly** — no reel at all, one pulse on the
   half that changed (this also removed the code path behind the same-team year
@@ -265,8 +279,8 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   🔱 Mariners badge and PERFECT SEASON still fire; share ends "🏆 106.1" bare);
   Modes/Replay/Share are one row with bigger icons; PERSONAL BEST shows
   BEST RECORD | BEST SCORE columns keyed by combo emojis, no em dash.
-- **Help sheet** (? pill, upper-left): loop, bankroll (incl. Hometown Hero and
-  sign-past-the-cap), scoring with medal values, one line per powerup — and it
+- **Help sheet** (? pill, upper-left): loop, payroll (incl. sign-past-the-cap),
+  scoring with medal values, one line per powerup — and it
   documents that TD can also swap in the card's owner/stadium.
 
 ## Round 8 — quieter loop, honest cap, labeled numbers (2026-07-31, session 6)
@@ -474,8 +488,8 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
 - **Powerups sit in a fixed 3+2 lattice** (six grid tracks: top pills span 2,
   bottom span 3) — free-wrapping flex could strand one pill alone under four,
   and armed pills change label width. Labels ellipsize inside the pill; the
-  44px tap extension stays unclipped. Double Play's armed label tightened to
-  "✌️ PICK 2 — UNDO" to fit a balanced 390px pill.
+  44px tap extension stays unclipped. Double Play's armed label tightened
+  to fit a balanced 390px pill.
 - **Fixed-cap banks hire their real owners:** Moneyball shows 💰 Stephen
   Schott & Ken Hofmann, Blank Check 💰 George Steinbrenner — the owners.json
   entries whose clubs set those caps, rendered exactly as classic renders a
@@ -522,7 +536,8 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   unbalance the rows.
 - **Player rows are one line:** age deleted, award pills inline after the
   name (name ellipsizes first — the pills are the scannable signal), rows
-  54→46px. Hometown Hero's "why" survives as an inline 🏠 before the name.
+  54→46px. (Market rows carry no 🏠 marker; the emoji lives on signed
+  squad/finale rows only.)
 - **"Hardware" is now "Trophy case"**, and scouting stars repeat like
   pedigree emoji (⭐⭐⭐⭐, no ×N — 9 stars, the max, still fits the 44px row,
   so no fallback guard needed).
@@ -618,3 +633,84 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
 - **Favicons are real PNGs** (32/16 + apple-touch-icon on the cream
   ground) because Safari ignores SVG data-URI icons — same pattern as
   hedgertronic.com; the tab title drops its 🔥 since the icon carries it.
+
+## Round 17 — the hidden combo becomes the sixth powerup (2026-08-01)
+
+- **🏠 Homegrown replaces Hometown Hero.** The owner+stadium franchise
+  match no longer means anything; the debut-franchise discount is a visible
+  sixth powerup, one free use per game like the rest. It's an arming toggle
+  (TD/Prime pattern) that filters the market: arm → debut-matching unsigned
+  rows stay live at a flat $1.0M sticker price (clamped to the listed price;
+  the hero's per-season league-minimum math is gone) while every other row
+  hard-grays; sign one to spend it;
+  disarm to restore the list unspent. No per-row 🏠 in the armed list — the
+  repriced value plus the gray contrast is the signal; signed rows keep their
+  🏠. Full rule in gap rule 8 above.
+- **Named "Homegrown"** — the baseball term for a player developed by his
+  debut club, which is exactly who lights up; "hometown discount" survives as
+  the description copy (help sheet, SPEC), since that's the real-world phrase
+  for signing cheap to stay. The engine's internal powerup key stays
+  `hometown`.
+- **Pill row is 3+3:** 🎟️ ST · 🚚 RELO · ⭐ PT / ✌️ DP · 🔁 TD · 🏠 HG. The
+  pill reads "🏠 HOMEGROWN"; armed it reads "🏠 SIGN FOR $1M…", matching
+  TD/Prime's instruct-the-next-tap voice. The rows are two explicit flex
+  containers sharing one 8px gap, so vertical spacing is uniform at every
+  wrap count (the old zero-height flex-break element doubled the row-gap and
+  needed magic-number halving).
+- **Gray rows whisper their tier.** Dead market rows (position full, or
+  filtered out by an armed 🏠) no longer flatten to full monochrome: the
+  identity bits (position tag, name, award pills) stay grayscale, but the WAR
+  chip and salary keep their hue — faded by the row's opacity plus a mild
+  desaturation — so a gold you can't reach still reads gold ("need Trade
+  Deadline for him"). Prime Time career sheets use the same idiom for
+  unsignable seasons. Modes that hide a chip render nothing, so Eye Test
+  leaks nothing new; the TD trade-amber state is untouched.
+- **One voice for powerup click states.** Armed pill labels all instruct the
+  next tap with a trailing "…" (⭐ TAP A PLAYER… · ✌️ PICK TWO… → PICK
+  ONE MORE… · 🔁 PICK A TRADE… · 🏠 SIGN FOR $1M…); no meta-UI words
+  (UNDO/DONE) — tapping an armed pill again disarms it, unlabeled, the same
+  gesture that armed it. The mid-Double-Play "DONE — KEEP ✌️" banner button
+  is deleted: disarming the ✌️ pill is the one exit (the engine keeps
+  `finishSpin()` for bots/tests). Trade Deadline speaks trade language
+  everywhere users read it — "🔁 WHO GOES?", "↑ TAP WHO TO TRADE AWAY",
+  "🔁 TRADE IN", "TRADE FOR $X" — never "swap", and never "release" (that
+  means cutting a player for nothing); internal identifiers (releasePick,
+  completeSwap) keep their names.
+- **The rail hint line is gone.** During slot-pick and trade-away picks the
+  rail no longer prints "TAP A SLOT FOR X" / "TAP A PLAYER TO RELEASE FOR X"
+  under the seats — the row's orange pending pill and the lit nudging cells
+  are the cues (one cue per state; the pin/scrollIntoView behavior keeps
+  both on screen, so no state is uncued).
+- **Dead spins arm anyway.** No debut-eligible player on the card → the pill
+  still arms and the whole list grays, which is its own feedback; disarming
+  restores it. Graying the pill per-spin instead would make it the only
+  powerup whose readiness depends on card contents.
+- **SAVE_VERSION 4 → 5** with a restore migration: a v4 save's `heroUsed`
+  maps to the hometown powerup (`true` → spent, `false` → ready). The
+  `Signed.hero` field keeps its name — saves and the finale's 🏠 marker
+  read it unchanged; it now means "signed at the discount price."
+- **Manager of the Year is trophy-case hardware (+2).** A hired skipper who
+  won the BBWAA Manager of the Year that season adds a flat +2 to the
+  awards (trophy case) total — never to the win column, whose (W−L) × 0.1
+  stays untouched. BBWAA only (it starts 1983, covering the whole 1985–2025
+  era); the TSN parallel ballot is ignored so the same season can't
+  double-award. The flag rides the card as `managerMoty` and the specials
+  timeline as `moty` (present only when true, like the index's ws/pen), so
+  Prime Time's manager career sheet marks MotY seasons. The MOY pill wears
+  the skipper's pink and follows award visibility (Box Score only; the
+  finale reveals it to everyone). The dream team's manager pick now
+  maximizes netWins × 0.1 + (MotY ? 2 : 0) — a 2025 Pat Murphy (97–65,
+  MotY) outranks a plain 99–63.
+- **⭐ Prime Time is players + managers only.** Owner and stadium tiles no
+  longer light up or open a timeline while ⭐ is armed — the manager tile
+  (when open) and unsigned players are the only Prime targets. Bot study:
+  44% of bot Primes went to owners as pure bank-shopping (~+$70M of payroll
+  per hire), stadium draw was 0%, yet banning both is score-neutral — the
+  surviving player/manager targets absorb the value. So the restriction
+  cuts a degenerate line without costing anyone points. Engine-gated
+  (`primeTapSpecial` and `applyPrimeSpecial` are manager-only for specials)
+  and UI-gated (SpecialRows only ambers the manager row; ⭐-armed taps on
+  owner/stadium fall through to the plain hire confirm). The
+  SpecialPrimePicker's owner/stadium rendering paths are deleted, and the
+  sheet's manager rows now match the player career sheet's anatomy: 🧢 tag
+  · year + team code · MOY pill · muted W–L · "+N.N W" win value.

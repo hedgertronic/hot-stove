@@ -8,18 +8,21 @@ the core skill: the game rewards knowing which cheap seasons were secretly great
 ## The Loop
 
 Spins continue **until all 8 roster slots are filled** (no fixed count). Each spin lands
-on a random **team + season** (1985–2024) and shows one screen, everything immediately
+on a random **team + season** (1985–2025) and shows one screen, everything immediately
 signable — no mode-select click:
 
 1. **Owner row** — the actual owner by name (`owners.json`). Hiring locks your bankroll
-   to that team-season's **top-4 contracts** (avg $112M; ~$45M fire-sale Marlins to
-   $249M 2005 Yankees). One per game; hard-grayed on later spins once hired.
+   to that team-season's **top-4 contracts** through the bankroll curve (widen
+   ×1.25 around the league median, scale ×⅔, floor $15M; avg $76M — fire-sale
+   teardowns at $15M up to $203M 2005 Yankees). One per game; hard-grayed on
+   later spins once hired.
    Taking it consumes the spin.
 2. **Stadium row** — the park by name. Buying applies attendance as a bankroll
    multiplier (0.85×–1.15× by percentile). One per game; consumes the spin.
 3. **Skipper row** — the actual manager by name (Lahman Managers). Hiring scores
-   **(team W − team L) × 0.1** at the finale — Maddon's 103–58 Cubs = +4.5, a
-   fire-sale manager is negative. One per game; consumes the spin.
+   **(team W − team L) × 0.2** at the finale — Maddon's 103–58 Cubs = +9.0, a
+   fire-sale manager is negative — plus **+2 trophy-case points** if he won the
+   BBWAA **Manager of the Year** that season. One per game; consumes the spin.
 4. **Player list** — sorted by **salary, high → low** (scrolling down = bargain
    territory), WAR shown left / salary right. Signing fills a matching open slot.
 
@@ -35,10 +38,11 @@ you finish in 8 spins — with the punitive league-minimum bankroll.
 
 Availability is binary: **active** or **gray** (position full / special already
 taken). Arming 🔁 Trade Deadline flips every gray row — players *and* specials — into
-swap-amber for one replacement, then it's spent. When the incoming player could
+trade-amber for one replacement, then it's spent. When the incoming player could
 replace several roster players (either IF cell, or the FLEX occupant — any hitter
-fits FLEX), the roster rail becomes the release picker: eligible cells light up, tap
-one to release. One eligible cell → no picker, the swap just completes.
+fits FLEX), the roster rail becomes the release picker (the UI's copy says "trade
+away" — "release" would mean cutting a player for nothing): eligible cells light up,
+tap one to trade away. One eligible cell → no picker, the trade just completes.
 
 **8 roster slots:** C · IF · IF · OF · FLEX (any hitter/DH) · SP · SP · RP.
 Traded players carry their **full-season** WAR and are rollable from any team they played for.
@@ -48,29 +52,28 @@ Two-way players (Ohtani) count total WAR (bat + pitch) in any slot they qualify 
 All dollars are normalized: share of that year's league-average price level × $160M
 (so player prices read like modern salaries in every era).
 
-Balance note (playtested, `pipeline/playtest.py`): at top-4 bankrolls, cost-blind
-drafting busts the budget 44% of the time; informed drafting sacrifices only ~2 WAR.
-The budget punishes guessing, not knowledge — by design.
+Balance note (playtested, `pipeline/playtest.py`): with the bankroll curve, cost-blind
+best-WAR drafting busts the budget ~79% of the time, while nearly every game can
+still field 8 players under budget; informed drafting gives up ~6 WAR vs greedy.
+Beating the payroll takes powerups plus a little luck — by design.
 
 ## Powerups (one free use each)
 
-Four named pills in a single row under the team banner, graying when spent. Double
-Play and Trade Deadline are **arming toggles** and apply to specials as well as
-players:
+Six named pills in two rows (3+3) under the team banner, graying when spent. Double
+Play, Trade Deadline, Prime Time, and Homegrown are **arming toggles**; Trade
+Deadline applies to specials as well as players, and Prime Time to the manager:
 
 | Powerup | Effect |
 |---|---|
-| 🎟️ **Season Ticket** | Re-pick **any season** (1985–2024) of the rolled franchise — forward or backward. |
+| 🎟️ **Season Ticket** | Re-pick **any season** (1985–2025) of the rolled franchise — forward or backward. |
 | 🚚 **Relocate** | Reroll to a different random team, same year. |
+| ⭐ **Prime Time** | Arm it, tap an unsigned listed player (or the open manager tile), browse the whole career, and take any other season at its real price. Owner and stadium tiles are never Prime targets. |
 | ✌️ **Double Play** | Take **two choices** from a single spin — any mix of players and specials (owner + Bryant off one Cubs roll). |
 | 🔁 **Trade Deadline** | Arm it, then replace anything already taken — a signed player, or your owner/stadium/skipper — with this spin's equivalent. |
+| 🏠 **Homegrown** | The hometown discount. Arm it — the market filters to players who *debuted* with this spin's franchise, repriced to a flat **$1M** (never more than the listed price); every other row grays out. Signing one spends it; disarming restores the list. Rerolls disarm it, never spend it. Works in every difficulty and bank mode. |
 
 Hired skipper displays as a chip under the roster rail — name and year only
 (🧢 Maddon ’16).
-
-**Hidden combo — Hometown Hero:** if your owner and stadium are the same franchise, sign
-one player who *debuted* with that franchise for the league minimum. If your roster is
-already full, you may burn Trade Deadline to make room; no Trade Deadline, no hero.
 
 ## Scoring
 
@@ -84,9 +87,11 @@ expected wins = 47.7 + Σ WAR          (replacement-level baseline, capped at 16
   payroll) through 0 (half the cap) to **+10** (right at the cap); 0 if over — the
   luxury tax takes it from there. Drastically underusing the bankroll costs points.
 - **Awards** (that exact season): MVP +3 · Cy Young +3 · ROY +2 · Gold Glove +1 · Silver Slugger +1.
-- **Championship pedigree:** +2 💍 per player whose team won the World Series that
+- **Championship pedigree:** +3 💍 per player whose team won the World Series that
   season; +1 🚩 per player whose team won the pennant but lost the Series.
-- **Skipper:** if hired, (team W − team L) × 0.1 — negative allowed.
+- **Skipper:** if hired, (team W − team L) × 0.2 — negative allowed. If he won the
+  BBWAA **Manager of the Year** that season, +2 more — hardware, so it lands in the
+  awards (trophy case) total, not the win column.
 - Displayed record comes from a seeded game-by-game Monte Carlo sim of expected wins
   (the *drama*); the score uses expected wins (the *math*).
 - **Finale reveal** (smush-style): the record counts up, then the score itemizes row by
@@ -114,7 +119,7 @@ expected wins = 47.7 + Σ WAR          (replacement-level baseline, capped at 16
 
 ## Modes
 
-- **Moneyball:** bankroll fixed to the 2002 A's top-4 contracts (**$82.9M** normalized
+- **Moneyball:** bankroll fixed to the 2002 A's top-4 contracts (**$51.5M** through the curve
   — Dye/Justice/Durham/Tejada). No owner spins; separate leaderboard, no multiplier.
 - **Daily** (deferred): date-seeded spins shared by all players + emoji share string
   (one row per spin: 👤/💰/🏟️/⚡ + outcome tier, then `97-65 · 118 pts`). RNG already

@@ -35,7 +35,9 @@ Visual reference: `design/cardstock-v2.html` (authoritative for look, motion, an
 
 ## Data contract (already built, in `data/`)
 
-- `index.json` — `{yearMin, yearMax, cards: [{team, year, franchise, name}]}` (~1,158)
+- `index.json` — `{yearMin, yearMax, cards: [{team, year, franchise, name, lg, div}]}`
+  (~1,188) — `lg`/`div` are that season's actual league + division from Lahman
+  Teams (era-correct: pre-1994 has no `C`), consumed by the Relocate picker.
 - `cards/{BR}_{year}.json` — per team-season:
   - card: `year team franchise name park wins losses attendance attendancePct
     stadiumMult budget budgetRaw contracts[{name salary est}] prorated manager players[]`
@@ -70,7 +72,7 @@ again before completing.
 
 Powerups (one each, four named pills in a row under the banner, gray when spent;
 ✌️ and 🔁 are arming toggles):
-- 🎟️ **Season Ticket**: re-pick any year 1985–2024 of this franchise (either
+- 🎟️ **Season Ticket**: re-pick any year 1985–2025 of this franchise (either
   direction) → reload that card, same spin.
 - 🚚 **Relocate**: reroll to a random different team, same year.
 - ✌️ **Double Play**: arm it, then take two choices this spin — any mix of players
@@ -133,7 +135,7 @@ never "three 2016 rings").
 | Scout | hidden | hidden | hidden | stat lines only (needs pipeline: stat lines + age) |
 | Eye Test | hidden | hidden | hidden | names/pos only, alphabetical |
 
-Moneyball: bankroll locked $82.9M, owner rows never appear. Daily: deferred — date
+Moneyball: bankroll locked $51.5M, owner rows never appear. Daily: deferred — date
 seed + same-spins-for-everyone + share grid; keep `rng(seed)` as the only entropy.
 
 ## Storage (localStorage)

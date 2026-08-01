@@ -3,14 +3,14 @@
 **Play it: [hedgertronic.com/hot-stove](https://hedgertronic.com/hot-stove/)** (public beta)
 
 A baseball drafting game. The stove spins you a random real team-season
-(1985–2024); take one thing per spin — sign a player at his real salary, or
+(1985–2025); take one thing per spin — sign a player at his real salary, or
 hire that year's manager, owner, or stadium. Fill 8 roster seats plus the
 front office, manage your payroll, and chase 116 wins.
 
 - **Two difficulties:** 📊 Box Score (stats, salaries, awards) · 🔭 Eye Test
   (names and prices only — trust your memory).
 - **Three banks:** 💼 Owner's Box (hire an owner to set your payroll) ·
-  ⚾ Moneyball ($82.9M) · 💸 Blank Check ($248.6M).
+  ⚾ Moneyball ($51.5M) · 💸 Blank Check ($203.2M).
 - **Five once-per-game powerups:** 🎟️ Season Ticket, 🚚 Relocate,
   ✌️ Double Play, 🔁 Trade Deadline, ⭐ Prime Time (browse a whole career —
   or a manager's, park's, or owner's history — and take any season of it).

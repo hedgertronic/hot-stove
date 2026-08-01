@@ -1,0 +1,89 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A — Punch list</title>
+<link rel="stylesheet" href="./base.css">
+<style>
+  .rows { display: grid; gap: 7px; margin-bottom: 16px; }
+  .row {
+    display: flex; align-items: center; gap: 9px;
+    min-height: 48px; padding: 6px 12px 6px 10px;
+    border: 2.5px dashed var(--ink); border-radius: 11px;
+    background: transparent; color: var(--muted); cursor: pointer;
+    text-align: left;
+  }
+  .row.on { border-style: solid; background: var(--card); color: var(--ink); }
+  .row.on.mb { background: var(--green-wash); }
+  .row.on.bc { background: var(--yellow); }
+  .punch {
+    width: 19px; height: 19px; flex: none;
+    border: 2px solid var(--ink); border-radius: 5px;
+    display: grid; place-content: center;
+    font-size: 13px; font-weight: 900; line-height: 1;
+    color: var(--ink); background: var(--card);
+  }
+  .row:not(.on) .punch { border-color: var(--gray-ink); background: transparent; color: transparent; }
+  .ric { font-size: 19px; line-height: 1; flex: none; }
+  .row:not(.on) .ric { filter: grayscale(0.35); opacity: 0.7; }
+  .rname { font-weight: 800; font-size: 13.5px; white-space: nowrap; }
+  .rmeta {
+    margin-left: auto; display: flex; align-items: center; gap: 5px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: var(--gray-ink);
+    text-align: right;
+  }
+  .row.on .rmeta { color: var(--muted); }
+  .pill {
+    display: inline-block; border-radius: 999px; font-size: 9.5px; font-weight: 800;
+    letter-spacing: 0.04em; padding: 2.5px 9px; white-space: nowrap;
+  }
+  .pill.ghost { border: 2px dashed var(--gray-ink); color: var(--muted); background: transparent; }
+  .pill.cash { border: 2px solid var(--ink); background: var(--card); color: var(--ink); }
+  .pill.oak { border: 2px solid var(--ink); background: #003831; color: #efb21e; }
+  .pill.nyy { border: 2px solid var(--ink); background: #0c2340; color: #fffdf6; }
+  .row:not(.on) .pill { border: 2px dashed var(--gray-ink); background: transparent; color: var(--muted); }
+</style></head><body>
+<div id="app">
+  <button class="help">?</button>
+  <div class="mast"><span class="logo"><span>HOT<em>STOVE</em></span><span class="beta">BETA</span></span></div>
+
+  <div class="psep">DIFFICULTY</div>
+  <div class="rows">
+    <button class="row on">
+      <span class="punch">✗</span><span class="ric">📊</span><span class="rname">Box Score</span>
+      <span class="rmeta">STATS · SALARIES · AWARDS</span>
+    </button>
+    <button class="row">
+      <span class="punch"></span><span class="ric">🔭</span><span class="rname">Eye Test</span>
+      <span class="rmeta">NO STATS · NO AWARDS</span>
+    </button>
+  </div>
+
+  <div class="psep">PAYROLL</div>
+  <div class="rows">
+    <button class="row on">
+      <span class="punch">✗</span><span class="ric">💼</span><span class="rname">Owner's Box</span>
+      <span class="rmeta"><span class="pill ghost">💰 OWNER</span><span class="pill ghost">🏟️ STADIUM</span></span>
+    </button>
+    <button class="row mb">
+      <span class="punch"></span><span class="ric">⚾</span><span class="rname">Moneyball</span>
+      <span class="rmeta"><span class="pill oak">OAK 2002</span><span class="pill cash">$51.5M</span></span>
+    </button>
+    <button class="row bc">
+      <span class="punch"></span><span class="ric">💸</span><span class="rname">Blank Check</span>
+      <span class="rmeta"><span class="pill nyy">NYY 2005</span><span class="pill cash">$203.2M</span></span>
+    </button>
+  </div>
+
+  <button class="btn hot playbtn">PLAY 🔥</button>
+  <button class="seedlink">PLAY A SEED #</button>
+
+  <div class="psep bestsep">RECORD BOOK</div>
+  <div class="book">
+    <div class="bmode">📊 Box Score · 💼 Owner's Box</div>
+    <div class="btable">
+      <div class="bcol"><div class="bcap">G</div><div class="bn">2</div></div>
+      <div class="bcol"><div class="bcap">BEST RECORD</div><div class="bn">101–61</div></div>
+      <div class="bcol"><div class="bcap">BEST SCORE</div><div class="bn gold">101.2</div></div>
+    </div>
+  </div>
+</div>
+</body></html>

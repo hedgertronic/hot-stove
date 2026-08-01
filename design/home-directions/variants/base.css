@@ -1,0 +1,91 @@
+/* Hot Stove cardstock tokens — copied from app/src/app.css for variant renders. */
+@font-face {
+  font-family: "Nunito";
+  src: url("./nunito.woff2") format("woff2");
+  font-weight: 200 900;
+  font-style: normal;
+}
+:root {
+  --ground: #f6f1e3;
+  --card: #fffdf6;
+  --ink: #24221c;
+  --muted: #6b6759;
+  --green: #2f9e44;
+  --green-wash: #d3f0d8;
+  --green-deep: #1e7c31;
+  --blue: #3b5bdb;
+  --yellow: #ffd43b;
+  --sky: #a5d8ff;
+  --pink: #ffc9c9;
+  --orange: #e8590c;
+  --gray-bg: #e8e2d2;
+  --gray-ink: #a09a88;
+  --war-elite: #c98a08;
+  --amber: #fff4d6;
+  --dash: #d5cdb6;
+  --disp: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font: 16px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif;
+}
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 10px 14px 28px;
+  font-family: var(--disp);
+  position: relative;
+}
+button { font: inherit; color: inherit; font-family: inherit; }
+.psep {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.14em;
+  color: var(--muted); padding: 2px 0 8px;
+}
+.psep::before, .psep::after { content: ""; flex: 1; border-top: 2px dashed var(--dash); }
+.btn {
+  border: 2.5px solid var(--ink); border-radius: 11px; padding: 9px 12px;
+  font-weight: 800; font-size: 14px; cursor: pointer;
+  background: var(--card); color: var(--ink);
+}
+.btn.hot { background: var(--orange); color: var(--card); }
+.help {
+  position: absolute; top: 10px; left: 14px;
+  border: 2px solid var(--ink); border-radius: 999px;
+  background: var(--card); color: var(--muted);
+  font-weight: 800; font-size: 10px; line-height: 1;
+  padding: 4px 0; width: 28px; text-align: center; cursor: pointer;
+}
+.logo { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 34px; letter-spacing: 0.01em; }
+.logo em { font-style: normal; color: var(--orange); }
+.beta {
+  border: 2px solid var(--ink); border-radius: 999px; background: var(--yellow);
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; line-height: 1; padding: 3.5px 8px;
+}
+.mast { text-align: center; margin: 7vh 0 26px; }
+.playbtn { width: 100%; min-height: 52px; margin-top: 6px; font-size: 17px; letter-spacing: 0.02em; }
+.seedlink {
+  display: block; margin: 12px auto 0; background: none; border: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em; color: var(--muted);
+  cursor: pointer; padding: 4px 8px; text-align: center;
+}
+/* Record book as a standings/box-score table. */
+.bestsep { margin-top: 20px; }
+.book {
+  border: 2.5px solid var(--ink); border-radius: 12px;
+  background: var(--card); padding: 9px 12px 11px; text-align: center;
+}
+.bmode {
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); padding-bottom: 7px; margin-bottom: 8px; border-bottom: 2px dashed var(--dash);
+}
+.btable { display: grid; grid-template-columns: 1fr 2fr 2fr; }
+.bcol + .bcol { border-left: 2px dashed var(--dash); }
+.bcap { font-size: 9px; font-weight: 800; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 1px; }
+.bn { font-size: 26px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.bn.gold { color: var(--war-elite); }

@@ -1,0 +1,65 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B — Scoreboard toggles</title>
+<link rel="stylesheet" href="./base.css">
+<style>
+  .bar {
+    display: grid; overflow: hidden;
+    border: 2.5px solid var(--ink); border-radius: 11px;
+    background: var(--card); margin-bottom: 8px;
+  }
+  .bar.two { grid-template-columns: 1fr 1fr; }
+  .bar.three { grid-template-columns: repeat(3, 1fr); }
+  .segb {
+    border: 0; background: transparent; color: var(--muted); cursor: pointer;
+    min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-weight: 800; font-size: 12.5px; white-space: nowrap; padding: 4px 4px;
+  }
+  .segb + .segb { border-left: 2.5px solid var(--ink); }
+  .segb.on { background: var(--ink); color: var(--card); }
+  .segb:not(.on) .sic { filter: grayscale(0.35); opacity: 0.7; }
+  .sic { font-size: 17px; line-height: 1; }
+  .cap {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    min-height: 26px; margin-bottom: 14px;
+    font-size: 10.5px; font-weight: 700; color: var(--muted); text-align: center;
+  }
+  .pill {
+    display: inline-block; border-radius: 999px; font-size: 9.5px; font-weight: 800;
+    letter-spacing: 0.04em; padding: 2.5px 9px; white-space: nowrap;
+  }
+  .pill.ghost { border: 2px dashed var(--gray-ink); color: var(--muted); background: transparent; }
+</style></head><body>
+<div id="app">
+  <button class="help">?</button>
+  <div class="mast"><span class="logo"><span>HOT<em>STOVE</em></span><span class="beta">BETA</span></span></div>
+
+  <div class="psep">DIFFICULTY</div>
+  <div class="bar two">
+    <button class="segb on"><span class="sic">📊</span>Box Score</button>
+    <button class="segb"><span class="sic">🔭</span>Eye Test</button>
+  </div>
+  <div class="cap">Stats, salaries, and awards</div>
+
+  <div class="psep">PAYROLL</div>
+  <div class="bar three">
+    <button class="segb on"><span class="sic">💼</span>Owner's Box</button>
+    <button class="segb"><span class="sic">⚾</span>Moneyball</button>
+    <button class="segb"><span class="sic">💸</span>Blank Check</button>
+  </div>
+  <div class="cap"><span class="pill ghost">💰 OWNER</span><span class="pill ghost">🏟️ STADIUM</span> spin for your payroll</div>
+
+  <button class="btn hot playbtn">PLAY 🔥</button>
+  <button class="seedlink">PLAY A SEED #</button>
+
+  <div class="psep bestsep">RECORD BOOK</div>
+  <div class="book">
+    <div class="bmode">📊 Box Score · 💼 Owner's Box</div>
+    <div class="btable">
+      <div class="bcol"><div class="bcap">G</div><div class="bn">2</div></div>
+      <div class="bcol"><div class="bcap">BEST RECORD</div><div class="bn">101–61</div></div>
+      <div class="bcol"><div class="bcap">BEST SCORE</div><div class="bn gold">101.2</div></div>
+    </div>
+  </div>
+</div>
+</body></html>
