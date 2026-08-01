@@ -29,7 +29,10 @@
   title={locked ? undefined : badge.label}
 >
   {#if locked}
-    <span class="hidden" aria-hidden="true">?</span>
+    <!-- The name, never the emoji and never the `how`. A name is direction —
+         "MATCHED THE 2016 CUBS" sends you to look up what they did — while the
+         trigger behind it stays the reward for earning the badge. -->
+    {badge.label}
     <span class="sr">Not yet earned</span>
   {:else}
     {badge.emoji}
@@ -94,17 +97,14 @@
     background: var(--brick-wash);
     border-color: var(--war-neg);
   }
-  /* Locked: the fill drops to a tint of its tier so the row still reads as a
-     rarity band, and the identity is replaced by a single mark. */
+  /* Locked: the tier fill fades back so the row still reads as a rarity band
+     while the pill plainly has not been earned. Dashed is reserved for exactly
+     this state — the anti-trophies wear a solid brick border precisely so the
+     two never look alike. */
   .brag.locked {
-    opacity: 0.4;
+    opacity: 0.45;
     border-style: dashed;
     color: var(--muted);
-    min-width: 44px;
-    text-align: center;
-  }
-  .hidden {
-    font-weight: 900;
   }
   .count {
     margin-left: 6px;

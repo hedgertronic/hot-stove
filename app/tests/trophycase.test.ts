@@ -59,8 +59,8 @@ describe("badgeCase", () => {
   it("pins the collectible denominator to the badge table", () => {
     // The summary line prints this denominator; it lives in badges.ts, and a
     // table edit must move the fraction here rather than silently anywhere.
-    expect(COLLECTIBLE.length).toBe(22);
-    expect(BADGES.length).toBe(29);
+    expect(COLLECTIBLE.length).toBe(26);
+    expect(BADGES.length).toBe(33);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 
@@ -168,16 +168,19 @@ describe("the trophy case sheet", () => {
     expect(buttons).toBe(1);
   });
 
-  it("names an earned badge and silhouettes the rest of the set", () => {
+  it("names every locked badge without revealing its trigger", () => {
     seed(game(["crystal", "twoway"]));
     const body = modal();
     expect(body).toContain("CRYSTAL BALL");
     expect(body).toContain("THE TWO-WAY GUY");
-    // A locked slot is a shape and a tier, never the identity — the finale
-    // still gets to deliver the surprise.
-    expect(body).not.toContain("COOPERSTOWN CLASS");
-    expect(body).not.toContain("RING BEARERS");
-    expect(body).not.toContain("PERFECT SEASON");
+    // A locked slot names the badge — that is the direction it owes the
+    // player — but never its emoji and never its trigger. The `how` string
+    // stays the reward for actually earning it.
+    expect(body).toContain("COOPERSTOWN CLASS");
+    expect(body).toContain("RING BEARERS");
+    expect(body).not.toContain(BADGE_BY_KEY.cooperstown.how);
+    expect(body).not.toContain(BADGE_BY_KEY.rings.how);
+    expect(body).not.toContain(BADGE_BY_KEY.rings.emoji);
     expect(lockedSlots(body)).toBe(COLLECTIBLE.length - 2);
   });
 

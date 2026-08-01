@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 /** Unit pins for every badge trigger (src/lib/badges).
  *
  * Facts are forged here rather than played out through the engine: a trigger
@@ -47,7 +49,10 @@ const BASE: BadgeFacts = {
   managerMoty: false,
 };
 
-const f = (over: Partial<BadgeFacts> = {}): BadgeFacts => ({ ...BASE, ...over });
+const f = (over: Partial<BadgeFacts> = {}): BadgeFacts => ({
+  ...BASE,
+  ...over,
+});
 
 /** A finished club, one entry per filled slot. */
 const player = (over: Partial<BadgeRosterEntry> = {}): BadgeRosterEntry => ({
@@ -65,7 +70,8 @@ const club = (n: number, over: Partial<BadgeRosterEntry> = {}) =>
 
 const ONFIELD = BADGES.filter((b) => b.axis === "onfield").map((b) => b.key);
 const PAYROLL = BADGES.filter((b) => b.axis === "payroll").map((b) => b.key);
-const only = (keys: string[], axis: string[]) => keys.filter((k) => axis.includes(k));
+const only = (keys: string[], axis: string[]) =>
+  keys.filter((k) => axis.includes(k));
 
 /** The on-field ladder written out as prose, top to bottom, independent of the
  * else-if chain earnedBadges resolves through. The sweep below compares the two
@@ -83,6 +89,35 @@ function ladderAt(wins: number): string[] {
 }
 
 describe("the badge table itself", () => {
+  it("defines every badge its own triggers can emit", () => {
+    // The failure this pins is silent: `earnedBadges` pushes a key, nothing
+    // defines it, and every surface drops it on the BADGE_BY_KEY lookup — no
+    // error, no pill, no share emoji, no trophy slot. Four badges shipped this
+    // way once. Read the trigger source rather than a hand-kept list, so a new
+    // push() with no BadgeDef fails here instead of in someone's finale.
+    const src = fs.readFileSync(
+      fileURLToPath(new URL("../src/lib/badges.ts", import.meta.url)),
+      "utf8",
+    );
+    const emitted = [...src.matchAll(/out\.push\("([a-z]+)"\)/g)].map(
+      (m) => m[1],
+    );
+    expect(emitted.length).toBeGreaterThan(20);
+    for (const key of new Set(emitted)) {
+      expect(
+        BADGE_BY_KEY[key],
+        `${key} is pushed but never defined`,
+      ).toBeDefined();
+    }
+    // Same hazard on the other side of the ladder: a MATCHED win total naming
+    // a key nothing defines.
+    for (const key of Object.values(MATCHED)) {
+      expect(
+        BADGE_BY_KEY[key],
+        `MATCHED names ${key} with no definition`,
+      ).toBeDefined();
+    }
+  });
   it("has a unique key for every badge", () => {
     expect(new Set(BADGES.map((b) => b.key)).size).toBe(BADGES.length);
   });
@@ -97,7 +132,8 @@ describe("the badge table itself", () => {
   });
 
   it("gives every anti-trophy the ironic rarity and keeps it out of the case", () => {
-    for (const b of BADGES) expect(b.ironic === true).toBe(b.rarity === "ironic");
+    for (const b of BADGES)
+      expect(b.ironic === true).toBe(b.rarity === "ironic");
     expect(COLLECTIBLE.some((b) => b.ironic)).toBe(false);
     expect(COLLECTIBLE).toHaveLength(BADGES.filter((b) => !b.ironic).length);
   });
@@ -109,13 +145,17 @@ describe("the badge table itself", () => {
    * purpose. */
   it("keeps the ladder six tiers deep, with legend holding the two maxima", () => {
     const tiers = new Set(BADGES.map((b) => b.rarity));
-    expect([...tiers].sort()).toEqual(
-      ["common", "ironic", "legend", "rare", "ultra", "uncommon"],
-    );
-    expect(BADGES.filter((b) => b.rarity === "legend").map((b) => b.key)).toEqual([
-      "crown",
-      "perfect",
+    expect([...tiers].sort()).toEqual([
+      "common",
+      "ironic",
+      "legend",
+      "rare",
+      "ultra",
+      "uncommon",
     ]);
+    expect(
+      BADGES.filter((b) => b.rarity === "legend").map((b) => b.key),
+    ).toEqual(["crown", "perfect"]);
   });
 
   it("resolves keys to emoji and drops what it does not own", () => {
@@ -128,7 +168,10 @@ describe("the badge table itself", () => {
 describe("the on-field axis is exclusive", () => {
   it("fires the ladder's one badge, and only that one, at every win total", () => {
     for (let w = 0; w <= GAMES; w++) {
-      const got = only(earnedBadges(f({ baselineWins: w, baselineLosses: GAMES - w })), ONFIELD);
+      const got = only(
+        earnedBadges(f({ baselineWins: w, baselineLosses: GAMES - w })),
+        ONFIELD,
+      );
       // Exact equality, not a length bound: the ladder now has floor rungs
       // under the century as well as over it, and "at most one fired" cannot
       // tell 👔 from 📉 at the bottom of it.
@@ -141,9 +184,13 @@ describe("the on-field axis is exclusive", () => {
    * 41–62, and 63–97 plus 99 earn nothing at all. */
   it("hands each floor rung its own band", () => {
     const at = (w: number) =>
-      only(earnedBadges(f({ baselineWins: w, baselineLosses: GAMES - w })), ONFIELD).join();
-    const band = (from: number, to: number) =>
-      [...new Set(Array.from({ length: to - from + 1 }, (_, i) => at(from + i)))];
+      only(
+        earnedBadges(f({ baselineWins: w, baselineLosses: GAMES - w })),
+        ONFIELD,
+      ).join();
+    const band = (from: number, to: number) => [
+      ...new Set(Array.from({ length: to - from + 1 }, (_, i) => at(from + i))),
+    ];
     expect(band(0, 0)).toEqual(["dayjob"]);
     expect(band(1, WORST_WINS)).toEqual(["worst"]);
     expect(band(WORST_WINS + 1, 62)).toEqual(["skull"]);
@@ -152,19 +199,29 @@ describe("the on-field axis is exclusive", () => {
 
   it("puts the skull on the same axis, so a 100-loss season is never also a rung", () => {
     // 62–100 is the deepest a season can sink and still be tested for both.
-    expect(earnedBadges(f({ baselineWins: 62, baselineLosses: 100 }))).toContain("skull");
-    expect(earnedBadges(f({ baselineWins: 63, baselineLosses: 99 }))).not.toContain("skull");
+    expect(
+      earnedBadges(f({ baselineWins: 62, baselineLosses: 100 })),
+    ).toContain("skull");
+    expect(
+      earnedBadges(f({ baselineWins: 63, baselineLosses: 99 })),
+    ).not.toContain("skull");
     // A 100-win club cannot also have 100 losses in 162 games, but the axis
     // must not depend on that arithmetic holding.
-    expect(only(earnedBadges(f({ baselineWins: 103, baselineLosses: 100 })), ONFIELD)).toEqual([
-      "cubs",
-    ]);
+    expect(
+      only(
+        earnedBadges(f({ baselineWins: 103, baselineLosses: 100 })),
+        ONFIELD,
+      ),
+    ).toEqual(["cubs"]);
   });
 
   it("earns nothing on-field between the rungs", () => {
     for (const w of [0, 50, 62, 81, 90, 97, 99, 101, 102, 115]) {
       const losses = GAMES - w;
-      const got = only(earnedBadges(f({ baselineWins: w, baselineLosses: losses })), ONFIELD);
+      const got = only(
+        earnedBadges(f({ baselineWins: w, baselineLosses: losses })),
+        ONFIELD,
+      );
       // The two anti-trophies share this axis, so a season bad enough still
       // lands one badge — the floor of the ladder, not a gap in it.
       if (w >= HUNDRED_WINS) expect(got, `${w} wins`).toEqual(["hundred"]);
@@ -181,7 +238,9 @@ describe("the on-field axis is exclusive", () => {
    * to wire up. */
   it("keeps the empty bands empty", () => {
     for (const w of [99, 109, 110, 111, 112, 113]) {
-      expect(onFieldBadge(w), `${w} wins`).toBe(w >= HUNDRED_WINS ? "hundred" : null);
+      expect(onFieldBadge(w), `${w} wins`).toBe(
+        w >= HUNDRED_WINS ? "hundred" : null,
+      );
     }
   });
 });
@@ -191,11 +250,19 @@ describe("the on-field axis is exclusive", () => {
  * 👔 as the true floor. badges-supply.test.ts pins WORST_WINS one win under the
  * 2024 White Sox; this file checks the arithmetic over that number. */
 describe("the floor of the ladder", () => {
-  const at = (w: number) => only(earnedBadges(f({ baselineWins: w, baselineLosses: GAMES - w })), ONFIELD);
+  const at = (w: number) =>
+    only(
+      earnedBadges(f({ baselineWins: w, baselineLosses: GAMES - w })),
+      ONFIELD,
+    );
 
   it("takes the day job at nothing won at all", () => {
-    expect(earnedBadges(f({ baselineWins: 0, baselineLosses: GAMES }))).toContain("dayjob");
-    expect(earnedBadges(f({ baselineWins: 1, baselineLosses: GAMES - 1 }))).not.toContain("dayjob");
+    expect(
+      earnedBadges(f({ baselineWins: 0, baselineLosses: GAMES })),
+    ).toContain("dayjob");
+    expect(
+      earnedBadges(f({ baselineWins: 1, baselineLosses: GAMES - 1 })),
+    ).not.toContain("dayjob");
   });
 
   it("lets the day job supersede both the worst record and the skull", () => {
@@ -219,7 +286,9 @@ describe("the floor of the ladder", () => {
     // 💀 rather than an empty row.
     expect(WORST_WINS + 1).toBe(41);
     expect(at(WORST_WINS + 1)).toEqual(["skull"]);
-    expect(earnedBadges(f({ baselineWins: 41, baselineLosses: 121 }))).not.toContain("worst");
+    expect(
+      earnedBadges(f({ baselineWins: 41, baselineLosses: 121 })),
+    ).not.toContain("worst");
   });
 });
 
@@ -233,9 +302,9 @@ describe("the named rungs match exactly", () => {
     // 100 belongs to the century, not to its neighbour.
     expect(at(100)).toBe("hundred");
     for (const w of [97, 99, 100]) {
-      expect(earnedBadges(f({ baselineWins: w, baselineLosses: GAMES - w }))).not.toContain(
-        "redsox",
-      );
+      expect(
+        earnedBadges(f({ baselineWins: w, baselineLosses: GAMES - w })),
+      ).not.toContain("redsox");
     }
   });
 
@@ -291,19 +360,33 @@ describe("the payroll axis is exclusive", () => {
           [110, 52],
         ]) {
           const got = only(
-            earnedBadges(f({ spendM, budgetM, budgetBonus, baselineWins: w, baselineLosses: l })),
+            earnedBadges(
+              f({
+                spendM,
+                budgetM,
+                budgetBonus,
+                baselineWins: w,
+                baselineLosses: l,
+              }),
+            ),
             PAYROLL,
           );
-          expect(got.length, `$${spendM}M of $${budgetM}M at ${w}–${l} fired ${got.join(" ")}`)
-            .toBeLessThanOrEqual(1);
+          expect(
+            got.length,
+            `$${spendM}M of $${budgetM}M at ${w}–${l} fired ${got.join(" ")}`,
+          ).toBeLessThanOrEqual(1);
         }
       }
     }
   });
 
   it("takes the farm tax at $15M over the bankroll", () => {
-    expect(earnedBadges(f({ spendM: 155, budgetM: 140, budgetBonus: 0 }))).toContain("farm");
-    expect(earnedBadges(f({ spendM: 154.9, budgetM: 140, budgetBonus: 0 }))).not.toContain("farm");
+    expect(
+      earnedBadges(f({ spendM: 155, budgetM: 140, budgetBonus: 0 })),
+    ).toContain("farm");
+    expect(
+      earnedBadges(f({ spendM: 154.9, budgetM: 140, budgetBonus: 0 })),
+    ).not.toContain("farm");
   });
 
   it("takes the dime at a 9.9 payroll bonus", () => {
@@ -313,23 +396,31 @@ describe("the payroll axis is exclusive", () => {
 
   it("takes the abacus only for a cheap payroll that also won", () => {
     const cheap = { spendM: 70, budgetM: 140, budgetBonus: 5 };
-    expect(earnedBadges(f({ ...cheap, baselineWins: 95, baselineLosses: 67 }))).toContain("pinch");
-    expect(earnedBadges(f({ ...cheap, baselineWins: 94, baselineLosses: 68 }))).not.toContain(
-      "pinch",
-    );
     expect(
-      earnedBadges(f({ ...cheap, spendM: 70.1, baselineWins: 95, baselineLosses: 67 })),
+      earnedBadges(f({ ...cheap, baselineWins: 95, baselineLosses: 67 })),
+    ).toContain("pinch");
+    expect(
+      earnedBadges(f({ ...cheap, baselineWins: 94, baselineLosses: 68 })),
+    ).not.toContain("pinch");
+    expect(
+      earnedBadges(
+        f({ ...cheap, spendM: 70.1, baselineWins: 95, baselineLosses: 67 }),
+      ),
     ).not.toContain("pinch");
   });
 
   it("takes the receipt only for a cheap payroll that also lost", () => {
     const cheap = { spendM: 84, budgetM: 140, budgetBonus: 5 };
-    expect(earnedBadges(f({ ...cheap, baselineWins: 70, baselineLosses: 92 }))).toContain("pocket");
-    expect(earnedBadges(f({ ...cheap, baselineWins: 92, baselineLosses: 70 }))).not.toContain(
-      "pocket",
-    );
     expect(
-      earnedBadges(f({ ...cheap, spendM: 84.1, baselineWins: 70, baselineLosses: 92 })),
+      earnedBadges(f({ ...cheap, baselineWins: 70, baselineLosses: 92 })),
+    ).toContain("pocket");
+    expect(
+      earnedBadges(f({ ...cheap, baselineWins: 92, baselineLosses: 70 })),
+    ).not.toContain("pocket");
+    expect(
+      earnedBadges(
+        f({ ...cheap, spendM: 84.1, baselineWins: 70, baselineLosses: 92 }),
+      ),
     ).not.toContain("pocket");
   });
 });
@@ -344,10 +435,14 @@ describe("scouting", () => {
 
 describe("roster shape", () => {
   it("wants all eight seats filled before it calls a club an All-Star roster", () => {
-    const seven = earnedBadges(f({ roster: club(7, { awards: ["AS"], war: 6 }) }));
+    const seven = earnedBadges(
+      f({ roster: club(7, { awards: ["AS"], war: 6 }) }),
+    );
     expect(seven).not.toContain("allstars");
     expect(seven).not.toContain("noweak");
-    const eight = earnedBadges(f({ roster: club(8, { awards: ["AS"], war: 6 }) }));
+    const eight = earnedBadges(
+      f({ roster: club(8, { awards: ["AS"], war: 6 }) }),
+    );
     expect(eight).toContain("allstars");
     expect(eight).toContain("noweak");
   });
@@ -366,7 +461,9 @@ describe("roster shape", () => {
   });
 
   it("takes the two-way guy from any slashed position, at any roster size", () => {
-    expect(earnedBadges(f({ roster: [player({ pos: "SP/DH" })] }))).toContain("twoway");
+    expect(earnedBadges(f({ roster: [player({ pos: "SP/DH" })] }))).toContain(
+      "twoway",
+    );
     expect(earnedBadges(f({ roster: club(8) }))).not.toContain("twoway");
   });
 
@@ -378,9 +475,15 @@ describe("roster shape", () => {
   });
 
   it("takes the skipper's year only above 105 wins, with the MotY", () => {
-    expect(earnedBadges(f({ managerMoty: true, baselineWins: 106 }))).toContain("skipper");
-    expect(earnedBadges(f({ managerMoty: true, baselineWins: 105 }))).not.toContain("skipper");
-    expect(earnedBadges(f({ managerMoty: false, baselineWins: 120 }))).not.toContain("skipper");
+    expect(earnedBadges(f({ managerMoty: true, baselineWins: 106 }))).toContain(
+      "skipper",
+    );
+    expect(
+      earnedBadges(f({ managerMoty: true, baselineWins: 105 })),
+    ).not.toContain("skipper");
+    expect(
+      earnedBadges(f({ managerMoty: false, baselineWins: 120 })),
+    ).not.toContain("skipper");
   });
 });
 
@@ -392,7 +495,9 @@ describe("the empty-case anti-trophies", () => {
   });
 
   it("falls back to the missing All-Stars when some other hardware landed", () => {
-    const got = earnedBadges(f({ roster: club(8, { awards: ["GG"] }), awardPoints: 6 }));
+    const got = earnedBadges(
+      f({ roster: club(8, { awards: ["GG"] }), awardPoints: 6 }),
+    );
     expect(got).toContain("noallstars");
     expect(got).not.toContain("nohardware");
   });
@@ -401,7 +506,9 @@ describe("the empty-case anti-trophies", () => {
     for (const awardPoints of [0, 6, 30]) {
       for (const awards of [[], ["AS"], ["GG"], ["GG", "AS"]]) {
         for (const n of [0, 1, 8]) {
-          const got = earnedBadges(f({ roster: club(n, { awards }), awardPoints }));
+          const got = earnedBadges(
+            f({ roster: club(n, { awards }), awardPoints }),
+          );
           expect(
             got.filter((k) => k === "nohardware" || k === "noallstars").length,
             `${n} players with ${awards.join("+") || "nothing"} at ${awardPoints} pts`,
@@ -423,14 +530,24 @@ describe("the empty-case anti-trophies", () => {
 
 describe("the era badges", () => {
   it("takes the picket line from a 1994 season and the tape from a 2020 one", () => {
-    expect(earnedBadges(f({ roster: [player({ year: 1994 })] }))).toContain("strike");
-    expect(earnedBadges(f({ roster: [player({ year: 2020 })] }))).toContain("covid");
-    expect(earnedBadges(f({ roster: [player({ year: 1995 })] }))).not.toContain("strike");
-    expect(earnedBadges(f({ roster: [player({ year: 2019 })] }))).not.toContain("covid");
+    expect(earnedBadges(f({ roster: [player({ year: 1994 })] }))).toContain(
+      "strike",
+    );
+    expect(earnedBadges(f({ roster: [player({ year: 2020 })] }))).toContain(
+      "covid",
+    );
+    expect(earnedBadges(f({ roster: [player({ year: 1995 })] }))).not.toContain(
+      "strike",
+    );
+    expect(earnedBadges(f({ roster: [player({ year: 2019 })] }))).not.toContain(
+      "covid",
+    );
   });
 
   it("stacks both when a club spans the two shortened seasons", () => {
-    const got = earnedBadges(f({ roster: [player({ year: 1994 }), player({ year: 2020 })] }));
+    const got = earnedBadges(
+      f({ roster: [player({ year: 1994 }), player({ year: 2020 })] }),
+    );
     expect(got).toContain("strike");
     expect(got).toContain("covid");
   });
@@ -440,9 +557,9 @@ describe("the era badges", () => {
    * substantiated, and the badge must not quietly widen to it. */
   it("takes the banging scheme from a 2017 or 2018 Astro", () => {
     for (const year of [2017, 2018]) {
-      expect(earnedBadges(f({ roster: [player({ team: "HOU", year })] }))).toContain(
-        "signstealing",
-      );
+      expect(
+        earnedBadges(f({ roster: [player({ team: "HOU", year })] })),
+      ).toContain("signstealing");
     }
   });
 
@@ -454,23 +571,30 @@ describe("the era badges", () => {
       ).not.toContain("signstealing");
     }
     for (const team of ["BOS", "NYY", "LAD"]) {
-      expect(earnedBadges(f({ roster: [player({ team, year: 2017 })] }))).not.toContain(
-        "signstealing",
-      );
+      expect(
+        earnedBadges(f({ roster: [player({ team, year: 2017 })] })),
+      ).not.toContain("signstealing");
     }
   });
 
   it("takes it from the skipper alone — the manager was suspended for this", () => {
     const clean = { roster: club(8), managerTeam: "HOU", managerYear: 2017 };
     expect(earnedBadges(f(clean))).toContain("signstealing");
-    expect(earnedBadges(f({ ...clean, managerYear: 2019 }))).not.toContain("signstealing");
-    expect(earnedBadges(f({ ...clean, managerTeam: "BOS" }))).not.toContain("signstealing");
+    expect(earnedBadges(f({ ...clean, managerYear: 2019 }))).not.toContain(
+      "signstealing",
+    );
+    expect(earnedBadges(f({ ...clean, managerTeam: "BOS" }))).not.toContain(
+      "signstealing",
+    );
   });
 
   it("fires once, not twice, when the skipper and a player were both there", () => {
     const got = earnedBadges(
       f({
-        roster: [player({ team: "HOU", year: 2017 }), player({ team: "HOU", year: 2018 })],
+        roster: [
+          player({ team: "HOU", year: 2017 }),
+          player({ team: "HOU", year: 2018 }),
+        ],
         managerTeam: "HOU",
         managerYear: 2017,
       }),
@@ -484,9 +608,12 @@ describe("the era badges", () => {
    * story. Both halves are asserted, and so is the cross-pair, because a
    * trigger that checked id-or-team would pass the positive cases alone. */
   describe("deferred money", () => {
-    const bonilla = (team: string) => player({ id: "bonilbo01", team, year: 1993 });
-    const ohtani = (team: string) => player({ id: "ohtansh01", team, year: 2024, pos: "SP/DH" });
-    const fired = (p: BadgeRosterEntry) => earnedBadges(f({ roster: [p] })).includes("deferred");
+    const bonilla = (team: string) =>
+      player({ id: "bonilbo01", team, year: 1993 });
+    const ohtani = (team: string) =>
+      player({ id: "ohtansh01", team, year: 2024, pos: "SP/DH" });
+    const fired = (p: BadgeRosterEntry) =>
+      earnedBadges(f({ roster: [p] })).includes("deferred");
 
     it("pays Bonilla in a Mets uniform and Ohtani in a Dodgers one", () => {
       expect(fired(bonilla("NYM"))).toBe(true);
@@ -521,17 +648,21 @@ describe("the era badges", () => {
   });
 
   it("survives an empty dugout", () => {
-    expect(earnedBadges(f({ managerTeam: null, managerYear: null }))).toEqual([]);
+    expect(earnedBadges(f({ managerTeam: null, managerYear: null }))).toEqual(
+      [],
+    );
     expect(
-      earnedBadges(f({ roster: club(8), managerTeam: null, managerYear: null })),
+      earnedBadges(
+        f({ roster: club(8), managerTeam: null, managerYear: null }),
+      ),
     ).not.toContain("signstealing");
     // A year without a team, or a team without a year, is not half a scandal.
-    expect(earnedBadges(f({ managerTeam: "HOU", managerYear: null }))).not.toContain(
-      "signstealing",
-    );
-    expect(earnedBadges(f({ managerTeam: null, managerYear: 2017 }))).not.toContain(
-      "signstealing",
-    );
+    expect(
+      earnedBadges(f({ managerTeam: "HOU", managerYear: null })),
+    ).not.toContain("signstealing");
+    expect(
+      earnedBadges(f({ managerTeam: null, managerYear: 2017 })),
+    ).not.toContain("signstealing");
   });
 });
 

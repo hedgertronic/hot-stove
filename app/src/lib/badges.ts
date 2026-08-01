@@ -484,6 +484,18 @@ export const BADGES: BadgeDef[] = [
     how: "Four or more players wearing a World Series ring.",
   },
   {
+    key: "playermanager",
+    emoji: "📋",
+    label: "PLAYER-MANAGER",
+    rarity: "ultra",
+    axis: "roster",
+    // 0.05% measured over 25,000 games: hiring a skipper who ALSO played is
+    // common (35.5% of cards carry one), but signing that same man is the
+    // other half of the badge and nothing in the UI points at him.
+    freq: 0.05,
+    how: "Hired a skipper who is also on your roster as a player.",
+  },
+  {
     key: "skipper",
     emoji: "🧢",
     label: "PUSHED THE RIGHT BUTTONS",
@@ -549,6 +561,33 @@ export const BADGES: BadgeDef[] = [
     axis: "era",
     freq: null,
     how: "Signed Bobby Bonilla as a Met, or Shohei Ohtani as a Dodger.",
+  },
+  {
+    key: "crossed",
+    emoji: "🚧",
+    label: "CROSSED THE LINE",
+    rarity: "ultra",
+    axis: "era",
+    freq: 0.74,
+    how: "Signed a 1995 replacement player — none of them was ever admitted to the union.",
+  },
+  {
+    key: "recordbook",
+    emoji: "📖",
+    label: "REWROTE THE RECORD BOOK",
+    rarity: "ultra",
+    axis: "era",
+    freq: null,
+    how: "Signed a season that holds a record for 1985–2025.",
+  },
+  {
+    key: "chase",
+    emoji: "💥",
+    label: "THE CHASE",
+    rarity: "rare",
+    axis: "era",
+    freq: null,
+    how: "Signed McGwire or Sosa in 1998, or Bonds in 2001 — the home run chase.",
   },
 ];
 
