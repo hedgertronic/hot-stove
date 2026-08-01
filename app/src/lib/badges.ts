@@ -79,7 +79,13 @@ export interface BadgeDef {
   how: string;
   /** Measured rate in the reference population (Clean House + all powerups),
    * or null where the rung postdates the last study. The number lives beside
-   * the definition so it cannot go stale in a comment somewhere else. */
+   * the definition so it cannot go stale in a comment somewhere else.
+   *
+   * `freq` records what was MEASURED; `rarity` records what the player SEES,
+   * and the two are allowed to disagree. Counterpart badges — one idea pointed
+   * in two directions, 🧓/🍼 — share a tier so the pair renders as one thing,
+   * even when their measured rates fall either side of a band line. The
+   * measurement stays honest; only the tier is pinned to the pairing. */
   freq: number | null;
 }
 
@@ -96,6 +102,19 @@ export interface BadgeRosterEntry {
    * only trigger keyed to a specific club. */
   team: string;
   pos: string;
+  /** Lahman franchise id ("ANA" for every Angels season, however the club was
+   * spelled that year) — the front-office matches compare against the owner's
+   * and the ballpark's, which carry the same id. */
+  franchise: string;
+  /** What this seat actually cost, after any 🏠 discount — 💎 measures one
+   * player's share of the payroll. */
+  costPaid: number;
+  /** Signed at the 🏠 Homegrown flat price. */
+  hero: boolean;
+  /** Seasonal age. Optional because a save written before the field existed
+   * restores players without one, and a missing age must count as NEITHER old
+   * nor young — every age trigger tests `age != null` first. */
+  age?: number;
 }
 
 /** Everything the triggers need. Assembled once at the finale; the share
@@ -125,6 +144,21 @@ export interface BadgeFacts {
   /** `ScoreParts.awardPoints` — includes the manager's MotY points. */
   awardPoints: number;
   managerMoty: boolean;
+  /** The hired owner's card, or null. Moneyball and Blank Check are fixed-cap
+   * banks with no owner seat at all, so the front-office badges are Clean
+   * House only by mechanics rather than by a mode gate. */
+  owner: { franchise: string; year: number } | null;
+  /** The bought ballpark's card, or null — same fixed-cap caveat. */
+  stadium: { franchise: string; year: number } | null;
+  /** One entry per filled roster slot, in roster order: the league and
+   * division THAT season's club played in ("NL/W"), resolved era-correctly
+   * from the index. A slot whose index row carries no alignment is absent, so
+   * a division count can never be padded by a row the data cannot place. */
+  divisions: string[];
+  /** How many powerups were spent, out of how many the game offered. Both
+   * ends of the toolbox axis read this, and `total` is carried rather than
+   * assumed so a seventh powerup does not silently break 🧰. */
+  powerups: { spent: number; total: number };
 }
 
 const FARM_TAX_M = 15; // $M over the bankroll before the overrun earns its pill
@@ -138,6 +172,31 @@ const COOPERSTOWN_PTS = 30;
 const NO_WEAK_LINK_WAR = 4.0; // the WAR ladder's own green→blue boundary
 const SKIPPER_WINS = 105;
 const ROSTER_SLOTS = 8;
+/* The age axis, both ends. The supply is asymmetric — 9.6% of player-seasons
+ * are 35 or older against 7.2% at 23 or younger — so the two gates are the
+ * matched outer deciles rather than a symmetric pair of numbers, and both ends
+ * ask for the same THREE players. Three is the only rung that lands: two at
+ * 35+ is 7.65% (an accident), four is 0.03% (a coin that never lands). */
+const OLD_AGE = 35;
+const YOUNG_AGE = 23;
+const AGE_COUNT = 3;
+/** Five of eight from one ten-year bucket. Four is 37% and fires by accident;
+ * six is 1.57%. The trigger asks whether SOME decade holds five, never a named
+ * one — 1985–89 and 2020–25 are short buckets, and a per-decade badge would
+ * make an ALL-EIGHTIES TEAM harder than an ALL-TENS TEAM for a reason that is
+ * about where the dataset starts rather than about the player. */
+const DECADE_COUNT = 5;
+/** Five of eight out of one division, same ladder: four is 22.8%, six is
+ * 0.38%. */
+const DIVISION_COUNT = 5;
+/** data/index.json runs 1985–2025, so 40 is the widest span there is: the
+ * badge means "you hold both ends of the dataset", not "a wide roster". */
+const SPAN_YEARS = 40;
+/** One player's share of the payroll that makes him the franchise. */
+const FRANCHISE_SHARE = 0.5;
+/** What a 🏠 Homegrown dollar has to buy for the discount to be a play rather
+ * than a click — the WAR ladder's top tier. */
+const HOMEGROWN_WAR = 8.0;
 
 /** The seasons the Commissioner's report found the trash can running. 2019 was
  * alleged and never substantiated, so it is not here — the badge names a
@@ -252,6 +311,185 @@ const CHASE_SEASONS: Record<string, number[]> = {
 };
 function isChase(p: { id: string; year: number }): boolean {
   return CHASE_SEASONS[p.id]?.includes(p.year) === true;
+}
+
+export const FATHER_SON: ReadonlyArray<readonly [string, string]> = [
+  ["armasto01", "armasto02"], // Tony Armas / Tony Armas Jr.
+  ["bannifl01", "bannibr01"], // Floyd Bannister / Brian Bannister
+  ["barfije01", "barfijo02"], // Jesse Barfield / Josh Barfield
+  ["bedrost01", "bedroca01"], // Steve Bedrosian / Cam Bedrosian
+  ["bellbu01", "bellda01"], // Buddy Bell / David Bell
+  ["bellicl01", "bellico01"], // Clay Bellinger / Cody Bellinger
+  ["bicheda01", "bichebo01"], // Dante Bichette / Bo Bichette
+  ["biggicr01", "biggica01"], // Craig Biggio / Cavan Biggio
+  ["boonebo01", "boonebr01"], // Bob Boone / Bret Boone
+  ["boonebo01", "booneaa01"], // Bob Boone / Aaron Boone
+  ["brantmi01", "brantmi02"], // Mickey Brantley / Michael Brantley
+  ["burroje01", "burrose01"], // Jeff Burroughs / Sean Burroughs
+  ["camermi01", "camerda01"], // Mike Cameron / Daz Cameron
+  ["clemero02", "clemeko01"], // Roger Clemens / Kody Clemens
+  ["cruzjo01", "cruzjo02"], // José Cruz / José Cruz Jr.
+  ["davisro02", "davisik02"], // Ron Davis / Ike Davis
+  ["deshide01", "deshide02"], // Delino DeShields / Delino DeShields Jr.
+  ["drabedo01", "drabeky01"], // Doug Drabek / Kyle Drabek
+  ["farrejo03", "farrelu01"], // John Farrell / Luke Farrell
+  ["fieldce01", "fieldpr01"], // Cecil Fielder / Prince Fielder
+  ["fitzgmi02", "fitzgty01"], // Mike Fitzgerald / Tyler Fitzgerald
+  ["gordoto01", "gordode01"], // Tom Gordon / Dee Strange-Gordon
+  ["gordoto01", "gordoni01"], // Tom Gordon / Nick Gordon
+  ["griffke01", "griffke02"], // Ken Griffey / Ken Griffey Jr. — SEA 1990
+  ["guerrvl01", "guerrvl02"], // Vladimir Guerrero / Vladimir Guerrero Jr.
+  ["gwynnto01", "gwynnto02"], // Tony Gwynn / Tony Gwynn Jr.
+  ["hairsje01", "hairsje02"], // Jerry Hairston / Jerry Hairston Jr.
+  ["hairsje01", "hairssc01"], // Jerry Hairston / Scott Hairston
+  ["hayesch01", "hayeske01"], // Charlie Hayes / Ke'Bryan Hayes
+  ["hollima01", "hollija01"], // Matt Holliday / Jackson Holliday
+  ["jarvike01", "jarvibr01"], // Kevin Jarvis / Bryce Jarvis
+  ["karroer01", "karroky01"], // Eric Karros / Kyle Karros
+  ["leibrch01", "leibrbr01"], // Charlie Leibrandt / Brandon Leibrandt
+  ["leiteal01", "leiteja01"], // Al Leiter / Jack Leiter
+  ["leitema01", "leitema02"], // Mark Leiter / Mark Leiter Jr.
+  ["lombast01", "lombast02"], // Steve Lombardozzi / Steve Lombardozzi Jr.
+  ["martica02", "martijo08"], // Carlos Martínez / José Martínez
+  ["martisa01", "martian02"], // Sandy Martínez / Angel Martínez
+  ["matthga01", "matthga02"], // Gary Matthews / Gary Matthews Jr.
+  ["mcculla01", "mcculla02"], // Lance McCullers / Lance McCullers Jr.
+  ["mcraeha01", "mcraebr01"], // Hal McRae / Brian McRae
+  ["mondera01", "mondera02"], // Raúl Mondesí / Adalberto Mondesí
+  ["nevinph01", "nevinty01"], // Phil Nevin / Tyler Nevin
+  ["niekrjo01", "niekrla01"], // Joe Niekro / Lance Niekro
+  ["penage01", "penaje02"], // Geronimo Pena / Jeremy Peña
+  ["penato01", "penato02"], // Tony Peña / Tony Peña Jr.
+  ["perezto01", "perezed01"], // Tony Pérez / Eduardo Pérez
+  ["quantpa01", "quantca01"], // Paul Quantrill / Cal Quantrill
+  ["rodriiv01", "rodride01"], // Iván Rodríguez / Dereck Rodríguez
+  ["roeniga01", "roenijo01"], // Gary Roenicke / Josh Roenicke
+  ["rominke01", "rominan01"], // Kevin Romine / Andrew Romine
+  ["rominke01", "rominau01"], // Kevin Romine / Austin Romine
+  ["russeje01", "russeja02"], // Jeff Russell / James Russell
+  ["shawje01", "shawtr01"], // Jeff Shaw / Travis Shaw
+  ["sheetla01", "sheetga01"], // Larry Sheets / Gavin Sheets
+  ["vanslan01", "vanslsc01"], // Andy Van Slyke / Scott Van Slyke
+  ["smithdw01", "smithdw02"], // Dwight Smith / Dwight Smith Jr.
+  ["speiech01", "speieju01"], // Chris Speier / Justin Speier
+  ["younger01", "younger03"], // Eric Young Sr. / Eric Young Jr.
+  ["tatisfe01", "tatisfe02"], // Fernando Tatís / Fernando Tatis Jr.
+  ["tollewa01", "tollest01"], // Wayne Tolleson / Steven Tolleson
+  ["turanbr01", "turanbr02"], // Brian Turang / Brice Turang
+  ["varshga01", "varshda01"], // Gary Varsho / Daulton Varsho
+  ["venabma01", "venabwi01"], // Max Venable / Will Venable
+  ["wallati01", "wallach01"], // Tim Wallach / Chad Wallach
+  ["weathda01", "weathry01"], // David Weathers / Ryan Weathers
+  ["wilsoja02", "wilsoja05"], // Jack Wilson / Jacob Wilson
+  ["wittbo01", "wittbo02"], // Bobby Witt / Bobby Witt Jr.
+];
+
+export const BROTHERS: ReadonlyArray<readonly [string, string]> = [
+  ["alexasc02", "alexaja01"], // Scott Alexander / Jason Alexander
+  ["alomaro01", "alomasa02"], // Roberto Alomar / Sandy Alomar — CHW 2003, CHW 2004…
+  ["arciaos01", "arciaor01"], // Oswaldo Arcia / Orlando Arcia
+  ["ariasjo01", "ariasal02"], // Joaquín Arias / Alberto Árias
+  ["aybarwi01", "aybarer01"], // Willy Aybar / Erick Aybar
+  ["bardda01", "bardlu01"], // Daniel Bard / Luke Bard
+  ["bellge02", "bellju01"], // George Bell / Juan Bell
+  ["benesan01", "benesal01"], // Andy Benes / Alan Benes — STL 1996, STL 1997…
+  ["bonifem01", "bonifjo01"], // Emilio Bonifácio / Jorge Bonifacio
+  ["boonebr01", "booneaa01"], // Bret Boone / Aaron Boone — CIN 1998
+  ["bulliji01", "bulliki01"], // Jim Bullinger / Kirk Bullinger
+  ["cabreor01", "cabrejo02"], // Orlando Cabrera / Jolbert Cabrera
+  ["cedenan01", "cedendo01"], // Andújar Cedeño / Domingo Cedeño
+  ["clarkje01", "clarkph02"], // Jerald Clark / Phil Clark
+  ["contrwi01", "contrwi02"], // Willson Contreras / William Contreras
+  ["corajo01", "coraal01"], // Joey Cora / Alex Cora
+  ["crespfe01", "crespce01"], // Felipe Crespo / César Crespo
+  ["danksjo01", "danksjo02"], // John Danks / Jordan Danks — CHW 2013
+  ["darwida01", "darwije01"], // Danny Darwin / Jeff Darwin
+  ["davismi02", "davisma01"], // Mike Davis / Mark Davis
+  ["drewj.01", "drewst01"], // J.D. Drew / Stephen Drew
+  ["duncach01", "duncash01"], // Chris Duncan / Shelley Duncan
+  ["dunnija01", "dunnida01"], // Jake Dunning / Dane Dunning
+  ["eyresc01", "eyrewi01"], // Scott Eyre / Willie Eyre
+  ["fletcda02", "fletcdo01"], // David Fletcher / Dominic Fletcher
+  ["garciad01", "garciad02"], // Adonis García / Adolis García
+  ["giambja01", "giambje01"], // Jason Giambi / Jeremy Giambi — OAK 2000, OAK 2001
+  ["gilesbr02", "gilesma01"], // Brian Giles / Marcus Giles — SDP 2007
+  ["goedder01", "goeddty01"], // Erik Goeddel / Tyler Goeddel
+  ["gonzaad01", "gonzaed02"], // Adrián González / Edgar Gonzalez — SDP 2008, SDP 2009
+  ["guerrvl01", "guerrwi01"], // Vladimir Guerrero / Wilton Guerrero — MON 1998, MON 1999…
+  ["gourryu01", "gurrilo01"], // Yuli Gurriel / Lourdes Gurriel Jr.
+  ["gwynnto01", "gwynnch01"], // Tony Gwynn / Chris Gwynn
+  ["hairsje02", "hairssc01"], // Jerry Hairston / Scott Hairston — SDP 2010
+  ["hernali01", "hernaor01"], // Liván Hernández / Orlando Hernández — ARI 2006
+  ["hoffmgl01", "hoffmtr01"], // Glenn Hoffman / Trevor Hoffman
+  ["holmabr01", "holmabr02"], // Brian Holman / Brad Holman
+  ["izturce01", "izturma01"], // César Izturis / Maicer Izturis
+  ["ripkeca01", "ripkebi01"], // Cal Ripken Jr. / Billy Ripken — BAL 1987, BAL 1988…
+  ["acunaro01", "acunajo01"], // Ronald Acuña Jr. / Luisangel Acuña
+  ["larocad01", "larocan01"], // Adam LaRoche / Andy LaRoche — PIT 2008, PIT 2009
+  ["lambepe01", "lambeji01"], // Peter Lambert / Jimmy Lambert
+  ["leiteal01", "leitema01"], // Al Leiter / Mark Leiter
+  ["lowena01", "lowejo01"], // Nathaniel Lowe / Josh Lowe
+  ["lugoju01", "lugoru01"], // Julio Lugo / Ruddy Lugo — TBD 2006
+  ["maddugr01", "maddumi01"], // Greg Maddux / Mike Maddux
+  ["mahleri01", "mahlemi01"], // Rick Mahler / Mickey Mahler
+  ["martira02", "martipe02"], // Ramón Martínez / Pedro Martínez — BOS 2000, LAD 1993
+  ["matonph01", "matonni01"], // Phil Maton / Nick Maton
+  ["meadoau01", "meadopa01"], // Austin Meadows / Parker Meadows
+  ["megiltr01", "megilty01"], // Trevor Megill / Tylor Megill
+  ["molinbe01", "molinjo01"], // Bengie Molina / José Molina — ANA 2004, LAA 2005
+  ["molinbe01", "molinya01"], // Bengie Molina / Yadier Molina
+  ["molinjo01", "molinya01"], // José Molina / Yadier Molina
+  ["naylojo01", "naylobo01"], // Josh Naylor / Bo Naylor — CLE 2023, CLE 2024
+  ["niekrph01", "niekrjo01"], // Phil Niekro / Joe Niekro — NYY 1985
+  ["nieveme01", "nievewi01"], // Melvin Nieves / Wil Nieves
+  ["nixla01", "nixja01"], // Laynce Nix / Jayson Nix
+  ["nixonot01", "nixondo01"], // Otis Nixon / Donell Nixon
+  ["nolaaa01", "nolaau01"], // Aaron Nola / Austin Nola
+  ["osunaro01", "osunaal02"], // Roberto Osuna / Alejandro Osuna
+  ["palacjo01", "palacri01"], // Joshua Palacios / Richie Palacios
+  ["patteco01", "patteer01"], // Corey Patterson / Eric Patterson
+  ["perezme01", "perezca01"], // Melido Perez / Carlos Pérez
+  ["perezpa01", "perezme01"], // Pascual Pérez / Melido Perez
+  ["perezpa01", "perezca01"], // Pascual Pérez / Carlos Pérez
+  ["rasmuco01", "rasmuco02"], // Colby Rasmus / Cory Rasmus
+  ["roeniga01", "roeniro01"], // Gary Roenicke / Ron Roenicke
+  ["rominan01", "rominau01"], // Andrew Romine / Austin Romine
+  ["rossty01", "rossjo01"], // Tyson Ross / Joe Ross
+  ["seageky01", "seageco01"], // Kyle Seager / Corey Seager
+  ["sheffju01", "sheffjo01"], // Justus Sheffield / Jordan Sheffield
+  ["stottto01", "stottme02"], // Todd Stottlemyre / Mel Stottlemyre Jr.
+  ["gordode01", "gordoni01"], // Dee Strange-Gordon / Nick Gordon
+  ["suareal01", "suarero01"], // Albert Suárez / Robert Suarez
+  ["tuckepr01", "tuckeky01"], // Preston Tucker / Kyle Tucker
+  ["uptonbj01", "uptonju01"], // B.J. Upton / Justin Upton — ATL 2013, ATL 2014…
+  ["uriaslu01", "uriasra01"], // Luis Urías / Ramón Urías
+  ["valenjo03", "valenja01"], // José Valentín / Javier Valentín
+  ["varlalo01", "varlagu01"], // Louis Varland / Gus Varland
+  ["weaveje01", "weaveje02"], // Jeff Weaver / Jered Weaver — LAA 2006
+  ["weeksri01", "weeksje01"], // Rickie Weeks / Jemile Weeks
+  ["worreto01", "worreti01"], // Todd Worrell / Tim Worrell
+  ["ynoami01", "ynoahu01"], // Michael Ynoa / Huascar Ynoa
+  ["youngdm01", "youngde03"], // Dmitri Young / Delmon Young
+  ["zimmebr01", "zimmeky01"], // Bradley Zimmer / Kyle Zimmer
+  ["darnach01", "darnatr01"], // Chase d'Arnaud / Travis d'Arnaud
+];
+
+/** The only two families with THREE draftable brothers. Three of eight seats is
+ * the price, and landing three men from one family is 0.89% before a single
+ * signing — the Molinas need two separate landings plus ✌️ Double Play, because
+ * Yadier never shares a card with Bengie or José. It is the hardest thing in
+ * the game you can actually set out to do, which is the point. */
+export const THREE_BROTHERS: ReadonlyArray<readonly [string, string, string]> =
+  [
+    ["molinbe01", "molinjo01", "molinya01"], // Bengie / José / Yadier Molina
+    ["perezpa01", "perezme01", "perezca01"], // Pascual / Melido / Carlos Pérez
+  ];
+
+function hasPair(
+  ids: Set<string>,
+  pairs: ReadonlyArray<readonly string[]>,
+): boolean {
+  return pairs.some((pair) => pair.every((id) => ids.has(id)));
 }
 
 /** The champion rungs, keyed on the exact win total that matches them. Every
@@ -411,7 +649,7 @@ export const BADGES: BadgeDef[] = [
     key: "dime",
     emoji: "💵",
     label: "SPENT EVERY DIME",
-    rarity: "rare",
+    rarity: "uncommon",
     axis: "payroll",
     freq: 4.98,
     how: "Spent all but a sliver of your payroll without going over it.",
@@ -495,6 +733,36 @@ export const BADGES: BadgeDef[] = [
     how: "Four or more players wearing a World Series ring.",
   },
   {
+    key: "brothers",
+    emoji: "👬",
+    label: "BROTHERLY LOVE",
+    rarity: "rare",
+    axis: "roster",
+    secret: true,
+    freq: null,
+    how: "Signed a pair of brothers.",
+  },
+  {
+    key: "fatherson",
+    emoji: "👨‍👦",
+    label: "LIKE FATHER, LIKE SON",
+    rarity: "ultra",
+    axis: "roster",
+    secret: true,
+    freq: null,
+    how: "Signed a father and his son — a lineup only this game lets you field.",
+  },
+  {
+    key: "threebrothers",
+    emoji: "👨‍👨‍👦",
+    label: "ALL THREE BROTHERS",
+    rarity: "ultra",
+    axis: "roster",
+    secret: true,
+    freq: null,
+    how: "Signed three brothers from one family — the Molinas or the Pérezes.",
+  },
+  {
     key: "playermanager",
     secret: true,
     emoji: "📋",
@@ -515,6 +783,103 @@ export const BADGES: BadgeDef[] = [
     axis: "roster",
     freq: 9.91,
     how: "Hired a Manager of the Year and won more than 105 games.",
+  },
+  /* The two ends of the age axis. They are ONE idea pointed in two
+   * directions, so they share a tier and render identically — 0.95% and 1.73%
+   * straddle the ultra/rare line on raw frequency, and splitting them would
+   * make the same idea look like two different achievements. `ultra` is the
+   * side that fits: the rare band's floor is 🏭 at 1.90, and 🍼 at 1.73 sits
+   * under it while 🧓 at 0.95 sits inside the existing ultra cohort. Sending
+   * the pair to `rare` instead would put a 0.95% badge two bands' worth below
+   * every other rare and overlap the two tiers by half a point. */
+  {
+    key: "oldheads",
+    emoji: "🧓",
+    label: "OLD HEADS",
+    rarity: "ultra",
+    axis: "roster",
+    freq: 0.95,
+    how: "Three players aged 35 or older — a clubhouse of veterans.",
+  },
+  {
+    key: "youngguns",
+    emoji: "🍼",
+    label: "YOUNG GUNS",
+    rarity: "ultra",
+    axis: "roster",
+    freq: 1.73,
+    how: "Three players aged 23 or younger — a club built on kids.",
+  },
+  {
+    key: "division",
+    emoji: "🗺️",
+    label: "RAIDED THE DIVISION",
+    rarity: "rare",
+    axis: "roster",
+    freq: 3.83,
+    how: "Five players out of one division — you raided one neighbourhood.",
+  },
+  {
+    key: "homefield",
+    emoji: "⛲",
+    label: "HOME FIELD ADVANTAGE",
+    rarity: "rare",
+    axis: "roster",
+    freq: 2.98,
+    how: "Bought a ballpark and signed a player from that exact season.",
+  },
+  {
+    key: "companytown",
+    emoji: "🏭",
+    label: "COMPANY TOWN",
+    rarity: "rare",
+    axis: "roster",
+    freq: 1.9,
+    how: "Your owner, your ballpark and one of your players, all from one club.",
+  },
+  {
+    key: "franchiseplayer",
+    emoji: "💎",
+    label: "THE FRANCHISE PLAYER",
+    rarity: "uncommon",
+    axis: "roster",
+    freq: 6.47,
+    how: "Spent half your payroll or more on one player.",
+  },
+  /* The toolbox axis: how much of the game's own surface a season used. All
+   * three ride `roster`, which stacks, because the exclusivity is in the world
+   * rather than in the resolver — all six spent and none spent cannot both be
+   * true, and 🌱 needs 🏠 spent so it can never co-fire with 🧗.
+   *
+   * All three carry `freq: null` on purpose. Every bot arm defines its own
+   * powerup policy, so a measured powerup rate describes the arm and not the
+   * game; the shipping 🏦 sets the precedent for a definition with no number. */
+  {
+    key: "homegrown",
+    emoji: "🌱",
+    label: "HOMEGROWN SUPERSTAR",
+    rarity: "uncommon",
+    axis: "roster",
+    freq: null,
+    how: "Signed an 8-WAR season at the Homegrown price of one million dollars.",
+  },
+  {
+    key: "hardway",
+    emoji: "🧗",
+    label: "THE HARD WAY",
+    rarity: "rare",
+    axis: "roster",
+    freq: null,
+    how: "A hundred wins without spending a single powerup.",
+  },
+  {
+    key: "toolbox",
+    emoji: "🧰",
+    label: "THE WHOLE TOOLBOX",
+    rarity: "common",
+    axis: "roster",
+    freq: null,
+    how: "Spent every powerup you had in one season.",
   },
   {
     key: "nohardware",
@@ -608,6 +973,33 @@ export const BADGES: BadgeDef[] = [
     freq: null,
     how: "Signed McGwire or Sosa in 1998, or Bonds in 2001 — the home run chase.",
   },
+
+  /* …and the shape of the years themselves, rather than any one of them. The
+   * two poles: 📆 rewards committing to one slice of the history, 🕰️ rewards
+   * holding both ends of it. They stack — a club of five 1985s plus a 2025
+   * earns both — but at a measured 0.06% they behave as one axis with two
+   * ends, and a club that really does both has done something odd enough to be
+   * told so. They are NOT a counterpart pair and do not share a tier: a decade
+   * bucket is a concentration and a span is a maximum, different trigger
+   * shapes with a 3x frequency gap between them. */
+  {
+    key: "decade",
+    emoji: "📆",
+    label: "ALL-DECADE TEAM",
+    rarity: "uncommon",
+    axis: "era",
+    freq: 9.43,
+    how: "Five players from the same decade — a club with one sound.",
+  },
+  {
+    key: "fortyyears",
+    emoji: "🕰️",
+    label: "FORTY YEARS APART",
+    rarity: "rare",
+    axis: "era",
+    freq: 2.95,
+    how: "Rostered seasons forty years apart — the oldest and newest the game has.",
+  },
 ];
 
 export const BADGE_BY_KEY: Record<string, BadgeDef> = Object.fromEntries(
@@ -627,6 +1019,20 @@ export function onFieldBadge(wins: number): string | null {
   if (MATCHED[wins]) return MATCHED[wins];
   if (wins >= HUNDRED_WINS) return "hundred";
   return null;
+}
+
+/** The largest group one keying produces over a roster — five players sharing
+ * a decade, five sharing a division. Both badges that use it are existential
+ * over the buckets ("SOME decade holds five"), never over a named one. */
+function maxBucket(keys: (string | number)[]): number {
+  const counts = new Map<string | number, number>();
+  let most = 0;
+  for (const k of keys) {
+    const n = (counts.get(k) ?? 0) + 1;
+    counts.set(k, n);
+    if (n > most) most = n;
+  }
+  return most;
 }
 
 /** Every badge a finale earns, in the order the pill row deals them out:
@@ -676,9 +1082,64 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // across two separate picks rather than a season you happened to land on.
   if (f.managerName !== null && roster.some((p) => p.name === f.managerName))
     out.push("playermanager");
+  // Both ends of the age axis. A player with no age counts as NEITHER old nor
+  // young: BadgeRosterEntry.age is optional, so a save written before the
+  // field existed restores a club the age badges simply cannot read.
+  const aged = (ok: (age: number) => boolean) =>
+    roster.filter((p) => p.age != null && ok(p.age)).length;
+  if (aged((a) => a >= OLD_AGE) >= AGE_COUNT) out.push("oldheads");
+  if (aged((a) => a <= YOUNG_AGE) >= AGE_COUNT) out.push("youngguns");
+  if (maxBucket(f.divisions) >= DIVISION_COUNT) out.push("division");
+  // Locals, not f.owner/f.stadium: a null check on a property does not narrow
+  // inside the callback below it.
+  const owner = f.owner;
+  const stadium = f.stadium;
+  // Card-exact, not franchise-level. Thirty franchises over eleven spins make
+  // a bare franchise collision a coin flip (26.5% measured); the season has to
+  // match too before this is a play rather than an accident.
+  if (
+    stadium !== null &&
+    roster.some(
+      (p) => p.franchise === stadium.franchise && p.year === stadium.year,
+    )
+  )
+    out.push("homefield");
+  if (
+    owner !== null &&
+    stadium !== null &&
+    owner.franchise === stadium.franchise &&
+    roster.some((p) => p.franchise === owner.franchise)
+  )
+    out.push("companytown");
+  if (
+    f.spendM > 0 &&
+    roster.some((p) => p.costPaid / f.spendM >= FRANCHISE_SHARE)
+  )
+    out.push("franchiseplayer");
+  if (roster.some((p) => p.hero && p.war >= HOMEGROWN_WAR))
+    out.push("homegrown");
+  // The result gate is what keeps 🧗 honest: ungated, "spent no powerups"
+  // would be a collectible for never finding the buttons.
+  if (
+    f.powerups.total > 0 &&
+    f.powerups.spent === 0 &&
+    f.baselineWins >= HUNDRED_WINS
+  )
+    out.push("hardway");
+  if (f.powerups.total > 0 && f.powerups.spent === f.powerups.total)
+    out.push("toolbox");
   // A club that won nothing at all is the stronger joke, so it supersedes.
   if (roster.length > 0 && f.awardPoints === 0) out.push("nohardware");
   else if (roster.length > 0 && !roster.some(hasAS)) out.push("noallstars");
+
+  // Family lines run off a Set of the roster's ids: 155 pair lookups and two
+  // triples, once, at the finale. Tuples rather than a family bucket because a
+  // bucket cannot tell brothers from sons inside a mixed family and would sweep
+  // in uncles and cousins the badges do not name.
+  const ids = new Set(roster.map((p) => p.id));
+  if (hasPair(ids, THREE_BROTHERS)) out.push("threebrothers");
+  if (hasPair(ids, BROTHERS)) out.push("brothers");
+  if (hasPair(ids, FATHER_SON)) out.push("fatherson");
 
   if (roster.some((p) => p.year === 1994 && !REPLACEMENTS.has(p.id)))
     out.push("strike");
@@ -692,6 +1153,11 @@ export function earnedBadges(f: BadgeFacts): string[] {
   )
     out.push("signstealing");
   if (roster.some(isDeferred)) out.push("deferred");
+  if (maxBucket(roster.map((p) => Math.floor(p.year / 10))) >= DECADE_COUNT)
+    out.push("decade");
+  const years = roster.map((p) => p.year);
+  if (years.length > 0 && Math.max(...years) - Math.min(...years) >= SPAN_YEARS)
+    out.push("fortyyears");
 
   return out;
 }

@@ -392,6 +392,10 @@ function forgeFinale(opts: {
         year: s.year,
         team: s.team,
         pos: s.pos,
+        franchise: s.franchise,
+        costPaid: s.costPaid,
+        hero: s.hero,
+        age: s.age,
       })),
       managerTeam: g.manager.team,
       managerYear: g.manager.year,
@@ -399,6 +403,15 @@ function forgeFinale(opts: {
       rings,
       awardPoints: parts.awardPoints,
       managerMoty: g.manager.moty === true,
+      owner: g.owner,
+      stadium: g.stadium,
+      // Lab games never spin, so stubIndex carries no rows to resolve an
+      // alignment against — 🗺️ is simply unreachable in the lab.
+      divisions: [],
+      powerups: {
+        spent: Object.values(g.powerups).filter((s) => s === "spent").length,
+        total: Object.values(g.powerups).length,
+      },
     });
     const finale: FinaleResult = {
       parts,

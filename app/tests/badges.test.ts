@@ -15,6 +15,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   BADGES,
+  BROTHERS,
+  FATHER_SON,
   BADGE_BY_KEY,
   COLLECTIBLE,
   CROWN_WINS,
@@ -47,6 +49,13 @@ const BASE: BadgeFacts = {
   rings: 0,
   awardPoints: 10,
   managerMoty: false,
+  owner: null,
+  stadium: null,
+  divisions: [],
+  // A real game always offers all six, and the default season has spent none —
+  // which is 🧗's condition minus its 100-win gate, so the handicap badge is
+  // one override away in either direction.
+  powerups: { spent: 0, total: 6 },
 };
 
 const f = (over: Partial<BadgeFacts> = {}): BadgeFacts => ({
@@ -63,6 +72,10 @@ const player = (over: Partial<BadgeRosterEntry> = {}): BadgeRosterEntry => ({
   year: 2004,
   team: "BOS",
   pos: "SS",
+  franchise: "BOS",
+  costPaid: 8,
+  hero: false,
+  age: 28,
   ...over,
 });
 const club = (n: number, over: Partial<BadgeRosterEntry> = {}) =>
@@ -156,6 +169,29 @@ describe("the badge table itself", () => {
     expect(
       BADGES.filter((b) => b.rarity === "legend").map((b) => b.key),
     ).toEqual(["crown", "perfect"]);
+  });
+
+  /** The claim badges.ts makes when it sends 🧓/🍼 to `ultra` rather than
+   * `rare`: the two bands do not overlap, so the pair sits under the rare
+   * floor rather than half a band below every other rare. `legend` is exempt
+   * by design — it means "you maxed out an axis", not "this was rare" — and
+   * measured-only, so a `freq: null` rung is not evidence either way.
+   *
+   * The rare floor is 🏭 COMPANY TOWN at 1.90, and that is the least settled
+   * number in the table: it is measured at n = 4,000 and sits close enough to
+   * the band line that a bigger run could move it. If a re-measurement breaks
+   * this test, the tier of the 🧓/🍼 pair is what has to be re-decided — the
+   * pair shares whichever band leaves the two cohorts disjoint. */
+  it("keeps the ultra band's ceiling under the rare band's floor", () => {
+    const freqs = (rarity: string) =>
+      BADGES.filter((b) => b.rarity === rarity && b.freq !== null).map(
+        (b) => b.freq as number,
+      );
+    const ultras = freqs("ultra");
+    const rares = freqs("rare");
+    expect(ultras.length).toBeGreaterThan(4);
+    expect(rares.length).toBeGreaterThan(4);
+    expect(Math.max(...ultras)).toBeLessThan(Math.min(...rares));
   });
 
   it("resolves keys to emoji and drops what it does not own", () => {
@@ -474,6 +510,212 @@ describe("roster shape", () => {
     expect(earnedBadges(f({ rings: 3 }))).not.toContain("rings");
   });
 
+  /** 🧓 and 🍼 are one idea pointed in two directions, so they are asserted
+   * together: the same count, the same shape, opposite ends of the field. The
+   * ageless case is the one that would fail silently — a v5 save restores a
+   * club with no ages at all, and a club nobody can date must earn neither. */
+  describe("the age axis", () => {
+    const aged = (ages: (number | undefined)[]) =>
+      earnedBadges(f({ roster: ages.map((age) => player({ age })) }));
+
+    it("takes the old heads at three players aged 35, and not at two", () => {
+      expect(aged([35, 35, 35])).toContain("oldheads");
+      expect(aged([35, 35, 34])).not.toContain("oldheads");
+      expect(aged([44, 39, 35, 28, 28])).toContain("oldheads");
+    });
+
+    it("takes the young guns at three players aged 23, and not at two", () => {
+      expect(aged([23, 23, 23])).toContain("youngguns");
+      expect(aged([23, 23, 24])).not.toContain("youngguns");
+      expect(aged([19, 21, 23, 30, 30])).toContain("youngguns");
+    });
+
+    it("counts an ageless player as neither old nor young", () => {
+      const none = aged([undefined, undefined, undefined, undefined]);
+      expect(none).not.toContain("oldheads");
+      expect(none).not.toContain("youngguns");
+      // Nor may an ageless seat top up a club two short of either end.
+      expect(aged([35, 35, undefined])).not.toContain("oldheads");
+      expect(aged([23, 23, undefined])).not.toContain("youngguns");
+    });
+
+    it("lets a club old at one end and young at the other take both", () => {
+      const both = aged([36, 37, 38, 21, 22, 23]);
+      expect(both).toContain("oldheads");
+      expect(both).toContain("youngguns");
+    });
+
+    /** The user-facing half of the pairing: they measure 0.95% and 1.73%, one
+     * either side of a band line, and they still have to render alike. */
+    it("renders the pair identically — same tier, same axis", () => {
+      const old = BADGE_BY_KEY.oldheads;
+      const young = BADGE_BY_KEY.youngguns;
+      expect(old.rarity).toBe(young.rarity);
+      expect(old.axis).toBe(young.axis);
+      expect(old.secret).toBeUndefined();
+      expect(young.secret).toBeUndefined();
+      // …and the measurement is still the measurement.
+      expect(old.freq).toBe(0.95);
+      expect(young.freq).toBe(1.73);
+    });
+  });
+
+  it("takes the franchise player at half the payroll, spent on one man", () => {
+    const roster = club(8, { costPaid: 5 });
+    roster[0] = player({ costPaid: 50 });
+    expect(earnedBadges(f({ roster, spendM: 100 }))).toContain(
+      "franchiseplayer",
+    );
+    roster[0] = player({ costPaid: 49.9 });
+    expect(earnedBadges(f({ roster, spendM: 100 }))).not.toContain(
+      "franchiseplayer",
+    );
+  });
+
+  it("never divides by a payroll of zero", () => {
+    expect(
+      earnedBadges(f({ roster: club(8, { costPaid: 0 }), spendM: 0 })),
+    ).not.toContain("franchiseplayer");
+  });
+
+  it("takes the homegrown superstar only for a discount spent on 8 WAR", () => {
+    expect(
+      earnedBadges(f({ roster: [player({ hero: true, war: 8.0 })] })),
+    ).toContain("homegrown");
+    expect(
+      earnedBadges(f({ roster: [player({ hero: true, war: 7.9 })] })),
+    ).not.toContain("homegrown");
+    // The same season signed at full price is a signing, not a play.
+    expect(
+      earnedBadges(f({ roster: [player({ hero: false, war: 12 })] })),
+    ).not.toContain("homegrown");
+  });
+
+  /** 🗺️ counts the alignment each player's OWN season played in. The engine
+   * resolves it off the index rows, so this file only pins the arithmetic over
+   * the resolved strings; badges-supply pins that the data still says what the
+   * label claims. */
+  it("takes the division at five players out of one, and not at four", () => {
+    const five = ["AL/W", "AL/W", "AL/W", "AL/W", "AL/W", "NL/E", "NL/C"];
+    expect(earnedBadges(f({ divisions: five }))).toContain("division");
+    expect(earnedBadges(f({ divisions: five.slice(1) }))).not.toContain(
+      "division",
+    );
+    // Four and four is eight players and no badge — the bucket has to hold.
+    const four = ["AL/W", "AL/W", "AL/W", "AL/W"];
+    expect(
+      earnedBadges(f({ divisions: [...four, "NL/E", "NL/E", "NL/E", "NL/E"] })),
+    ).not.toContain("division");
+  });
+
+  /** The front office is three separate picks, and these are the two badges
+   * that ask them to agree. Card-exact on the ballpark: a bare franchise match
+   * measures 26.5% and is a coin flip. */
+  describe("the front-office matches", () => {
+    const park = { franchise: "SEA", year: 2001 };
+    const local = player({ franchise: "SEA", year: 2001 });
+
+    it("takes home field for a player from the ballpark's exact season", () => {
+      expect(earnedBadges(f({ stadium: park, roster: [local] }))).toContain(
+        "homefield",
+      );
+    });
+
+    it("refuses the same franchise in a different season", () => {
+      const older = player({ franchise: "SEA", year: 1995 });
+      expect(earnedBadges(f({ stadium: park, roster: [older] }))).not.toContain(
+        "homefield",
+      );
+    });
+
+    it("refuses the same season from a different franchise", () => {
+      const rival = player({ franchise: "NYY", year: 2001 });
+      expect(earnedBadges(f({ stadium: park, roster: [rival] }))).not.toContain(
+        "homefield",
+      );
+    });
+
+    it("takes the company town when owner, ballpark and a player all agree", () => {
+      const got = earnedBadges(
+        f({
+          owner: { franchise: "SEA", year: 1997 },
+          stadium: park,
+          roster: [local],
+        }),
+      );
+      expect(got).toContain("companytown");
+      // The owner half is franchise-deep, not season-deep — a club is a club
+      // across the years, and the ballpark carries the season precision.
+      expect(got).toContain("homefield");
+    });
+
+    it("refuses the company town when the owner is from another club", () => {
+      expect(
+        earnedBadges(
+          f({
+            owner: { franchise: "NYY", year: 2001 },
+            stadium: park,
+            roster: [local],
+          }),
+        ),
+      ).not.toContain("companytown");
+    });
+
+    it("earns neither in a fixed-cap bank, where there is no front office", () => {
+      // Moneyball and Blank Check never seat an owner or a ballpark at all.
+      const got = earnedBadges(
+        f({ owner: null, stadium: null, roster: club(8) }),
+      );
+      expect(got).not.toContain("companytown");
+      expect(got).not.toContain("homefield");
+    });
+  });
+
+  /** The toolbox axis. 🧗 and 🧰 cannot co-fire — all six spent and none spent
+   * are not both true — and 🌱 needs 🏠 spent, so it can never join 🧗. The
+   * exclusivity is in the world, not in the resolver, which is why all three
+   * ride the stacking axis. */
+  describe("the toolbox", () => {
+    const won = { baselineWins: 100, baselineLosses: 62 };
+
+    it("takes the whole toolbox only when every powerup is spent", () => {
+      expect(earnedBadges(f({ powerups: { spent: 6, total: 6 } }))).toContain(
+        "toolbox",
+      );
+      expect(
+        earnedBadges(f({ powerups: { spent: 5, total: 6 } })),
+      ).not.toContain("toolbox");
+    });
+
+    it("never fires the toolbox on a game that offered no powerups", () => {
+      expect(
+        earnedBadges(f({ powerups: { spent: 0, total: 0 } })),
+      ).not.toContain("toolbox");
+    });
+
+    it("takes the hard way only for a hundred wins with nothing spent", () => {
+      expect(earnedBadges(f({ ...won }))).toContain("hardway");
+      expect(
+        earnedBadges(f({ ...won, powerups: { spent: 1, total: 6 } })),
+      ).not.toContain("hardway");
+      // Passivity earns nothing: a powerup-free season that did not win is not
+      // a handicap run, it is a player who never found the buttons.
+      expect(
+        earnedBadges(f({ baselineWins: 99, baselineLosses: 63 })),
+      ).not.toContain("hardway");
+    });
+
+    it("never fires both ends at once, over every count of spent powerups", () => {
+      for (let spent = 0; spent <= 6; spent++) {
+        const got = earnedBadges(f({ ...won, powerups: { spent, total: 6 } }));
+        expect(
+          got.filter((k) => k === "hardway" || k === "toolbox"),
+          `${spent} spent`,
+        ).toHaveLength(spent === 0 || spent === 6 ? 1 : 0);
+      }
+    });
+  });
+
   it("takes the skipper's year only above 105 wins, with the MotY", () => {
     expect(earnedBadges(f({ managerMoty: true, baselineWins: 106 }))).toContain(
       "skipper",
@@ -647,6 +889,44 @@ describe("the era badges", () => {
     });
   });
 
+  /** The two poles of the year axis. 📆 is existential over the decade
+   * buckets — SOME decade holds five — and never over a named one, which is
+   * what keeps the short 1985–89 and 2020–25 buckets from making the badge
+   * mean different things in different eras. */
+  describe("the shape of the years", () => {
+    const years = (ys: number[]) =>
+      earnedBadges(f({ roster: ys.map((year) => player({ year })) }));
+
+    it("takes the decade at five from one bucket, and not at four", () => {
+      expect(years([1991, 1994, 1997, 1998, 1999])).toContain("decade");
+      expect(years([1991, 1994, 1997, 1998, 2000])).not.toContain("decade");
+    });
+
+    it("counts the bucket, not the span — 1999 and 1990 are one decade", () => {
+      expect(years([1990, 1993, 1995, 1997, 1999])).toContain("decade");
+      // …and five consecutive years across a bucket edge are not.
+      expect(years([1998, 1999, 2000, 2001, 2002])).not.toContain("decade");
+    });
+
+    it("takes forty years apart at the full width of the dataset", () => {
+      expect(years([1985, 2025])).toContain("fortyyears");
+      expect(years([1985, 2024])).not.toContain("fortyyears");
+      expect(years([1986, 2025])).not.toContain("fortyyears");
+    });
+
+    it("earns no span at all from an empty roster", () => {
+      expect(earnedBadges(f({ roster: [] }))).not.toContain("fortyyears");
+    });
+
+    it("stacks the two when a club really does both", () => {
+      // Five 1985s plus a 2025 is a committed decade AND both ends of the
+      // dataset. Measured at 0.06%, and it should be told rather than hidden.
+      const got = years([1985, 1985, 1985, 1985, 1985, 2025]);
+      expect(got).toContain("decade");
+      expect(got).toContain("fortyyears");
+    });
+  });
+
   it("survives an empty dugout", () => {
     expect(earnedBadges(f({ managerTeam: null, managerYear: null }))).toEqual(
       [],
@@ -705,6 +985,9 @@ describe("the earned list as a whole", () => {
         managerMoty: true,
       }),
     );
+    // 🧗 and 📆 come along for the ride and belong in the list: BASE spends no
+    // powerups, so a 120-win season is a handicap run, and eight 2020 seasons
+    // are eight players in one decade bucket.
     expect(got).toEqual([
       "crown",
       "perfect",
@@ -716,7 +999,80 @@ describe("the earned list as a whole", () => {
       "cooperstown",
       "rings",
       "skipper",
+      "hardway",
       "covid",
+      "decade",
     ]);
+  });
+});
+
+describe("the family badges", () => {
+  const molina = (id: string) => player({ id });
+
+  it("fires on a brother pair and not on one brother alone", () => {
+    expect(earnedBadges(f({ roster: [molina("molinbe01")] }))).not.toContain(
+      "brothers",
+    );
+    expect(
+      earnedBadges(f({ roster: [molina("molinbe01"), molina("molinjo01")] })),
+    ).toContain("brothers");
+  });
+
+  it("fires on a father and son", () => {
+    // The Griffeys are the one pair who ever shared a real clubhouse.
+    expect(
+      earnedBadges(f({ roster: [molina("griffke01"), molina("griffke02")] })),
+    ).toContain("fatherson");
+  });
+
+  it("does not confuse a father-son pair for brothers, or the reverse", () => {
+    const griffeys = earnedBadges(
+      f({ roster: [molina("griffke01"), molina("griffke02")] }),
+    );
+    expect(griffeys).not.toContain("brothers");
+    const alomars = earnedBadges(
+      f({ roster: [molina("alomaro01"), molina("alomasa02")] }),
+    );
+    expect(alomars).not.toContain("fatherson");
+  });
+
+  it("lights both badges for a family that is both", () => {
+    // Bob Boone fathered Bret and Aaron, who are brothers to each other.
+    const out = earnedBadges(
+      f({
+        roster: [molina("boonebo01"), molina("boonebr01"), molina("booneaa01")],
+      }),
+    );
+    expect(out).toContain("fatherson");
+    expect(out).toContain("brothers");
+  });
+
+  it("wants all three Molinas for the three-brother rung", () => {
+    const two = earnedBadges(
+      f({ roster: [molina("molinbe01"), molina("molinjo01")] }),
+    );
+    expect(two).not.toContain("threebrothers");
+    const three = earnedBadges(
+      f({
+        roster: [molina("molinbe01"), molina("molinjo01"), molina("molinya01")],
+      }),
+    );
+    expect(three).toContain("threebrothers");
+    // The pair badge stands alongside it rather than being superseded.
+    expect(three).toContain("brothers");
+  });
+
+  it("does not fire on two men from different families", () => {
+    expect(
+      earnedBadges(f({ roster: [molina("molinbe01"), molina("griffke02")] })),
+    ).not.toContain("brothers");
+  });
+
+  it("keeps every listed id draftable and every pair distinct", () => {
+    for (const list of [BROTHERS, FATHER_SON]) {
+      for (const [a, b] of list) expect(a).not.toBe(b);
+    }
+    const seen = new Set(BROTHERS.map((p) => [...p].sort().join()));
+    expect(seen.size).toBe(BROTHERS.length);
   });
 });

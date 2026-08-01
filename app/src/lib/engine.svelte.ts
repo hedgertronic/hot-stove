@@ -71,6 +71,11 @@ export interface Signed {
    * powerup; it stays for save and finale compatibility.) */
   hero: boolean;
   prorated: number;
+  /** Seasonal age, carried from the card. Optional so a pre-v6 save restores
+   * as-is: those players read as ageless and earn neither age badge. It is
+   * copied onto the signing rather than looked up at the finale because a
+   * ⭐ Prime Time signing comes from a card that never enters `seen`. */
+  age?: number;
 }
 
 export interface OwnerPick {
@@ -152,9 +157,14 @@ export const HOMEGROWN_PRICE_M = 1.0;
 
 const SAVE_KEY = "hotstove.current";
 const HISTORY_KEY = "hotstove.history";
-/** v5 = 🏠 Homegrown is a sixth powerup; v4 saves migrate on restore
- * (heroUsed → the hometown powerup's ready/spent state). */
-const SAVE_VERSION = 5;
+/** v6 = signings carry their seasonal age (the 🧓/🍼 input). v5 = 🏠 Homegrown
+ * is a sixth powerup; v4 saves migrate on restore (heroUsed → the hometown
+ * powerup's ready/spent state).
+ *
+ * v5 and v4 saves restore and finish normally — `Signed.age` is optional, so
+ * an in-flight club simply has no ages and earns neither age badge. Nothing is
+ * discarded; the migration is the optional field. */
+const SAVE_VERSION = 6;
 
 export class Game {
   meta: Meta;
@@ -694,6 +704,7 @@ export class Game {
       costPaid,
       hero: discounted,
       prorated: c.prorated,
+      age: p.age,
     };
   }
 
@@ -922,6 +933,17 @@ export class Game {
       managerMoty: this.manager?.moty === true,
     });
     const [wins, losses] = displayRecord(parts.expectedWins);
+    // 🗺️ reads the alignment each player's OWN season played in, off the index
+    // rows: pre-1994 there was no Central, Houston was NL through 2012,
+    // Milwaukee AL through 1997. A single modern map would have the badge
+    // assert that 1992 Houston played in a division that did not exist yet.
+    // A row missing lg/div contributes no division rather than a guessed one.
+    const alignment = new Map(
+      this.index.cards
+        .filter((c) => c.lg && c.div)
+        .map((c) => [`${c.team}|${c.year}`, `${c.lg}/${c.div}`]),
+    );
+    const powerupStates = Object.values(this.powerups);
     const badges = earnedBadges({
       baselineWins: wins,
       baselineLosses: losses,
@@ -938,6 +960,10 @@ export class Game {
         year: p.year,
         team: p.team,
         pos: p.pos,
+        franchise: p.franchise,
+        costPaid: p.costPaid,
+        hero: p.hero,
+        age: p.age,
       })),
       managerTeam: this.manager?.team ?? null,
       managerYear: this.manager?.year ?? null,
@@ -945,6 +971,13 @@ export class Game {
       rings: this.pedigree.rings,
       awardPoints: parts.awardPoints,
       managerMoty: this.manager?.moty === true,
+      owner: this.owner,
+      stadium: this.stadium,
+      divisions: players.flatMap((p) => alignment.get(`${p.team}|${p.year}`) ?? []),
+      powerups: {
+        spent: powerupStates.filter((s) => s === "spent").length,
+        total: powerupStates.length,
+      },
     });
     this.finale = {
       parts,
@@ -1042,7 +1075,7 @@ export class Game {
     if (!raw) return null;
     try {
       const s = JSON.parse(raw);
-      if (s.v !== SAVE_VERSION && s.v !== 4) return null;
+      if (s.v !== SAVE_VERSION && s.v !== 5 && s.v !== 4) return null;
       // v4 → v5: the Hometown Hero combo became the 🏠 Homegrown powerup; an
       // in-flight save's heroUsed maps to the powerup's spent/ready state.
       if (s.v === 4) s.powerups = { ...s.powerups, hometown: s.heroUsed ? "spent" : "ready" };

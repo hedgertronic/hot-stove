@@ -24,6 +24,7 @@ interface CardPlayerRow {
   name: string;
   pos: string;
   awards: string[];
+  age?: number;
 }
 interface CardRow {
   year: number;
@@ -33,6 +34,13 @@ interface CardRow {
   ws: boolean;
   players: CardPlayerRow[];
 }
+interface IndexRow {
+  team: string;
+  year: number;
+  franchise: string;
+  lg?: string;
+  div?: string;
+}
 
 const DATA_ROOT = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../..", "data");
 const readJson = <T,>(rel: string): T =>
@@ -41,7 +49,7 @@ const readJson = <T,>(rel: string): T =>
 /** Every card the game can deal, walked through index.json — the same list the
  * engine loads from, so a card on disk that the index forgot is invisible here
  * for the same reason it is invisible in play. */
-const INDEX = readJson<{ cards: { team: string; year: number }[] }>("index.json");
+const INDEX = readJson<{ cards: IndexRow[] }>("index.json");
 const CARDS: CardRow[] = INDEX.cards.map((c) =>
   readJson<CardRow>(`cards/${c.team}_${c.year}.json`),
 );
@@ -189,6 +197,80 @@ describe("the era badges still have their seasons", () => {
     // either player has.
     expect(seasons("bonilbo01", "PIT").length, "bonilbo01 on PIT").toBeGreaterThan(0);
     expect(seasons("ohtansh01", "LAA").length, "ohtansh01 on LAA").toBeGreaterThan(0);
+  });
+});
+
+/** 🧓 and 🍼 are the only badges keyed to a NUMBER the data supplies rather
+ * than to a name, so the thing that can rot underneath them is the supply at
+ * the tails. 35+ and 23− are not symmetric numbers by accident: they are the
+ * two closest-matched outer deciles the data offers, and a regen that moved
+ * either decile would silently make one end of the pair much harder than the
+ * other while both badges kept rendering as one idea. */
+describe("the age axis still has players at both ends", () => {
+  const ages = CARDS.flatMap((c) => c.players.flatMap((p) => p.age ?? []));
+
+  it("keeps the two ends within a couple of points of each other", () => {
+    const pct = (n: number) => (100 * n) / ages.length;
+    const old = pct(ages.filter((a) => a >= 35).length);
+    const young = pct(ages.filter((a) => a <= 23).length);
+    expect(old).toBeGreaterThan(7);
+    expect(old).toBeLessThan(12);
+    expect(young).toBeGreaterThan(5);
+    expect(young).toBeLessThan(10);
+    expect(Math.abs(old - young)).toBeLessThan(4);
+  });
+
+  it("can still deal three of either end off a single card", () => {
+    // Not a proof the badges are reachable — a club is built across ~11 cards
+    // — but a floor under it: if no card can supply three, nothing can.
+    const cardsWith = (ok: (a: number) => boolean) =>
+      CARDS.filter((c) => c.players.filter((p) => p.age != null && ok(p.age)).length >= 3);
+    expect(cardsWith((a) => a >= 35).length).toBeGreaterThan(100);
+    expect(cardsWith((a) => a <= 23).length).toBeGreaterThan(100);
+  });
+});
+
+/** 🗺️ resolves each player's division from the index row for THEIR season, so
+ * the badge is only era-correct while those rows carry lg/div. Lose them and
+ * the engine silently counts no divisions at all — the badge stops firing
+ * rather than lying, but it stops firing. */
+describe("the division map is era-correct and complete", () => {
+  it("carries a league and a division on every card the index deals", () => {
+    const bare = INDEX.cards.filter((c) => !c.lg || !c.div).map((c) => `${c.team} ${c.year}`);
+    expect(bare).toEqual([]);
+  });
+
+  it("still says the NL had no Central before 1994", () => {
+    const at = (year: number) =>
+      [...new Set(INDEX.cards.filter((c) => c.year === year).map((c) => `${c.lg}/${c.div}`))].sort();
+    expect(at(1992)).toEqual(["AL/E", "AL/W", "NL/E", "NL/W"]);
+    expect(at(1994)).toEqual(["AL/C", "AL/E", "AL/W", "NL/C", "NL/E", "NL/W"]);
+  });
+
+  /** The three realignments a modern map would get wrong, spelled out: a
+   * static map would put 1992 Houston in a division that did not exist yet,
+   * Milwaukee in the NL a decade early, and Houston in the AL two decades
+   * early. */
+  it("keeps Houston and Milwaukee in the leagues they actually played in", () => {
+    const row = (team: string, year: number) =>
+      INDEX.cards.find((c) => c.team === team && c.year === year);
+    expect(row("HOU", 1992)).toMatchObject({ lg: "NL", div: "W" });
+    expect(row("HOU", 1994)).toMatchObject({ lg: "NL", div: "C" });
+    expect(row("HOU", 2013)).toMatchObject({ lg: "AL", div: "W" });
+    expect(row("MIL", 1985)).toMatchObject({ lg: "AL", div: "E" });
+    expect(row("MIL", 1998)).toMatchObject({ lg: "NL", div: "C" });
+  });
+});
+
+/** 🕰️ claims forty years is the full width of the dataset — the badge means
+ * "you hold both ends", not "a wide roster". That is only true while the cards
+ * run 1985–2025 exactly. */
+describe("forty years is still the whole dataset", () => {
+  it("spans exactly forty years from the oldest card to the newest", () => {
+    const years = CARDS.map((c) => c.year);
+    expect(Math.min(...years)).toBe(1985);
+    expect(Math.max(...years)).toBe(2025);
+    expect(Math.max(...years) - Math.min(...years)).toBe(40);
   });
 });
 

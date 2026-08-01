@@ -84,11 +84,10 @@
   .brag.rare {
     background: var(--rare-violet);
   }
-  /* Gold plus an inset ink ring, so ultra reads as ultra even beside three
-     other filled pills. */
+  /* Gold, and nothing else. The fill alone separates ultra from the washes
+     below it — an inset ink ring on top only read as a heavier border. */
   .brag.ultra {
     background: var(--yellow);
-    box-shadow: inset 0 0 0 1px var(--ink);
   }
   /* Inverted from the entire ladder — ink fill, gold text, gold ring. Legend
      is not a deeper wash than ultra; it is the negative of one, which is what
@@ -97,7 +96,6 @@
     background: var(--ink);
     color: var(--yellow);
     border-color: var(--yellow);
-    box-shadow: inset 0 0 0 1px var(--ink);
   }
   /* The anti-trophy: a brick wash, the pale-register echo of --war-neg, which
      already means "below replacement" everywhere else in the game. Solid
