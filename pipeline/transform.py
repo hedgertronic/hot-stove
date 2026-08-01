@@ -110,9 +110,24 @@ class GameData:
     def _build_ids(self) -> None:
         self.b2l: dict[str, str] = {}
         self.birth: dict[str, tuple[int, int]] = {}  # playerID -> (year, month)
+        # Two People rows can claim the same bbref key, and the loser silently
+        # overwrote the winner under last-write-wins. 1,275 rows (almost all
+        # Negro-League-era, never on B-R) carry an empty bbrefID and fall back
+        # to their playerID, which collides with a modern player's real
+        # bbrefID (Ronnie Brown's playerID "brownro02" == Roosevelt Brown's
+        # bbrefID); 12 more pairs share a genuinely duplicated bbrefID (Bob
+        # McClure b. 1952 and Bob McClure b. 1891 are both "mcclubo01").
+        # Highest rank wins, first-seen breaks ties: a real bbrefID beats a
+        # playerID fallback, and among real IDs a row with an MLB debut beats
+        # one without.
+        best: dict[str, int] = {}
         for r in self.raw["People"]:
-            bbref = r.get("bbrefID") or r["playerID"]
-            self.b2l[bbref] = r["playerID"]
+            real = (r.get("bbrefID") or "").strip()
+            bbref = real or r["playerID"]
+            rank = (2 if real else 0) + (1 if (r.get("debut") or "").strip() else 0)
+            if rank > best.get(bbref, -1):
+                best[bbref] = rank
+                self.b2l[bbref] = r["playerID"]
             if by := _i(r.get("birthYear")):
                 self.birth[r["playerID"]] = (by, _i(r.get("birthMonth")) or 7)
 

@@ -158,6 +158,52 @@ function isDeferred(p: { id: string; team: string }): boolean {
   return DEFERRED[p.id] === p.team;
 }
 
+/** The 1995 replacement players who later reached the majors and are still
+ * draftable here. Every name is carried by both published transcriptions of
+ * the Players Association's own classification list — Baseball Almanac's and
+ * Tim Kurkjian's in ESPN The Magazine. Anyone a second publication does not
+ * carry is off it, and so is anyone whose Baseball-Reference id could be
+ * confused with another player's: Pedro Borbón Jr. and the 2008 Greg Smith
+ * both look like matches by name and are not the men who crossed. Damian
+ * Miller is off it as the one genuinely disputed case — the union classifies
+ * him and never admitted him; he says the Twins told him one "B" game would
+ * cost him nothing. The badge does not pick a side by naming him.
+ *
+ * Keyed on the player alone, not the club: the 1995 spring is a fact about the
+ * person that every one of his seasons carries.
+ *
+ * These ids are subtracted from ✊ PICKET LINE — a replacement player cannot
+ * stand for the strike he crossed — but only for himself. Any OTHER 1994
+ * season still earns the picket line, so one club can carry both: one man
+ * walked out, another walked in, which is the actual history.
+ *
+ * The consequence the copy points at is documented and permanent: none of
+ * these men was ever admitted to the MLBPA. */
+export const REPLACEMENTS: ReadonlySet<string> = new Set([
+  "agbaybe01", // Benny Agbayani
+  "daubabr01", // Brian Daubach
+  "donnebr01", // Brendan Donnelly
+  "echevan01", // Angel Echevarria
+  "hergema01", // Matt Herges
+  "lidleco01", // Cory Lidle
+  "ligteke01", // Kerry Ligtenberg
+  "loiseri01", // Rich Loiselle
+  "mahayro01", // Ron Mahay
+  "martito02", // Tom Martin
+  "menecfr01", // Frank Menechino
+  "merlolo01", // Lou Merloni
+  "millake01", // Kevin Millar
+  "oropeed01", // Eddie Oropesa
+  "osikke01", // Keith Osik
+  "reedri01", // Rick Reed
+  "smithch07", // Chuck Smith
+  "spencsh01", // Shane Spencer
+  "tamje01", // Jeff Tam
+  "tollbbr01", // Brian Tollberg
+  "trubych01", // Chris Truby
+  "walkeja01", // Jamie Walker
+]);
+
 /** The champion rungs, keyed on the exact win total that matches them. Every
  * total is a real club's real record; 🔱 is the record rung (see the file
  * comment) and 👑 is the only rung that names no club. */
@@ -536,7 +582,9 @@ export function earnedBadges(f: BadgeFacts): string[] {
   if (roster.length > 0 && f.awardPoints === 0) out.push("nohardware");
   else if (roster.length > 0 && !roster.some(hasAS)) out.push("noallstars");
 
-  if (roster.some((p) => p.year === 1994)) out.push("strike");
+  if (roster.some((p) => p.year === 1994 && !REPLACEMENTS.has(p.id)))
+    out.push("strike");
+  if (roster.some((p) => REPLACEMENTS.has(p.id))) out.push("crossed");
   if (roster.some((p) => p.year === 2020)) out.push("covid");
   if (
     roster.some(isScandal) ||
