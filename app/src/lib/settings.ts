@@ -1,6 +1,12 @@
 /** Mode selection persists across visits (BUILD.md: localStorage `hotstove.settings`). */
 import { BADGE_BY_KEY, BADGES, COLLECTIBLE } from "./badges";
-import { DEFAULT_CONFIG, type Bank, type Difficulty, type GameConfig } from "./engine.svelte";
+import {
+  DEFAULT_CONFIG,
+  type Bank,
+  type Difficulty,
+  type GameConfig,
+} from "./engine.svelte";
+import { loadHistory } from "./history";
 
 const SETTINGS_KEY = "hotstove.settings";
 /** v2 = the two-rung ladder. "scout" is a colliding name: pre-v2 it meant the
@@ -39,33 +45,12 @@ export function loadSettings(): GameConfig {
 
 export function saveSettings(config: GameConfig): void {
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ v: SETTINGS_VERSION, ...config }));
+    localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({ v: SETTINGS_VERSION, ...config }),
+    );
   } catch {
     /* storage unavailable */
-  }
-}
-
-interface HistoryEntry {
-  date: string;
-  total: number;
-  record: string;
-  spins: number;
-  difficulty?: string;
-  bank?: string;
-  moneyball?: boolean;
-  v?: number;
-  /** Badge KEYS earned by that game. Optional: entries written before the
-   * badge set existed carry none, the same legacy tolerance `v` and `bank`
-   * already get. */
-  badges?: string[];
-}
-
-function loadHistory(): HistoryEntry[] {
-  try {
-    const h = JSON.parse(localStorage.getItem("hotstove.history") ?? "[]");
-    return Array.isArray(h) ? h : [];
-  } catch {
-    return [];
   }
 }
 
@@ -92,7 +77,8 @@ export function bestFor(
     if (d !== difficulty || b !== bank) continue;
     games += 1;
     if (best === null || e.total > best) best = e.total;
-    const m = typeof e.record === "string" ? /^(\d+)[-–](\d+)$/.exec(e.record) : null;
+    const m =
+      typeof e.record === "string" ? /^(\d+)[-–](\d+)$/.exec(e.record) : null;
     if (m) {
       const w = Number(m[1]);
       const l = Number(m[2]);
@@ -112,7 +98,14 @@ export interface CaseTile {
 }
 
 /** Rarest first; anti-trophies last, where they read as a punchline. */
-const RARITY_ORDER = ["legend", "ultra", "rare", "uncommon", "common", "ironic"];
+const RARITY_ORDER = [
+  "legend",
+  "ultra",
+  "rare",
+  "uncommon",
+  "common",
+  "ironic",
+];
 /** Ties inside a tier resolve on the badge table's own order, so the case is
  * a pure function of the table and never of which game finished first. */
 const TABLE_ORDER = new Map(BADGES.map((b, i) => [b.key, i]));
@@ -137,7 +130,11 @@ const TABLE_ORDER = new Map(BADGES.map((b, i) => [b.key, i]));
  * Nobody chases a 100-loss season, so it belongs to neither side of the ratio —
  * but it still gets a tile once it happens, which is the joke.
  */
-export function badgeCase(): { tiles: CaseTile[]; earned: number; total: number } {
+export function badgeCase(): {
+  tiles: CaseTile[];
+  earned: number;
+  total: number;
+} {
   const counts = new Map<string, number>();
   for (const e of loadHistory()) {
     if (!Array.isArray(e?.badges)) continue;
@@ -152,7 +149,9 @@ export function badgeCase(): { tiles: CaseTile[]; earned: number; total: number 
   tiles.sort((a, a2) => {
     const ra = RARITY_ORDER.indexOf(BADGE_BY_KEY[a.key].rarity);
     const rb = RARITY_ORDER.indexOf(BADGE_BY_KEY[a2.key].rarity);
-    return ra !== rb ? ra - rb : TABLE_ORDER.get(a.key)! - TABLE_ORDER.get(a2.key)!;
+    return ra !== rb
+      ? ra - rb
+      : TABLE_ORDER.get(a.key)! - TABLE_ORDER.get(a2.key)!;
   });
   return {
     tiles,

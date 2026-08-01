@@ -1162,6 +1162,41 @@ export function earnedBadges(f: BadgeFacts): string[] {
   return out;
 }
 
+/** One pill on the finale's brag row: the badge, and whether this is the
+ * first time it has ever been earned. */
+export interface Brag {
+  def: BadgeDef;
+  fresh: boolean;
+}
+
+/** The finale's brag row: which badges get the scarce pill slots, in order.
+ *
+ * Lives here rather than in the component because it is a rule about badges,
+ * not about rendering — and because the component can only run it behind a
+ * reveal animation, which puts it out of reach of a test.
+ *
+ * First-time badges sort to the FRONT. That is the whole reason the order is
+ * touched: the row caps at a handful of pills and cuts from the tail of
+ * `earnedBadges`' order, so a badge earned for the first time ever could land
+ * past the cut and never be seen — the one pill the player most wants. The
+ * sort is stable, so within each group the engine's order survives.
+ *
+ * Keys that resolve to no definition are dropped, which covers a finale
+ * restored from a save written before a badge was retired. */
+export function bragRow(
+  keys: string[],
+  newKeys: string[],
+  cap: number,
+): Brag[] {
+  const fresh = new Set(newKeys);
+  return keys
+    .map((k) => BADGE_BY_KEY[k])
+    .filter((d): d is BadgeDef => d !== undefined)
+    .map((def) => ({ def, fresh: fresh.has(def.key) }))
+    .sort((a, b) => Number(b.fresh) - Number(a.fresh))
+    .slice(0, cap);
+}
+
 /** Badge keys → the emoji the share string spends. */
 export function badgeEmoji(keys: string[]): string[] {
   return keys.map((k) => BADGE_BY_KEY[k]?.emoji ?? "").filter(Boolean);

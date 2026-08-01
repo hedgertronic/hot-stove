@@ -18,8 +18,11 @@
     count?: number;
     /** The finale's thunk-in entrance. The case is a list, not an event. */
     animate?: boolean;
+    /** First time this badge has ever been earned. Finale only — in the case
+     * every badge is already earned, so the flag would mark all of them. */
+    fresh?: boolean;
   }
-  let { badge, locked = false, count = 1, animate = false }: Props = $props();
+  let { badge, locked = false, count = 1, animate = false, fresh = false }: Props = $props();
 </script>
 
 <span
@@ -45,6 +48,10 @@
     {badge.label}
     <span class="sr">Not yet earned</span>
   {:else}
+    <!-- Real text, not an icon or a color: "NEW" is read aloud by a screen
+         reader in the pill's own reading order, so the cue costs no extra
+         aria and survives a player who cannot see the contrast carrying it. -->
+    {#if fresh}<span class="fresh">NEW</span>{/if}
     {badge.emoji}
     {badge.label}{#if count > 1}<span class="count">×{count}</span>{/if}
   {/if}
@@ -113,6 +120,29 @@
     opacity: 0.45;
     border-style: dashed;
     color: var(--muted);
+  }
+  /* First-ever earn. A filled chip rather than a glow or a ring: the pill
+     already spends its border and its fill on rarity, and both are load-
+     bearing — a gold ring around a new RARE would read as an ULTRA. An inset
+     chip borrows no channel rarity is using.
+     No animation of its own, either: the finale staggers the row with
+     `animation-delay` on the pill element, and a second animation on the same
+     element would inherit that one delay and fight the deal-in. */
+  .fresh {
+    margin-right: 6px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--card);
+    font-size: 8.5px;
+    letter-spacing: 0.1em;
+    padding: 1px 5px;
+    vertical-align: 1px;
+  }
+  /* Legend is the one inverted pill — an ink chip on an ink fill is invisible,
+     so the chip inverts with it. */
+  .brag.legend .fresh {
+    background: var(--yellow);
+    color: var(--ink);
   }
   .count {
     margin-left: 6px;

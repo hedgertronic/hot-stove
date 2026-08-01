@@ -1,7 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eligibleTypes } from "../src/lib/eligibility";
-import { Game, HOMEGROWN_PRICE_M, SLOT_TYPES, type Signed } from "../src/lib/engine.svelte";
-import type { Card, CardPlayer, GameIndex, Meta, Owners } from "../src/lib/types";
+import {
+  Game,
+  HOMEGROWN_PRICE_M,
+  SLOT_TYPES,
+  type Signed,
+} from "../src/lib/engine.svelte";
+import type {
+  Card,
+  CardPlayer,
+  GameIndex,
+  Meta,
+  Owners,
+} from "../src/lib/types";
 
 // Engine save()/restore() guard storage access; give node a minimal stub.
 const store = new Map<string, string>();
@@ -42,7 +53,10 @@ const index: GameIndex = {
 
 const owners: Owners = {
   franchises: {
-    CHC: { name: "Chicago Cubs", owners: [{ name: "Ricketts family", from: 2009, to: null }] },
+    CHC: {
+      name: "Chicago Cubs",
+      owners: [{ name: "Ricketts family", from: 2009, to: null }],
+    },
   },
 };
 
@@ -155,7 +169,11 @@ describe("eligibility", () => {
     expect(eligibleTypes(p)).toEqual(["IF", "OF", "FLEX"]);
   });
   it("two-way player qualifies for SP and FLEX", () => {
-    const p = player({ pos: "SP/DH", gs: 20, posG: { c: 0, if: 0, of: 0, dh: 40 } });
+    const p = player({
+      pos: "SP/DH",
+      gs: 20,
+      posG: { c: 0, if: 0, of: 0, dh: 40 },
+    });
     expect(eligibleTypes(p)).toEqual(["SP", "FLEX"]);
   });
   it("DH-only bat is FLEX only", () => {
@@ -163,7 +181,12 @@ describe("eligibility", () => {
     expect(eligibleTypes(p)).toEqual(["FLEX"]);
   });
   it("relievers never reach FLEX", () => {
-    const p = player({ pos: "RP", posG: { c: 0, if: 0, of: 0, dh: 0 }, pa: 2, relIP: 60 });
+    const p = player({
+      pos: "RP",
+      posG: { c: 0, if: 0, of: 0, dh: 0 },
+      pa: 2,
+      relIP: 60,
+    });
     expect(eligibleTypes(p)).toEqual(["RP"]);
   });
 });
@@ -201,7 +224,11 @@ describe("signing and slots", () => {
 
   it("no eligible open slot means the row is dead", () => {
     const a = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
-    const b = player({ pos: "C", posG: { c: 80, if: 0, of: 0, dh: 0 }, pa: 200 });
+    const b = player({
+      pos: "C",
+      posG: { c: 80, if: 0, of: 0, dh: 0 },
+      pa: 200,
+    });
     const g = landedGame(card([a, b]));
     g.signPlayer(a);
     expect(g.playerState(b)).toBe("open"); // FLEX still open for a hitter
@@ -313,8 +340,22 @@ describe("Trade Deadline", () => {
   it("swaps a dead player into an occupied slot and spends TD", () => {
     // Relievers are the only truly single-cell case (a catcher is FLEX-eligible
     // too, which correctly forces a release pick instead).
-    const a = player({ pos: "RP", posG: { c: 0, if: 0, of: 0, dh: 0 }, pa: 0, relIP: 60, cost: 20, war: 1 });
-    const b = player({ pos: "RP", posG: { c: 0, if: 0, of: 0, dh: 0 }, pa: 0, relIP: 55, cost: 2, war: 3 });
+    const a = player({
+      pos: "RP",
+      posG: { c: 0, if: 0, of: 0, dh: 0 },
+      pa: 0,
+      relIP: 60,
+      cost: 20,
+      war: 1,
+    });
+    const b = player({
+      pos: "RP",
+      posG: { c: 0, if: 0, of: 0, dh: 0 },
+      pa: 0,
+      relIP: 55,
+      cost: 2,
+      war: 3,
+    });
     const g = landedGame(card([a, b]));
     g.signPlayer(a);
     g.phase = "landed";
@@ -351,8 +392,19 @@ describe("Trade Deadline", () => {
   });
 
   it("trades for a catcher even though UTIL is open — releases the rostered C", () => {
-    const oldC = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 }, cost: 8, war: 2 });
-    const newC = player({ pos: "C", posG: { c: 85, if: 0, of: 0, dh: 0 }, cost: 15, war: 6, pa: 450 });
+    const oldC = player({
+      pos: "C",
+      posG: { c: 90, if: 0, of: 0, dh: 0 },
+      cost: 8,
+      war: 2,
+    });
+    const newC = player({
+      pos: "C",
+      posG: { c: 85, if: 0, of: 0, dh: 0 },
+      cost: 15,
+      war: 6,
+      pa: 450,
+    });
     const g = landedGame(card([oldC, newC]));
     g.signPlayer(oldC);
     g.phase = "landed";
@@ -389,8 +441,17 @@ describe("Trade Deadline", () => {
   });
 
   it("disarmed, the same row signs plainly into the open seat — no TD spent", () => {
-    const oldC = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 }, cost: 8 });
-    const newC = player({ pos: "C", posG: { c: 85, if: 0, of: 0, dh: 0 }, cost: 15, pa: 450 });
+    const oldC = player({
+      pos: "C",
+      posG: { c: 90, if: 0, of: 0, dh: 0 },
+      cost: 8,
+    });
+    const newC = player({
+      pos: "C",
+      posG: { c: 85, if: 0, of: 0, dh: 0 },
+      cost: 15,
+      pa: 450,
+    });
     const g = landedGame(card([oldC, newC]));
     g.signPlayer(oldC);
     g.phase = "landed";
@@ -409,7 +470,10 @@ describe("Trade Deadline", () => {
 
   it("an open row with several occupied seats opens the release picker over all of them", () => {
     const if1 = player({});
-    const flexBat = player({ pos: "DH", posG: { c: 0, if: 0, of: 0, dh: 120 } });
+    const flexBat = player({
+      pos: "DH",
+      posG: { c: 0, if: 0, of: 0, dh: 120 },
+    });
     const if2 = player({ pa: 400 });
     const g = landedGame(card([if1, flexBat, if2]));
     for (const p of [if1, flexBat]) {
@@ -433,7 +497,12 @@ describe("Trade Deadline", () => {
     g.hireOwner();
     g.phase = "landed";
     g.choicesLeft = 1;
-    g.card = card([player({})], { budget: 200, name: "New York Yankees", franchise: "NYY", team: "NYY" });
+    g.card = card([player({})], {
+      budget: 200,
+      name: "New York Yankees",
+      franchise: "NYY",
+      team: "NYY",
+    });
     g.toggleTradeDeadline();
     g.tdTapSpecial("owner");
     expect(g.owner?.budget).toBe(200);
@@ -446,7 +515,13 @@ describe("Prime Time", () => {
 
   function primeSetup() {
     const now = player({ id: "star", pos: "C", posG: C_POS, war: 2, cost: 3 });
-    const then = player({ id: "star", pos: "C", posG: C_POS, war: 7, cost: 12 });
+    const then = player({
+      id: "star",
+      pos: "C",
+      posG: C_POS,
+      war: 7,
+      cost: 12,
+    });
     fetchCards.PRM_2014 = card([then], {
       year: 2014,
       team: "PRM",
@@ -464,7 +539,12 @@ describe("Prime Time", () => {
     expect(g.primePick).toBe("star");
     const ok = await g.applyPrime("PRM", 2014);
     expect(ok).toBe(true);
-    expect(g.slots[0]).toMatchObject({ id: "star", year: 2014, costPaid: 12, war: 7 });
+    expect(g.slots[0]).toMatchObject({
+      id: "star",
+      year: 2014,
+      costPaid: 12,
+      war: 7,
+    });
     expect(g.powerups.prime).toBe("spent");
     expect(g.choicesUsed).toBe(1);
     expect(g.phase).toBe("preSpin"); // consumed the spin's choice
@@ -605,8 +685,23 @@ describe("Homegrown (the hometown discount)", () => {
   });
 
   it("TD + discount both armed: a debut-eligible swap-in commits at the discount, both spend", () => {
-    const a = player({ pos: "RP", posG: { c: 0, if: 0, of: 0, dh: 0 }, pa: 0, relIP: 60, cost: 20, war: 1 });
-    const b = player({ pos: "RP", posG: { c: 0, if: 0, of: 0, dh: 0 }, pa: 0, relIP: 55, cost: 12, war: 3, debut: "CHC" });
+    const a = player({
+      pos: "RP",
+      posG: { c: 0, if: 0, of: 0, dh: 0 },
+      pa: 0,
+      relIP: 60,
+      cost: 20,
+      war: 1,
+    });
+    const b = player({
+      pos: "RP",
+      posG: { c: 0, if: 0, of: 0, dh: 0 },
+      pa: 0,
+      relIP: 55,
+      cost: 12,
+      war: 3,
+      debut: "CHC",
+    });
     const g = landedGame(card([a, b]));
     g.signPlayer(a);
     g.phase = "landed";
@@ -622,7 +717,12 @@ describe("Homegrown (the hometown discount)", () => {
   });
 
   it("stacks with Double Play: discounted pick 1, normal-price pick 2, filter lifts mid-spin", () => {
-    const local = player({ debut: "CHC", pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 }, cost: 8 });
+    const local = player({
+      debut: "CHC",
+      pos: "C",
+      posG: { c: 90, if: 0, of: 0, dh: 0 },
+      cost: 8,
+    });
     const outsider = player({ debut: "SEA" });
     const g = landedGame(card([local, outsider]));
     g.toggleDoublePlay();
@@ -644,8 +744,23 @@ describe("Homegrown (the hometown discount)", () => {
   });
 
   it("the triple stack: DP + TD + 🏠 — a discounted swap-in is one of DP's two picks", () => {
-    const a = player({ pos: "RP", posG: { c: 0, if: 0, of: 0, dh: 0 }, pa: 0, relIP: 60, cost: 20, war: 1 });
-    const b = player({ pos: "RP", posG: { c: 0, if: 0, of: 0, dh: 0 }, pa: 0, relIP: 55, cost: 12, war: 3, debut: "CHC" });
+    const a = player({
+      pos: "RP",
+      posG: { c: 0, if: 0, of: 0, dh: 0 },
+      pa: 0,
+      relIP: 60,
+      cost: 20,
+      war: 1,
+    });
+    const b = player({
+      pos: "RP",
+      posG: { c: 0, if: 0, of: 0, dh: 0 },
+      pa: 0,
+      relIP: 55,
+      cost: 12,
+      war: 3,
+      debut: "CHC",
+    });
     const c = player({ debut: "SEA" });
     const g = landedGame(card([a, b, c]));
     g.signPlayer(a);
@@ -689,7 +804,10 @@ describe("Homegrown (the hometown discount)", () => {
   });
 
   it("works in fixed-cap banks — no owner spins needed", () => {
-    const g = new Game(meta, index, owners, 42, { difficulty: "standard", bank: "moneyball" });
+    const g = new Game(meta, index, owners, 42, {
+      difficulty: "standard",
+      bank: "moneyball",
+    });
     const local = player({ debut: "CHC" });
     g.card = card([local]);
     g.phase = "landed";
@@ -701,7 +819,10 @@ describe("Homegrown (the hometown discount)", () => {
   it("a v4 save restores with heroUsed mapped onto the discount", async () => {
     const g = landedGame(card([player({})]));
     g.save();
-    const saved = JSON.parse(store.get("hotstove.current")!) as Record<string, unknown>;
+    const saved = JSON.parse(store.get("hotstove.current")!) as Record<
+      string,
+      unknown
+    >;
     saved.v = 4;
     delete (saved.powerups as Record<string, unknown>).hometown;
     saved.heroUsed = true;
@@ -726,8 +847,17 @@ describe("visiblePlayers", () => {
   });
 
   it("rescues the best player at a position that would vanish entirely", () => {
-    const c1 = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 }, war: -0.4 });
-    const c2 = player({ pos: "C", posG: { c: 60, if: 0, of: 0, dh: 0 }, war: -1.9, pa: 200 });
+    const c1 = player({
+      pos: "C",
+      posG: { c: 90, if: 0, of: 0, dh: 0 },
+      war: -0.4,
+    });
+    const c2 = player({
+      pos: "C",
+      posG: { c: 60, if: 0, of: 0, dh: 0 },
+      war: -1.9,
+      pa: 200,
+    });
     const ifPos = player({ war: 4 });
     const g = landedGame(card([c1, c2, ifPos]));
     // c1 is the least-bad catcher → kept; c2 stays hidden
@@ -737,10 +867,26 @@ describe("visiblePlayers", () => {
   it("cold stove judges by visible players, not the full card", () => {
     // A (war 3, catcher) is already rostered at FLEX; B (war −1, catcher) is
     // the only body for the open C seat but is hidden → the card is cold.
-    const a = player({ id: "vetC", pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 }, war: 3 });
-    const b = player({ pos: "C", posG: { c: 80, if: 0, of: 0, dh: 0 }, war: -1, pa: 150 });
+    const a = player({
+      id: "vetC",
+      pos: "C",
+      posG: { c: 90, if: 0, of: 0, dh: 0 },
+      war: 3,
+    });
+    const b = player({
+      pos: "C",
+      posG: { c: 80, if: 0, of: 0, dh: 0 },
+      war: -1,
+      pa: 150,
+    });
     const g = landedGame(card([a, b], { manager: null }));
-    g.owner = { name: "x", budget: 100, franchise: "SEA", year: 2001, teamName: "Mariners" };
+    g.owner = {
+      name: "x",
+      budget: 100,
+      franchise: "SEA",
+      year: 2001,
+      teamName: "Mariners",
+    };
     g.stadium = { park: "y", mult: 1, franchise: "SEA", year: 2001 };
     hiredManager(g);
     fillSlots(g, [0]);
@@ -787,15 +933,30 @@ describe("Season Ticket and Relocate franchise resolution", () => {
     yearMin: 1985,
     yearMax: 2024,
     cards: [
-      { team: "WSN", year: 2010, franchise: "WSN", name: "Washington Nationals" },
+      {
+        team: "WSN",
+        year: 2010,
+        franchise: "WSN",
+        name: "Washington Nationals",
+      },
       { team: "MON", year: 1994, franchise: "WSN", name: "Montreal Expos" },
       { team: "ATL", year: 1994, franchise: "ATL", name: "Atlanta Braves" },
     ],
   };
   const expos = () =>
-    card([], { year: 1994, team: "MON", franchise: "WSN", name: "Montreal Expos" });
+    card([], {
+      year: 1994,
+      team: "MON",
+      franchise: "WSN",
+      name: "Montreal Expos",
+    });
   const nats = () =>
-    card([], { year: 2010, team: "WSN", franchise: "WSN", name: "Washington Nationals" });
+    card([], {
+      year: 2010,
+      team: "WSN",
+      franchise: "WSN",
+      name: "Washington Nationals",
+    });
 
   function landedOn(c: Card): Game {
     const g = new Game(meta, wsnIndex, owners, 42);
@@ -831,8 +992,20 @@ describe("Season Ticket and Relocate franchise resolution", () => {
 
   it("Relocate resolves the era-correct team code for a franchise", async () => {
     fetchCards.MON_1994 = expos();
-    const g = landedOn(card([], { year: 1994, team: "ATL", franchise: "ATL", name: "Atlanta Braves" }));
-    expect(g.teamsForYear(1994).map((e) => e.team).sort()).toEqual(["ATL", "MON"]);
+    const g = landedOn(
+      card([], {
+        year: 1994,
+        team: "ATL",
+        franchise: "ATL",
+        name: "Atlanta Braves",
+      }),
+    );
+    expect(
+      g
+        .teamsForYear(1994)
+        .map((e) => e.team)
+        .sort(),
+    ).toEqual(["ATL", "MON"]);
     g.relocate("MON");
     await g.land();
     expect(g.card?.team).toBe("MON");
@@ -843,7 +1016,13 @@ describe("cold stove", () => {
   it("detected when nothing is actionable", () => {
     const c = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
     const g = landedGame(card([c], { manager: null }));
-    g.owner = { name: "x", budget: 100, franchise: "SEA", year: 2001, teamName: "Mariners" };
+    g.owner = {
+      name: "x",
+      budget: 100,
+      franchise: "SEA",
+      year: 2001,
+      teamName: "Mariners",
+    };
     g.stadium = { park: "y", mult: 1, franchise: "SEA", year: 2001 };
     hiredManager(g);
     // fill everything except an SP slot; card only offers a catcher
@@ -869,7 +1048,10 @@ describe("completion and the hunt", () => {
   });
 
   it("fixed-cap: hiring the manager completes the club; TD spent → straight to finale", async () => {
-    const g = new Game(meta, index, owners, 42, { difficulty: "standard", bank: "moneyball" });
+    const g = new Game(meta, index, owners, 42, {
+      difficulty: "standard",
+      bank: "moneyball",
+    });
     g.card = card([]);
     g.phase = "landed";
     g.choicesLeft = 1;
@@ -884,7 +1066,13 @@ describe("completion and the hunt", () => {
     const g = landedGame(card([]));
     fillSlots(g);
     hiredManager(g);
-    g.owner = { name: "x", budget: 100, franchise: "CHC", year: 2016, teamName: "Cubs" };
+    g.owner = {
+      name: "x",
+      budget: 100,
+      franchise: "CHC",
+      year: 2016,
+      teamName: "Cubs",
+    };
     g.powerups.tradeDeadline = "spent";
     expect(g.complete).toBe(false);
     g.buyStadium();
@@ -892,7 +1080,10 @@ describe("completion and the hunt", () => {
   });
 
   it("an unspent Trade Deadline does not delay the finale — a complete club ends the game", async () => {
-    const g = new Game(meta, index, owners, 42, { difficulty: "standard", bank: "moneyball" });
+    const g = new Game(meta, index, owners, 42, {
+      difficulty: "standard",
+      bank: "moneyball",
+    });
     g.card = card([]);
     g.phase = "landed";
     g.choicesLeft = 1;
@@ -921,7 +1112,9 @@ describe("the front-office hunt has no pass", () => {
     const g = landedGame(card([]));
     fillSlots(g);
     expect((g as unknown as Record<string, unknown>).passSpin).toBeUndefined();
-    expect((g as unknown as Record<string, unknown>).willFinishOnPass).toBeUndefined();
+    expect(
+      (g as unknown as Record<string, unknown>).willFinishOnPass,
+    ).toBeUndefined();
   });
 
   it("a hunt card stays landed until a front-office pick commits", () => {
@@ -939,15 +1132,39 @@ describe("applyPrimeSpecial", () => {
   const specialsFixture = [
     // 2015 Maddon really was the NL Manager of the Year — the moty flag rides
     // the specials timeline into a Prime Time hire.
-    { team: "CHC", year: 2015, name: "Chicago Cubs", park: "Wrigley Field",
-      mgr: "Joe Maddon", w: 97, l: 65, att: 0.81, mult: 1.09, budget: 120.4, moty: true },
-    { team: "CHC", year: 2016, name: "Chicago Cubs", park: "Wrigley Field",
-      mgr: "Joe Maddon", w: 103, l: 58, att: 0.86, mult: 1.11, budget: 136.3 },
+    {
+      team: "CHC",
+      year: 2015,
+      name: "Chicago Cubs",
+      park: "Wrigley Field",
+      mgr: "Joe Maddon",
+      w: 97,
+      l: 65,
+      att: 0.81,
+      mult: 1.09,
+      budget: 120.4,
+      moty: true,
+    },
+    {
+      team: "CHC",
+      year: 2016,
+      name: "Chicago Cubs",
+      park: "Wrigley Field",
+      mgr: "Joe Maddon",
+      w: 103,
+      l: 58,
+      att: 0.86,
+      mult: 1.11,
+      budget: 136.3,
+    },
   ];
 
   function primedGame(bank: "classic" | "moneyball" = "classic"): Game {
     fetchSpecials.CHC = specialsFixture;
-    const g = new Game(meta, index, owners, 42, { difficulty: "standard", bank });
+    const g = new Game(meta, index, owners, 42, {
+      difficulty: "standard",
+      bank,
+    });
     g.card = card([player({})]);
     g.phase = "landed";
     g.choicesLeft = 1;
@@ -960,7 +1177,13 @@ describe("applyPrimeSpecial", () => {
     const g = primedGame();
     expect(await g.applyPrimeSpecial("CHC", 2015)).toBe(true);
     expect(g.manager).toMatchObject({
-      name: "Joe Maddon", wins: 97, losses: 65, year: 2015, team: "CHC", ws: false, pen: false,
+      name: "Joe Maddon",
+      wins: 97,
+      losses: 65,
+      year: 2015,
+      team: "CHC",
+      ws: false,
+      pen: false,
       moty: true,
     });
     expect(g.powerups.prime).toBe("spent");
@@ -1023,14 +1246,31 @@ describe("applyPrimeSpecial", () => {
 describe("finale", () => {
   it("the record equals rounded expected wins on the 50-win base", async () => {
     const g = landedGame(
-      card([player({ pos: "SP", gs: 30, posG: { c: 0, if: 0, of: 0, dh: 0 }, war: 5 })]),
+      card([
+        player({
+          pos: "SP",
+          gs: 30,
+          posG: { c: 0, if: 0, of: 0, dh: 0 },
+          war: 5,
+        }),
+      ]),
     );
     for (let i = 0; i < 8; i++) {
       if (i === 5) continue;
-      g.slots[i] = filler(i, { awards: i === 0 ? ["MVP"] : [], ws: i === 1, pen: i === 2 });
+      g.slots[i] = filler(i, {
+        awards: i === 0 ? ["MVP"] : [],
+        ws: i === 1,
+        pen: i === 2,
+      });
     }
     hiredManager(g); // 116–46 → +14.0 wins at M=0.2
-    g.owner = { name: "x", budget: 100, franchise: "CHC", year: 2016, teamName: "Cubs" };
+    g.owner = {
+      name: "x",
+      budget: 100,
+      franchise: "CHC",
+      year: 2016,
+      teamName: "Cubs",
+    };
     g.stadium = { park: "y", mult: 1, franchise: "CHC", year: 2016 };
     g.powerups.tradeDeadline = "spent";
     const sp = g.card!.players[0];
@@ -1044,6 +1284,83 @@ describe("finale", () => {
     expect(f.parts.ringPoints).toBe(4 + 1); // player ring 3 + player pennant 1, + manager pennant 1
     expect(f.wins).toBe(Math.round(f.parts.expectedWins));
     expect(f.wins + f.losses).toBe(162);
+  });
+
+  /** First-time badges are a question about the history log as it stood BEFORE
+   * this game joined it. finishGame reads the log and then appends to it, and
+   * the two must stay in that order: swap them and every badge reads as
+   * already-owned, forever, on every game. That failure is invisible to any
+   * test that hands `newBadges` to a component directly, so it is asserted
+   * here, against a real finished game. */
+  function finishedClub(): Game {
+    const g = landedGame(
+      card([
+        player({
+          pos: "SP",
+          gs: 30,
+          posG: { c: 0, if: 0, of: 0, dh: 0 },
+          war: 5,
+        }),
+      ]),
+    );
+    for (let i = 0; i < 8; i++) {
+      if (i === 5) continue;
+      g.slots[i] = filler(i);
+    }
+    hiredManager(g);
+    // Clean House is the default bank, so the club is not complete until the
+    // front office is filled too.
+    g.owner = {
+      name: "x",
+      budget: 100,
+      franchise: "CHC",
+      year: 2016,
+      teamName: "Cubs",
+    };
+    g.stadium = { park: "y", mult: 1, franchise: "CHC", year: 2016 };
+    g.powerups.tradeDeadline = "spent";
+    g.signPlayer(g.card!.players[0]);
+    return g;
+  }
+
+  it("flags every badge on the very first game ever played", async () => {
+    store.clear();
+    const g = finishedClub();
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    // An empty log means everything earned is genuinely a first — deliberate,
+    // not noise. If the club earned nothing, there is nothing to flag either.
+    expect(g.finale!.newBadges).toEqual(g.finale!.badges);
+  });
+
+  it("flags nothing the second time the same club is built", async () => {
+    store.clear();
+    const first = finishedClub();
+    await vi.waitFor(() => expect(first.phase).toBe("finale"));
+    const earned = first.finale!.badges;
+    expect(earned.length).toBeGreaterThan(0); // the test is vacuous otherwise
+
+    const second = finishedClub();
+    await vi.waitFor(() => expect(second.phase).toBe("finale"));
+    expect(second.finale!.badges).toEqual(earned);
+    // The read happened before the append, so the FIRST game still flagged
+    // them; the second sees them already in the log.
+    expect(second.finale!.newBadges).toEqual([]);
+  });
+
+  it("flags only the badge the earlier game did not earn", async () => {
+    store.clear();
+    const first = finishedClub();
+    await vi.waitFor(() => expect(first.phase).toBe("finale"));
+    // Rewrite history so one earned badge is missing from the log, as though
+    // an earlier season had come up short of it.
+    const hist = JSON.parse(store.get("hotstove.history")!);
+    const held = first.finale!.badges[0];
+    hist[0].badges = first.finale!.badges.filter((k: string) => k !== held);
+    store.set("hotstove.history", JSON.stringify(hist));
+
+    const second = finishedClub();
+    await vi.waitFor(() => expect(second.phase).toBe("finale"));
+    expect(second.finale!.newBadges).toEqual([held]);
   });
 });
 
@@ -1065,13 +1382,23 @@ describe("seed reproducibility", () => {
   function registerSeedCards(): void {
     for (const e of seedIndex.cards) {
       fetchCards[`${e.team}_${e.year}`] = card(
-        [player({ id: `${e.team}${e.year}`, pos: "1B", posG: { c: 0, if: 100, of: 0, dh: 0 } })],
+        [
+          player({
+            id: `${e.team}${e.year}`,
+            pos: "1B",
+            posG: { c: 0, if: 100, of: 0, dh: 0 },
+          }),
+        ],
         { team: e.team, year: e.year, franchise: e.franchise, name: e.name },
       );
     }
   }
 
-  async function sequence(seed: number, act: (g: Game) => void, spins: number): Promise<string[]> {
+  async function sequence(
+    seed: number,
+    act: (g: Game) => void,
+    spins: number,
+  ): Promise<string[]> {
     const g = new Game(meta, seedIndex, owners, seed);
     const seen: string[] = [];
     for (let i = 0; i < spins; i++) {
@@ -1108,8 +1435,20 @@ describe("yearPedigree", () => {
     yearMin: 1985,
     yearMax: 2024,
     cards: [
-      { team: "ATL", year: 1991, franchise: "ATL", name: "Atlanta Braves", pen: true },
-      { team: "ATL", year: 1995, franchise: "ATL", name: "Atlanta Braves", ws: true },
+      {
+        team: "ATL",
+        year: 1991,
+        franchise: "ATL",
+        name: "Atlanta Braves",
+        pen: true,
+      },
+      {
+        team: "ATL",
+        year: 1995,
+        franchise: "ATL",
+        name: "Atlanta Braves",
+        ws: true,
+      },
       { team: "ATL", year: 2003, franchise: "ATL", name: "Atlanta Braves" },
       { team: "MON", year: 1994, franchise: "WSN", name: "Montreal Expos" },
     ],
@@ -1125,7 +1464,13 @@ describe("yearPedigree", () => {
 describe("index pedigree (real data)", () => {
   it("exactly one champion per year except strike-1994; SEA has no pennants", async () => {
     const real = (await import("../../data/index.json")) as unknown as {
-      cards: { team: string; year: number; franchise: string; ws?: boolean; pen?: boolean }[];
+      cards: {
+        team: string;
+        year: number;
+        franchise: string;
+        ws?: boolean;
+        pen?: boolean;
+      }[];
     };
     const champs = new Map<number, string>();
     for (const c of real.cards) if (c.ws) champs.set(c.year, c.team);
@@ -1138,7 +1483,9 @@ describe("index pedigree (real data)", () => {
     expect([...champs.keys()].sort((a, b) => a - b)).toEqual(expectYears);
     expect(champs.get(2000)).toBe("NYY");
     // The Mariners have never won a pennant — data must agree, not flatter.
-    expect(real.cards.some((c) => c.franchise === "SEA" && (c.ws || c.pen))).toBe(false);
+    expect(
+      real.cards.some((c) => c.franchise === "SEA" && (c.ws || c.pen)),
+    ).toBe(false);
     expect(real.cards.filter((c) => c.pen).length).toBe(expectYears.length);
   });
 });
@@ -1147,10 +1494,17 @@ describe("mid-spin fetch failure", () => {
   const seaIndex: GameIndex = {
     yearMin: 1985,
     yearMax: 2024,
-    cards: [{ team: "SEA", year: 1995, franchise: "SEA", name: "Seattle Mariners" }],
+    cards: [
+      { team: "SEA", year: 1995, franchise: "SEA", name: "Seattle Mariners" },
+    ],
   };
   const seaCard = () =>
-    card([player({})], { year: 1995, team: "SEA", franchise: "SEA", name: "Seattle Mariners" });
+    card([player({})], {
+      year: 1995,
+      team: "SEA",
+      franchise: "SEA",
+      name: "Seattle Mariners",
+    });
 
   it("a dropped fetch sets loadFailed instead of sticking the spin", async () => {
     delete fetchCards.SEA_1995;
@@ -1191,7 +1545,10 @@ describe("Manager of the Year", () => {
   /** Fastest complete club: moneyball bank, full roster, hire the card's
    * manager — straight to the finale. */
   async function quickFinale(over: Partial<Card>): Promise<Game> {
-    const g = new Game(meta, index, owners, 42, { difficulty: "standard", bank: "moneyball" });
+    const g = new Game(meta, index, owners, 42, {
+      difficulty: "standard",
+      bank: "moneyball",
+    });
     g.card = card([], over);
     g.phase = "landed";
     g.choicesLeft = 1;
@@ -1209,9 +1566,16 @@ describe("Manager of the Year", () => {
     expect(plain.manager?.moty).toBe(false);
     expect(plain.finale!.parts.awardPoints).toBe(0); // filler roster, no hardware
     expect(moty.finale!.parts.awardPoints).toBe(2);
-    expect(moty.finale!.parts.managerWins).toBe(plain.finale!.parts.managerWins);
-    expect(moty.finale!.parts.expectedWins).toBe(plain.finale!.parts.expectedWins);
-    expect(moty.finale!.parts.total).toBeCloseTo(plain.finale!.parts.total + 2, 5);
+    expect(moty.finale!.parts.managerWins).toBe(
+      plain.finale!.parts.managerWins,
+    );
+    expect(moty.finale!.parts.expectedWins).toBe(
+      plain.finale!.parts.expectedWins,
+    );
+    expect(moty.finale!.parts.total).toBeCloseTo(
+      plain.finale!.parts.total + 2,
+      5,
+    );
   });
 
   it("the dream team's manager maximizes netWins × 0.1 + the MotY bonus", async () => {
@@ -1219,15 +1583,28 @@ describe("Manager of the Year", () => {
     // plain skipper has more net wins — the bonus flips the pick. Fresh
     // team codes: loadCard memoizes, so reused pairs would serve stale cards.
     const motyCard = card([], {
-      team: "TBM", year: 2015, franchise: "TBM", name: "Testburg Motys",
-      managerMoty: true, wins: 103, losses: 58,
+      team: "TBM",
+      year: 2015,
+      franchise: "TBM",
+      name: "Testburg Motys",
+      managerMoty: true,
+      wins: 103,
+      losses: 58,
     });
     fetchCards.TBM_2015 = motyCard;
     fetchCards.PLN_2001 = card([], {
-      team: "PLN", year: 2001, franchise: "PLN", name: "Plainville Nine",
-      manager: "Lou Piniella", wins: 95, losses: 67,
+      team: "PLN",
+      year: 2001,
+      franchise: "PLN",
+      name: "Plainville Nine",
+      manager: "Lou Piniella",
+      wins: 95,
+      losses: 67,
     });
-    const g = new Game(meta, index, owners, 42, { difficulty: "standard", bank: "moneyball" });
+    const g = new Game(meta, index, owners, 42, {
+      difficulty: "standard",
+      bank: "moneyball",
+    });
     g.card = motyCard;
     g.phase = "landed";
     g.choicesLeft = 1;
@@ -1240,7 +1617,11 @@ describe("Manager of the Year", () => {
     g.hireManager();
     await vi.waitFor(() => expect(g.phase).toBe("finale"));
     expect(g.finale!.bestManager).toMatchObject({
-      name: "Joe Maddon", team: "TBM", year: 2015, netWins: 45, moty: true,
+      name: "Joe Maddon",
+      team: "TBM",
+      year: 2015,
+      netWins: 45,
+      moty: true,
     });
     expect(g.finale!.managerHit).toBe(true); // hired him → a scouting hit
   });

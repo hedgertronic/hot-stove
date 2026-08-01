@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BADGE_BY_KEY, type BadgeDef } from "../lib/badges";
+  import { bragRow } from "../lib/badges";
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
   import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, warTier } from "../lib/format";
   import { GAMES, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
@@ -226,13 +226,15 @@
    * `?? []` and the BADGE_BY_KEY filter cover a finale restored from storage
    * that predates the badge field, and a key retired from the set after a save
    * was written — either way the row renders empty instead of throwing. */
-  const PILL_CAP = 4;
-  const earned = $derived((fin.badges ?? []).map((k) => BADGE_BY_KEY[k]).filter(Boolean) as BadgeDef[]);
   /* Four pills, not three: a season now averages ~1.5 badges and the two era
    * badges fire ~19% each, so three overflowed often enough to be noticed.
    * The cut takes from the tail of `earnedBadges`' order (roster, then era);
-   * the share string keeps every one, because emoji cost nothing there. */
-  const brags = $derived(earned.slice(0, PILL_CAP));
+   * the share string keeps every one, because emoji cost nothing there.
+   *
+   * `?? []` on both arguments covers a finale restored from a save older than
+   * either field: an empty row, and no flags, rather than a throw. */
+  const PILL_CAP = 4;
+  const brags = $derived(bragRow(fin.badges ?? [], fin.newBadges ?? [], PILL_CAP));
 
   /** The shareable string. Facts in, string out — lib/share owns the format,
    * including the record, which it derives from the total so a shared record
@@ -370,12 +372,12 @@
 
 {#if bragsShown && brags.length > 0}
   <div class="brags">
-    {#each brags as b (b.key)}
+    {#each brags as b (b.def.key)}
       <!-- The pill itself is BadgePill's, shared with the home trophy case, so
            a badge looks the same the moment it is earned as it does in the
            case. `animate` asks for the thunk-in entrance; the row supplies the
            left-to-right stagger below. -->
-      <BadgePill badge={b} animate />
+      <BadgePill badge={b.def} animate fresh={b.fresh} />
     {/each}
   </div>
 {/if}
