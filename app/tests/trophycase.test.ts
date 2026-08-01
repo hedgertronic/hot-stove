@@ -14,7 +14,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { render } from "svelte/server";
 import Home from "../src/components/Home.svelte";
-import { BADGES, COLLECTIBLE } from "../src/lib/badges";
+import TrophyModal from "../src/components/TrophyModal.svelte";
+import { BADGES, BADGE_BY_KEY, COLLECTIBLE } from "../src/lib/badges";
 import { badgeCase } from "../src/lib/settings";
 import type { GameConfig } from "../src/lib/engine.svelte";
 
@@ -40,6 +41,11 @@ function game(badges: unknown, bank = "classic"): unknown {
 
 function home(): string {
   return render(Home, { props: { config: CLASSIC, onplay: () => {} } }).body;
+}
+
+/** The case renders in its own sheet now, not on the home screen. */
+function modal(): string {
+  return render(TrophyModal, { props: { onclose: () => {} } }).body;
 }
 
 /** Keys → counts, for assertions that do not care about order. */
@@ -128,20 +134,43 @@ describe("badgeCase", () => {
   });
 });
 
-describe("the trophy case section on the home screen", () => {
-  it("renders collapsed, with the progress fraction in the summary", () => {
+describe("the trophy case sheet", () => {
+  it("heads the sheet with the progress fraction", () => {
     seed(game(["crystal", "twoway", "skull"]));
-    const body = home();
+    const body = modal();
     expect(body).toContain("TROPHY CASE");
     expect(body).toContain(`2 OF ${COLLECTIBLE.length}`);
-    expect(body).toContain("<details");
-    // Closed by default: the home screen is a menu, not a gallery.
-    expect(body).not.toMatch(/<details[^>]*\sopen/);
+  });
+
+  it("keeps the case off the home screen — it opens from the trophy button", () => {
+    seed(game(["crystal"]));
+    const body = home();
+    expect(body).not.toContain("TROPHY CASE");
+    expect(body).not.toContain("CRYSTAL BALL");
+    // The button is the only way in, on the home screen and mid-game alike.
+    expect(body).toContain('aria-label="Trophy case"');
+  });
+
+  it("reveals no trigger text until a badge is opened", () => {
+    // `how` strings are the reward for tapping an EARNED pill. A locked slot
+    // has no button at all, so a silhouette can never spend its own surprise.
+    seed(game(["crystal"]));
+    const body = modal();
+    expect(body).not.toContain(BADGE_BY_KEY.crystal.how);
+    expect(body).not.toContain(BADGE_BY_KEY.cooperstown.how);
+  });
+
+  it("makes earned pills buttons and locked ones inert", () => {
+    seed(game(["crystal"]));
+    const body = modal();
+    const buttons = (body.match(/aria-expanded=/g) ?? []).length;
+    // Exactly one earned collectible, so exactly one openable pill.
+    expect(buttons).toBe(1);
   });
 
   it("names an earned badge and silhouettes the rest of the set", () => {
     seed(game(["crystal", "twoway"]));
-    const body = home();
+    const body = modal();
     expect(body).toContain("CRYSTAL BALL");
     expect(body).toContain("THE TWO-WAY GUY");
     // A locked slot is a shape and a tier, never the identity — the finale
@@ -162,12 +191,12 @@ describe("the trophy case section on the home screen", () => {
     seed();
     // 22, not 29: an empty slot is an invitation, and nobody is invited to
     // lose 100 games. The count is the whole ironic-exclusion rule.
-    expect(lockedSlots(home())).toBe(COLLECTIBLE.length);
+    expect(lockedSlots(modal())).toBe(COLLECTIBLE.length);
   });
 
   it("gives an earned anti-trophy a pill but never a locked slot", () => {
     seed(game(["skull"]));
-    const body = home();
+    const body = modal();
     expect(body).toContain("100-LOSS CLUB");
     expect(body).toContain(`0 OF ${COLLECTIBLE.length}`);
     // Earning one anti-trophy adds a pill without moving the locked board.
@@ -176,7 +205,7 @@ describe("the trophy case section on the home screen", () => {
 
   it("heads each rarity band with its tier word, so rarity is not color alone", () => {
     seed(game(["crown", "mariners", "crystal"]));
-    const body = home();
+    const body = modal();
     for (const tier of ["legend", "ultra", "rare", "uncommon", "common"]) {
       expect(body).toContain(`>${tier}<`);
     }
@@ -184,9 +213,9 @@ describe("the trophy case section on the home screen", () => {
 
   it("heads the ironic band only once an anti-trophy is earned", () => {
     seed(game(["crystal"]));
-    expect(home()).not.toContain(">ironic<");
+    expect(modal()).not.toContain(">ironic<");
     seed(game(["crystal", "skull"]));
-    expect(home()).toContain(">ironic<");
+    expect(modal()).toContain(">ironic<");
   });
 
   it("files an earned badge and a locked one in the same rarity band", () => {
@@ -194,7 +223,7 @@ describe("the trophy case section on the home screen", () => {
     // Both must fall between the RARE heading and the UNCOMMON one, earned
     // ahead of locked.
     seed(game(["crystal"]));
-    const body = home();
+    const body = modal();
     const rare = body.indexOf(">rare<");
     const uncommon = body.indexOf(">uncommon<");
     const crystal = body.indexOf("CRYSTAL BALL");
@@ -210,7 +239,7 @@ describe("the trophy case section on the home screen", () => {
 
   it("marks a repeat with a count and leaves a single earn unmarked", () => {
     seed(game(["crystal"]), game(["crystal"]), game(["twoway"]));
-    const body = home();
+    const body = modal();
     expect(body).toContain("×2");
     // Boundary-anchored: a legitimate ×12 must not read as an unmarked ×1.
     expect(body).not.toMatch(/×1(?!\d)/);
@@ -218,7 +247,7 @@ describe("the trophy case section on the home screen", () => {
 
   it("says so plainly when nothing is earned yet", () => {
     seed();
-    const body = home();
+    const body = modal();
     expect(body).toContain(`TROPHY CASE · 0 OF ${COLLECTIBLE.length}`);
     expect(body).toContain("No badges yet");
   });

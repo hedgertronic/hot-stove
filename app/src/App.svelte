@@ -2,6 +2,7 @@
   import BankBox from "./components/BankBox.svelte";
   import Finale from "./components/Finale.svelte";
   import HelpModal from "./components/HelpModal.svelte";
+  import TrophyModal from "./components/TrophyModal.svelte";
   import Home from "./components/Home.svelte";
   import Logo from "./components/Logo.svelte";
   import PlayerList from "./components/PlayerList.svelte";
@@ -33,6 +34,7 @@
   let quitArmed = $state(false);
   let quitTimer: ReturnType<typeof setTimeout> | undefined;
   let helpOpen = $state(false);
+  let trophyOpen = $state(false);
 
   // Dev-only UI lab (localhost:5173/?lab): hardcoded edge-case galleries for
   // every component, so extreme states are reviewable without replaying games.
@@ -156,6 +158,7 @@
 {:else}
   <header class="hud disp">
     <button class="help" onclick={(e) => { e.stopPropagation(); helpOpen = true; }} aria-label="How to play">?</button>
+    <button class="help trophy" onclick={(e) => { e.stopPropagation(); trophyOpen = true; }} aria-label="Trophy case">🏆</button>
     <Logo />
     {#if modeChip}<span class="modechip" title={modeTitle} aria-label={modeTitle}>{modeChip}</span>{/if}
     <button class="quit" class:armed={quitArmed} onclick={tapQuit}>
@@ -214,6 +217,10 @@
   {#if helpOpen}
     <HelpModal onclose={() => (helpOpen = false)} />
   {/if}
+
+  {#if trophyOpen}
+    <TrophyModal onclose={() => (trophyOpen = false)} />
+  {/if}
 {/if}
 
 <style>
@@ -252,6 +259,15 @@
   }
   .help {
     left: 0;
+  }
+  /* The case sits inboard of the ?, sharing its geometry — one control group
+     in the corner rather than two unrelated glyphs. stopPropagation matters
+     here for the same reason it does on the ?: the HUD sits above click
+     handling tied to the landed card, and a bare button would commit a pick
+     on the way to opening a sheet. */
+  .trophy {
+    left: 32px;
+    font-size: 12px;
   }
   .quit {
     right: 0;
