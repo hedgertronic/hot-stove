@@ -20,11 +20,23 @@ from pathlib import Path
 from pipeline import fetch
 from pipeline.scoring import REPLACEMENT_WINS
 from pipeline.transform import (
+    BANKROLL_GAMMA, BANKROLL_MIN_M, BANKROLL_PIVOT_M, BANKROLL_SCALE,
     DISPLAY_AVG_M, MIN_GS, MIN_PA, MIN_RELIEF_IP, SLOTS,
     YEAR_MAX, YEAR_MIN, GameData, _i,
 )
 
+
+def bankroll_display(unscaled_m: float) -> float:
+    """Widen around the pivot, scale, clamp — see the DESIGN KNOBS in transform."""
+    widened = BANKROLL_PIVOT_M * (unscaled_m / BANKROLL_PIVOT_M) ** BANKROLL_GAMMA
+    return round(max(widened * BANKROLL_SCALE, BANKROLL_MIN_M), 1)
+
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+
+# Global price floor, display $M — no player ever costs less than $1M. Keeps
+# every price in one legible unit ("everyone costs millions") and makes the
+# 🏠 Homegrown flat price the same number as the cheapest possible signing.
+MIN_PRICE_M = 1.0
 
 # DESIGN KNOB — optional "asking price": a player costs
 # max(contract, ASKING_PER_WAR x season WAR) in display $M. Set to 0: bargain
@@ -36,7 +48,7 @@ ASKING_PER_WAR = 0.0
 
 LAHMAN_TABLES = ["People", "Teams", "Appearances", "Batting", "Pitching",
                  "Salaries", "AwardsPlayers", "AwardsSharePlayers", "Managers",
-                 "AllstarFull"]
+                 "AllstarFull", "AwardsManagers"]
 
 
 def load_raw() -> dict:
@@ -112,7 +124,7 @@ def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]
             "pos": display_pos(gd, lahman_id, year, e, factor),
             "war": war,
             "warRaw": round(war_raw, 1),
-            "cost": round(max(contract, ASKING_PER_WAR * war), 1),
+            "cost": round(max(contract, ASKING_PER_WAR * war, MIN_PRICE_M), 1),
             "contract": contract,
             "salary": salary,
             "est": estimated,
@@ -169,6 +181,10 @@ def main() -> None:
         att = _i(row["attendance"])
         ranks = att_by_year[year]
         pct = ranks.index(att) / max(len(ranks) - 1, 1)
+        mgr_pid = (managers.get((year, gd.lahman_team[(year, br)])) or (None,))[0]
+        # BBWAA Manager of the Year that season — lean flag, present only when
+        # true (like the index's ws/pen), read by the Skipper scoring bonus.
+        mgr_moty = (mgr_pid, year) in gd.manager_moty
         card = {
             "year": year,
             "team": br,
@@ -180,12 +196,11 @@ def main() -> None:
             "ws": gd.ws_winner.get(year) == br,
             "pen": (gd.ws_winner.get(year) != br
                     and br in gd.pennant.get(year, set())),
-            "manager": names.get(
-                (managers.get((year, gd.lahman_team[(year, br)])) or (None,))[0]),
+            "manager": names.get(mgr_pid),
             "attendance": att,
             "attendancePct": round(pct, 2),
             "stadiumMult": round(0.85 + 0.30 * pct, 2),
-            "budget": gd.to_display_m(bankroll_raw, year),
+            "budget": bankroll_display(gd.to_display_m(bankroll_raw, year)),
             "budgetRaw": bankroll_raw,
             "contracts": [
                 {"name": names.get(p["id"], p["id"]),
@@ -195,18 +210,26 @@ def main() -> None:
             "prorated": factor,
             "players": build_players(gd, br, year, factor),
         }
+        if mgr_moty:
+            card["managerMoty"] = True
         min_budget = card["budget"] if min_budget is None else min(min_budget, card["budget"])
         for p in card["players"]:
             player_seasons[p["id"]].append([br, year])
-        specials[row["franchID"]].append({
+        special = {
             "team": br, "year": year, "name": row["name"], "park": row["park"],
             "mgr": card["manager"], "w": card["wins"], "l": card["losses"],
             "att": card["attendancePct"], "mult": card["stadiumMult"],
             "budget": card["budget"],
-        })
+        }
+        if mgr_moty:
+            special["moty"] = True
+        specials[row["franchID"]].append(special)
         (cards_dir / f"{br}_{year}.json").write_text(json.dumps(card))
+        # lg/div are the season's actual league + division (Lahman Teams), so
+        # the Relocate picker can group by era-correct divisions (pre-1994
+        # years have no Central; Houston is NL through 2012, etc.).
         entry = {"team": br, "year": year, "franchise": row["franchID"],
-                 "name": row["name"]}
+                 "name": row["name"], "lg": row["lgID"], "div": row["divID"]}
         # Pedigree flags ride the index (only when true, to keep it lean) so
         # the Season Ticket year grid can decorate without loading cards.
         if card["ws"]:

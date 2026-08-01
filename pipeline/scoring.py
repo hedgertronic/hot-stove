@@ -12,11 +12,18 @@ GAMES = 162
 
 # MVP2/CY2 (MVP3/CY3) are award-vote 2nd (3rd) place finishers on their
 # league's ballot; AS is an All-Star selection.
-AWARD_POINTS = {"MVP": 5, "CY": 4, "MVP2": 2, "CY2": 2, "MVP3": 1, "CY3": 1,
+AWARD_POINTS = {"MVP": 3, "CY": 3, "MVP2": 2, "CY2": 2, "MVP3": 1, "CY3": 1,
                 "ROY": 2, "AS": 1, "GG": 1, "SS": 1}
-RING_POINTS = 2      # per player whose team won the World Series that season
+RING_POINTS = 3      # per player whose team won the World Series that season
 PENNANT_POINTS = 1   # per player whose team won the pennant but lost the Series
-MANAGER_PER_NET_WIN = 0.1  # hired manager: (team W - team L) x this, negative allowed
+# Hired manager: (team W - team L) x this, negative allowed. 0.2 makes the
+# hire a real decision (policy-aware bot sweep: 0.1 -> 116+ on-field 0.1%,
+# 0.2 -> 2.8% "rare but chaseable", 162+ 0.2% -> 0.75%; bots chase better
+# skippers and spend Prime on them at 0.2).
+MANAGER_PER_NET_WIN = 0.2
+# Hired manager won the BBWAA Manager of the Year that season. Hardware, not
+# wins: it joins the awardPoints (trophy case) sum, never the managerWins term.
+MANAGER_MOTY_POINTS = 2
 SCOUT_HIT_POINTS = 1.0  # per drafted player who's in the WAR-optimal roster
 
 LUXURY_TAX_PER_M = 1.0
@@ -73,6 +80,7 @@ def score(
     pennants: int = 0,
     manager_record: tuple[int, int] | None = None,
     scout_hits: int = 0,
+    manager_moty: bool = False,
 ) -> dict[str, float]:
     # Manager net wins fold into expected wins UNrounded; managerWins is an
     # informational part (already inside expectedWins, never added to total).
@@ -85,7 +93,9 @@ def score(
         "expectedWins": round(wins, 1),
         "managerWins": round(mw, 1),
         "budgetBonus": round(budget_bonus(spend_m, budget_m), 1),
-        "awardPoints": award_points(award_lists),
+        # The skipper's MotY is hardware like any player award — trophy case.
+        "awardPoints": award_points(award_lists)
+        + (MANAGER_MOTY_POINTS if manager_moty else 0),
         "ringPoints": rings * RING_POINTS + pennants * PENNANT_POINTS,
         "scoutBonus": round(scout_hits * SCOUT_HIT_POINTS, 1),
         "luxuryTax": round(luxury_tax(spend_m, budget_m), 1),

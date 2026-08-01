@@ -17,17 +17,26 @@ from collections import defaultdict
 from statistics import mean
 from typing import Any
 
-YEAR_MIN, YEAR_MAX = 1985, 2024
+YEAR_MIN, YEAR_MAX = 1985, 2025
 DISPLAY_AVG_M = 160.0  # league-average slot-8 payroll displays as $160M "2026 dollars"
 
 SLOTS = ["C", "IF", "IF", "OF", "FLEX", "SP", "SP", "RP"]
 
-# DESIGN KNOB — the owner's bankroll is the sum of the team's TOP_N_CONTRACTS
-# biggest contracts. Bot sweep with real salaries (playtest): N=4 -> avg budget
-# $112M, cost-blind drafting busts 44% of the time while informed drafting
-# sacrifices only ~2 WAR — bargain-hunting is the skill, by design. N=3 is the
-# harsher candidate (65% busts); N>=6 makes the budget decorative.
+# DESIGN KNOBS — the owner's bankroll starts from the team's TOP_N_CONTRACTS
+# biggest contracts, then (in display $M) is widened around BANKROLL_PIVOT_M by
+# the BANKROLL_GAMMA power curve, scaled by BANKROLL_SCALE, and clamped to at
+# least BANKROLL_MIN_M (a fire-sale bank must still afford ~8 floor players).
+# Bot sweep with real salaries (playtest, owner banks sampled per game):
+# scale 1.0/γ1 -> avg bank $112M, cost-blind best-WAR drafting busts 46%;
+# scale 2/3 + γ1.25 -> busts ~78% while nearly every game can still field 8
+# under budget. Beating the payroll is meant to take powerups plus a little
+# luck. All of this applies to bankrolls ONLY — player prices stay real
+# normalized salaries.
 TOP_N_CONTRACTS = 4
+BANKROLL_SCALE = 2 / 3
+BANKROLL_GAMMA = 1.25   # >1 spreads rich/poor banks apart (real disparity ~3.5x p90/p10)
+BANKROLL_PIVOT_M = 110.0  # unscaled display $M held fixed by the widening (≈ league median)
+BANKROLL_MIN_M = 15.0   # post-scale floor, display $M
 IF_POS = {"1B", "2B", "3B", "SS"}
 OF_POS = {"LF", "CF", "RF"}
 
@@ -215,6 +224,20 @@ class GameData:
 
     # -- WAR + B-R salary (aggregated across stints; full-season totals) ---
 
+    # B-R's salary column uses exactly $100,000 as a placeholder for
+    # minor-league/split contracts. The real league minimum passed $100K after
+    # 1991, so from 1992 on an exact-$100K value is provably not a salary —
+    # treat it as unknown and the player falls to the estimated league floor.
+    # In 1990-91 the minimum WAS $100K, so those values are real.
+    BR_SALARY_SENTINEL = 100_000
+    BR_SENTINEL_FROM = 1992
+
+    def _br_salary(self, r: dict[str, Any], year: int) -> int | None:
+        s = _money(r["salary"])
+        if s == self.BR_SALARY_SENTINEL and year >= self.BR_SENTINEL_FROM:
+            return None
+        return s
+
     def _build_war(self) -> None:
         agg: dict[tuple[str, int], dict[str, Any]] = {}
 
@@ -236,7 +259,7 @@ class GameData:
             e["war_bat"] += _f(r["WAR"])
             e["pa"] += _i(r["PA"])
             e["teams"].add(r["team_ID"])
-            if (s := _money(r["salary"])) is not None:
+            if (s := self._br_salary(r, year)) is not None:
                 e["salary_br"] = max(e["salary_br"] or 0, s)
 
         for r in self.raw["war_pitch"]:
@@ -249,7 +272,7 @@ class GameData:
             e["ip_start"] += _f(r["IPouts_start"]) / 3
             e["ip_relief"] += _f(r["IPouts_relief"]) / 3
             e["teams"].add(r["team_ID"])
-            if (s := _money(r["salary"])) is not None:
+            if (s := self._br_salary(r, year)) is not None:
                 e["salary_br"] = max(e["salary_br"] or 0, s)
 
         self.war = agg
@@ -303,6 +326,17 @@ class GameData:
             if key not in seen_as:
                 seen_as.add(key)
                 self.awards[key].append("AS")
+
+        # BBWAA Manager of the Year (one per league per year, from 1983 — the
+        # 1985+ era is fully covered). The TSN variant is ignored: two parallel
+        # "MotY" ballots would double-award the same skill. Keyed by
+        # (managerID, year): the award is season-level, so it rides whichever
+        # card(s) that manager is the primary skipper of that year.
+        self.manager_moty: set[tuple[str, int]] = {
+            (r["playerID"], _i(r["yearID"]))
+            for r in self.raw["AwardsManagers"]
+            if r["awardID"] == "BBWAA Manager of the Year"
+        }
 
         # MVP/CY voting places: 2nd (3rd) place by pointsWon — all ties at
         # that distinct point value — per award-year-league ballot gets

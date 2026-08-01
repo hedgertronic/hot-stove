@@ -21,8 +21,8 @@ from pipeline import scoring
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 SLOT_ORDER = ["C", "IF", "IF", "OF", "FLEX", "SP", "SP", "RP"]
-AVG_BUDGET = 112.1  # league-average top-4-contract bankroll, display $M
-MONEYBALL_BUDGET = 82.9  # 2002 OAK top-4 bankroll
+AVG_BUDGET = 76.4  # league-average bankroll after widening + scaling, display $M
+MONEYBALL_BUDGET = 51.5  # 2002 OAK top-4 bankroll (widened + scaled)
 
 
 def eligible(slot: str, p: dict) -> bool:

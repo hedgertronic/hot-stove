@@ -37,6 +37,7 @@ def main() -> None:
     show("LAA", 2018)   # Ohtani two-way season
     show("LAD", 2020)   # short-season proration
     show("ANA", 2000)   # franchise code churn (ANA/LAA)
+    show("LAD", 2025)   # newest season: WS champ, Ohtani MVP, salary via B-R
 
     # A plausible drafted team: 2016 Cubs owner + best affordable picks.
     c = card("CHC", 2016)
