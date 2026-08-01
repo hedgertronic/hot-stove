@@ -59,8 +59,8 @@ describe("badgeCase", () => {
   it("pins the collectible denominator to the badge table", () => {
     // The summary line prints this denominator; it lives in badges.ts, and a
     // table edit must move the fraction here rather than silently anywhere.
-    expect(COLLECTIBLE.length).toBe(26);
-    expect(BADGES.length).toBe(33);
+    expect(COLLECTIBLE.length).toBe(37);
+    expect(BADGES.length).toBe(44);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 
@@ -244,7 +244,7 @@ describe("the trophy case sheet", () => {
     seed(game(["crown", "mariners", "crystal"]));
     const body = modal();
     for (const tier of ["legend", "ultra", "rare", "uncommon", "common"]) {
-      expect(body).toContain(`>${tier}<`);
+      expect(body).toContain(`>${tier.toUpperCase()}<`);
     }
   });
 
@@ -253,7 +253,7 @@ describe("the trophy case sheet", () => {
     // but until one is earned it says nothing about what is in it.
     seed(game(["crystal"]));
     const before = modal();
-    expect(before).toContain(">ironic<");
+    expect(before).toContain(">IRONIC<");
     // The glyph shows; the name does not. A 💀 in the brick band reads as a
     // hazard sign, and it stays out of the progress fraction either way.
     expect(before).toContain(BADGE_BY_KEY.skull.emoji);
@@ -268,8 +268,8 @@ describe("the trophy case sheet", () => {
     // ahead of locked.
     seed(game(["crystal"]));
     const body = modal();
-    const rare = body.indexOf(">rare<");
-    const uncommon = body.indexOf(">uncommon<");
+    const rare = body.indexOf(">RARE<");
+    const uncommon = body.indexOf(">UNCOMMON<");
     const crystal = body.indexOf("CRYSTAL BALL");
     expect(rare).toBeGreaterThan(-1);
     expect(crystal).toBeGreaterThan(rare);

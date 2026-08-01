@@ -80,7 +80,7 @@
 
   {#each sections as s (s.rarity)}
     <div class="band">
-      <div class="bandcap">{s.rarity}</div>
+      <div class="psep">{s.rarity.toUpperCase()}</div>
       <!-- No tabindex: the band wraps rather than scrolls, so every pill is on
            screen and reachable by tabbing the buttons themselves. The
            scrollable-region pattern WCAG 2.1.1 asks for only applies to a
@@ -148,19 +148,12 @@
     color: var(--gray-ink);
     padding: 6px 0 2px;
   }
+  /* Bands are headed by the app's own dashed separator (.psep, global in
+     app.css — the same rule FRONT OFFICE and BALL KNOWLEDGE use), so the case
+     introduces no header style of its own. Its own padding sets the rhythm
+     between bands, which is why there is no margin rule here. */
   .band + .band {
-    margin-top: 9px;
-  }
-  /* One rarity band: the tier word as an eyebrow over a single row of pills.
-     It borrows the record book's caption voice rather than adding a third
-     header style to a surface that already has .psep and .bcap. */
-  .bandcap {
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: 3px;
+    margin-top: 6px;
   }
   /* The band wraps; the sheet is the only thing that scrolls, and only in y.
      A horizontal scroller hid pills behind an edge with no affordance for them
