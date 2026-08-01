@@ -105,9 +105,9 @@
         {/each}
       </div>
       {#if shown && shown.rarity === s.rarity}
-        <!-- The reveal sits under the band that holds the open pill, outside
-             the scroller: it reads at the tap, wraps to the full modal width
-             instead of a pill's column, and never changes the row's height. -->
+        <!-- The reveal sits under the band holding the open pill: it reads at
+             the tap, wraps to the full sheet width rather than a pill's column,
+             and leaves the row above it exactly where the thumb left it. -->
         <p class="how" id="badge-how">{shown.how}</p>
       {/if}
     </div>
@@ -155,14 +155,16 @@
   .band + .band {
     margin-top: 6px;
   }
-  /* The band wraps; the sheet is the only thing that scrolls, and only in y.
-     A horizontal scroller hid pills behind an edge with no affordance for them
-     — on macOS the scrollbar is an invisible overlay until you already know to
-     drag — so the whole case is one vertical column now. Nothing is off-screen
-     that a thumb cannot reach by the gesture the sheet already uses. */
+  /* The band wraps and centres; the sheet is the only thing that scrolls, and
+     only in y. Nothing is ever off-screen, so there is no affordance to teach —
+     a horizontal scroller hid pills behind an edge that, on macOS, has an
+     invisible overlay scrollbar until you already know to drag. Centred because
+     the bands are ragged by nature: a rarity holds anywhere from one pill to a
+     dozen, and a ragged right edge reads as a list that ran out. */
   .bandrow {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     gap: 6px;
   }
   /* A bare wrapper: the pill keeps its own shape, the button contributes none. */

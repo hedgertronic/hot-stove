@@ -755,7 +755,7 @@ export const BADGES: BadgeDef[] = [
   {
     key: "threebrothers",
     emoji: "👨‍👨‍👦",
-    label: "ALL THREE BROTHERS",
+    label: "FAMILY REUNION",
     rarity: "ultra",
     axis: "roster",
     secret: true,
