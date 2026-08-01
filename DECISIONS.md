@@ -944,15 +944,102 @@ started. The standing recommendation is warm kraft (`#17150f` / `#221f18` /
 `#8c71cb` for contrast, and replacing the `grayscale() + opacity` ghost idiom
 with a `--sunk` token. Fold item 1 into this.
 
-**3. Unshipped badge proposals.** `badge-ideas-round19.md` holds 13 measured
-proposals not built: OLD HEADS (3 players 35+, 0.95%), YOUNG GUNS (3 players
-23−, 1.73%), ALL-DECADE TEAM (5 of 8 from one decade, 9.43%), RAIDED THE
-DIVISION (5 of 8 from one division, 3.83%), plus mode-gated and powerup badges.
-Two need `SAVE_VERSION` 6 for `Signed.age`; the rest need one plumbing pass over
-`finishGame`. Divisions resolve era-correctly — a modern alignment would assert
-1992 Houston was in a division that did not exist until 1994.
+**3. Unshipped badge proposals.** All 13 of `badge-ideas-round19.md`'s measured
+proposals shipped in round 19 — OLD HEADS, YOUNG GUNS, ALL-DECADE TEAM, RAIDED
+THE DIVISION and the rest. What remains unbuilt is the three that had no
+measured arm: 🧭 KNOWS BALL (needs a mode marker on `Home.svelte`), 🪙 THE
+OAKLAND WAY, and 🫡 DESERVED BETTER. Divisions resolve era-correctly — a modern
+alignment would assert 1992 Houston was in a division that did not exist until
+1994.
 
 **4. Still open from round 18.** The front-office right-padding bug is
 unreproduced and shipped nothing. The mobile sticky-rail fix needs a real
 device. The share-sheet fix needs a real tap. `PAYROLL` as the home-screen
 header was questioned and never resolved.
+
+## Round 20 — the first-time flag, one history module, an honest width budget (2026-08-01)
+
+### A badge you have never earned goes to the front, not the back
+
+The finale flags a first-time badge with a `NEW` chip. The first instinct was to
+hold it back a beat in the reveal stagger so it landed last, after the others —
+and that would have been a silent bug. The pill row caps at four and cuts from
+the tail of `earnedBadges`' order, so a first-ever badge sitting fifth is
+dropped entirely. Sorting it to the FRONT is what makes the flag reach the
+player; the position is the mechanism, not the decoration.
+
+The chip is a filled inset tag rather than a glow or a ring, because the pill
+already spends its border AND its fill on rarity and both are load-bearing — a
+gold ring around a new RARE would read as an ULTRA. It carries real text, so a
+screen reader announces it in the pill's own reading order with no extra aria.
+It inverts to gold on `legend` alone, which is the one ink-filled pill.
+
+**The first game flags everything it earns.** On an empty log every badge
+genuinely is a first. That is a decision, not an oversight.
+
+### The diff has to run before the write, and that is the whole feature
+
+"Have I earned this before" is a question about the history log as it stood
+BEFORE the finished game joined it. `finishGame` reads the log and then appends
+to it; swap those two lines and every badge reads as already-owned, forever, on
+every game — with no error and no visible symptom beyond a flag that never
+appears. It is resolved in the engine for that reason and travels on the finale
+as `newBadges`, optional, so a restored pre-field save shows no flags rather
+than flagging all of them.
+
+The regression test finishes two real games and asserts the second flags
+nothing. It was verified to fail by actually moving the read after the write —
+a test for a sequencing bug that has never been run against the bug is a guess.
+
+### lib/history.ts owns the log
+
+The engine and settings each had a copy of the parse and disagreed about the
+key's spelling: a `HISTORY_KEY` constant on one side, the literal
+`"hotstove.history"` on the other. The engine could not simply import
+`badgeCase()` either, because settings imports the engine's config types and
+that closes a cycle. The cycle was the design signal — history is a third thing
+both depend on, not something either owns. It now holds the key, the row shape,
+and the tolerance for rows written by older builds.
+
+### The share line's width budget was measuring a game that no longer exists
+
+`MAXIMAL` in `share.test.ts` was a hand-picked 13-key list written when the set
+held 13 stackable badges. The set has since passed 40, and the list never
+moved. Two consequences, both silent: `SHIPPED_MAX_LEN` asserted a 34-code-point
+ceiling for a format that can now reach **81**, and the "keeps every seedless
+line inside the shipped budget" test skipped any shape carrying more badges than
+the stale list held — which by then was most of them.
+
+It now derives from `BADGES` plus a declared exclusion map: one representative
+per `if / else if` chain in `earnedBadges`, plus every badge that stacks. The
+groups are structural facts about control flow, not judgments about baseball.
+Semantic exclusions that are not chains (🏅 can never share a club with 🕸️) are
+deliberately left out, because counting both only overstates the ceiling and
+this bound must never understate it. **Unclassified is stackable**, so a badge
+added tomorrow widens the ceiling and tightens the test on its own.
+
+**Open question for the next session.** 32 badges / 81 code points is an upper
+bound on the TRIGGERS, not a reachable season — eight roster seats cannot hold
+three Molinas, a 1994 striker, a 1995 replacement player, a 2020 season and a
+2017 Astro at once. But nothing currently bounds line five at a length that
+actually fits a Wordle-style block, and the share string is deliberately
+uncapped where the pill row caps at four. Either cap the share list or accept
+the tail risk on purpose. Not decided here because it changes shipped output,
+and the ask was to fix the test, not the format.
+
+### One rarity ladder
+
+The order was written out three times — the union type, `badgeCase()`'s tile
+sort, and the trophy case's band order. One copy was already wrong: the sort
+array omitted `"legend"`, so `indexOf` returned −1 and the two rarest badges in
+the game sorted above their own heading on the home case. `RARITY_ORDER` is now
+the value, `Rarity` derives from it, and both consumers read it.
+
+### Deferred from this round
+
+**5. The share line's realistic ceiling** — see the open question above.
+
+**6. `PILL_CAP` is a view constant with a policy attached.** `bragRow` takes the
+cap as an argument, which is right, but four was measured against a season
+averaging ~1.5 badges and the set has grown a lot since. Worth re-measuring
+against the bot study before assuming four is still the number.
