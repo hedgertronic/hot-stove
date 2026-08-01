@@ -932,6 +932,7 @@ export class Game {
       scoutHits,
       roster: players.map((p) => ({
         id: p.id,
+        name: p.name,
         war: p.war,
         awards: p.awards,
         year: p.year,
@@ -940,6 +941,7 @@ export class Game {
       })),
       managerTeam: this.manager?.team ?? null,
       managerYear: this.manager?.year ?? null,
+      managerName: this.manager?.name ?? null,
       rings: this.pedigree.rings,
       awardPoints: parts.awardPoints,
       managerMoty: this.manager?.moty === true,

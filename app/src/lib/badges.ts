@@ -44,11 +44,13 @@ import { GOAL_POINTS } from "./scoring";
  * gap between them and ultra is small, the statement is not. It is styled
  * inverted from every other tier (ink fill, gold text) so it reads as beyond
  * the ladder rather than one more rung on it. */
-export type Rarity = "legend" | "ultra" | "rare" | "uncommon" | "common" | "irony";
+export type Rarity =
+  "legend" | "ultra" | "rare" | "uncommon" | "common" | "ironic";
 
 /** Which slot a badge competes for. Within an exclusive axis exactly one badge
  * fires; `roster`, `era`, and `goal` stack freely. */
-export type BadgeAxis = "onfield" | "goal" | "payroll" | "scout" | "roster" | "era";
+export type BadgeAxis =
+  "onfield" | "goal" | "payroll" | "scout" | "roster" | "era";
 
 export interface BadgeDef {
   key: string;
@@ -61,6 +63,10 @@ export interface BadgeDef {
    * trophy-case slot — a visible empty slot is an invitation, and inviting
    * someone to lose 100 games inverts the incentive. */
   ironic?: boolean;
+  /** Plain-language trigger, shown when a player opens an earned badge in the
+   * trophy case. Written as the condition they met, not as a rule they should
+   * chase — locked badges never reveal it. */
+  how: string;
   /** Measured rate in the reference population (Clean House + all powerups),
    * or null where the rung postdates the last study. The number lives beside
    * the definition so it cannot go stale in a comment somewhere else. */
@@ -71,6 +77,8 @@ export interface BadgeDef {
 export interface BadgeRosterEntry {
   /** Stable player id ("ohtansh01") — the deferred-money badge names people. */
   id: string;
+  /** Display name, matched against the hired skipper's for 📋. */
+  name: string;
   war: number;
   awards: string[];
   year: number;
@@ -100,6 +108,8 @@ export interface BadgeFacts {
    * player is, so a scandal club's skipper counts. */
   managerTeam: string | null;
   managerYear: number | null;
+  /** The hired skipper's name, or null with the dugout empty. */
+  managerName: string | null;
   /** `Game.pedigree.rings`. */
   rings: number;
   /** `ScoreParts.awardPoints` — includes the manager's MotY points. */
@@ -126,7 +136,9 @@ const ROSTER_SLOTS = 8;
 const SCANDAL_TEAM = "HOU";
 const SCANDAL_YEARS = [2017, 2018];
 function isScandal(p: { team: string | null; year: number | null }): boolean {
-  return p.team === SCANDAL_TEAM && p.year !== null && SCANDAL_YEARS.includes(p.year);
+  return (
+    p.team === SCANDAL_TEAM && p.year !== null && SCANDAL_YEARS.includes(p.year)
+  );
 }
 
 /** The two contracts baseball tells stories about paying off for decades:
@@ -159,54 +171,299 @@ export const MATCHED: Record<number, string> = {
 };
 export const CROWN_WINS = 117;
 export const HUNDRED_WINS = 100;
+/** One win worse than the 2024 White Sox at 41–121, the worst full season in
+ * the dataset — the floor's answer to CROWN_WINS. Pinned in badges-supply. */
+export const WORST_WINS = 40;
 
 export const BADGES: BadgeDef[] = [
   // ---- on-field: exactly one fires, resolved crown → named rung → 💯 ----
-  { key: "crown", emoji: "👑", label: "BEST RECORD OF ALL TIME", rarity: "legend", axis: "onfield", freq: 1.33 },
-  { key: "mariners", emoji: "🔱", label: "MATCHED THE 2001 MARINERS", rarity: "ultra", axis: "onfield", freq: 0.63 },
-  { key: "yankees", emoji: "🗽", label: "MATCHED THE 1998 YANKEES", rarity: "ultra", axis: "onfield", freq: 1.4 },
+  {
+    key: "crown",
+    emoji: "👑",
+    label: "BEST RECORD OF ALL TIME",
+    rarity: "legend",
+    axis: "onfield",
+    freq: 1.33,
+    how: "117 wins or more — better than any club has ever finished.",
+  },
+  {
+    key: "mariners",
+    emoji: "🔱",
+    label: "MATCHED THE 2001 MARINERS",
+    rarity: "ultra",
+    axis: "onfield",
+    freq: 0.63,
+    how: "Exactly 116 wins, tying the record the 2001 Mariners still hold.",
+  },
+  {
+    key: "yankees",
+    emoji: "🗽",
+    label: "MATCHED THE 1998 YANKEES",
+    rarity: "ultra",
+    axis: "onfield",
+    freq: 1.4,
+    how: "Exactly 114 wins, matching the 1998 Yankees.",
+  },
   /* The champion rungs climb in rarity with the win total they name, which is
    * also what the measurement says: 4.29 / 4.92 / 4.99 / 5.95 percent, rarest
    * first. The split falls on the 5% band line between the Astros and the Red
    * Sox, so the tier a player sees and the frequency they actually hit agree. */
-  { key: "mets", emoji: "🍎", label: "MATCHED THE 1986 METS", rarity: "rare", axis: "onfield", freq: 4.29 },
-  { key: "astros", emoji: "🚀", label: "MATCHED THE 2022 ASTROS", rarity: "rare", axis: "onfield", freq: 4.92 },
-  { key: "cubs", emoji: "🐻", label: "MATCHED THE 2016 CUBS", rarity: "uncommon", axis: "onfield", freq: 5.95 },
-  { key: "redsox", emoji: "🧦", label: "MATCHED THE 2004 RED SOX", rarity: "uncommon", axis: "onfield", freq: 4.99 },
-  { key: "hundred", emoji: "💯", label: "100-WIN CLUB", rarity: "common", axis: "onfield", freq: 47.37 },
-  /* The floor, and the exact mirror of 👑 at the ceiling. It supersedes 💀 the
-   * same way the crown supersedes a named rung: an 0–162 season is not merely
-   * a 100-loss season, and the pill should say the worse thing. */
-  { key: "worst", emoji: "📉", label: "WORST RECORD OF ALL TIME", rarity: "irony", axis: "onfield", ironic: true, freq: 0 },
-  { key: "skull", emoji: "💀", label: "100-LOSS CLUB", rarity: "irony", axis: "onfield", ironic: true, freq: 0 },
+  {
+    key: "mets",
+    emoji: "🍎",
+    label: "MATCHED THE 1986 METS",
+    rarity: "rare",
+    axis: "onfield",
+    freq: 4.29,
+    how: "Exactly 108 wins, matching the 1986 Mets.",
+  },
+  {
+    key: "astros",
+    emoji: "🚀",
+    label: "MATCHED THE 2022 ASTROS",
+    rarity: "rare",
+    axis: "onfield",
+    freq: 4.92,
+    how: "Exactly 106 wins, matching the 2022 Astros.",
+  },
+  {
+    key: "cubs",
+    emoji: "🐻",
+    label: "MATCHED THE 2016 CUBS",
+    rarity: "uncommon",
+    axis: "onfield",
+    freq: 5.95,
+    how: "Exactly 103 wins, matching the 2016 Cubs.",
+  },
+  {
+    key: "redsox",
+    emoji: "🧦",
+    label: "MATCHED THE 2004 RED SOX",
+    rarity: "uncommon",
+    axis: "onfield",
+    freq: 4.99,
+    how: "Exactly 98 wins, matching the 2004 Red Sox.",
+  },
+  {
+    key: "hundred",
+    emoji: "💯",
+    label: "100-WIN CLUB",
+    rarity: "common",
+    axis: "onfield",
+    freq: 47.37,
+    how: "100 wins or more, on a total no champion has posted exactly.",
+  },
+  /* The bottom two rungs mirror the top two. 👑 fires above the best record
+   * anyone ever posted (116, so 117+); 📉 fires below the worst anyone ever
+   * posted (41, so 40 and under). 👔 is the true floor — an 0–162 season is
+   * not a baseball result at all — and it supersedes 📉 exactly as 👑
+   * supersedes a named rung. */
+  {
+    key: "dayjob",
+    emoji: "👔",
+    label: "DON'T QUIT YOUR DAY JOB",
+    rarity: "ironic",
+    axis: "onfield",
+    ironic: true,
+    freq: 0,
+    how: "An 0–162 season. Every game, lost.",
+  },
+  {
+    key: "worst",
+    emoji: "📉",
+    label: "WORST RECORD OF ALL TIME",
+    rarity: "ironic",
+    axis: "onfield",
+    ironic: true,
+    freq: 0,
+    how: "40 wins or fewer — worse than any club has ever finished.",
+  },
+  {
+    key: "skull",
+    emoji: "💀",
+    label: "100-LOSS CLUB",
+    rarity: "ironic",
+    axis: "onfield",
+    ironic: true,
+    freq: 0,
+    how: "100 losses or more.",
+  },
 
   // ---- the goal, its own axis ----
-  { key: "perfect", emoji: "🏆", label: "PERFECT SEASON", rarity: "legend", axis: "goal", freq: 1.01 },
+  {
+    key: "perfect",
+    emoji: "🏆",
+    label: "PERFECT SEASON",
+    rarity: "legend",
+    axis: "goal",
+    freq: 1.01,
+    how: "A full 162 points — the game's stated goal.",
+  },
 
   // ---- payroll: exactly one fires ----
-  { key: "farm", emoji: "💸", label: "MORTGAGED THE FARM", rarity: "irony", axis: "payroll", ironic: true, freq: 0.5 },
-  { key: "dime", emoji: "💵", label: "SPENT EVERY DIME", rarity: "rare", axis: "payroll", freq: 4.98 },
-  { key: "pinch", emoji: "🧮", label: "PINCHED EVERY PENNY", rarity: "rare", axis: "payroll", freq: 2.33 },
-  { key: "pocket", emoji: "🧾", label: "POCKETED THE DIFFERENCE", rarity: "irony", axis: "payroll", ironic: true, freq: 0 },
+  {
+    key: "farm",
+    emoji: "💸",
+    label: "MORTGAGED THE FARM",
+    rarity: "ironic",
+    axis: "payroll",
+    ironic: true,
+    freq: 0.5,
+    how: "Finished $15M or more past your payroll.",
+  },
+  {
+    key: "dime",
+    emoji: "💵",
+    label: "SPENT EVERY DIME",
+    rarity: "rare",
+    axis: "payroll",
+    freq: 4.98,
+    how: "Spent all but a sliver of your payroll without going over it.",
+  },
+  {
+    key: "pinch",
+    emoji: "🧮",
+    label: "PINCHED EVERY PENNY",
+    rarity: "rare",
+    axis: "payroll",
+    freq: 2.33,
+    how: "95 wins or more on half your payroll or less.",
+  },
+  {
+    key: "pocket",
+    emoji: "🧾",
+    label: "POCKETED THE DIFFERENCE",
+    rarity: "ironic",
+    axis: "payroll",
+    ironic: true,
+    freq: 0,
+    how: "Left 40% of your payroll unspent and still finished under .500.",
+  },
 
   // ---- scouting ----
-  { key: "crystal", emoji: "🔮", label: "CRYSTAL BALL", rarity: "rare", axis: "scout", freq: 3.25 },
+  {
+    key: "crystal",
+    emoji: "🔮",
+    label: "CRYSTAL BALL",
+    rarity: "rare",
+    axis: "scout",
+    freq: 3.25,
+    how: "Drafted 7 or more of the players the dream team wanted.",
+  },
 
   // ---- roster shape: these stack ----
-  { key: "allstars", emoji: "🏅", label: "ALL-STAR ROSTER", rarity: "uncommon", axis: "roster", freq: 6.05 },
-  { key: "twoway", emoji: "🃏", label: "THE TWO-WAY GUY", rarity: "rare", axis: "roster", freq: 3.79 },
-  { key: "noweak", emoji: "🧱", label: "NO WEAK LINKS", rarity: "rare", axis: "roster", freq: 3.04 },
-  { key: "cooperstown", emoji: "🏛️", label: "COOPERSTOWN CLASS", rarity: "rare", axis: "roster", freq: 2.05 },
-  { key: "rings", emoji: "💍", label: "RING BEARERS", rarity: "ultra", axis: "roster", freq: 1.48 },
-  { key: "skipper", emoji: "🧢", label: "PUSHED THE RIGHT BUTTONS", rarity: "uncommon", axis: "roster", freq: 9.91 },
-  { key: "nohardware", emoji: "🕸️", label: "EMPTY TROPHY CASE", rarity: "irony", axis: "roster", ironic: true, freq: 0 },
-  { key: "noallstars", emoji: "🏖️", label: "NOBODY MADE THE TRIP", rarity: "irony", axis: "roster", ironic: true, freq: 0 },
+  {
+    key: "allstars",
+    emoji: "🏅",
+    label: "ALL-STAR ROSTER",
+    rarity: "uncommon",
+    axis: "roster",
+    freq: 6.05,
+    how: "All eight players made an All-Star team that year.",
+  },
+  {
+    key: "twoway",
+    emoji: "🃏",
+    label: "THE TWO-WAY GUY",
+    rarity: "rare",
+    axis: "roster",
+    freq: 3.79,
+    how: "Rostered a season someone both pitched and hit in.",
+  },
+  {
+    key: "noweak",
+    emoji: "🧱",
+    label: "NO WEAK LINKS",
+    rarity: "rare",
+    axis: "roster",
+    freq: 3.04,
+    how: "Every player on the roster posted 4.0 WAR or better.",
+  },
+  {
+    key: "cooperstown",
+    emoji: "🏛️",
+    label: "COOPERSTOWN CLASS",
+    rarity: "rare",
+    axis: "roster",
+    freq: 2.05,
+    how: "Collected 30 or more award points across the club.",
+  },
+  {
+    key: "rings",
+    emoji: "💍",
+    label: "RING BEARERS",
+    rarity: "ultra",
+    axis: "roster",
+    freq: 1.48,
+    how: "Four or more players wearing a World Series ring.",
+  },
+  {
+    key: "skipper",
+    emoji: "🧢",
+    label: "PUSHED THE RIGHT BUTTONS",
+    rarity: "uncommon",
+    axis: "roster",
+    freq: 9.91,
+    how: "Hired a Manager of the Year and won more than 105 games.",
+  },
+  {
+    key: "nohardware",
+    emoji: "🕸️",
+    label: "EMPTY TROPHY CASE",
+    rarity: "ironic",
+    axis: "roster",
+    ironic: true,
+    freq: 0,
+    how: "Not one award point, from anyone, all year.",
+  },
+  {
+    key: "noallstars",
+    emoji: "🏖️",
+    label: "NOBODY MADE THE TRIP",
+    rarity: "ironic",
+    axis: "roster",
+    ironic: true,
+    freq: 0,
+    how: "Not one player made an All-Star team.",
+  },
 
   // ---- era: seasons with an asterisk, whatever the reason ----
-  { key: "strike", emoji: "✊", label: "PICKET LINE", rarity: "uncommon", axis: "era", freq: 19.14 },
-  { key: "covid", emoji: "🦠", label: "SOCIAL DISTANCING", rarity: "uncommon", axis: "era", freq: 18.51 },
-  { key: "signstealing", emoji: "🗑️", label: "STOLEN SIGNS", rarity: "rare", axis: "era", freq: 4.31 },
-  { key: "deferred", emoji: "🏦", label: "DEFERRED MONEY", rarity: "rare", axis: "era", freq: null },
+  {
+    key: "strike",
+    emoji: "✊",
+    label: "PICKET LINE",
+    rarity: "uncommon",
+    axis: "era",
+    freq: 19.14,
+    how: "Rostered a 1994 season — the year the strike killed the World Series.",
+  },
+  {
+    key: "covid",
+    emoji: "🦠",
+    label: "SOCIAL DISTANCING",
+    rarity: "uncommon",
+    axis: "era",
+    freq: 18.51,
+    how: "Rostered a 2020 season — the 60-game year played to empty parks.",
+  },
+  {
+    key: "signstealing",
+    emoji: "🗑️",
+    label: "STOLEN SIGNS",
+    rarity: "rare",
+    axis: "era",
+    freq: 4.31,
+    how: "Rostered a player or the manager from the 2017–18 Astros.",
+  },
+  {
+    key: "deferred",
+    emoji: "🏦",
+    label: "DEFERRED MONEY",
+    rarity: "rare",
+    axis: "era",
+    freq: null,
+    how: "Signed Bobby Bonilla as a Met, or Shohei Ohtani as a Dodger.",
+  },
 ];
 
 export const BADGE_BY_KEY: Record<string, BadgeDef> = Object.fromEntries(
@@ -240,7 +497,8 @@ export function earnedBadges(f: BadgeFacts): string[] {
 
   const field = onFieldBadge(f.baselineWins);
   if (field) out.push(field);
-  else if (f.baselineWins === 0) out.push("worst");
+  else if (f.baselineWins === 0) out.push("dayjob");
+  else if (f.baselineWins <= WORST_WINS) out.push("worst");
   else if (f.baselineLosses >= 100) out.push("skull");
 
   if (f.total >= GOAL_POINTS) out.push("perfect");
@@ -248,8 +506,13 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // Four faces of one axis, ordered from busted to stingiest.
   if (f.spendM - f.budgetM >= FARM_TAX_M) out.push("farm");
   else if (f.budgetBonus >= DIME_BONUS) out.push("dime");
-  else if (f.baselineWins >= PINCH_WINS && f.spendM <= f.budgetM * PINCH_PCT) out.push("pinch");
-  else if (f.spendM <= f.budgetM * CHEAP_PCT && f.baselineWins < f.baselineLosses) out.push("pocket");
+  else if (f.baselineWins >= PINCH_WINS && f.spendM <= f.budgetM * PINCH_PCT)
+    out.push("pinch");
+  else if (
+    f.spendM <= f.budgetM * CHEAP_PCT &&
+    f.baselineWins < f.baselineLosses
+  )
+    out.push("pocket");
 
   if (f.scoutHits >= CRYSTAL_HITS) out.push("crystal");
 
@@ -258,17 +521,27 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // club with a 2020 bat in it can never earn 🏅. Verified in badges-supply.
   if (full && roster.every(hasAS)) out.push("allstars");
   if (roster.some((p) => p.pos.includes("/"))) out.push("twoway");
-  if (full && roster.every((p) => p.war >= NO_WEAK_LINK_WAR)) out.push("noweak");
+  if (full && roster.every((p) => p.war >= NO_WEAK_LINK_WAR))
+    out.push("noweak");
   if (f.awardPoints >= COOPERSTOWN_PTS) out.push("cooperstown");
   if (f.rings >= RING_BEARERS) out.push("rings");
   if (f.managerMoty && f.baselineWins > SKIPPER_WINS) out.push("skipper");
+  // Pete Rose is the only person in the dataset who managed and played the same
+  // season (CIN 1985 and 1986), but the trigger deliberately does not name him:
+  // it asks whether YOUR skipper is on YOUR roster, which is a decision made
+  // across two separate picks rather than a season you happened to land on.
+  if (f.managerName !== null && roster.some((p) => p.name === f.managerName))
+    out.push("playermanager");
   // A club that won nothing at all is the stronger joke, so it supersedes.
   if (roster.length > 0 && f.awardPoints === 0) out.push("nohardware");
   else if (roster.length > 0 && !roster.some(hasAS)) out.push("noallstars");
 
   if (roster.some((p) => p.year === 1994)) out.push("strike");
   if (roster.some((p) => p.year === 2020)) out.push("covid");
-  if (roster.some(isScandal) || isScandal({ team: f.managerTeam, year: f.managerYear }))
+  if (
+    roster.some(isScandal) ||
+    isScandal({ team: f.managerTeam, year: f.managerYear })
+  )
     out.push("signstealing");
   if (roster.some(isDeferred)) out.push("deferred");
 

@@ -2,8 +2,9 @@
   import { type Bank, type Difficulty, type GameConfig } from "../lib/engine.svelte";
   import { parseSeedCode, recordFromTotal } from "../lib/format";
   import { BANKS, DIFFICULTIES } from "../lib/modes";
-  import { BADGE_BY_KEY } from "../lib/badges";
+  import { BADGES, type BadgeDef, type Rarity } from "../lib/badges";
   import { badgeCase, bestFor } from "../lib/settings";
+  import BadgePill from "./BadgePill.svelte";
   import HelpModal from "./HelpModal.svelte";
   import Logo from "./Logo.svelte";
 
@@ -42,7 +43,38 @@
   // The trophy case is lifetime and global — it does not move when the punched
   // rows above change, so it is read once at mount rather than derived.
   const trophies = badgeCase();
-  const cased = trophies.tiles.map((t) => ({ ...t, def: BADGE_BY_KEY[t.key] }));
+  const earnedCount = new Map(trophies.tiles.map((t) => [t.key, t.count]));
+
+  /** The collection ladder as sections, rarest first. Rarity is a heading over
+   * a band of pills rather than a word on each pill: every pill under a heading
+   * shares its tier, so the word still carries rarity on a channel that is not
+   * color — it is just printed once instead of N times. */
+  const CHASED: Rarity[] = ["legend", "ultra", "rare", "uncommon", "common"];
+
+  interface CaseSlot {
+    def: BadgeDef;
+    count: number;
+    locked: boolean;
+  }
+
+  function slots(rarity: Rarity): CaseSlot[] {
+    const band = BADGES.filter((b) => b.rarity === rarity);
+    // Earned first, then the silhouettes still out there. Anti-trophies never
+    // get a locked slot: an empty slot is an invitation, and inviting someone
+    // to lose 100 games inverts the incentive.
+    return [
+      ...band
+        .filter((b) => earnedCount.has(b.key))
+        .map((b) => ({ def: b, count: earnedCount.get(b.key)!, locked: false })),
+      ...band
+        .filter((b) => !b.ironic && !earnedCount.has(b.key))
+        .map((b) => ({ def: b, count: 1, locked: true })),
+    ];
+  }
+
+  const sections = [...CHASED, "ironic" as Rarity]
+    .map((rarity) => ({ rarity, items: slots(rarity) }))
+    .filter((s) => s.items.length > 0);
 
   let helpOpen = $state(false);
 
@@ -181,10 +213,11 @@
   </div>
 
   <!-- The trophy case: a lifetime collection, closed by default so the home
-       screen stays a menu. Unearned badges render nothing at all — a locked
-       slot spoils the set and invites the anti-trophies. The summary's fraction
-       is the only hint at how much is left, and anti-trophies sit outside it:
-       they are neither chased nor countable, but they do get a tile. -->
+       screen stays a menu. The board is the whole set — earned badges wear the
+       finale's own pill, unearned ones a silhouette, so the case answers "what
+       is left" as well as "what I have". Anti-trophies appear only once earned
+       and sit outside the fraction: they are neither chased nor countable, but
+       they do get a pill. -->
   <details class="case">
     <summary class="psep casesum">
       <span class="casetitle">
@@ -192,22 +225,25 @@
         <span class="caret" aria-hidden="true">▸</span>
       </span>
     </summary>
-    {#if cased.length === 0}
+    {#if trophies.tiles.length === 0}
       <p class="caseempty">No badges yet — play a season.</p>
-    {:else}
-      <div class="tiles">
-        {#each cased as t (t.key)}
-          <div class="tile {t.def.rarity}">
-            <span class="tic">{t.def.emoji}</span>
-            <span class="tlab">{t.def.label}</span>
-            <span class="ttier">{t.def.rarity}</span>
-            {#if t.count > 1}
-              <span class="tcount">×{t.count}</span>
-            {/if}
-          </div>
-        {/each}
-      </div>
     {/if}
+    {#each sections as s (s.rarity)}
+      <div class="band">
+        <div class="bcap bandcap">{s.rarity}</div>
+        <!-- Focusable so the band is reachable by keyboard: it is a scroll
+             container, and its offscreen pills are unreachable without arrow
+             keys. Deliberately a noninteractive element with tabindex — that
+             is the scrollable-region pattern WCAG 2.1.1 asks for, and it is
+             the exception the lint rule cannot see. -->
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+        <div class="bandrow" role="group" aria-label="{s.rarity} badges" tabindex="0">
+          {#each s.items as slot (slot.def.key)}
+            <BadgePill badge={slot.def} count={slot.count} locked={slot.locked} />
+          {/each}
+        </div>
+      </div>
+    {/each}
   </details>
 </div>
 
@@ -629,72 +665,42 @@
     color: var(--gray-ink);
     padding: 6px 0 2px;
   }
-  .tiles {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
-    gap: 7px;
+  /* One rarity band: the tier word as an eyebrow over a single row of pills.
+     It borrows .bcap's voice — the record book's caption — rather than adding a
+     third header style to a screen that already has .psep and .bcap. */
+  .band + .band {
+    margin-top: 9px;
   }
-  /* One trophy: emoji, what it is, what tier it is, and how often it has been
-     earned. The tier word is printed, not merely colored — on this screen
-     rarity is the information, so it needs a channel that survives both
-     colorblindness and a grayscale print. */
-  .tile {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    column-gap: 7px;
-    border: 2.5px solid var(--ink);
-    border-radius: 11px;
-    padding: 6px 9px;
-    background: var(--card);
-    color: var(--ink);
-  }
-  .tic {
-    grid-row: span 2;
-    font-size: 19px;
-    line-height: 1;
-  }
-  .tlab {
-    font-weight: 800;
-    font-size: 10.5px;
-    letter-spacing: 0.02em;
-    line-height: 1.2;
-  }
-  .ttier {
-    grid-column: 2;
-    font-size: 8px;
-    font-weight: 800;
-    letter-spacing: 0.12em;
+  .bandcap {
     text-transform: uppercase;
-    color: var(--muted);
+    margin-bottom: 3px;
   }
-  .tcount {
-    grid-column: 3;
-    grid-row: span 2;
-    font-size: 12px;
-    font-weight: 900;
-    font-variant-numeric: tabular-nums;
-    color: var(--muted);
+  /* The band scrolls in x by itself; the page never does. Grid rather than
+     flex so the pills keep their content width — a flex child shrinks below it
+     and the row would compress instead of overflowing — and because the pills
+     come from BadgePill, whose class Home's scoped CSS cannot reach.
+
+     overflow-x: auto, never hidden: `hidden` on one axis computes the other to
+     auto, which makes a scroll container out of anything above the pinned
+     roster rail. The padding-bottom leaves room for a scrollbar so the x bar
+     cannot induce a y bar of its own. */
+  .bandrow {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    justify-content: start;
+    gap: 6px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    padding-bottom: 4px;
   }
-  /* The rarity ladder, palest to loudest. */
-  .tile.common {
-    background: var(--gray-bg);
+  .bandrow > :global(.brag) {
+    scroll-snap-align: start;
   }
-  .tile.uncommon {
-    background: var(--sky);
-  }
-  .tile.rare {
-    background: var(--rare-violet);
-  }
-  .tile.ultra {
-    background: var(--yellow);
-  }
-  /* An anti-trophy is not a prize: dashed, unfilled, and muted throughout. */
-  .tile.irony {
-    border-style: dashed;
-    border-color: var(--gray-ink);
-    background: transparent;
-    color: var(--muted);
+  .bandrow:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
   }
   /* The exact points, quiet and tabular under the record — the finale's
      .tpts voice sized down to the miniature. */

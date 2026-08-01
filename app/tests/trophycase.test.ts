@@ -54,7 +54,7 @@ describe("badgeCase", () => {
     // The summary line prints this denominator; it lives in badges.ts, and a
     // table edit must move the fraction here rather than silently anywhere.
     expect(COLLECTIBLE.length).toBe(22);
-    expect(BADGES.length).toBe(28);
+    expect(BADGES.length).toBe(29);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 
@@ -123,7 +123,7 @@ describe("badgeCase", () => {
       "crystal", // rare
       "cubs", // uncommon
       "hundred", // common
-      "skull", // irony
+      "skull", // ironic
     ]);
   });
 });
@@ -139,29 +139,73 @@ describe("the trophy case section on the home screen", () => {
     expect(body).not.toMatch(/<details[^>]*\sopen/);
   });
 
-  it("lists only earned badges — nothing locked, nothing silhouetted", () => {
+  it("names an earned badge and silhouettes the rest of the set", () => {
     seed(game(["crystal", "twoway"]));
     const body = home();
     expect(body).toContain("CRYSTAL BALL");
     expect(body).toContain("THE TWO-WAY GUY");
+    // A locked slot is a shape and a tier, never the identity — the finale
+    // still gets to deliver the surprise.
     expect(body).not.toContain("COOPERSTOWN CLASS");
     expect(body).not.toContain("RING BEARERS");
     expect(body).not.toContain("PERFECT SEASON");
+    expect(lockedSlots(body)).toBe(COLLECTIBLE.length - 2);
   });
 
-  it("shows an earned anti-trophy even though it counts for nothing", () => {
+  /* Every locked pill carries this one string and nothing else does, so
+   * counting it is the cheapest exact read of the silhouette board. */
+  function lockedSlots(body: string): number {
+    return (body.match(/Not yet earned/g) ?? []).length;
+  }
+
+  it("silhouettes every collectible and no anti-trophy on a fresh case", () => {
+    seed();
+    // 22, not 29: an empty slot is an invitation, and nobody is invited to
+    // lose 100 games. The count is the whole ironic-exclusion rule.
+    expect(lockedSlots(home())).toBe(COLLECTIBLE.length);
+  });
+
+  it("gives an earned anti-trophy a pill but never a locked slot", () => {
     seed(game(["skull"]));
     const body = home();
     expect(body).toContain("100-LOSS CLUB");
     expect(body).toContain(`0 OF ${COLLECTIBLE.length}`);
+    // Earning one anti-trophy adds a pill without moving the locked board.
+    expect(lockedSlots(body)).toBe(COLLECTIBLE.length);
   });
 
-  it("prints the tier word beside each tile, so rarity is not color alone", () => {
+  it("heads each rarity band with its tier word, so rarity is not color alone", () => {
     seed(game(["crown", "mariners", "crystal"]));
     const body = home();
-    expect(body).toContain(">legend<");
-    expect(body).toContain(">ultra<");
-    expect(body).toContain(">rare<");
+    for (const tier of ["legend", "ultra", "rare", "uncommon", "common"]) {
+      expect(body).toContain(`>${tier}<`);
+    }
+  });
+
+  it("heads the ironic band only once an anti-trophy is earned", () => {
+    seed(game(["crystal"]));
+    expect(home()).not.toContain(">ironic<");
+    seed(game(["crystal", "skull"]));
+    expect(home()).toContain(">ironic<");
+  });
+
+  it("files an earned badge and a locked one in the same rarity band", () => {
+    // CRYSTAL BALL is rare and earned; COOPERSTOWN CLASS is rare and locked.
+    // Both must fall between the RARE heading and the UNCOMMON one, earned
+    // ahead of locked.
+    seed(game(["crystal"]));
+    const body = home();
+    const rare = body.indexOf(">rare<");
+    const uncommon = body.indexOf(">uncommon<");
+    const crystal = body.indexOf("CRYSTAL BALL");
+    expect(rare).toBeGreaterThan(-1);
+    expect(crystal).toBeGreaterThan(rare);
+    expect(crystal).toBeLessThan(uncommon);
+    // The band's first locked slot sits after the earned pill, still above
+    // the next heading.
+    const firstLocked = body.indexOf("Not yet earned", rare);
+    expect(firstLocked).toBeGreaterThan(crystal);
+    expect(firstLocked).toBeLessThan(uncommon);
   });
 
   it("marks a repeat with a count and leaves a single earn unmarked", () => {

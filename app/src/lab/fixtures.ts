@@ -1,8 +1,8 @@
 /** Forged Game states for the dev-only UI lab (?lab). Every fixture builds a
  * REAL Game instance from synthetic data, so the lab renders the live
  * components under extreme inputs without replaying actual games. */
-import { earnedBadges } from "../lib/badges";
-import { Game, type GameConfig, type Signed } from "../lib/engine.svelte";
+import { BADGE_BY_KEY, earnedBadges, type BadgeDef } from "../lib/badges";
+import { Game, type GameConfig, type ManagerPick, type Signed } from "../lib/engine.svelte";
 import { displayRecord, score } from "../lib/scoring";
 import type { BestManager, FinaleResult } from "../lib/engine.svelte";
 import type { BestPick, BestRoster } from "../lib/bestroster";
@@ -326,10 +326,13 @@ function forgeFinale(opts: {
   spend: number;
   budget: number;
   scoutSweep: boolean; // true → every pick matches (9 ⭐); false → 1 hit + an empty seat
+  /** The hired skipper. Piniella's +14 wins is the house default; a fixture
+   * aiming at a specific win total hires someone else to move the baseline. */
+  manager?: ManagerPick;
 }): Game {
   return forgeGame(CLASSIC, (g) => {
     opts.slots.forEach((s, i) => (g.slots[i] = s));
-    g.manager = { name: "Lou Piniella", wins: 116, losses: 46, year: 2001, team: "SEA", teamName: "Seattle Mariners", ws: false, pen: true };
+    g.manager = opts.manager ?? { name: "Lou Piniella", wins: 116, losses: 46, year: 2001, team: "SEA", teamName: "Seattle Mariners", ws: false, pen: true };
     g.spinCount = 12;
 
     const picks: (BestPick | null)[] = opts.scoutSweep
@@ -383,6 +386,7 @@ function forgeFinale(opts: {
       scoutHits,
       roster: opts.slots.map((s) => ({
         id: s.id,
+        name: s.name,
         war: s.war,
         awards: s.awards,
         year: s.year,
@@ -391,6 +395,7 @@ function forgeFinale(opts: {
       })),
       managerTeam: g.manager.team,
       managerYear: g.manager.year,
+      managerName: g.manager.name,
       rings,
       awardPoints: parts.awardPoints,
       managerMoty: g.manager.moty === true,
@@ -457,8 +462,8 @@ export function finaleOver(): Game {
 /** The crown without the goal: a bought superteam. 71.7 WAR carries the
  * baseline past 117 wins, so 👑 supersedes every named rung, but the luxury
  * tax on the $128M payroll keeps the total short of 162. Four pills exactly —
- * 👑 💸 🏅 🏛️ — which is the row at its cap, one of each register: ultra gold,
- * dashed irony, sky, and violet. */
+ * 👑 💸 🏅 🏛️ — which is the row at its cap, one of each register: the
+ * inverted legend, dashed ironic, sky, and violet. */
 export function finaleMariners(): Game {
   const slots = [
     mkSigned({ name: "Iván Rodríguez", pos: "C", war: 6.4, costPaid: 12, year: 1999, team: "TEX", teamName: "Texas Rangers", awards: ["MVP", "GG", "AS"] }),
@@ -478,7 +483,8 @@ export function finaleMariners(): Game {
  * 162, so the record caps at 162–0 while the points line beneath keeps the
  * exact number. Five badges qualify (👑 🏆 🔮 🧱 ✊, the last from Frank
  * Thomas's 1994) — the four-pill cap drops ✊ from the tail, which is the
- * proof the wall can't happen. */
+ * proof the wall can't happen. It is also the only row that opens with two
+ * legends side by side: 👑 and 🏆 are the whole tier. */
 export function finalePerfect(): Game {
   const slots = [
     mkSigned({ name: "Mike Piazza", pos: "C", war: 8.7, costPaid: 11, year: 1997, team: "LAD", teamName: "Los Angeles Dodgers", awards: ["MVP2", "SS", "AS"] }),
@@ -542,7 +548,7 @@ export function finaleCentury(): Game {
  * $96.7M cap — a $48.3M overrun, comfortably past the badge's $15M bar —
  * carrying a 13.5-WAR roster to 78 wins. Two dashed pills and nothing else:
  * 💸 for the overrun and 🕸️ for a roster that won no hardware at all. The
- * all-irony row, where the anti-trophy treatment has to carry the line by
+ * all-ironic row, where the anti-trophy treatment has to carry the line by
  * itself. */
 export function finaleMortgaged(): Game {
   const slots = [
@@ -577,3 +583,56 @@ export function finalePocketed(): Game {
   ];
   return forgeFinale({ slots, spend: 35, budget: 96.7, scoutSweep: false });
 }
+
+/** 👔 DON'T QUIT YOUR DAY JOB: the floor of the on-field ladder, 0–162.
+ *
+ * The roster is invented rather than cast from real players: −34.0 WAR over
+ * eight seats is −4.25 apiece, worse than any season anyone has ever actually
+ * posted, and putting a real name on a forged number is a lie the lab does not
+ * need to tell. With the 41–121 skipper's −16 wins, 50 − 34 − 16 lands the
+ * baseline on exactly 0, which is what 👔 requires — one win more and 📉 fires
+ * instead.
+ *
+ * The payroll sits at $90M of the $96.7M cap on purpose: too high for 🧾 and
+ * too low for 💵, so the payroll axis stays silent and the row is the two
+ * anti-trophies the season actually earned — 👔 for the record and 🕸️ for a
+ * club that won no hardware at all. */
+export function finaleDayjob(): Game {
+  const scrub = (name: string, pos: string, war: number) =>
+    mkSigned({ name, pos, war, costPaid: 11.25, year: 2024, team: "CHW", teamName: "Chicago White Sox" });
+  const slots = [
+    scrub("Waiver Wire", "C", -4.0),
+    scrub("Rule 5 Pick", "1B", -4.3),
+    scrub("Spring Invitee", "2B", -4.2),
+    scrub("Emergency Callup", "CF", -4.5),
+    scrub("Rehab Assignment", "DH", -4.1),
+    scrub("Bullpen Day", "SP", -4.4),
+    scrub("Opener Experiment", "SP", -4.3),
+    scrub("Position Player Pitching", "RP", -4.2),
+  ];
+  return forgeFinale({
+    slots,
+    spend: 90,
+    budget: 96.7,
+    scoutSweep: false,
+    manager: { name: "Pedro Grifol", wins: 41, losses: 121, year: 2024, team: "CHW", teamName: "Chicago White Sox", ws: false, pen: false },
+  });
+}
+
+/** The rarity ladder as bare pills, rarest first, plus one locked slot.
+ *
+ * Every other finale fixture shows pills in the company of a season, which is
+ * how a player meets them — but no single season can hold all six tiers (the
+ * row caps at four, and legend and common are mutually exclusive on the
+ * on-field axis). This list exists so the ramp can be read top to bottom in one
+ * glance, and so the locked silhouette — a trophy-case state that never appears
+ * at a finale at all — is reviewable without a save file. */
+export const PILL_LADDER: { badge: BadgeDef; locked: boolean; note: string }[] = [
+  { badge: BADGE_BY_KEY.crown, locked: false, note: "legend — ink fill, gold text, gold ring" },
+  { badge: BADGE_BY_KEY.mariners, locked: false, note: "ultra — gold wash + inset ink ring" },
+  { badge: BADGE_BY_KEY.crystal, locked: false, note: "rare — violet wash" },
+  { badge: BADGE_BY_KEY.allstars, locked: false, note: "uncommon — sky wash" },
+  { badge: BADGE_BY_KEY.hundred, locked: false, note: "common — gray on a gray hairline" },
+  { badge: BADGE_BY_KEY.skull, locked: false, note: "ironic — dashed, unfilled, muted" },
+  { badge: BADGE_BY_KEY.rings, locked: true, note: "locked ultra — the tier survives, the identity does not" },
+];

@@ -16,9 +16,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { BADGES, CROWN_WINS, MATCHED } from "../src/lib/badges";
+import { BADGES, CROWN_WINS, MATCHED, WORST_WINS } from "../src/lib/badges";
 
 interface CardPlayerRow {
+  /** The stable id 🏦 keys on — a name is not enough, the trigger reads ids. */
+  id: string;
   name: string;
   pos: string;
   awards: string[];
@@ -98,6 +100,29 @@ describe("the named rungs still stand on their clubs", () => {
     expect(holders).toEqual(["SEA 2001"]);
   });
 
+  /** The floor's mirror of the 116/CROWN_WINS pin above. 📉 claims to sit
+   * below the worst record anyone ever posted, so it has to sit one win under
+   * the real minimum — and the minimum must be read off FULL seasons only.
+   * 1994, 1995, and 2020 were all shortened, and their sub-40-win totals are
+   * short schedules rather than bad clubs; counting them would drag WORST_WINS
+   * down to a number no 162-game season could ever reach. */
+  it("keeps 41 the fewest wins any full season in the set managed", () => {
+    const full = CARDS.filter((c) => c.wins + c.losses > 150);
+    // The filter earns its keep: the seasons it drops are exactly the three
+    // shortened ones, and one of them holds a total below WORST_WINS.
+    const dropped = [...new Set(CARDS.filter((c) => c.wins + c.losses <= 150).map((c) => c.year))];
+    expect(dropped.sort()).toEqual([1994, 1995, 2020]);
+    expect(Math.min(...CARDS.map((c) => c.wins))).toBeLessThan(WORST_WINS);
+
+    const fewest = Math.min(...full.map((c) => c.wins));
+    expect(fewest).toBe(41);
+    expect(WORST_WINS).toBe(fewest - 1);
+    const holders = full
+      .filter((c) => c.wins === fewest)
+      .map((c) => `${c.team} ${c.year} ${c.wins}-${c.losses}`);
+    expect(holders).toEqual(["CHW 2024 41-121"]);
+  });
+
   /** 109–113 is bare because baseball never put a champion there, which is the
    * claim badges.ts makes in its file comment. 99 is bare by CHOICE — three
    * champions sit on it (below) — so it is asserted separately and must not be
@@ -145,6 +170,25 @@ describe("the era badges still have their seasons", () => {
       const c = card("HOU", year);
       expect(c.players.length, `HOU ${year} roster`).toBeGreaterThan(0);
     }
+  });
+
+  /** 🏦 is keyed to an id AND a club, so it needs both halves to survive on
+   * disk: the id has to still spell the same thing after a regen, and the
+   * player has to still appear on a card for THAT franchise. Either half
+   * going missing leaves a badge that can never fire — and nothing else in the
+   * suite would notice, because every unit test forges its own roster. */
+  it("can still deal Bonilla a Mets card and Ohtani a Dodgers one", () => {
+    const seasons = (id: string, team: string) =>
+      CARDS.filter((c) => c.team === team && c.players.some((p) => p.id === id)).map(
+        (c) => c.year,
+      );
+    expect(seasons("bonilbo01", "NYM").length, "bonilbo01 on NYM").toBeGreaterThan(0);
+    expect(seasons("ohtansh01", "LAD").length, "ohtansh01 on LAD").toBeGreaterThan(0);
+    // And the clubs the badge deliberately does NOT name are still draftable
+    // too — the trigger is a choice between real options, not the only card
+    // either player has.
+    expect(seasons("bonilbo01", "PIT").length, "bonilbo01 on PIT").toBeGreaterThan(0);
+    expect(seasons("ohtansh01", "LAA").length, "ohtansh01 on LAA").toBeGreaterThan(0);
   });
 });
 

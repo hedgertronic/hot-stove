@@ -2,6 +2,7 @@
   /** Dev-only UI lab (?lab): edge-case galleries rendered through the REAL
    * components, fed by forged Game states from fixtures.ts. Nothing here
    * ships — App.svelte only imports this module in DEV. */
+  import BadgePill from "../components/BadgePill.svelte";
   import BankBox from "../components/BankBox.svelte";
   import Finale from "../components/Finale.svelte";
   import PlayerList from "../components/PlayerList.svelte";
@@ -9,9 +10,11 @@
   import RosterRail from "../components/RosterRail.svelte";
   import SpecialPrimePicker from "../components/SpecialPrimePicker.svelte";
   import {
+    PILL_LADDER,
     bankGames,
     finaleBad,
     finaleCentury,
+    finaleDayjob,
     finaleMariners,
     finaleMortgaged,
     finaleOver,
@@ -44,6 +47,7 @@
   const finMortgaged = finaleMortgaged();
   const finPocketed = finalePocketed();
   const finCentury = finaleCentury();
+  const finDayjob = finaleDayjob();
 
   // One confirm per market section; preset so the SIGN pill is visible on load.
   let confirmMarket = $state<string | null>("p:salty");
@@ -128,6 +132,24 @@
   <div class="railcase"><RosterRail game={rails.partial} /></div>
   <div class="railcase"><RosterRail game={rails.full} /></div>
 
+  <div class="psep">BADGE PILLS · THE WHOLE LADDER</div>
+  <div class="cap">
+    Every rarity tier in one column, rarest first, through the shared
+    BadgePill — the same component the finale row and the home trophy case
+    both render. No season can show all six at once (the pill row caps at
+    four, and legend and common are mutually exclusive on the on-field axis),
+    so this is the only place the ramp is reviewable end to end. The last row
+    is the locked silhouette, a trophy-case state that never reaches a finale.
+  </div>
+  <div class="ladder">
+    {#each PILL_LADDER as row (row.badge.key + (row.locked ? "-locked" : ""))}
+      <div class="lrung">
+        <BadgePill badge={row.badge} locked={row.locked} />
+        <span class="lnote">{row.note}</span>
+      </div>
+    {/each}
+  </div>
+
   <div class="psep">FINALE · UNDER CAP — FULL SWEEP</div>
   <div class="cap">
     Front-office-bonus face · 💍💍🚩 pedigree · 9-⭐ scouting sweep (every
@@ -143,7 +165,7 @@
   <div class="cap">
     Luxury-tax face ($19.3M over) · 7💍 + 2🚩 &gt; 8 emojis → ×N fallback ·
     1 scout hit · empty dream-team seat (—) · dream manager differs · pills
-    💸 irony + 💍 ultra + 🕸️ irony — one gold pill between two dashed ones,
+    💸 ironic + 💍 ultra + 🕸️ ironic — one gold pill between two dashed ones,
     the rarity ramp's widest spread on a single line
   </div>
   <div class="fincase" id="fin-over">
@@ -154,8 +176,8 @@
   <div class="cap">
     Bought superteam past 117 wins → 👑 supersedes every named rung, but the
     luxury tax holds the total short of 162 — no 🏆 · THE PILL ROW AT ITS
-    4-PILL CAP, one of each register: 👑 ultra gold · 💸 irony dashed · 🏅
-    uncommon sky · 🏛️ rare violet
+    4-PILL CAP, one of each register: 👑 legend (ink fill, gold text) · 💸
+    ironic dashed · 🏅 uncommon sky · 🏛️ rare violet
   </div>
   <div class="fincase" id="fin-mariners">
     <Finale game={finMariners} onreplay={noop} onmodes={noop} />
@@ -165,7 +187,8 @@
   <div class="cap">
     Total ≥ 162 → record caps at 162–0, exact points line beneath · FIVE
     badges qualify (👑 🏆 🔮 🧱 ✊) and the four-pill cap drops ✊ from the
-    tail — two ultras leading two rares, the row's loudest legal state
+    tail — the two legends leading two rares, the row's loudest legal state
+    and the only place both legend pills appear together
   </div>
   <div class="fincase" id="fin-perfect">
     <Finale game={finPerfect} onreplay={noop} onmodes={noop} />
@@ -175,10 +198,21 @@
   <div class="cap">
     Washed vets (−2.0 WAR, $3.3M over cap): 62–100 on-field, exactly on the
     trigger → the dashed 💀 anti-trophy · the small bust stays under 💸's
-    $15M bar · a lone irony pill, the row at its quietest
+    $15M bar · a lone ironic pill, the row at its quietest
   </div>
   <div class="fincase" id="fin-bad">
     <Finale game={finBad} onreplay={noop} onmodes={noop} />
+  </div>
+
+  <div class="psep">FINALE · 👔 DON'T QUIT YOUR DAY JOB</div>
+  <div class="cap">
+    The floor of the on-field ladder: −34.0 WAR under a 41–121 skipper lands
+    on exactly 0–162, where 👔 supersedes 📉 the way 👑 supersedes a named
+    rung · payroll parked between 🧾 and 💵 so the axis stays silent · 👔 + 🕸️,
+    an all-ironic row under the largest possible loss column
+  </div>
+  <div class="fincase" id="fin-dayjob">
+    <Finale game={finDayjob} onreplay={noop} onmodes={noop} />
   </div>
 
   <div class="psep">FINALE · 💯 100-WIN CLUB — THE RARITY FLOOR</div>
@@ -195,7 +229,7 @@
   <div class="psep">FINALE · 💸 MORTGAGED THE FARM</div>
   <div class="cap">
     $145M of albatross contracts vs the $96.7M cap: $48.3M tax on a 78-win
-    roster · 💸 + 🕸️ — the all-irony row, where the dashed treatment has to
+    roster · 💸 + 🕸️ — the all-ironic row, where the dashed treatment has to
     carry the whole line with no filled pill to sit against
   </div>
   <div class="fincase" id="fin-mortgaged">
@@ -241,6 +275,24 @@
   }
   .railcase {
     margin-bottom: 10px;
+  }
+  /* One rung per line, pills left-aligned on a shared edge so the tiers stack
+     into a readable ramp; the note sits beside each. */
+  .ladder {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+  }
+  .lrung {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .lnote {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--muted);
   }
   .sheetbtn {
     display: block;

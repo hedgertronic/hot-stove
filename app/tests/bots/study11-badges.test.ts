@@ -182,7 +182,7 @@ describe("study 11: badge frequencies", () => {
       const disagree: string[] = [];
       for (const b of BADGES) {
         const r = badgeRate(ref, b.key);
-        const rec = b.ironic ? "irony" : tierFor(r);
+        const rec = b.ironic ? "ironic" : tierFor(r);
         const flags: string[] = [];
         if (!b.ironic && borderline(r)) flags.push("BORDERLINE");
         if (!b.ironic && rec !== b.rarity) {

@@ -5,6 +5,7 @@
   import { GAMES, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
   import { shareText as shareResult } from "../lib/share";
   import AwardPill from "./AwardPill.svelte";
+  import BadgePill from "./BadgePill.svelte";
 
   let {
     game,
@@ -369,11 +370,12 @@
 
 {#if bragsShown && brags.length > 0}
   <div class="brags">
-    {#each brags as b, i (b.key)}
-      <!-- Pills thunk in one at a time, left to right — a short trophy line,
-           not a wall (the derivation caps at four). The class is the badge's
-           rarity, so how loud a pill looks is decided once, in the table. -->
-      <div class="brag {b.rarity}" style:animation-delay="{i * 0.12}s">{b.emoji} {b.label}</div>
+    {#each brags as b (b.key)}
+      <!-- The pill itself is BadgePill's, shared with the home trophy case, so
+           a badge looks the same the moment it is earned as it does in the
+           case. `animate` asks for the thunk-in entrance; the row supplies the
+           left-to-right stagger below. -->
+      <BadgePill badge={b} animate />
     {/each}
   </div>
 {/if}
@@ -509,7 +511,11 @@
     }
   }
   /* Brag badges pop with the total, right under the stamp they qualify —
-     up to four pills on one wrapping, centered line. */
+     up to four pills on one wrapping, centered line. Every pill is nowrap, so
+     the row breaks between pills and never inside one — which costs nothing,
+     because the widest pill in the set (🔱 MATCHED THE 2001 MARINERS, 232px)
+     still fits the row's width on a 360px screen. The pills themselves are
+     BadgePill's; this rule owns layout only. */
   .brags {
     display: flex;
     flex-wrap: wrap;
@@ -517,60 +523,20 @@
     gap: 6px 8px;
     margin-top: 12px;
   }
-  /* One pale wash on an ink border, four rungs deep. The game runs two color
-     registers and rarity lives entirely in this one: WAR tiers are the
-     saturated solid chips (--war-*), brag pills are washes. A rare pill and an
-     elite WAR chip can sit inches apart without either claiming the other's
-     meaning.
-     Green and pink are deliberately absent — green means "found on the dream
-     team" (.qrow.dreamhit) and pink means the manager (.skiprow). A rarity
-     ramp that spent either would make two unrelated things look related. */
-  .brag {
-    border: 2px solid var(--ink);
-    border-radius: 999px;
-    background: var(--gray-bg);
-    font-size: 10.5px;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    padding: 3px 12px;
-    animation: thunk-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  /* The left-to-right deal. BadgePill's `animate` supplies the thunk; the
+     order the pills arrive in is the ROW's business, so the delay lives here,
+     one rule per seat up to PILL_CAP. Positional rather than class-based so it
+     stays true whatever pill markup the shared component renders.
+     No reduced-motion override is needed: BadgePill drops the animation
+     entirely there, and a delay on nothing is nothing. */
+  .brags > :global(:nth-child(2)) {
+    animation-delay: 0.12s;
   }
-  /* The floor: paper on a gray hairline, a step below the ink the others get. */
-  .brag.common {
-    background: var(--gray-bg);
-    border-color: var(--gray-ink);
+  .brags > :global(:nth-child(3)) {
+    animation-delay: 0.24s;
   }
-  .brag.uncommon {
-    background: var(--sky);
-  }
-  .brag.rare {
-    background: var(--rare-violet);
-  }
-  /* The top rung, and the only pill with a second border: gold plus an inset
-     ink ring, so ultra reads as ultra even beside three other filled pills. */
-  .brag.ultra {
-    background: var(--yellow);
-    box-shadow: inset 0 0 0 1px var(--ink);
-  }
-  /* The anti-trophy: ironic badges (💀 💸 🧾 🕸️ 🏖️) get the ghost treatment —
-     dashed hairline, no fill, muted ink. A citation, not a prize. */
-  .brag.irony {
-    border-style: dashed;
-    border-color: var(--gray-ink);
-    background: transparent;
-    color: var(--muted);
-  }
-  @keyframes thunk-in {
-    from {
-      opacity: 0;
-      transform: scale(0.6);
-    }
-  }
-  /* Reduced motion: pills are simply there — no thunk, no stagger. */
-  @media (prefers-reduced-motion: reduce) {
-    .brag {
-      animation: none;
-    }
+  .brags > :global(:nth-child(4)) {
+    animation-delay: 0.36s;
   }
   .ledger {
     display: grid;

@@ -18,6 +18,7 @@ import {
   CROWN_WINS,
   HUNDRED_WINS,
   MATCHED,
+  WORST_WINS,
   badgeEmoji,
   earnedBadges,
   onFieldBadge,
@@ -40,6 +41,7 @@ const BASE: BadgeFacts = {
   roster: [],
   managerTeam: null,
   managerYear: null,
+  managerName: null,
   rings: 0,
   awardPoints: 10,
   managerMoty: false,
@@ -50,6 +52,7 @@ const f = (over: Partial<BadgeFacts> = {}): BadgeFacts => ({ ...BASE, ...over })
 /** A finished club, one entry per filled slot. */
 const player = (over: Partial<BadgeRosterEntry> = {}): BadgeRosterEntry => ({
   id: "someguy01",
+  name: "Some Guy",
   war: 3.0,
   awards: [],
   year: 2004,
@@ -63,6 +66,21 @@ const club = (n: number, over: Partial<BadgeRosterEntry> = {}) =>
 const ONFIELD = BADGES.filter((b) => b.axis === "onfield").map((b) => b.key);
 const PAYROLL = BADGES.filter((b) => b.axis === "payroll").map((b) => b.key);
 const only = (keys: string[], axis: string[]) => keys.filter((k) => axis.includes(k));
+
+/** The on-field ladder written out as prose, top to bottom, independent of the
+ * else-if chain earnedBadges resolves through. The sweep below compares the two
+ * at every win total a season can post, so a reordered chain — 💀 promoted
+ * above 📉, say — has something to disagree with rather than merely staying
+ * "at most one badge" and passing. */
+function ladderAt(wins: number): string[] {
+  if (wins >= CROWN_WINS) return ["crown"];
+  if (MATCHED[wins]) return [MATCHED[wins]];
+  if (wins >= HUNDRED_WINS) return ["hundred"];
+  if (wins === 0) return ["dayjob"];
+  if (wins <= WORST_WINS) return ["worst"];
+  if (GAMES - wins >= 100) return ["skull"];
+  return [];
+}
 
 describe("the badge table itself", () => {
   it("has a unique key for every badge", () => {
@@ -78,10 +96,26 @@ describe("the badge table itself", () => {
     expect(BADGE_BY_KEY["nosuchbadge"]).toBeUndefined();
   });
 
-  it("gives every anti-trophy the irony rarity and keeps it out of the case", () => {
-    for (const b of BADGES) expect(b.ironic === true).toBe(b.rarity === "irony");
+  it("gives every anti-trophy the ironic rarity and keeps it out of the case", () => {
+    for (const b of BADGES) expect(b.ironic === true).toBe(b.rarity === "ironic");
     expect(COLLECTIBLE.some((b) => b.ironic)).toBe(false);
     expect(COLLECTIBLE).toHaveLength(BADGES.filter((b) => !b.ironic).length);
+  });
+
+  /** Six tiers, and the top one holds exactly the two badges that mean "you
+   * maxed out an axis". Anything that enumerates rarities — the trophy case's
+   * section order, the lab's ladder, the pill styles — is reading this set, so
+   * a seventh tier or a third legend is a change that has to be made on
+   * purpose. */
+  it("keeps the ladder six tiers deep, with legend holding the two maxima", () => {
+    const tiers = new Set(BADGES.map((b) => b.rarity));
+    expect([...tiers].sort()).toEqual(
+      ["common", "ironic", "legend", "rare", "ultra", "uncommon"],
+    );
+    expect(BADGES.filter((b) => b.rarity === "legend").map((b) => b.key)).toEqual([
+      "crown",
+      "perfect",
+    ]);
   });
 
   it("resolves keys to emoji and drops what it does not own", () => {
@@ -92,11 +126,28 @@ describe("the badge table itself", () => {
 });
 
 describe("the on-field axis is exclusive", () => {
-  it("fires at most one badge for every win total a season can post", () => {
+  it("fires the ladder's one badge, and only that one, at every win total", () => {
     for (let w = 0; w <= GAMES; w++) {
       const got = only(earnedBadges(f({ baselineWins: w, baselineLosses: GAMES - w })), ONFIELD);
-      expect(got.length, `${w} wins fired ${got.join(" ")}`).toBeLessThanOrEqual(1);
+      // Exact equality, not a length bound: the ladder now has floor rungs
+      // under the century as well as over it, and "at most one fired" cannot
+      // tell 👔 from 📉 at the bottom of it.
+      expect(got, `${w} wins`).toEqual(ladderAt(w));
     }
+  });
+
+  /** The bands, spelled out as counts so the shape of the ladder is legible
+   * without reading 163 assertions: 👔 owns 0 alone, 📉 owns 1–40, 💀 owns
+   * 41–62, and 63–97 plus 99 earn nothing at all. */
+  it("hands each floor rung its own band", () => {
+    const at = (w: number) =>
+      only(earnedBadges(f({ baselineWins: w, baselineLosses: GAMES - w })), ONFIELD).join();
+    const band = (from: number, to: number) =>
+      [...new Set(Array.from({ length: to - from + 1 }, (_, i) => at(from + i)))];
+    expect(band(0, 0)).toEqual(["dayjob"]);
+    expect(band(1, WORST_WINS)).toEqual(["worst"]);
+    expect(band(WORST_WINS + 1, 62)).toEqual(["skull"]);
+    expect(band(63, 97)).toEqual([""]);
   });
 
   it("puts the skull on the same axis, so a 100-loss season is never also a rung", () => {
@@ -117,7 +168,8 @@ describe("the on-field axis is exclusive", () => {
       // The two anti-trophies share this axis, so a season bad enough still
       // lands one badge — the floor of the ladder, not a gap in it.
       if (w >= HUNDRED_WINS) expect(got, `${w} wins`).toEqual(["hundred"]);
-      else if (w === 0) expect(got, `${w} wins`).toEqual(["worst"]);
+      else if (w === 0) expect(got, `${w} wins`).toEqual(["dayjob"]);
+      else if (w <= WORST_WINS) expect(got, `${w} wins`).toEqual(["worst"]);
       else if (losses >= 100) expect(got, `${w} wins`).toEqual(["skull"]);
       else expect(got, `${w} wins`).toEqual([]);
     }
@@ -131,6 +183,43 @@ describe("the on-field axis is exclusive", () => {
     for (const w of [99, 109, 110, 111, 112, 113]) {
       expect(onFieldBadge(w), `${w} wins`).toBe(w >= HUNDRED_WINS ? "hundred" : null);
     }
+  });
+});
+
+/** The bottom two rungs mirror the top two, and the mirror is the point: 👑
+ * fires above the best record anyone ever posted and 📉 below the worst, with
+ * 👔 as the true floor. badges-supply.test.ts pins WORST_WINS one win under the
+ * 2024 White Sox; this file checks the arithmetic over that number. */
+describe("the floor of the ladder", () => {
+  const at = (w: number) => only(earnedBadges(f({ baselineWins: w, baselineLosses: GAMES - w })), ONFIELD);
+
+  it("takes the day job at nothing won at all", () => {
+    expect(earnedBadges(f({ baselineWins: 0, baselineLosses: GAMES }))).toContain("dayjob");
+    expect(earnedBadges(f({ baselineWins: 1, baselineLosses: GAMES - 1 }))).not.toContain("dayjob");
+  });
+
+  it("lets the day job supersede both the worst record and the skull", () => {
+    // 0–162 qualifies on all three counts — 0 ≤ 40 wins and 162 ≥ 100 losses —
+    // and exactly one badge may come out of that.
+    const got = earnedBadges(f({ baselineWins: 0, baselineLosses: GAMES }));
+    expect(only(got, ONFIELD)).toEqual(["dayjob"]);
+    expect(got).not.toContain("worst");
+    expect(got).not.toContain("skull");
+  });
+
+  it("takes the worst record from one win up to the threshold", () => {
+    expect(at(1)).toEqual(["worst"]);
+    expect(at(WORST_WINS)).toEqual(["worst"]);
+    expect(at(20)).toEqual(["worst"]);
+  });
+
+  it("hands the win above the threshold back to the skull, not to nothing", () => {
+    // 41–121 is the 2024 White Sox exactly, and the record 📉 sits one win
+    // under. A club that bad is still a 100-loss club, so the rung below it is
+    // 💀 rather than an empty row.
+    expect(WORST_WINS + 1).toBe(41);
+    expect(at(WORST_WINS + 1)).toEqual(["skull"]);
+    expect(earnedBadges(f({ baselineWins: 41, baselineLosses: 121 }))).not.toContain("worst");
   });
 });
 
@@ -387,6 +476,48 @@ describe("the era badges", () => {
       }),
     );
     expect(got.filter((k) => k === "signstealing")).toHaveLength(1);
+  });
+
+  /** 🏦 is the only trigger keyed to a player AND a club at once. The folklore
+   * is the pairing, not the man: Bonilla in Pittsburgh is a good third baseman
+   * and Ohtani in Anaheim is the best player alive — neither is a deferral
+   * story. Both halves are asserted, and so is the cross-pair, because a
+   * trigger that checked id-or-team would pass the positive cases alone. */
+  describe("deferred money", () => {
+    const bonilla = (team: string) => player({ id: "bonilbo01", team, year: 1993 });
+    const ohtani = (team: string) => player({ id: "ohtansh01", team, year: 2024, pos: "SP/DH" });
+    const fired = (p: BadgeRosterEntry) => earnedBadges(f({ roster: [p] })).includes("deferred");
+
+    it("pays Bonilla in a Mets uniform and Ohtani in a Dodgers one", () => {
+      expect(fired(bonilla("NYM"))).toBe(true);
+      expect(fired(ohtani("LAD"))).toBe(true);
+    });
+
+    it("leaves Bonilla's other four uniforms alone", () => {
+      for (const team of ["PIT", "BAL", "FLA"]) {
+        expect(fired(bonilla(team)), `bonilbo01 on ${team}`).toBe(false);
+      }
+    });
+
+    it("leaves Ohtani's Angels seasons alone", () => {
+      expect(fired(ohtani("LAA"))).toBe(false);
+    });
+
+    it("never fires on a cross-pairing", () => {
+      expect(fired(bonilla("LAD"))).toBe(false);
+      expect(fired(ohtani("NYM"))).toBe(false);
+    });
+
+    it("ignores the club without the man, and the man without the club", () => {
+      // A Met who is not Bonilla, and a Dodger who is not Ohtani.
+      expect(fired(player({ id: "someguy01", team: "NYM" }))).toBe(false);
+      expect(fired(player({ id: "someguy01", team: "LAD" }))).toBe(false);
+    });
+
+    it("fires once when both contracts are on the same club", () => {
+      const got = earnedBadges(f({ roster: [bonilla("NYM"), ohtani("LAD")] }));
+      expect(got.filter((k) => k === "deferred")).toHaveLength(1);
+    });
   });
 
   it("survives an empty dugout", () => {

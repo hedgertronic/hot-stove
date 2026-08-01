@@ -112,7 +112,7 @@ export interface CaseTile {
 }
 
 /** Rarest first; anti-trophies last, where they read as a punchline. */
-const RARITY_ORDER = ["ultra", "rare", "uncommon", "common", "irony"];
+const RARITY_ORDER = ["legend", "ultra", "rare", "uncommon", "common", "ironic"];
 /** Ties inside a tier resolve on the badge table's own order, so the case is
  * a pure function of the table and never of which game finished first. */
 const TABLE_ORDER = new Map(BADGES.map((b, i) => [b.key, i]));
