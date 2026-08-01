@@ -297,25 +297,35 @@
   }
 
   /** Clipboard fallback swaps the button's own label (same in-place pattern
-   * as the seed chip); the native share sheet is its own feedback. */
+   * as the seed chip); the native share sheet is its own feedback.
+   *
+   * Both routes are started inside the tap's transient user activation, which
+   * is why the clipboard promise is created before the sheet is awaited rather
+   * than after. Awaiting the sheet spends the activation, so a write issued
+   * afterwards can no longer run — desktop Chrome exposes navigator.share and
+   * then rejects it with NotAllowedError, which sent every desktop share down
+   * a fallback that could only fail. Starting the write first costs nothing
+   * when the sheet succeeds and is the whole fix when it doesn't. */
   let shareState = $state<"idle" | "copied" | "failed">("idle");
   let shareTimer: ReturnType<typeof setTimeout> | undefined;
   async function share() {
     const text = buildShare();
-    try {
-      if (navigator.share) {
+    // Optional chaining, not a try: navigator.clipboard is undefined outside a
+    // secure context (a phone hitting the dev server over plain http).
+    const writing =
+      navigator.clipboard?.writeText(text).then(
+        () => true,
+        () => false,
+      ) ?? Promise.resolve(false);
+    if (navigator.share) {
+      try {
         await navigator.share({ text });
         return;
+      } catch {
+        /* dismissed, unsupported, or refused by permissions policy */
       }
-    } catch {
-      /* fall through to clipboard */
     }
-    try {
-      await navigator.clipboard.writeText(text);
-      shareState = "copied";
-    } catch {
-      shareState = "failed";
-    }
+    shareState = (await writing) ? "copied" : "failed";
     clearTimeout(shareTimer);
     shareTimer = setTimeout(() => (shareState = "idle"), 1200);
   }
