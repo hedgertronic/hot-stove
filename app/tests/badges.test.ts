@@ -22,6 +22,7 @@ import {
   CROWN_WINS,
   HUNDRED_WINS,
   MATCHED,
+  RARITY_ORDER,
   WORST_WINS,
   badgeEmoji,
   earnedBadges,
@@ -156,6 +157,26 @@ describe("the badge table itself", () => {
    * section order, the lab's ladder, the pill styles — is reading this set, so
    * a seventh tier or a third legend is a change that has to be made on
    * purpose. */
+  it("orders the ladder rarest-first with the anti-trophies last", () => {
+    // RARITY_ORDER is the one ordering: the trophy case stacks its bands in
+    // it, badgeCase() sorts its tiles by it, and the Rarity type is derived
+    // from it. It used to be written out separately in each place, and one
+    // copy was missing "legend" — which sorted the rarest badges in the game
+    // to the BOTTOM of the home case, in shipped code.
+    expect([...RARITY_ORDER]).toEqual([
+      "legend",
+      "ultra",
+      "rare",
+      "uncommon",
+      "common",
+      "ironic",
+    ]);
+    // Every tier a badge actually wears has a place in the order — a tier
+    // missing from it sorts to -1, i.e. ahead of legend.
+    for (const b of BADGES) expect(RARITY_ORDER).toContain(b.rarity);
+    expect(RARITY_ORDER.at(-1)).toBe("ironic");
+  });
+
   it("keeps the ladder six tiers deep, with legend holding the two maxima", () => {
     const tiers = new Set(BADGES.map((b) => b.rarity));
     expect([...tiers].sort()).toEqual([

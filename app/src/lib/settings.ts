@@ -1,5 +1,5 @@
 /** Mode selection persists across visits (BUILD.md: localStorage `hotstove.settings`). */
-import { BADGE_BY_KEY, BADGES, COLLECTIBLE } from "./badges";
+import { BADGE_BY_KEY, BADGES, COLLECTIBLE, RARITY_ORDER } from "./badges";
 import {
   DEFAULT_CONFIG,
   type Bank,
@@ -97,15 +97,6 @@ export interface CaseTile {
   count: number;
 }
 
-/** Rarest first; anti-trophies last, where they read as a punchline. */
-const RARITY_ORDER = [
-  "legend",
-  "ultra",
-  "rare",
-  "uncommon",
-  "common",
-  "ironic",
-];
 /** Ties inside a tier resolve on the badge table's own order, so the case is
  * a pure function of the table and never of which game finished first. */
 const TABLE_ORDER = new Map(BADGES.map((b, i) => [b.key, i]));

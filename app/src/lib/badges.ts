@@ -44,8 +44,25 @@ import { GOAL_POINTS } from "./scoring";
  * gap between them and ultra is small, the statement is not. It is styled
  * inverted from every other tier (ink fill, gold text) so it reads as beyond
  * the ladder rather than one more rung on it. */
-export type Rarity =
-  "legend" | "ultra" | "rare" | "uncommon" | "common" | "ironic";
+/** Rarest first, anti-trophies last — the one ordering of the ladder.
+ *
+ * It is a value, not just a type, because three surfaces need the ORDER and
+ * not merely the names: the trophy case stacks its bands in it, the case's
+ * tile sort resolves by it, and the type below is derived from it. Written out
+ * separately in each place, a tier inserted in the middle would land in a
+ * different position on each surface — or be silently dropped by a sort that
+ * did not know the name, which is how `legend` came to sort last on the home
+ * case after it shipped. */
+export const RARITY_ORDER = [
+  "legend",
+  "ultra",
+  "rare",
+  "uncommon",
+  "common",
+  "ironic",
+] as const;
+
+export type Rarity = (typeof RARITY_ORDER)[number];
 
 /** Which slot a badge competes for. Within an exclusive axis exactly one badge
  * fires; `roster`, `era`, and `goal` stack freely. */

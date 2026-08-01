@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BADGES, type BadgeDef, type Rarity } from "../lib/badges";
+  import { BADGES, RARITY_ORDER, type BadgeDef, type Rarity } from "../lib/badges";
   import { badgeCase } from "../lib/settings";
   import BadgePill from "./BadgePill.svelte";
   import Sheet from "./Sheet.svelte";
@@ -16,12 +16,6 @@
 
   const trophies = badgeCase();
   const earnedCount = new Map(trophies.tiles.map((t) => [t.key, t.count]));
-
-  /** The collection ladder as sections, rarest first. Rarity is a heading over
-   * a band of pills rather than a word on each pill: every pill under a heading
-   * shares its tier, so the word still carries rarity on a channel that is not
-   * color — it is just printed once instead of N times. */
-  const CHASED: Rarity[] = ["legend", "ultra", "rare", "uncommon", "common"];
 
   interface CaseSlot {
     def: BadgeDef;
@@ -51,8 +45,15 @@
     ];
   }
 
-  const sections = [...CHASED, "ironic" as Rarity]
-    .map((rarity) => ({ rarity, items: slots(rarity) }))
+  /** The collection ladder as sections, rarest first. Rarity is a heading over
+   * a band of pills rather than a word on each pill: every pill under a heading
+   * shares its tier, so the word still carries rarity on a channel that is not
+   * color — it is just printed once instead of N times.
+   *
+   * The order is lib/badges' RARITY_ORDER, not a copy of it: a tier added there
+   * gets a band here without this file being touched, and cannot land in a
+   * different position than the case's own tile sort puts it. */
+  const sections = RARITY_ORDER.map((rarity) => ({ rarity, items: slots(rarity) }))
     .filter((s) => s.items.length > 0);
 
   /** The one opened badge, by key. Only an EARNED pill is a button, so only an
