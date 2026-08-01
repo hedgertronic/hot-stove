@@ -640,12 +640,36 @@ export function finaleDayjob(): Game {
  * on-field axis). This list exists so the ramp can be read top to bottom in one
  * glance, and so the locked silhouette — a trophy-case state that never appears
  * at a finale at all — is reviewable without a save file. */
-export const PILL_LADDER: { badge: BadgeDef; locked: boolean; note: string }[] = [
+export const PILL_LADDER: {
+  badge: BadgeDef;
+  locked: boolean;
+  note: string;
+  fresh?: boolean;
+}[] = [
   { badge: BADGE_BY_KEY.crown, locked: false, note: "legend — ink fill, gold text, gold ring" },
-  { badge: BADGE_BY_KEY.mariners, locked: false, note: "ultra — gold wash + inset ink ring" },
+  { badge: BADGE_BY_KEY.mariners, locked: false, note: "ultra — gold wash, no inner ring" },
   { badge: BADGE_BY_KEY.crystal, locked: false, note: "rare — violet wash" },
   { badge: BADGE_BY_KEY.allstars, locked: false, note: "uncommon — sky wash" },
   { badge: BADGE_BY_KEY.hundred, locked: false, note: "common — gray on a gray hairline" },
-  { badge: BADGE_BY_KEY.skull, locked: false, note: "ironic — dashed, unfilled, muted" },
+  { badge: BADGE_BY_KEY.skull, locked: false, note: "ironic — brick wash on a SOLID brick border" },
   { badge: BADGE_BY_KEY.rings, locked: true, note: "locked ultra — the tier survives, the identity does not" },
+  {
+    badge: BADGE_BY_KEY.threebrothers,
+    locked: true,
+    note: "locked secret — glyph kept, name withheld: a hint, not an errand",
+  },
+  // The finale-only state. Worth two rungs: the chip is ink-on-paper
+  // everywhere except legend, which is already ink-filled and inverts it.
+  {
+    badge: BADGE_BY_KEY.crystal,
+    locked: false,
+    fresh: true,
+    note: "NEW — first time ever earned; ink chip, leading the pill",
+  },
+  {
+    badge: BADGE_BY_KEY.crown,
+    locked: false,
+    fresh: true,
+    note: "NEW on legend — the chip inverts to gold, or it would vanish",
+  },
 ];

@@ -138,13 +138,15 @@
     BadgePill — the same component the finale row and the home trophy case
     both render. No season can show all six at once (the pill row caps at
     four, and legend and common are mutually exclusive on the on-field axis),
-    so this is the only place the ramp is reviewable end to end. The last row
-    is the locked silhouette, a trophy-case state that never reaches a finale.
+    so this is the only place the ramp is reviewable end to end. The last four
+    rows are states no single surface shows together: two locked silhouettes
+    (named, then secret) that only the trophy case renders, and the two NEW
+    flags that only a finale renders.
   </div>
   <div class="ladder">
-    {#each PILL_LADDER as row (row.badge.key + (row.locked ? "-locked" : ""))}
+    {#each PILL_LADDER as row, i (i)}
       <div class="lrung">
-        <BadgePill badge={row.badge} locked={row.locked} />
+        <BadgePill badge={row.badge} locked={row.locked} fresh={row.fresh ?? false} />
         <span class="lnote">{row.note}</span>
       </div>
     {/each}
