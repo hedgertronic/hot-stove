@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { BADGES } from "../src/lib/badges";
 import { parseSeedCode, recordFromTotal } from "../src/lib/format";
 import { GAMES, MARINERS_WINS } from "../src/lib/scoring";
 import { SLOT_TYPES } from "../src/lib/types";
 import {
-  shareBadges,
   shareCells,
   shareGrid,
   shareRecord,
   shareScoreLine,
   shareText,
   shareTitle,
-  type BadgeFacts,
   type ShareInput,
 } from "../src/lib/share";
 
@@ -24,15 +23,30 @@ const BASE: ShareInput = {
   roster: [3.1, 5.2, 2.0, 4.4, 1.2, 6.6, 3.8, 0.7],
 };
 
-const FACTS: BadgeFacts = {
-  baselineWins: 81,
-  baselineLosses: 81,
-  total: 104.3,
-  spendM: 100,
-  budgetM: 140,
-  budgetBonus: 4,
-  scoutHits: 2,
-};
+/** Badges cross this boundary as KEYS — which triggers fired is lib/badges'
+ * business (tests/badges.test.ts), and the string's business is turning that
+ * list into a line that can't break the format. */
+const FOUR = ["mariners", "perfect", "dime", "crystal"];
+
+/** Every badge one season can earn at once: the crown, the goal, a payroll
+ * face, the scout, all six stacking roster shapes, and all three era badges.
+ * The anti-trophies and the other on-field rungs are excluded by their own
+ * axes, so this is the real ceiling on line five's length. */
+const MAXIMAL = [
+  "crown",
+  "perfect",
+  "dime",
+  "crystal",
+  "allstars",
+  "twoway",
+  "noweak",
+  "cooperstown",
+  "rings",
+  "skipper",
+  "strike",
+  "covid",
+  "signstealing",
+];
 
 describe("shareText golden strings", () => {
   it("renders a plain season, bare record line", () => {
@@ -41,7 +55,7 @@ describe("shareText golden strings", () => {
     );
   });
 
-  it("renders a strong season in opt-in modes with every badge rung firing", () => {
+  it("renders a strong season in opt-in modes with four badges on the line", () => {
     expect(
       shareText({
         difficulty: "scout",
@@ -49,15 +63,7 @@ describe("shareText golden strings", () => {
         total: 165.7,
         managerWins: 8.2,
         roster: [8.9, 6.4, 9.1, 7.2, 4.5, 10.3, 6.8, 5.1],
-        badges: shareBadges({
-          baselineWins: 118,
-          baselineLosses: 44,
-          total: 165.7,
-          spendM: 139.8,
-          budgetM: 140,
-          budgetBonus: 9.9,
-          scoutHits: 8,
-        }),
+        badges: FOUR,
       }),
     ).toBe(["HOT STOVE 🔭⚾", "🟨🟡🟣", "🟡🟣🔵", "🟡🟣🔵", "162–0 🔱 🏆 💵 🔮"].join("\n"));
   });
@@ -70,15 +76,7 @@ describe("shareText golden strings", () => {
         total: 41.2,
         managerWins: -5.4,
         roster: [-1.2, 0.4, 1.1, -0.3, 0.9, 1.8, 0.2, -0.8],
-        badges: shareBadges({
-          baselineWins: 52,
-          baselineLosses: 110,
-          total: 41.2,
-          spendM: 205,
-          budgetM: 140,
-          budgetBonus: 0,
-          scoutHits: 0,
-        }),
+        badges: ["skull", "farm"],
       }),
     ).toBe(["HOT STOVE 📊💸", "🟥🔴⚪", "⚪🔴⚪", "⚪⚪🔴", "41–121 💀 💸"].join("\n"));
   });
@@ -101,15 +99,7 @@ describe("shareText golden strings", () => {
       total: 96.5,
       managerWins: 4.0,
       roster: [4.2, -1.4, 3.3, 6.1, 2.8, 5.0, 2.1, 1.6],
-      badges: shareBadges({
-        baselineWins: 94,
-        baselineLosses: 68,
-        total: 96.5,
-        spendM: 137,
-        budgetM: 140,
-        budgetBonus: 9.6,
-        scoutHits: 2,
-      }),
+      badges: ["dime"],
     });
     expect(s).toBe(["HOT STOVE 🔭💼", "🟦🔵🔴", "🟢🟣🟢", "🔵🟢⚪", "97–65 💵"].join("\n"));
     expect([...s].filter((c) => c === "🔴")).toHaveLength(1);
@@ -119,9 +109,9 @@ describe("shareText golden strings", () => {
     expect(shareText({ ...BASE, seed: 0xa3f2 })).toBe(
       ["HOT STOVE 📊💼", "🟩🟢🔵", "🟢🔵⚪", "🟣🟢⚪", "104–58 #WDU"].join("\n"),
     );
-    expect(shareText({ ...BASE, seed: 0xa3f2, badges: ["🔱", "🏆"] }).split("\n").at(-1)).toBe(
-      "104–58 🔱 🏆 #WDU",
-    );
+    expect(
+      shareText({ ...BASE, seed: 0xa3f2, badges: ["mariners", "perfect"] }).split("\n").at(-1),
+    ).toBe("104–58 🔱 🏆 #WDU");
   });
 });
 
@@ -131,8 +121,11 @@ describe("shareText golden strings", () => {
 const SHAPES: ShareInput[] = [
   BASE,
   { ...BASE, badges: [] },
-  { ...BASE, badges: ["🔱"] },
-  { ...BASE, badges: ["🔱", "🏆", "💵", "🔮"] },
+  { ...BASE, badges: ["mariners"] },
+  { ...BASE, badges: FOUR },
+  { ...BASE, badges: MAXIMAL },
+  { ...BASE, badges: ["nosuchbadge"] },
+  { ...BASE, badges: BADGES.map((b) => b.key) },
   { ...BASE, managerWins: null },
   { ...BASE, roster: [], managerWins: null },
   { ...BASE, roster: [null, null, null, null, null, null, null, null] },
@@ -140,7 +133,7 @@ const SHAPES: ShareInput[] = [
   { ...BASE, roster: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
   { ...BASE, total: -50 },
   { ...BASE, total: 0, managerWins: null, roster: [] },
-  { ...BASE, total: 400, seed: 0xffffffff, badges: ["🔱", "🏆", "💵", "🔮"] },
+  { ...BASE, total: 400, seed: 0xffffffff, badges: FOUR },
   { difficulty: "scout", bank: "moneyball", total: 162, managerWins: 8, roster: [8, 8, 8, 8, 8, 8, 8, 8] },
 ];
 
@@ -190,16 +183,40 @@ describe("line five has no trailing whitespace", () => {
   });
 
   it("holds for an empty badge list, an absent one, and a populated one", () => {
-    for (const badges of [undefined, [], ["🔱"], ["🔱", "🏆", "💵", "🔮"]]) {
+    for (const badges of [undefined, [], ["mariners"], FOUR, MAXIMAL, ["nosuchbadge"]]) {
       const last = shareText({ ...BASE, badges }).split("\n")[4];
       expect(last).not.toMatch(/\s$/);
     }
   });
 
   it("separates the record from its badges with exactly one space", () => {
-    expect(shareScoreLine(104.3, ["🔱", "🏆"])).toBe("104–58 🔱 🏆");
+    expect(shareScoreLine(104.3, ["mariners", "perfect"])).toBe("104–58 🔱 🏆");
     expect(shareScoreLine(104.3, [])).toBe("104–58");
     expect(shareScoreLine(104.3)).toBe("104–58");
+  });
+});
+
+/** The string spends emoji it does not choose: which badges fired is decided
+ * once, at the finale, and travels as keys. A key the badge set no longer owns
+ * — a save written before a badge was retired — must vanish rather than print
+ * an empty slot or a stray space. */
+describe("badges cross the boundary as keys", () => {
+  it("resolves every key in the set to its own emoji, in the order given", () => {
+    for (const b of BADGES) expect(shareScoreLine(104.3, [b.key])).toBe(`104–58 ${b.emoji}`);
+    expect(shareScoreLine(104.3, ["perfect", "mariners"])).toBe("104–58 🏆 🔱");
+    expect(shareScoreLine(104.3, ["mariners", "perfect"])).toBe("104–58 🔱 🏆");
+  });
+
+  it("never prints a raw key", () => {
+    const last = shareText({ ...BASE, badges: BADGES.map((b) => b.key) }).split("\n")[4];
+    for (const b of BADGES) expect(last).not.toContain(b.key);
+  });
+
+  it("drops a key the badge set does not own", () => {
+    expect(shareScoreLine(104.3, ["nosuchbadge"])).toBe("104–58");
+    expect(shareScoreLine(104.3, ["nosuchbadge", "perfect"])).toBe("104–58 🏆");
+    expect(shareScoreLine(104.3, ["", "perfect"])).toBe("104–58 🏆");
+    expect(shareScoreLine(104.3, ["nosuchbadge"], 0xa3f2)).toBe("104–58 #WDU");
   });
 });
 
@@ -346,107 +363,66 @@ describe("cell shapes and colors", () => {
   });
 });
 
-describe("shareBadges thresholds", () => {
-  const f = (over: Partial<BadgeFacts> = {}): BadgeFacts => ({ ...FACTS, ...over });
-
-  it("takes the trident above 116 baseline wins and the century at 100", () => {
-    expect(shareBadges(f({ baselineWins: 117 }))).toContain("🔱");
-    expect(shareBadges(f({ baselineWins: 116 }))).not.toContain("🔱");
-    expect(shareBadges(f({ baselineWins: 116 }))).toContain("💯");
-    expect(shareBadges(f({ baselineWins: 100 }))).toContain("💯");
-    expect(shareBadges(f({ baselineWins: 99 }))).not.toContain("💯");
-  });
-
-  it("never stacks two on-field rungs", () => {
-    const b = shareBadges(f({ baselineWins: 130, baselineLosses: 32 }));
-    expect(b.filter((x) => ["🔱", "💯", "💀"].includes(x))).toEqual(["🔱"]);
-  });
-
-  it("takes the skull at 100 losses, and only when no win rung fired", () => {
-    expect(shareBadges(f({ baselineWins: 62, baselineLosses: 100 }))).toContain("💀");
-    expect(shareBadges(f({ baselineWins: 63, baselineLosses: 99 }))).not.toContain("💀");
-  });
-
-  it("takes the goal at exactly 162 points", () => {
-    expect(shareBadges(f({ total: 162 }))).toContain("🏆");
-    expect(shareBadges(f({ total: 161.9 }))).not.toContain("🏆");
-  });
-
-  it("takes the money bag at $25M over the bankroll", () => {
-    expect(shareBadges(f({ spendM: 165, budgetM: 140, budgetBonus: 0 }))).toContain("💸");
-    expect(shareBadges(f({ spendM: 164.9, budgetM: 140, budgetBonus: 0 }))).not.toContain("💸");
-  });
-
-  it("takes the cash at a 9.5 payroll bonus", () => {
-    expect(shareBadges(f({ budgetBonus: 9.5 }))).toContain("💵");
-    expect(shareBadges(f({ budgetBonus: 9.4 }))).not.toContain("💵");
-  });
-
-  it("takes the receipt only when a pocketed payroll also lost", () => {
-    const cheap = { spendM: 84, budgetM: 140, budgetBonus: 0 };
-    expect(shareBadges(f({ ...cheap, baselineWins: 70, baselineLosses: 92 }))).toContain("🧾");
-    expect(shareBadges(f({ ...cheap, baselineWins: 92, baselineLosses: 70 }))).not.toContain("🧾");
-    expect(
-      shareBadges(f({ spendM: 84.1, budgetM: 140, baselineWins: 70, baselineLosses: 92 })),
-    ).not.toContain("🧾");
-  });
-
-  it("takes the crystal ball at seven dream-team hits", () => {
-    expect(shareBadges(f({ scoutHits: 7 }))).toContain("🔮");
-    expect(shareBadges(f({ scoutHits: 6 }))).not.toContain("🔮");
-  });
-
-  it("returns nothing for a thoroughly average season", () => {
-    expect(shareBadges(FACTS)).toEqual([]);
-  });
-
-  it("orders badges on-field, goal, money, scout", () => {
-    expect(
-      shareBadges(
-        f({ baselineWins: 120, total: 170, spendM: 139.9, budgetBonus: 10, scoutHits: 9 }),
-      ),
-    ).toEqual(["🔱", "🏆", "💵", "🔮"]);
-  });
-});
-
 describe("line width budget", () => {
-  /** Line five is the longest the format can produce. Its worst case is a
-   * six-character record (`104–58`; the record maxes at six, since `162–0` and
-   * `0–162` are shorter), four badges at two code points each counting their
-   * leading space, and — if the seed is ever re-enabled — a space, a hash, and
-   * a seven-character code: 6 + 8 + 9 = 23. Seedless, which is how it ships,
-   * the ceiling is 6 + 8 = 14. The title is a fixed 12 and grid rows are 3.
+  /** Line five is the longest the format can produce, and its length is the
+   * badge list's to blow: the record maxes at six characters (`104–58`; `162–0`
+   * and `0–162` are shorter), the title is a fixed 12, and a grid row is 3.
+   *
+   * The budget is derived from the badge table rather than written down as a
+   * literal, because a badge's emoji is not reliably one code point — 🏛️, 🗑️,
+   * 🕸️, and 🏖️ each carry a variation selector and cost two. Counting the emoji
+   * from BADGES means a new badge widens the stated ceiling instead of
+   * silently breaking a hand-computed one.
    *
    * Counted in code points, not visual width: emoji advance widths vary by
    * font, so no test can pin the latter. */
-  const MAX_LEN = 23;
-  const SHIPPED_MAX_LEN = 14;
   const codePoints = (s: string) => [...s].length;
+  const RECORD_LEN = 6;
+  const SEED_LEN = 9; // " #" plus a seven-character code
+  const cost = (keys: string[]) =>
+    keys.reduce((n, k) => n + 1 + codePoints(BADGES.find((b) => b.key === k)!.emoji), 0);
+
+  /** The most decorated season possible, seedless — how it ships. */
+  const SHIPPED_MAX_LEN = RECORD_LEN + cost(MAXIMAL);
+  /** Absolute paranoia bound: every badge in the set at once, plus a seed.
+   * No game can earn this — the exclusive axes forbid it — so nothing the
+   * engine produces may come near it. */
+  const MAX_LEN = RECORD_LEN + cost(BADGES.map((b) => b.key)) + SEED_LEN;
+
+  it("pins the worst case a season can actually reach", () => {
+    // 13 badges, 15 code points of emoji, one space each: 6 + 28 = 34.
+    expect(SHIPPED_MAX_LEN).toBe(34);
+    // total 104.3 gives the six-character record; 400 would clamp to "162–0".
+    const s = shareText({ ...BASE, total: 104.3, badges: MAXIMAL });
+    expect(codePoints(s.split("\n")[4])).toBe(SHIPPED_MAX_LEN);
+  });
 
   it("keeps every line inside the absolute budget at worst case", () => {
-    // total 104.3 gives the six-character record; 400 would clamp to "162–0".
+    expect(MAX_LEN).toBe(71);
     const s = shareText({
       ...BASE,
       total: 104.3,
       seed: 0xffffffff,
-      badges: ["🔱", "🏆", "💵", "🔮"],
+      badges: BADGES.map((b) => b.key),
     });
     expect(codePoints(s.split("\n")[4])).toBe(MAX_LEN);
     for (const line of s.split("\n")) expect(codePoints(line)).toBeLessThanOrEqual(MAX_LEN);
   });
 
-  it("pins the seedless worst case at the shipped ceiling", () => {
-    const s = shareText({ ...BASE, total: 104.3, badges: ["🔱", "🏆", "💵", "🔮"] });
-    expect(codePoints(s.split("\n")[4])).toBe(SHIPPED_MAX_LEN);
-  });
-
   it("keeps every seedless line inside the shipped budget", () => {
     for (const c of SHAPES) {
       if (c.seed !== undefined) continue;
+      // The all-badge shape is the impossible bound, not a shipped season.
+      if ((c.badges?.length ?? 0) > MAXIMAL.length) continue;
       for (const line of shareText(c).split("\n")) {
         expect(codePoints(line)).toBeLessThanOrEqual(SHIPPED_MAX_LEN);
       }
     }
+  });
+
+  it("keeps a four-badge line — the pill row's cap — well under the ceiling", () => {
+    const s = shareText({ ...BASE, total: 104.3, badges: FOUR });
+    expect(codePoints(s.split("\n")[4])).toBe(14);
   });
 
   it("pins the title's width", () => {

@@ -2,7 +2,8 @@
   import { type Bank, type Difficulty, type GameConfig } from "../lib/engine.svelte";
   import { parseSeedCode, recordFromTotal } from "../lib/format";
   import { BANKS, DIFFICULTIES } from "../lib/modes";
-  import { bestFor } from "../lib/settings";
+  import { BADGE_BY_KEY } from "../lib/badges";
+  import { badgeCase, bestFor } from "../lib/settings";
   import HelpModal from "./HelpModal.svelte";
   import Logo from "./Logo.svelte";
 
@@ -37,6 +38,11 @@
   const season = $derived(
     best.best === null ? null : { ...recordFromTotal(best.best), pts: best.best.toFixed(1) },
   );
+
+  // The trophy case is lifetime and global — it does not move when the punched
+  // rows above change, so it is read once at mount rather than derived.
+  const trophies = badgeCase();
+  const cased = trophies.tiles.map((t) => ({ ...t, def: BADGE_BY_KEY[t.key] }));
 
   let helpOpen = $state(false);
 
@@ -173,6 +179,36 @@
       </div>
     </div>
   </div>
+
+  <!-- The trophy case: a lifetime collection, closed by default so the home
+       screen stays a menu. Unearned badges render nothing at all — a locked
+       slot spoils the set and invites the anti-trophies. The summary's fraction
+       is the only hint at how much is left, and anti-trophies sit outside it:
+       they are neither chased nor countable, but they do get a tile. -->
+  <details class="case">
+    <summary class="psep casesum">
+      <span class="casetitle">
+        TROPHY CASE · {trophies.earned} OF {trophies.total}
+        <span class="caret" aria-hidden="true">▸</span>
+      </span>
+    </summary>
+    {#if cased.length === 0}
+      <p class="caseempty">No badges yet — play a season.</p>
+    {:else}
+      <div class="tiles">
+        {#each cased as t (t.key)}
+          <div class="tile {t.def.rarity}">
+            <span class="tic">{t.def.emoji}</span>
+            <span class="tlab">{t.def.label}</span>
+            <span class="ttier">{t.def.rarity}</span>
+            {#if t.count > 1}
+              <span class="tcount">×{t.count}</span>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
+  </details>
 </div>
 
 {#if helpOpen}
@@ -552,6 +588,113 @@
     /* Brighter than --war-elite, matching the finale stamp: at heavy stamp
        weight the token's #c98a08 reads brown; true gold needs the chroma. */
     color: #e0a010;
+  }
+  /* The case reuses .psep whole, so it adds no header style — only the bits a
+     <summary> needs that a <div> does not. The native marker is suppressed and
+     replaced by a caret inside the label, because a flex summary drops the
+     disclosure triangle in WebKit and a collapsed section with no affordance
+     is a hidden feature. */
+  .case {
+    margin-top: 20px;
+  }
+  .casesum {
+    cursor: pointer;
+    list-style: none;
+  }
+  .casesum::-webkit-details-marker {
+    display: none;
+  }
+  .casesum:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
+  }
+  .casetitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .caret {
+    font-size: 8px;
+    transition: transform 0.12s;
+  }
+  .case[open] .caret {
+    transform: rotate(90deg);
+  }
+  .caseempty {
+    margin: 0;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gray-ink);
+    padding: 6px 0 2px;
+  }
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: 7px;
+  }
+  /* One trophy: emoji, what it is, what tier it is, and how often it has been
+     earned. The tier word is printed, not merely colored — on this screen
+     rarity is the information, so it needs a channel that survives both
+     colorblindness and a grayscale print. */
+  .tile {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    column-gap: 7px;
+    border: 2.5px solid var(--ink);
+    border-radius: 11px;
+    padding: 6px 9px;
+    background: var(--card);
+    color: var(--ink);
+  }
+  .tic {
+    grid-row: span 2;
+    font-size: 19px;
+    line-height: 1;
+  }
+  .tlab {
+    font-weight: 800;
+    font-size: 10.5px;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+  }
+  .ttier {
+    grid-column: 2;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .tcount {
+    grid-column: 3;
+    grid-row: span 2;
+    font-size: 12px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+  /* The rarity ladder, palest to loudest. */
+  .tile.common {
+    background: var(--gray-bg);
+  }
+  .tile.uncommon {
+    background: var(--sky);
+  }
+  .tile.rare {
+    background: var(--rare-violet);
+  }
+  .tile.ultra {
+    background: var(--yellow);
+  }
+  /* An anti-trophy is not a prize: dashed, unfilled, and muted throughout. */
+  .tile.irony {
+    border-style: dashed;
+    border-color: var(--gray-ink);
+    background: transparent;
+    color: var(--muted);
   }
   /* The exact points, quiet and tabular under the record — the finale's
      .tpts voice sized down to the miniature. */

@@ -1,8 +1,9 @@
 <script lang="ts">
+  import { BADGE_BY_KEY, type BadgeDef } from "../lib/badges";
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
   import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, warTier } from "../lib/format";
-  import { GAMES, GOAL_POINTS, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
-  import { shareBadges, shareText as shareResult } from "../lib/share";
+  import { GAMES, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
+  import { shareText as shareResult } from "../lib/share";
   import AwardPill from "./AwardPill.svelte";
 
   let {
@@ -213,68 +214,32 @@
   });
 
 
-  /* ---- Badges: three rungs plus the goal pill; at most three pills render.
+  /* ---- Badges: the pill row is a render of fin.badges, nothing more.
    *
-   * Every trigger is calibrated against 2000-game bot runs (tests/bots/,
-   * baseline → powerups; frequencies in parens):
-   *   on-field rung  🔱 >116 wins (0–0.1%) ⊃ 💯 ≥100 wins (2–53%) |
-   *                  💀 ≥100 losses (0% — bots never tank; only a genuinely
-   *                  thrown season earns the skull)
-   *   money rung     💸 ≥$25M over cap (0.05–0.25%; the typical accidental
-   *                  bust is single-digit $M over and stays unbadged) |
-   *                  💵 payroll bonus ≥9.5, i.e. ≥97.5% of the cap spent
-   *                  without busting (16–30%) | 🧾 ≤60% of the cap spent AND
-   *                  a losing record (0–0.15%). The three faces are mutually
-   *                  exclusive by construction: over cap zeroes the bonus,
-   *                  and ≥97.5% spent can't be ≤60%.
-   *   scout rung     🔮 ≥7 of the dream team actually drafted (0.25–2%)
-   *   goal           🏆 total ≥162, its own axis — stacks with any rung.
-   */
-  const FARM_TAX_M = 25; // $M over cap before the overrun earns its pill
-  const DIME_BONUS = 9.5; // payroll bonus at ≥97.5% of cap, unbusted
-  const CHEAP_PCT = 0.6; // spend/cap at or below this is a pocketed payroll
-  const CRYSTAL_HITS = 7; // dream-team picks found (of 8, or 9 with a manager)
-
-  const beatMariners = $derived(fin.wins > MARINERS_WINS);
-  /* 💯 is the attainable on-field rung under 🔱, which supersedes it — a
-   * Mariners-beater is obviously in the club. */
-  const hundredClub = $derived(fin.wins >= 100 && !beatMariners);
-  const hundredLosses = $derived(fin.losses >= 100);
-  const perfect = $derived(fin.parts.total >= GOAL_POINTS);
-  const mortgaged = $derived(fin.spend - fin.budget >= FARM_TAX_M);
-  const everyDime = $derived(fin.parts.budgetBonus >= DIME_BONUS);
-  const pocketed = $derived(fin.spend <= fin.budget * CHEAP_PCT && fin.wins < fin.losses);
-  const crystalBall = $derived(fin.scoutHits >= CRYSTAL_HITS);
-
-  interface Brag {
-    key: string;
-    label: string;
-    /** Pill treatment: "" sky (record) · club/gold/cash/scout fills ·
-     * irony = the dashed anti-trophy. */
-    cls: "" | "club" | "gold" | "cash" | "scout" | "irony";
-  }
-  const brags = $derived.by((): Brag[] => {
-    const out: Brag[] = [];
-    if (beatMariners) out.push({ key: "trident", label: "🔱 BEAT THE 2001 MARINERS", cls: "" });
-    else if (hundredClub) out.push({ key: "club", label: "💯 100-WIN CLUB", cls: "club" });
-    else if (hundredLosses) out.push({ key: "skull", label: "💀 100-LOSS CLUB", cls: "irony" });
-    if (perfect) out.push({ key: "gold", label: "🏆 PERFECT SEASON", cls: "gold" });
-    if (mortgaged) out.push({ key: "farm", label: "💸 MORTGAGED THE FARM", cls: "irony" });
-    else if (everyDime) out.push({ key: "dime", label: "💵 SPENT EVERY DIME", cls: "cash" });
-    else if (pocketed) out.push({ key: "pocket", label: "🧾 POCKETED THE DIFFERENCE", cls: "irony" });
-    if (crystalBall) out.push({ key: "crystal", label: "🔮 CRYSTAL BALL", cls: "scout" });
-    // Four can fire at once (🔱 + 🏆 + 💵 + 🔮 — the lab's perfect-season
-    // game); the pill row caps at three, dropping from the scout end. The
-    // share string keeps all of them — emoji cost nothing there.
-    return out.slice(0, 3);
-  });
+   * Every trigger, label, emoji, and measured frequency lives in lib/badges —
+   * this component resolves keys to definitions and stops. The engine already
+   * ran `earnedBadges` at the finale and wrote the keys into the result, so
+   * the pills, the share string, and the trophy case are the same list by
+   * construction rather than by three agreeing copies of the thresholds.
+   *
+   * `?? []` and the BADGE_BY_KEY filter cover a finale restored from storage
+   * that predates the badge field, and a key retired from the set after a save
+   * was written — either way the row renders empty instead of throwing. */
+  const PILL_CAP = 4;
+  const earned = $derived((fin.badges ?? []).map((k) => BADGE_BY_KEY[k]).filter(Boolean) as BadgeDef[]);
+  /* Four pills, not three: a season now averages ~1.5 badges and the two era
+   * badges fire ~19% each, so three overflowed often enough to be noticed.
+   * The cut takes from the tail of `earnedBadges`' order (roster, then era);
+   * the share string keeps every one, because emoji cost nothing there. */
+  const brags = $derived(earned.slice(0, PILL_CAP));
 
   /** The shareable string. Facts in, string out — lib/share owns the format,
    * including the record, which it derives from the total so a shared record
    * can never disagree with the stamp above it. The grid is the finished
    * roster rather than the spin log, which is what makes it a fixed 3×3: one
-   * seat per cell, the same shape every game. Badge thresholds run on
-   * baseline wins, which is why they arrive as their own fact set. */
+   * seat per cell, the same shape every game. Badges go over as the keys the
+   * engine resolved, uncapped — the string shows every one the pill row had to
+   * drop. */
   function buildShare(): string {
     return shareResult({
       difficulty: game.config.difficulty,
@@ -284,15 +249,7 @@
       // rung on the ladder; null is what says "nobody in the chair".
       managerWins: game.manager ? fin.parts.managerWins : null,
       roster: game.slots.map((s) => s?.war ?? null),
-      badges: shareBadges({
-        baselineWins: fin.wins,
-        baselineLosses: fin.losses,
-        total: fin.parts.total,
-        spendM: fin.spend,
-        budgetM: fin.budget,
-        budgetBonus: fin.parts.budgetBonus,
-        scoutHits: fin.scoutHits,
-      }),
+      badges: fin.badges ?? [],
     });
   }
 
@@ -414,8 +371,9 @@
   <div class="brags">
     {#each brags as b, i (b.key)}
       <!-- Pills thunk in one at a time, left to right — a short trophy line,
-           not a wall (the derivation caps at three). -->
-      <div class="brag {b.cls}" style:animation-delay="{i * 0.12}s">{b.label}</div>
+           not a wall (the derivation caps at four). The class is the badge's
+           rarity, so how loud a pill looks is decided once, in the table. -->
+      <div class="brag {b.rarity}" style:animation-delay="{i * 0.12}s">{b.emoji} {b.label}</div>
     {/each}
   </div>
 {/if}
@@ -551,7 +509,7 @@
     }
   }
   /* Brag badges pop with the total, right under the stamp they qualify —
-     up to three pills on one wrapping, centered line. */
+     up to four pills on one wrapping, centered line. */
   .brags {
     display: flex;
     flex-wrap: wrap;
@@ -559,32 +517,42 @@
     gap: 6px 8px;
     margin-top: 12px;
   }
+  /* One pale wash on an ink border, four rungs deep. The game runs two color
+     registers and rarity lives entirely in this one: WAR tiers are the
+     saturated solid chips (--war-*), brag pills are washes. A rare pill and an
+     elite WAR chip can sit inches apart without either claiming the other's
+     meaning.
+     Green and pink are deliberately absent — green means "found on the dream
+     team" (.qrow.dreamhit) and pink means the manager (.skiprow). A rarity
+     ramp that spent either would make two unrelated things look related. */
   .brag {
     border: 2px solid var(--ink);
     border-radius: 999px;
-    background: var(--sky);
+    background: var(--gray-bg);
     font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.06em;
     padding: 3px 12px;
     animation: thunk-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
-  .brag.gold {
+  /* The floor: paper on a gray hairline, a step below the ink the others get. */
+  .brag.common {
+    background: var(--gray-bg);
+    border-color: var(--gray-ink);
+  }
+  .brag.uncommon {
+    background: var(--sky);
+  }
+  .brag.rare {
+    background: var(--rare-violet);
+  }
+  /* The top rung, and the only pill with a second border: gold plus an inset
+     ink ring, so ultra reads as ultra even beside three other filled pills. */
+  .brag.ultra {
     background: var(--yellow);
+    box-shadow: inset 0 0 0 1px var(--ink);
   }
-  /* Quieter than 🔱's sky — the club is the attainable rung. */
-  .brag.club {
-    background: var(--card);
-  }
-  /* Money-precision green; the cap spent to the last percent. */
-  .brag.cash {
-    background: var(--green-wash);
-  }
-  /* The scouting chase wears the one warm fill no other pill uses. */
-  .brag.scout {
-    background: var(--pink);
-  }
-  /* The anti-trophy: ironic badges (💀 💸 🧾) get the ghost treatment —
+  /* The anti-trophy: ironic badges (💀 💸 🧾 🕸️ 🏖️) get the ghost treatment —
      dashed hairline, no fill, muted ink. A citation, not a prize. */
   .brag.irony {
     border-style: dashed;

@@ -1,4 +1,5 @@
 /** Mode selection persists across visits (BUILD.md: localStorage `hotstove.settings`). */
+import { BADGE_BY_KEY, BADGES, COLLECTIBLE } from "./badges";
 import { DEFAULT_CONFIG, type Bank, type Difficulty, type GameConfig } from "./engine.svelte";
 
 const SETTINGS_KEY = "hotstove.settings";
@@ -53,6 +54,10 @@ interface HistoryEntry {
   bank?: string;
   moneyball?: boolean;
   v?: number;
+  /** Badge KEYS earned by that game. Optional: entries written before the
+   * badge set existed carry none, the same legacy tolerance `v` and `bank`
+   * already get. */
+  badges?: string[];
 }
 
 function loadHistory(): HistoryEntry[] {
@@ -98,4 +103,60 @@ export function bestFor(
     }
   }
   return { best, bestRecord: recW >= 0 ? `${recW}–${recL}` : null, games };
+}
+
+/** One earned badge and how many games earned it. */
+export interface CaseTile {
+  key: string;
+  count: number;
+}
+
+/** Rarest first; anti-trophies last, where they read as a punchline. */
+const RARITY_ORDER = ["ultra", "rare", "uncommon", "common", "irony"];
+/** Ties inside a tier resolve on the badge table's own order, so the case is
+ * a pure function of the table and never of which game finished first. */
+const TABLE_ORDER = new Map(BADGES.map((b, i) => [b.key, i]));
+
+/** The lifetime trophy case: every badge ever earned, with the number of games
+ * that earned it.
+ *
+ * GLOBAL across difficulty and bank, unlike the record book beside it.
+ * Measured rarity differs 2–3x by bank, so per-combo cases would fragment one
+ * collection into three half-empty ones. A record book is a leaderboard; a
+ * trophy case is a collection. Different objects, different scoping.
+ *
+ * Derived from `hotstove.history` rather than a `hotstove.badges` key of its
+ * own: a second key can drift from history, and a player who cleared one would
+ * be surprised by the other surviving.
+ *
+ * `count` is games, not array elements — an entry listing a key twice still
+ * counts once. Keys with no badge definition are dropped: a renamed or retired
+ * badge must not inflate the fraction or render a blank tile.
+ *
+ * `earned`/`total` are the progress fraction, and both exclude anti-trophies.
+ * Nobody chases a 100-loss season, so it belongs to neither side of the ratio —
+ * but it still gets a tile once it happens, which is the joke.
+ */
+export function badgeCase(): { tiles: CaseTile[]; earned: number; total: number } {
+  const counts = new Map<string, number>();
+  for (const e of loadHistory()) {
+    if (!Array.isArray(e?.badges)) continue;
+    const seen = new Set<string>();
+    for (const k of e.badges) {
+      if (typeof k !== "string" || !BADGE_BY_KEY[k] || seen.has(k)) continue;
+      seen.add(k);
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+  }
+  const tiles = [...counts].map(([key, count]) => ({ key, count }));
+  tiles.sort((a, a2) => {
+    const ra = RARITY_ORDER.indexOf(BADGE_BY_KEY[a.key].rarity);
+    const rb = RARITY_ORDER.indexOf(BADGE_BY_KEY[a2.key].rarity);
+    return ra !== rb ? ra - rb : TABLE_ORDER.get(a.key)! - TABLE_ORDER.get(a2.key)!;
+  });
+  return {
+    tiles,
+    earned: tiles.filter((t) => !BADGE_BY_KEY[t.key].ironic).length,
+    total: COLLECTIBLE.length,
+  };
 }

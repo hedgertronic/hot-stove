@@ -25,6 +25,10 @@
   --sky: #a5d8ff;
   --pink: #ffc9c9;
   --lilac: #e6e0f5;
+  /* The rare rung of the badge palette — the violet wash between sky and gold,
+     a shade deeper than --lilac so a rare pill and an award pill never read as
+     the same chip. */
+  --rare-violet: #dcd3f0;
   --orange: #e8590c;
   --orange-deep: #d04e08;
   --gray-bg: #e8e2d2;

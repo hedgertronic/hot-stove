@@ -1,7 +1,8 @@
+import { badgeEmoji } from "./badges";
 import type { Bank, Difficulty } from "./engine.svelte";
 import { recordFromTotal, seedCode, warTier, type WarTier } from "./format";
 import { BANKS, DIFFICULTIES } from "./modes";
-import { GAMES, GOAL_POINTS, MARINERS_WINS } from "./scoring";
+import { GAMES, MARINERS_WINS } from "./scoring";
 
 /* ---------------------------------------------------------------------------
  * The shareable result string. Exactly five lines, every game, forever:
@@ -103,63 +104,14 @@ export interface ShareInput {
    * rides the record line rather than the title so the title stays free of
    * digits. */
   seed?: number;
-  /** Badge emoji, already chosen, in display order — `shareBadges` produces
-   * the current set. An empty list leaves the record line bare, with no
-   * trailing space. Badges arrive finished rather than as facts to re-derive,
-   * so a badge redesign never touches the formatting path. */
+  /** Badge KEYS (lib/badges), in the order `earnedBadges` deals them out —
+   * `FinaleResult.badges` verbatim. The string resolves them to emoji itself,
+   * so lib/badges stays the one place a badge's face is written down and a
+   * caller can never spend an emoji the badge set doesn't own. Unknown keys
+   * are dropped. An empty list leaves the record line bare, with no trailing
+   * space. Uncapped: the finale's pill row caps itself because pills cost
+   * pixels, and emoji in a text message do not. */
   badges?: string[];
-}
-
-/** The facts the badge set is keyed to.
- *
- * Records here are BASELINE wins (50 + WAR + manager), deliberately not the
- * total-derived record the string prints: awards, rings, and the payroll bonus
- * would make the 💯/🔱 rungs trivial to clear. Two different numbers answering
- * two different questions, which is why they live in different types. */
-export interface BadgeFacts {
-  baselineWins: number;
-  baselineLosses: number;
-  /** Final points — 🏆 fires at the 162 goal. */
-  total: number;
-  spendM: number;
-  budgetM: number;
-  /** `ScoreParts.budgetBonus`; 💵 wants it near its 10-point ceiling. */
-  budgetBonus: number;
-  scoutHits: number;
-}
-
-/* Badge triggers, calibrated against the 2000-game bot runs in tests/bots/:
- *   on-field  🔱 >116 baseline wins ⊃ 💯 ≥100 | 💀 ≥100 losses
- *   goal      🏆 total ≥162
- *   money     💸 ≥$25M over the bankroll | 💵 payroll bonus ≥9.5 (≥97.5% of
- *             the bankroll spent, unbusted) | 🧾 ≤60% spent AND a losing record
- *   scout     🔮 ≥7 of the dream team actually drafted
- * The three money faces are mutually exclusive by construction: busting the
- * bankroll zeroes the bonus, and ≥97.5% spent cannot also be ≤60%. */
-const FARM_TAX_M = 25;
-const DIME_BONUS = 9.5;
-const CHEAP_PCT = 0.6;
-const CRYSTAL_HITS = 7;
-
-/** The badge set for a finale, in the same order the finale's own pill row
- * deals them out: on-field rung, the goal, money rung, scout. Uncapped — the
- * pill row caps at three because pills cost pixels; emoji in a text message
- * cost nothing.
- *
- * Most seasons produce an empty list, which is the point: the badge line is
- * the exception, not furniture, so a string that carries one is saying
- * something happened. */
-export function shareBadges(f: BadgeFacts): string[] {
-  const out: string[] = [];
-  if (f.baselineWins > MARINERS_WINS) out.push("🔱");
-  else if (f.baselineWins >= 100) out.push("💯");
-  else if (f.baselineLosses >= 100) out.push("💀");
-  if (f.total >= GOAL_POINTS) out.push("🏆");
-  if (f.spendM - f.budgetM >= FARM_TAX_M) out.push("💸");
-  else if (f.budgetBonus >= DIME_BONUS) out.push("💵");
-  else if (f.spendM <= f.budgetM * CHEAP_PCT && f.baselineWins < f.baselineLosses) out.push("🧾");
-  if (f.scoutHits >= CRYSTAL_HITS) out.push("🔮");
-  return out;
 }
 
 /** The nine cells in reading order: manager, then the eight roster slots.
@@ -205,15 +157,17 @@ export function shareRecord(total: number): string {
   return `${wins}–${losses}`;
 }
 
-/** The last line: the record, then any badges, then the seed if one was asked
- * for. Assembled by joining only the parts that exist, so a bare record has no
- * trailing space — the emoji separate themselves, and a lone space at the end
- * of a line is invisible in a diff and permanent in a text message.
+/** The last line: the record, then the emoji of any badge that fired, then the
+ * seed if one was asked for. `badges` arrives as KEYS and is resolved through
+ * `badges.badgeEmoji` here. Assembled by joining only the parts that exist, so
+ * a bare record has no trailing space — the emoji separate themselves, and a
+ * lone space at the end of a line is invisible in a diff and permanent in a
+ * text message.
  *
  * Badges ride this line rather than taking their own because five lines is the
  * invariant; a decorated season and a quiet one must be the same height. */
 export function shareScoreLine(total: number, badges: string[] = [], seed?: number): string {
-  const parts = [shareRecord(total), ...badges];
+  const parts = [shareRecord(total), ...badgeEmoji(badges)];
   if (seed !== undefined) parts.push(`#${seedCode(seed)}`);
   return parts.join(" ");
 }

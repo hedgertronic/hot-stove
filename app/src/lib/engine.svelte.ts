@@ -1,6 +1,7 @@
 /** Game state machine. Implements SPEC.md's rules, DECISIONS.md's gap fills.
  * All gameplay randomness flows through `this.rng` (one mulberry32 stream per
  * seed). The displayed record is deterministic (rounded expected wins). */
+import { earnedBadges } from "./badges";
 import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadSpecials, ownerFor } from "./data";
 import { eligibleTypes } from "./eligibility";
@@ -139,6 +140,9 @@ export interface FinaleResult {
   /** True when the hired manager IS the dream team's manager. */
   managerHit: boolean;
   scoutHits: number;
+  /** Badge KEYS (lib/badges), resolved once here so the pill row, the share
+   * string, and the history entry can never disagree about what was earned. */
+  badges: string[];
 }
 
 /** 🏠 Homegrown's flat sticker price ($1.0M normalized), clamped per-player
@@ -918,10 +922,32 @@ export class Game {
       managerMoty: this.manager?.moty === true,
     });
     const [wins, losses] = displayRecord(parts.expectedWins);
+    const badges = earnedBadges({
+      baselineWins: wins,
+      baselineLosses: losses,
+      total: parts.total,
+      spendM: this.spend,
+      budgetM: this.effectiveBudget,
+      budgetBonus: parts.budgetBonus,
+      scoutHits,
+      roster: players.map((p) => ({
+        war: p.war,
+        awards: p.awards,
+        year: p.year,
+        team: p.team,
+        pos: p.pos,
+      })),
+      managerTeam: this.manager?.team ?? null,
+      managerYear: this.manager?.year ?? null,
+      rings: this.pedigree.rings,
+      awardPoints: parts.awardPoints,
+      managerMoty: this.manager?.moty === true,
+    });
     this.finale = {
       parts,
       wins,
       losses,
+      badges,
       spend: this.spend,
       budget: this.effectiveBudget,
       spinCount: this.spinCount,
@@ -953,6 +979,9 @@ export class Game {
         spins: this.finale.spinCount,
         difficulty: this.config.difficulty,
         bank: this.config.bank,
+        // Keys, never labels — the trophy case unions these across every game
+        // ever played, so a copy edit must not orphan a earned badge.
+        badges: this.finale.badges,
       });
       localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
     } catch {

@@ -1,6 +1,7 @@
 /** Forged Game states for the dev-only UI lab (?lab). Every fixture builds a
  * REAL Game instance from synthetic data, so the lab renders the live
  * components under extreme inputs without replaying actual games. */
+import { earnedBadges } from "../lib/badges";
 import { Game, type GameConfig, type Signed } from "../lib/engine.svelte";
 import { displayRecord, score } from "../lib/scoring";
 import type { BestManager, FinaleResult } from "../lib/engine.svelte";
@@ -369,10 +370,35 @@ function forgeFinale(opts: {
       scoutHits,
     });
     const [wins, losses] = displayRecord(parts.expectedWins);
+    // Badges run through the same function the engine calls at a real finale,
+    // assembled from the same fields — a fixture that hardcoded a badge list
+    // would keep rendering pills the triggers no longer award.
+    const badges = earnedBadges({
+      baselineWins: wins,
+      baselineLosses: losses,
+      total: parts.total,
+      spendM: opts.spend,
+      budgetM: opts.budget,
+      budgetBonus: parts.budgetBonus,
+      scoutHits,
+      roster: opts.slots.map((s) => ({
+        war: s.war,
+        awards: s.awards,
+        year: s.year,
+        team: s.team,
+        pos: s.pos,
+      })),
+      managerTeam: g.manager.team,
+      managerYear: g.manager.year,
+      rings,
+      awardPoints: parts.awardPoints,
+      managerMoty: g.manager.moty === true,
+    });
     const finale: FinaleResult = {
       parts,
       wins,
       losses,
+      badges,
       spend: opts.spend,
       budget: opts.budget,
       spinCount: 12,
@@ -390,8 +416,8 @@ function forgeFinale(opts: {
 /** Under cap: front-office-bonus ledger face, 💍💍🚩 pedigree, a full 9-⭐
  * scouting sweep (every squad row starred, every dream row green). Includes
  * the decorated long-name squad row (badge wrap proof) and a 🏠 discount
- * signing. Badges: the full positive trio — 101 wins (💯), $95M of the
- * $96.7M cap spent (bonus 9.6 → 💵), 9 scout hits (🔮). */
+ * signing. Two pills: 108 wins matches the 1986 Mets (🍎, uncommon) and the
+ * 9-hit sweep takes 🔮 (rare) — a filled pill row with no gold in it. */
 export function finaleUnder(): Game {
   const slots = [
     mkSigned({ id: "salty", name: "Jarrod Saltalamacchia", pos: "C", war: 2.1, costPaid: 4.2, awards: ["MVP3", "GG", "SS", "AS"], ws: true }),
@@ -408,8 +434,9 @@ export function finaleUnder(): Game {
 
 /** Over cap: luxury-tax ledger face, and a stacked pedigree (8💍 + 2🚩 > 8
  * emojis) that must fall back to the ×N chips. One scout hit, one empty
- * dream-team seat. No badges: an accidental $19.3M bust sits under 💸's
- * $25M bar, and 87 wins reaches no rung. */
+ * dream-team seat. The $19.3M bust clears 💸's $15M bar, the eight rings take
+ * 💍, and a roster with no hardware at all takes 🕸️ — the mixed row, one
+ * ultra pill between two dashed anti-trophies. */
 export function finaleOver(): Game {
   const ws = (name: string, pos: string, war: number, costPaid: number) =>
     mkSigned({ name, pos, war, costPaid, ws: true });
@@ -426,11 +453,11 @@ export function finaleOver(): Game {
   return forgeFinale({ slots, spend: 116, budget: 96.7, scoutSweep: false });
 }
 
-/** 🔱 brag, no 🏆: a bought superteam. 71.7 WAR → 128.7 expected wins (129–33
- * beats the 2001 Mariners' 116), but the $31.3M luxury tax on the $128M
- * payroll drags the total to 133.4 — a 133–29 season record, short of 162.
- * The overrun clears 💸's $25M bar, so the pill row reads 🔱 + 💸: glory and
- * the tax bill on one line. */
+/** The crown without the goal: a bought superteam. 71.7 WAR carries the
+ * baseline past 117 wins, so 👑 supersedes every named rung, but the luxury
+ * tax on the $128M payroll keeps the total short of 162. Four pills exactly —
+ * 👑 💸 🏅 🏛️ — which is the row at its cap, one of each register: ultra gold,
+ * dashed irony, sky, and violet. */
 export function finaleMariners(): Game {
   const slots = [
     mkSigned({ name: "Iván Rodríguez", pos: "C", war: 6.4, costPaid: 12, year: 1999, team: "TEX", teamName: "Texas Rangers", awards: ["MVP", "GG", "AS"] }),
@@ -445,11 +472,12 @@ export function finaleMariners(): Game {
   return forgeFinale({ slots, spend: 128, budget: 96.7, scoutSweep: false });
 }
 
-/** 🏆 PERFECT SEASON (and 🔱 — a real perfect game clears both): 74.1 WAR,
- * near-cap payroll, big trophy case, and a 9-⭐ sweep push the total to
- * 186.7 ≥ 162, so the record caps at 162–0 while the points line beneath
- * keeps the exact 186.7. Four badges qualify (🔱 🏆 💵 🔮) — the row's
- * three-pill cap drops 🔮, the proof the wall can't happen. */
+/** 🏆 PERFECT SEASON (and 👑 — a real perfect game clears both): 74.1 WAR,
+ * near-cap payroll, big trophy case, and a 9-⭐ sweep push the total past
+ * 162, so the record caps at 162–0 while the points line beneath keeps the
+ * exact number. Five badges qualify (👑 🏆 🔮 🧱 ✊, the last from Frank
+ * Thomas's 1994) — the four-pill cap drops ✊ from the tail, which is the
+ * proof the wall can't happen. */
 export function finalePerfect(): Game {
   const slots = [
     mkSigned({ name: "Mike Piazza", pos: "C", war: 8.7, costPaid: 11, year: 1997, team: "LAD", teamName: "Los Angeles Dodgers", awards: ["MVP2", "SS", "AS"] }),
@@ -464,29 +492,57 @@ export function finalePerfect(): Game {
   return forgeFinale({ slots, spend: 95, budget: 96.7, scoutSweep: true });
 }
 
-/** 💀 100-LOSS CLUB: 4.0 WAR of washed veterans → 61 expected wins, a
- * 61–101 on-field record. The payroll still blows the cap by $3.3M — which
- * stays UNBADGED (💸 needs a $25M overrun; an ordinary bust is just the tax
- * row). The skull is the only pill. */
+/** 💀 100-LOSS CLUB: −2.0 WAR of washed veterans, against a skipper worth
+ * +14 wins, lands on 62–100 — the exact edge the skull sits on, so the
+ * fixture fails loudly if the trigger ever moves. The payroll still blows the
+ * cap by $3.3M, which stays UNBADGED (💸 needs a $15M overrun; an ordinary
+ * bust is just the tax row), and two All-Star nods keep 🕸️ and 🏖️ off. The
+ * skull is the only pill: one dashed anti-trophy on an empty line. */
 export function finaleBad(): Game {
   const slots = [
-    mkSigned({ name: "Jason Varitek", pos: "C", war: 0.4, costPaid: 10, year: 2008, team: "BOS", teamName: "Boston Red Sox", awards: ["AS"] }),
-    mkSigned({ name: "Ryan Howard", pos: "1B", war: 0.6, costPaid: 20, year: 2011, team: "PHI", teamName: "Philadelphia Phillies" }),
-    mkSigned({ name: "Alfonso Soriano", pos: "2B", war: 0.5, costPaid: 17, year: 2009, team: "CHC", teamName: "Chicago Cubs" }),
-    mkSigned({ name: "Vernon Wells", pos: "CF", war: 0.3, costPaid: 21, year: 2011, team: "LAA", teamName: "Los Angeles Angels" }),
-    mkSigned({ name: "Adam Dunn", pos: "DH", war: 0.7, costPaid: 12, year: 2012, team: "CHW", teamName: "Chicago White Sox", awards: ["AS"] }),
-    mkSigned({ name: "Barry Zito", pos: "SP", war: 0.6, costPaid: 18, year: 2008, team: "SFG", teamName: "San Francisco Giants" }),
-    mkSigned({ name: "Carl Pavano", pos: "SP", war: 0.5, costPaid: 11, year: 2005, team: "NYY", teamName: "New York Yankees" }),
-    mkSigned({ name: "Jonathan Papelbon", pos: "RP", war: 0.4, costPaid: 8, year: 2016, team: "WSN", teamName: "Washington Nationals" }),
+    mkSigned({ name: "Jason Varitek", pos: "C", war: -0.1, costPaid: 10, year: 2008, team: "BOS", teamName: "Boston Red Sox", awards: ["AS"] }),
+    mkSigned({ name: "Ryan Howard", pos: "1B", war: -0.4, costPaid: 20, year: 2011, team: "PHI", teamName: "Philadelphia Phillies" }),
+    mkSigned({ name: "Alfonso Soriano", pos: "2B", war: -0.3, costPaid: 17, year: 2009, team: "CHC", teamName: "Chicago Cubs" }),
+    mkSigned({ name: "Vernon Wells", pos: "CF", war: -0.2, costPaid: 21, year: 2011, team: "LAA", teamName: "Los Angeles Angels" }),
+    mkSigned({ name: "Adam Dunn", pos: "DH", war: 0.1, costPaid: 12, year: 2012, team: "CHW", teamName: "Chicago White Sox", awards: ["AS"] }),
+    mkSigned({ name: "Barry Zito", pos: "SP", war: -0.3, costPaid: 18, year: 2008, team: "SFG", teamName: "San Francisco Giants" }),
+    mkSigned({ name: "Carl Pavano", pos: "SP", war: -0.4, costPaid: 11, year: 2005, team: "NYY", teamName: "New York Yankees" }),
+    mkSigned({ name: "Jonathan Papelbon", pos: "RP", war: -0.4, costPaid: 8, year: 2016, team: "WSN", teamName: "Washington Nationals" }),
   ];
   return forgeFinale({ slots, spend: 100, budget: 96.7, scoutSweep: false });
 }
 
+/** 💯 + 🗑️: the plain end of the ramp. A 2017 Astros club lands on exactly
+ * 100 wins, taking the century rung — the set's ONLY common badge, and the
+ * only pill that wears the gray-on-gray treatment — beside the scandal badge
+ * in rare violet. The pair is the rarity floor rendered against a rung three
+ * steps up, which is the comparison the other fixtures can't make: every one
+ * of them opens at uncommon or better. Deliberately earns nothing else — one
+ * seat under 4.0
+ * WAR keeps 🧱 off, three unpicked players keep 🏅 off, and the hardware that
+ * did land keeps both anti-trophies away. */
+export function finaleCentury(): Game {
+  const hou = (name: string, pos: string, war: number, costPaid: number, awards: string[] = []) =>
+    mkSigned({ name, pos, war, costPaid, awards, year: 2017, team: "HOU", teamName: "Houston Astros" });
+  const slots = [
+    hou("Brian McCann", "C", 2.5, 7),
+    hou("Yuli Gurriel", "1B", 3.5, 8),
+    hou("José Altuve", "2B", 6.0, 16, ["MVP", "SS", "AS"]),
+    hou("George Springer", "CF", 4.5, 11, ["AS"]),
+    hou("Alex Bregman", "3B", 4.5, 9),
+    hou("Justin Verlander", "SP", 5.5, 14, ["GG"]),
+    hou("Dallas Keuchel", "SP", 5.0, 10),
+    hou("Ken Giles", "RP", 4.5, 6),
+  ];
+  return forgeFinale({ slots, spend: 81, budget: 96.7, scoutSweep: false });
+}
+
 /** 💸 MORTGAGED THE FARM: a $145M payroll of albatross contracts against the
- * $96.7M cap — a $48.3M overrun, comfortably past the badge's $25M bar —
- * carrying a 13.5-WAR roster to 71 wins. The tax drags the total to 24.2.
- * The dashed pill is the only one that fires: 71–91 reaches no on-field
- * rung, so the finale wears exactly one anti-trophy. */
+ * $96.7M cap — a $48.3M overrun, comfortably past the badge's $15M bar —
+ * carrying a 13.5-WAR roster to 78 wins. Two dashed pills and nothing else:
+ * 💸 for the overrun and 🕸️ for a roster that won no hardware at all. The
+ * all-irony row, where the anti-trophy treatment has to carry the line by
+ * itself. */
 export function finaleMortgaged(): Game {
   const slots = [
     mkSigned({ name: "Joe Mauer", pos: "C", war: 2.6, costPaid: 18, year: 2014, team: "MIN", teamName: "Minnesota Twins" }),
@@ -502,9 +558,11 @@ export function finaleMortgaged(): Game {
 }
 
 /** 🧾 POCKETED THE DIFFERENCE: $35M spent of a $96.7M cap (36%) on a
- * scrap-heap roster — 12.0 WAR, 69–93, a losing record with $61.7M left in
- * the owner's pocket. The under-half-cap payroll also eats a −2.8
- * front-office penalty, so the ledger and the pill tell the same joke. */
+ * scrap-heap roster — 12.0 WAR and a losing record with $61.7M left in the
+ * owner's pocket. Cheap enough for 🧮 too, but the losing record decides
+ * which face of the payroll axis fires, and 🕸️ joins it for a trophy case
+ * that stayed as empty as the payroll. The under-half-cap payroll also eats a
+ * −2.8 front-office penalty, so the ledger and the pills tell one joke. */
 export function finalePocketed(): Game {
   const slots = [
     mkSigned({ name: "Jeff Mathis", pos: "C", war: 0.6, costPaid: 2, year: 2018, team: "ARI", teamName: "Arizona Diamondbacks" }),

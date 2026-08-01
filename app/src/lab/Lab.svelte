@@ -11,6 +11,7 @@
   import {
     bankGames,
     finaleBad,
+    finaleCentury,
     finaleMariners,
     finaleMortgaged,
     finaleOver,
@@ -42,6 +43,7 @@
   const finBad = finaleBad();
   const finMortgaged = finaleMortgaged();
   const finPocketed = finalePocketed();
+  const finCentury = finaleCentury();
 
   // One confirm per market section; preset so the SIGN pill is visible on load.
   let confirmMarket = $state<string | null>("p:salty");
@@ -130,8 +132,8 @@
   <div class="cap">
     Front-office-bonus face · 💍💍🚩 pedigree · 9-⭐ scouting sweep (every
     squad row starred, whole dream team green) · long-name squad row with 4
-    pills + 💍 (badge wrap) · 🏠 discount row · badge trio 💯 + 💵 + 🔮
-    (101 wins, 98% of cap spent, 9 scout hits)
+    pills + 💍 (badge wrap) · 🏠 discount row · pills 🍎 uncommon (108 wins
+    matches the '86 Mets) + 🔮 rare (9 scout hits) — sky beside violet
   </div>
   <div class="fincase" id="fin-under">
     <Finale game={finUnder} onreplay={noop} onmodes={noop} />
@@ -140,18 +142,20 @@
   <div class="psep">FINALE · OVER CAP — STACKED PEDIGREE</div>
   <div class="cap">
     Luxury-tax face ($19.3M over) · 7💍 + 2🚩 &gt; 8 emojis → ×N fallback ·
-    1 scout hit · empty dream-team seat (—) · dream manager differs · NO
-    badges (an ordinary bust stays under 💸's $25M bar)
+    1 scout hit · empty dream-team seat (—) · dream manager differs · pills
+    💸 irony + 💍 ultra + 🕸️ irony — one gold pill between two dashed ones,
+    the rarity ramp's widest spread on a single line
   </div>
   <div class="fincase" id="fin-over">
     <Finale game={finOver} onreplay={noop} onmodes={noop} />
   </div>
 
-  <div class="psep">FINALE · 🔱 BEAT THE MARINERS</div>
+  <div class="psep">FINALE · 👑 BEST RECORD OF ALL TIME</div>
   <div class="cap">
-    Bought superteam: 129–33 expected record (&gt; 116 wins → 🔱) but a
-    $31.3M luxury tax holds the total to 133.4 — no 🏆 · the overrun clears
-    $25M, so 💸 MORTGAGED THE FARM shares the line (glory + the bill)
+    Bought superteam past 117 wins → 👑 supersedes every named rung, but the
+    luxury tax holds the total short of 162 — no 🏆 · THE PILL ROW AT ITS
+    4-PILL CAP, one of each register: 👑 ultra gold · 💸 irony dashed · 🏅
+    uncommon sky · 🏛️ rare violet
   </div>
   <div class="fincase" id="fin-mariners">
     <Finale game={finMariners} onreplay={noop} onmodes={noop} />
@@ -159,8 +163,9 @@
 
   <div class="psep">FINALE · 🏆 PERFECT SEASON</div>
   <div class="cap">
-    Total 186.7 ≥ 162 → record caps at 162–0, exact points line beneath ·
-    four badges qualify (🔱 🏆 💵 🔮) and the three-pill cap drops 🔮
+    Total ≥ 162 → record caps at 162–0, exact points line beneath · FIVE
+    badges qualify (👑 🏆 🔮 🧱 ✊) and the four-pill cap drops ✊ from the
+    tail — two ultras leading two rares, the row's loudest legal state
   </div>
   <div class="fincase" id="fin-perfect">
     <Finale game={finPerfect} onreplay={noop} onmodes={noop} />
@@ -168,17 +173,30 @@
 
   <div class="psep">FINALE · 💀 100-LOSS CLUB</div>
   <div class="cap">
-    Washed vets (4.0 WAR, $3.3M over cap): 61–101 on-field → the dashed 💀
-    anti-trophy · the small bust earns no 💸
+    Washed vets (−2.0 WAR, $3.3M over cap): 62–100 on-field, exactly on the
+    trigger → the dashed 💀 anti-trophy · the small bust stays under 💸's
+    $15M bar · a lone irony pill, the row at its quietest
   </div>
   <div class="fincase" id="fin-bad">
     <Finale game={finBad} onreplay={noop} onmodes={noop} />
   </div>
 
+  <div class="psep">FINALE · 💯 100-WIN CLUB — THE RARITY FLOOR</div>
+  <div class="cap">
+    A 2017 Astros club on exactly 100 wins · 💯 is the set's ONLY common
+    badge (gray fill, gray hairline — the one pill that doesn't get the ink
+    border) shown against 🗑️ in rare violet, so the bottom of the ramp is
+    visible beside a rung three steps up
+  </div>
+  <div class="fincase" id="fin-century">
+    <Finale game={finCentury} onreplay={noop} onmodes={noop} />
+  </div>
+
   <div class="psep">FINALE · 💸 MORTGAGED THE FARM</div>
   <div class="cap">
-    $145M of albatross contracts vs the $96.7M cap: $48.3M tax on a 71-win
-    roster, total 24.2 · 💸 is the lone (dashed) pill
+    $145M of albatross contracts vs the $96.7M cap: $48.3M tax on a 78-win
+    roster · 💸 + 🕸️ — the all-irony row, where the dashed treatment has to
+    carry the whole line with no filled pill to sit against
   </div>
   <div class="fincase" id="fin-mortgaged">
     <Finale game={finMortgaged} onreplay={noop} onmodes={noop} />
@@ -186,8 +204,9 @@
 
   <div class="psep">FINALE · 🧾 POCKETED THE DIFFERENCE</div>
   <div class="cap">
-    $35M spent of $96.7M (36%) on a scrap-heap 69–93 roster · −2.8
-    front-office penalty · 🧾 is the lone (dashed) pill
+    $35M spent of $96.7M (36%) on a scrap-heap 76–86 roster · −2.8
+    front-office penalty · cheap enough for 🧮 too, but the losing record
+    picks which payroll face fires · 🧾 + 🕸️, both dashed
   </div>
   <div class="fincase" id="fin-pocketed">
     <Finale game={finPocketed} onreplay={noop} onmodes={noop} />

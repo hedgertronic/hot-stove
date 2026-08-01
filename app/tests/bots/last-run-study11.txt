@@ -1,0 +1,110 @@
+=== Study 11: badge fire rates, rebuilt on-field ladder ===
+Population: bot play through the real engine. reference = Clean House bank + all six powerups, n=10000. Context arms n=10000.
+Wall clock: 44.8s for 30000 games.
+
+--- 1. Per-badge fire rate (% of games) ---
+badge          axis     current    ref n=10000 base n=10000   bc n=10000 recommend  flag
+👑 crown       onfield  ultra             1.33         0.00         3.29 ultra      BORDERLINE
+🔱 mariners    onfield  ultra             0.63         0.00         1.34 ultra      
+🗽 yankees     onfield  ultra             1.40         0.00         2.77 ultra      BORDERLINE
+🍎 mets        onfield  uncommon          4.29         0.25         5.96 rare       CHANGE uncommon→rare
+🚀 astros      onfield  uncommon          4.92         0.42         6.64 rare       BORDERLINE CHANGE uncommon→rare
+🐻 cubs        onfield  uncommon          5.95         0.79         5.66 uncommon   
+🧦 redsox      onfield  uncommon          4.99         3.19         3.10 rare       BORDERLINE CHANGE uncommon→rare
+💯 hundred     onfield  common           47.37         6.77        55.48 common     
+💀 skull       onfield  irony             0.00         0.01         0.00 irony      
+🏆 perfect     goal     ultra             1.01         0.00         2.25 ultra      BORDERLINE
+💸 farm        payroll  irony             0.50         1.16         0.04 irony      
+💵 dime        payroll  rare              4.98         9.55         2.29 rare       BORDERLINE
+🧮 pinch       payroll  rare              2.33         0.31         8.83 rare       
+🧾 pocket      payroll  irony             0.00         0.11         0.00 irony      
+🔮 crystal     scout    rare              3.25         1.61         9.08 rare       
+🏅 allstars    roster   uncommon          6.05         0.39        11.66 uncommon   
+🃏 twoway      roster   rare              3.79         1.41         6.42 rare       
+🧱 noweak      roster   rare              3.04         0.20         5.21 rare       
+🏛️ cooperstown roster   rare              2.05         0.00         4.93 rare       
+💍 rings       roster   ultra             1.48         0.07         3.89 ultra      BORDERLINE
+🧢 skipper     roster   uncommon          9.91         0.40        13.31 uncommon   
+🕸️ nohardware roster   irony             0.00         0.07         0.00 irony      
+🏖️ noallstars roster   irony             0.00         0.27         0.00 irony      
+✊ strike       era      uncommon         19.14        17.22        20.14 uncommon   
+🦠 covid       era      uncommon         18.51        19.10        15.49 uncommon   
+🗑️ signstealing era      uncommon          4.31         1.80         5.46 rare       CHANGE uncommon→rare
+
+--- 2. Tier disagreements vs the frozen badges.ts ---
+🍎 mets         current=uncommon measured=4.29%  →  rare
+🚀 astros       current=uncommon measured=4.92%  →  rare  (borderline)
+🧦 redsox       current=uncommon measured=4.99%  →  rare  (borderline)
+🗑️ signstealing current=uncommon measured=4.31%  →  rare
+
+--- 3. On-field axis: exactly one of these fires, or nothing ---
+rung              reference     baseline        Blank
+crown                  1.33         0.00         3.29
+mariners               0.63         0.00         1.34
+yankees                1.40         0.00         2.77
+mets                   4.29         0.25         5.96
+astros                 4.92         0.42         6.64
+cubs                   5.95         0.79         5.66
+redsox                 4.99         3.19         3.10
+hundred               47.37         6.77        55.48
+skull                  0.00         0.01         0.00
+NOTHING               29.12        88.57        15.76
+
+  (column order: reference (Clean House + all powerups, n=10000) | baseline (Clean House, no powerups, n=10000) | Blank Check (+ all powerups, n=10000))
+
+--- 4. Baseline-win histogram (finale displayRecord wins) ---
+wins                 ref %    base %      bc %   earns
+<=62 (💀 range)       0.00      0.01      0.00   💀 skull
+63-79                 0.05      6.78      0.00   — nothing
+80-89                 3.17     38.44      0.91   — nothing
+90-94                 9.54     28.88      4.01   — nothing
+95                    3.13      4.58      2.04   — nothing
+96                    3.89      4.32      2.14   — nothing
+97                    4.09      3.17      2.96   — nothing
+98                    4.99      3.19      3.10   🏅 redsox
+99                    5.25      2.40      3.70   — nothing
+100                   5.57      2.08      4.07   💯 hundred
+101                   5.89      1.63      4.59   💯 hundred
+102                   6.00      1.28      5.54   💯 hundred
+103                   5.95      0.79      5.66   🏅 cubs
+104                   5.86      0.74      5.80   💯 hundred
+105                   5.72      0.46      5.97   💯 hundred
+106                   4.92      0.42      6.64   🏅 astros
+107                   4.74      0.24      6.19   💯 hundred
+108                   4.29      0.25      5.96   🏅 mets
+109                   3.58      0.10      5.46   💯 hundred
+110                   3.05      0.08      5.16   💯 hundred
+111                   2.26      0.07      4.44   💯 hundred
+112                   1.84      0.03      3.16   💯 hundred
+113                   1.84      0.03      3.31   💯 hundred
+114                   1.40      0.00      2.77   🏅 yankees
+115                   1.02      0.03      1.79   💯 hundred
+116                   0.63      0.00      1.34   🏅 mariners
+117                   0.42      0.00      1.10   👑 crown
+118                   0.40      0.00      0.83   👑 crown
+119                   0.18      0.00      0.54   👑 crown
+120                   0.10      0.00      0.35   👑 crown
+>120                  0.23      0.00      0.47   👑 crown
+
+--- 5. 👑 tail by exact total (reference arm) — how much mass 117+ takes ---
+  117    0.42%  (42)
+  118    0.40%  (40)
+  119    0.18%  (18)
+  120    0.10%  (10)
+  121    0.08%  (8)
+  122    0.05%  (5)
+  123    0.03%  (3)
+  124    0.04%  (4)
+  125    0.01%  (1)
+  127    0.02%  (2)
+
+--- 6. Dead zones (reference arm) ---
+  Nothing at all (no rung, no 💯, no 💀): 29.12%
+  …of which the live shoulder 95-99, one to five wins short of 💯: 16.36%
+      95 wins: 3.13%
+      96 wins: 3.89%
+      97 wins: 4.09%
+      99 wins: 5.25%
+  Generic 💯 only, no named rung (100-116 off a rung): 47.37%
+      the empty 109-113 band specifically: 12.57%
+  (98 is the lowest named rung; 💀 needs ≤62 wins, i.e. 100 losses.)
