@@ -714,3 +714,120 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
   SpecialPrimePicker's owner/stadium rendering paths are deleted, and the
   sheet's manager rows now match the player career sheet's anatomy: 🧢 tag
   · year + team code · MOY pill · muted W–L · "+N.N W" win value.
+
+## Round 18 — the club you could have drafted, and a five-line share (2026-08-01)
+
+- **One pick per card, manager included.** The dream team spent years handing
+  back rosters with four bats off a single 1998 Yankees card — a club nobody
+  could ever have drafted, because a spin yields one choice. `bestRoster` now
+  solves roster and skipper jointly under a one-pick-per-card rule: the dugout
+  competes for the same scarce cards the bats do, so manager-first greedy is
+  provably suboptimal. A DP over cards gives an upper bound (it relaxes the
+  one-season-per-human rule); conflict-driven branch and bound closes the gap,
+  bounded at 2000 nodes, deterministic throughout. Reports `dreamSeats` — the
+  seats the club can actually fill — because a game that spun eight cards can
+  never reach nine and advertising the ceiling would read a perfect scouting
+  game as a miss. Bot study 10: ⭐≥7 fires 1.50% baseline / 3.20% powerups, so
+  the tighter rule made 🔮 *more* reachable, not less — one pick per card
+  forces the dream club to spread exactly the way the player was forced to,
+  and overlap rises.
+- **The share grid is the roster, not the spin log.** Five lines, always:
+  title plus mode emoji, a 3×3 grid, then the record with any badges. The old
+  string was four dense lines carrying payroll, rings, pennants, a scout
+  tally, the exact total and the seed — every one of which is already inside
+  the total, so it printed the score three times. The grid switched subject
+  from "what I spun" (variable length, never a shape) to "what I ended up
+  with" (8 slots + 1 manager = 9 cells, a rectangle every game). Two results
+  now stack and compare, which is the whole point of a Wordle-style share.
+  Manager takes cell 1 as a *square* on the same six-rung ladder the player
+  circles use — same hue, different shape; `⬛` for an empty chair, which is
+  on neither ladder so an absence can't read as a tier. Record derives from
+  the total, so a shared record can never disagree with the stamp above it —
+  the old string printed baseline wins under a total-derived stamp and the two
+  disagreed by ≥20 wins in 96.8% of games. Lives in `lib/share` as a pure
+  function, which is why it now has 50 tests and the old one had none.
+- **The seed leaves the share string, not the game.** Dropping it makes the
+  string a scorecard rather than a challenge — `parseSeedCode` and PLAY A SEED
+  were the only route to replaying someone's exact cards. Mitigated by the
+  finale's own `GAME #XXXX` chip, which still copies on tap: the string is a
+  result, the chip is a deliberate act. `seed?:` is retained in `ShareInput`
+  and tested, so restoring it is one property.
+- **The record ladder re-rungs onto landmarks the whole way down.** 155 gold /
+  135 violet / 116 Mariners blue / 100 century green / 81 .500 gray, and a
+  losing season goes brick. Calibrated over 20,000 paired bot seeds per
+  population against the frequency of each WAR tier on *visible* card seasons
+  (the population whose chips a player actually sees — `visiblePlayers` hides
+  negative WAR except one rescue per empty position, so brick is 2.7% on
+  screen versus 24.6% in the raw pool). Gold fell from 22.3% of strong play to
+  4.2%. A *full* rarity match was computed and rejected: it lands at
+  {162,157,150,142,115}, which prints a 138–24 season in blue as
+  below-average. Ladder B's color sits next to a literal win-loss record that
+  carries its own cultural meaning; Ladder A's sits next to a WAR number whose
+  meaning *is* the tier. Landmarks win below gold; the math only sets the top.
+  Exact matching is unreachable at the top regardless — wins clamp at 162 and
+  strong play already crosses it in ~1% of games, above the 0.67% that earns a
+  gold chip.
+- **The rail carries no hardware, and the finale carries all of it.** The
+  skipper's MOY pill left the roster rail: on a phone a trailing pill is the
+  first thing clipped, and no *player* hardware shows there either, so the
+  manager showing a pill was the inconsistency. The rail is a compact who/when
+  card. Every hidden award now waits for the finale, which is the game's one
+  reveal surface — MOY joins the squad review and the dream team there.
+- **WAR tier rides the rail as an inset band.** The wide layout shows each
+  seat's WAR number; the phone has no room, so the tier arrives as a 4px inset
+  bottom band on the same `--war-*` ladder `PlayerList` chips use. A band, not
+  a wash: `.cell.pickable` already owns the background, and the release picker
+  is exactly the state where a seat must say "tappable" and "5.2-WAR guy" at
+  once. Gated on `showWar`, so Eye Test leaks nothing — the numeral moved to
+  the same flag so band and number are provably one gate.
+- **The pick-time pin is fixed, not sticky.** A sticky box can only travel
+  inside its parent, and the rail's parent column is ~150px tall on a phone —
+  so it stuck for ~60px of scroll and then detached, which is exactly what
+  "sticks for a second then stops working" describes. `position: fixed` with a
+  measured spacer answers to the viewport instead. The `scrollIntoView` that
+  used to paper over it is gone. Known cost: at scroll 0, arming a pick lifts
+  the rail to viewport top and covers the ?/✕ pills for the duration.
+- **Copy.** BALL KNOWLEDGE over DIFFICULTY — the ladder measures what you can
+  read off a card, not how hard the game is. Clean House over Owner's Box — it
+  names the empty-front-office start it actually is (no owner, no park, no
+  skipper) and it's the only bank where those rows exist at all, since
+  `fixedCap` gates them off for Moneyball and Blank Check; it also matches its
+  siblings' register, three baseball-business idioms rather than one label and
+  two nicknames. TAP WHO TO TRADE.
+- **Docs caught up.** SPEC described a four-rung difficulty ladder; the code
+  has had two since round 6. DECISIONS carried the manager multiplier at ×0.1
+  after round 17 had already moved it to ×0.2.
+
+## Finding — the short seasons are exploitable, and that stays (2026-08-01)
+
+Proration (`transform.py`, `162 / avg_games` for any year averaging under 155)
+scales 1994 ×1.417, 1995 ×1.124 and 2020 ×2.706. It gets the *mean* right —
+mean WAR is 1.31 / 1.23 / 1.17 against 1.21 for full seasons — but it cannot
+recover evidence a short season never contained, so it inflates the *tail*:
+
+| season | WAR ≥8 rate | vs full | median WAR per $M | vs full |
+|---|---|---|---|---|
+| 1994 | 1.35% | **2.73×** | 0.264 | 0.88× |
+| 1995 | 0.48% | 0.97× | 0.340 | 1.14× |
+| 2020 | 0.63% | 1.27× | **0.481** | **1.61×** |
+| full | 0.49% | 1.00× | 0.299 | 1.00× |
+
+The mechanism is visible in 2020's top seasons: Betts 9.9 prorated from 3.7
+raw, Freeman 8.9 from 3.3, Bieber 8.7 from 3.2. A hot 60 games multiplied by
+2.706 looks generational.
+
+The two years are exploitable in opposite directions. 1994 over-produces gold
+chips at 2.73× but is poor value per dollar. 2020 is a straight 1.61× bargain,
+because its median normalized cost is $1.60M against $2.80M while its WAR is
+multiplied by 2.706 — cheap *and* inflated, compounding. The edge lives in the
+mid and low market; short-season gold chips actually cost more ($35–36M vs
+$25M), so it isn't a shortcut to stars.
+
+**Kept as-is, deliberately.** SPEC's stated core skill is "knowing which cheap
+seasons were secretly great," and a 1.61× edge available to anyone who reads
+the year off a card is the purest possible expression of that. It rewards
+knowledge, not exploitation of a bug, and it is discoverable by playing. The
+alternatives were recorded and declined: prorating cost alongside WAR removes
+the edge but needs a data regen and a full rebalance; damping the multiplier's
+tail fixes 1994's gold rate and leaves 2020's value edge untouched. Re-measure
+this table after any proration change.
