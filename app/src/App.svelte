@@ -249,13 +249,22 @@
     color: var(--muted);
     font-family: inherit;
     font-weight: 800;
-    font-size: 10px;
+    /* 12px, not 10: the trophy is a 13px drawing, and a 10px ? beside it read
+       as the smaller sibling rather than its twin. */
+    font-size: 12px;
     line-height: 1;
-    padding: 4px 0;
+    padding: 0;
     width: 28px;
-    box-sizing: border-box;
     text-align: center;
     cursor: pointer;
+    /* Fixed height and centring so all three corner pills share one box: the
+       ? and ✕ are 10px text glyphs and the trophy is a 13px drawing, and
+       letting content set the height made the trophy the odd one out. */
+    height: 22px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   .help {
     left: 0;
@@ -274,8 +283,6 @@
   .tico {
     width: 13px;
     height: 13px;
-    display: block;
-    margin: 0 auto;
     fill: none;
     stroke: currentColor;
     stroke-width: 1.3;
@@ -291,7 +298,7 @@
     color: var(--card);
     border-color: var(--ink);
     width: auto;
-    padding: 4px 8px;
+    padding: 0 8px;
   }
   /* Emoji-only chip, scaled to sit beside the ?/✕ pills. */
   .modechip {
