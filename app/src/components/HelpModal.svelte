@@ -17,16 +17,33 @@
       <li>Fill all 8 seats: C · IF ×2 · OF · UTIL · SP ×2 · RP.</li>
       <li>
         The club is complete at 8 players + a manager
-        <span class="soft">(+ an owner and stadium in Owner's Box)</span>.
+        <span class="soft">(+ an owner and stadium in Clean House)</span>.
+      </li>
+    </ul>
+
+    <div class="hsec">BALL KNOWLEDGE</div>
+    <ul>
+      <li>
+        <b>📊 Box Score</b> — every number on the card: WAR chips, salaries, and
+        award pills.
+      </li>
+      <li>
+        <b>🔭 Eye Test</b> — no WAR and no awards. You get the name, the
+        position, the stat line, and the price, and you decide what a season was
+        worth. <span class="soft">Salaries show either way — the cap game is
+        the same.</span>
       </li>
     </ul>
 
     <div class="hsec">YOUR PAYROLL</div>
     <ul>
       <li>
-        <b>Owner's Box:</b> hire an owner to set your payroll, then buy a stadium — its
-        attendance multiplier (×0.85–1.15) scales it.
+        <b>💼 Clean House</b> — an empty front office. Hire an owner to set your
+        payroll, then buy a stadium: its attendance multiplier (×0.85–1.15)
+        scales it. The only mode with owner and stadium rows.
       </li>
+      <li><b>⚾ Moneyball</b> — a fixed $51.5M, the 2002 A's.</li>
+      <li><b>💸 Blank Check</b> — a fixed $203.2M, the 2005 Yankees.</li>
       <li>You <i>can</i> sign past your payroll — the luxury tax just eats your score.</li>
     </ul>
 
@@ -58,6 +75,22 @@
       <li>
         <b>🏠 HOMEGROWN</b> — arm it for a hometown discount: players who
         <i>debuted</i> with this spin's club sign for $1M.
+      </li>
+    </ul>
+
+    <div class="hsec">THE TROPHY CASE</div>
+    <ul>
+      <li>
+        Finishing a club earns <b>badges</b> — for the record you posted, how you
+        spent, who you signed, and the odd thing you did by accident.
+      </li>
+      <li>
+        Tap 🏆 any time, mid-game or from the home screen. Earned badges open to
+        show what earned them.
+      </li>
+      <li>
+        Locked ones name what to aim at; <b>? ? ?</b> means you have to find it
+        yourself. The case is one lifetime collection across every mode.
       </li>
     </ul>
 

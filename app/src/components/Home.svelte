@@ -212,17 +212,31 @@
     color: var(--muted);
     font-family: inherit;
     font-weight: 800;
-    font-size: 10px;
+    /* 12px, not 10: the trophy is a 13px drawing, and a 10px ? beside it read
+       as the smaller sibling rather than its twin. */
+    font-size: 12px;
     line-height: 1;
-    padding: 4px 0;
+    padding: 0;
     width: 28px;
     text-align: center;
     cursor: pointer;
+    /* Fixed height and centring so all three corner pills share one box: the
+       ? and ✕ are 10px text glyphs and the trophy is a 13px drawing, and
+       letting content set the height made the trophy the odd one out. */
+    height: 22px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   /* The second corner button. Mirrors .help exactly and sits inboard of it,
      so the pair reads as one control group rather than two lone glyphs. */
+  /* Inboard of the ?, sharing its geometry — one control group in the corner
+     rather than two lone glyphs. `right: auto` matters: .help pins left, and a
+     rule setting only `right` would leave both anchored to the same corner. */
   .trophy {
-    right: 46px;
+    left: 32px;
+    right: auto;
   }
   /* Line art rather than an emoji: the ?/✕ pills are 10px text glyphs, and a
      colour emoji dropped into that geometry sits low and reads as a sticker on
@@ -230,8 +244,6 @@
   .tico {
     width: 13px;
     height: 13px;
-    display: block;
-    margin: 0 auto;
     fill: none;
     stroke: currentColor;
     stroke-width: 1.3;

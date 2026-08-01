@@ -28,16 +28,12 @@
   class:animate
   title={locked ? undefined : badge.label}
 >
-  {#if locked && badge.ironic}
-    <!-- An anti-trophy gives up nothing at all, not even its glyph. The rule it
-         protects is the incentive: a slot a player can read as "lose 100 games"
-         is an invitation to throw a season, and 💀 beside a question mark reads
-         exactly that way. Anonymous, it only says something is there. -->
-    <span aria-hidden="true">? ? ?</span>
-    <span class="sr">An undiscovered badge</span>
-  {:else if locked && badge.secret}
-    <!-- A discovery shows its glyph and withholds its name: enough of a hint to
-         be worth wondering about, not enough to become an errand. -->
+  {#if locked && (badge.ironic || badge.secret)}
+    <!-- A discovery and an anti-trophy both show their glyph and withhold their
+         name: enough of a hint to be worth wondering about, not enough to
+         become an errand. The anti-trophies stay in the brick band and out of
+         the progress fraction, which is what keeps a 💀 reading as a hazard
+         sign rather than a target. -->
     {badge.emoji}
     <span aria-hidden="true">? ? ?</span>
     <span class="sr">An undiscovered badge</span>

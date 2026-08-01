@@ -211,10 +211,11 @@ describe("the trophy case sheet", () => {
     expect(body).not.toContain("DEFERRED MONEY");
     expect(body).not.toContain("PICKET LINE");
     expect(body).not.toContain("PLAYER-MANAGER");
-    // Both classes render "? ? ?": a secret keeps its glyph as a hint, an
-    // anti-trophy gives up even that.
+    // Secrets and anti-trophies both render as glyph + "? ? ?" — the glyph is
+    // the hint, the withheld name is the discovery.
     expect(secretSlots(body)).toBe(BADGES.filter((b) => b.secret || b.ironic).length);
-    expect(body).not.toContain(BADGE_BY_KEY.skull.emoji);
+    expect(body).toContain(BADGE_BY_KEY.skull.emoji);
+    expect(body).not.toContain("100-LOSS CLUB");
   });
 
   it("slots every badge on a fresh case but counts only the collectible ones", () => {
@@ -253,8 +254,10 @@ describe("the trophy case sheet", () => {
     seed(game(["crystal"]));
     const before = modal();
     expect(before).toContain(">ironic<");
+    // The glyph shows; the name does not. A 💀 in the brick band reads as a
+    // hazard sign, and it stays out of the progress fraction either way.
+    expect(before).toContain(BADGE_BY_KEY.skull.emoji);
     expect(before).not.toContain("100-LOSS CLUB");
-    expect(before).not.toContain(BADGE_BY_KEY.skull.emoji);
     seed(game(["crystal", "skull"]));
     expect(modal()).toContain("100-LOSS CLUB");
   });
