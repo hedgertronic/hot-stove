@@ -831,3 +831,128 @@ alternatives were recorded and declined: prorating cost alongside WAR removes
 the edge but needs a data regen and a full rebalance; damping the multiplier's
 tail fixes 1994's gold rate and leaves 2020's value edge untouched. Re-measure
 this table after any proration change.
+
+---
+
+## Round 19 — the badge set, the trophy case, and two things deliberately left
+
+The badge set grew from 5 hardcoded pills to a 33-entry table in `lib/badges.ts`,
+and the trophy case that displays it moved from the home screen into a sheet
+reachable both from home and mid-game. What follows is the reasoning that is
+not obvious from the code.
+
+### Named on-field rungs are World Series winners, matched exactly
+
+Earlier rounds used "beat the X" thresholds. Exact matching is what makes a
+dense ladder possible: with thresholds, a 108-win season triggers every rung
+below it and needs mutual-exclusion rules; with exact matching, 98 / 103 / 106
+/ 108 / 114 / 116 coexist and resolution is one dictionary lookup.
+
+Every named rung is a champion, verified against `data/cards/`. Three rungs
+from the first draft were cut for losing: the 2004 Cardinals (105), the 2021
+Giants (107), and the 2022 Dodgers (111).
+
+Two consequences are accepted rather than fixed:
+
+- **109–113 is empty.** The only club in that band is the 2022 Dodgers, and
+  they lost the NLDS. Those five totals carry 12.6% of reference games — more
+  than any single named rung — but they all earn 💯, so the band is unnamed
+  rather than unrewarded.
+- **95–99 earns nothing at all**, 16.4% of reference games, 5.3% of them on 99
+  alone. No club won a title with 95–97 or 99 wins in the dataset era, and
+  inventing a rung there would break the rule the ladder is built on. The 2002
+  Angels, 2005 White Sox and 1989 A's all won 99 and were all considered; the
+  gap was chosen over an arbitrary tiebreak between them.
+
+🔱 at 116 is the one non-champion. No club has ever won the Series with 116
+wins, so it is the record rung. It keeps "MATCHED" wording anyway: the ladder
+reads as one list, and a lone verb change costs more in consistency than it
+buys in precision. It also has to stay because `format.ts` uses 116 as the blue
+rung on the record ladder — the two screens agree or neither is trustworthy.
+
+### Records are the window's, not all time
+
+Only three all-time single-season records fall inside 1985–2025 with fields the
+data carries: Bonds' 73 homers and 1.421 OPS, and Rodríguez's 62 saves. Two of
+the three are the same man. 📖 REWROTE THE RECORD BOOK therefore holds the best
+mark *in the window* — a ten-season board is a record book; a three-season one
+is a Barry Bonds exhibit.
+
+Gwynn's .394 in 1994 misses a 502-PA cutoff on 475 and is included anyway. It is
+the batting mark of the era by any honest reading, and the season being short is
+why it is remembered, not a reason to discount it.
+
+### Badges that name real people get sourced or they do not ship
+
+🚧 CROSSED THE LINE names 22 men as 1995 replacement players. Every name is
+carried by two published transcriptions of the MLBPA's own classification list.
+Two false positives were caught that a name-only match would have shipped:
+`borbope02` is Pedro Borbón **Jr.**, not the Sr. who crossed, and `smithgr02` is
+the 2008 A's Greg Smith, not the 1980s infielder. Damian Miller is excluded as
+the one genuinely disputed case — the union classifies him, he denies it on the
+record — at the cost of the pool's only catcher.
+
+A replacement player cannot earn ✊ PICKET LINE for himself, but any other 1994
+season on the roster still does. One club can carry both: one man walked out,
+another walked in.
+
+### The anti-trophies are the load-bearing constraint
+
+Ironic badges get **no locked trophy-case slot**. A visible empty slot is an
+invitation, and inviting the player to lose 100 games inverts the incentive the
+whole game runs on. They appear only once earned, which is the joke. This
+survived four separate redesigns of the case and must survive the next one.
+
+Everything else names itself when locked. A name is direction — "MATCHED THE
+2016 CUBS" sends you to look up what they did — while the `how` string behind
+it stays the reward for earning the badge.
+
+### A silent failure mode worth remembering
+
+Four badges shipped briefly with triggers that emitted a key no `BadgeDef`
+defined. They fired, wrote to history, and were dropped by every surface on the
+`BADGE_BY_KEY` lookup: no pill, no share emoji, no trophy slot, no error. The
+cause was string-replacement edits that silently no-opped after a formatter
+reflowed the table. `tests/badges.test.ts` now reads the trigger source directly
+and asserts every pushed key resolves.
+
+### Deferred, with the reasoning intact
+
+**1. Unify the outline system.** Border color is currently an accident, not a
+rule: pills default to `2px solid var(--ink)` because that is the game's
+cardstock look, and exceptions accumulated one badge at a time — ultra's gold
+fill with an ink ring, legend's inversion, ironic's brick-on-brick.
+
+A **darker tone of the fill** is the better system. Black outlines on eight
+pastel fills flatten them toward each other; a tonal border lets each hue hold
+itself. The WAR chips benefit more than the badges, being saturated solids where
+black does real violence to the color. `.brag.ironic` is already built this way
+and is the reference.
+
+The one exception is `legend`, which is inverted on purpose — a darker tone of
+ink is just more ink. It keeps the gold ring.
+
+Not done now because it touches every colored surface at once: WAR chips, award
+pills, the manager card, mode chips, the record stamp. Half-applying it makes
+the inconsistency worse than leaving it. **Do it as one pass, immediately before
+or as part of dark mode** — dark mode has to re-derive this system anyway, and
+doing them together means deriving it once.
+
+**2. Dark mode.** Lab artifact delivered, no scheme chosen, implementation not
+started. The standing recommendation is warm kraft (`#17150f` / `#221f18` /
+`#ece6d6`), which requires lifting `--war-high` to `#4181d2` and `--war-star` to
+`#8c71cb` for contrast, and replacing the `grayscale() + opacity` ghost idiom
+with a `--sunk` token. Fold item 1 into this.
+
+**3. Unshipped badge proposals.** `badge-ideas-round19.md` holds 13 measured
+proposals not built: OLD HEADS (3 players 35+, 0.95%), YOUNG GUNS (3 players
+23−, 1.73%), ALL-DECADE TEAM (5 of 8 from one decade, 9.43%), RAIDED THE
+DIVISION (5 of 8 from one division, 3.83%), plus mode-gated and powerup badges.
+Two need `SAVE_VERSION` 6 for `Signed.age`; the rest need one plumbing pass over
+`finishGame`. Divisions resolve era-correctly — a modern alignment would assert
+1992 Houston was in a division that did not exist until 1994.
+
+**4. Still open from round 18.** The front-office right-padding bug is
+unreproduced and shipped nothing. The mobile sticky-rail fix needs a real
+device. The share-sheet fix needs a real tap. `PAYROLL` as the home-screen
+header was questioned and never resolved.
