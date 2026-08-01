@@ -204,6 +204,46 @@ export const REPLACEMENTS: ReadonlySet<string> = new Set([
   "walkeja01", // Jamie Walker
 ]);
 
+/** The record book, as this game knows it. Every entry is the best mark in the
+ * 1985–2025 window the cards cover — deliberately NOT the all-time record,
+ * because only three all-time marks fall inside that window (Bonds' 73 homers
+ * and 1.421 OPS, and Rodríguez's 62 saves) and two of them are the same man.
+ * A ten-season board is a record book; a three-season one is a Barry Bonds
+ * exhibit.
+ *
+ * Gwynn's .394 came in the strike-shortened 1994 and would miss a 502-plate-
+ * appearance cutoff on 475. It is here anyway: it is the batting mark of the
+ * era by any honest reading, and the season being short is the reason it is
+ * remembered, not a reason to discount it.
+ *
+ * Keyed on the exact season, not the player — Bonds appears twice for two
+ * different records, and his other years are ordinary by his own standard. */
+const RECORD_SEASONS: Record<string, number[]> = {
+  bondsba01: [2001, 2004], // 73 HR · 1.421 OPS
+  ramirma02: [1999], // 165 RBI
+  colemvi01: [1985], // 110 SB
+  gwynnto01: [1994], // .394
+  johnsra05: [2001], // 372 K
+  welchbo01: [1990], // 27 wins
+  rodrifr03: [2008], // 62 saves
+  goodedw01: [1985], // 1.53 ERA and 13.3 WAR, one season
+};
+function isRecord(p: { id: string; year: number }): boolean {
+  return RECORD_SEASONS[p.id]?.includes(p.year) === true;
+}
+
+/** The summer of 1998 and the year Bonds ended it. Three seasons, one story —
+ * kept apart from the record board because the chase is remembered as an event
+ * rather than a line in a table. */
+const CHASE_SEASONS: Record<string, number[]> = {
+  mcgwima01: [1998], // 70
+  sosasa01: [1998], // 66
+  bondsba01: [2001], // 73
+};
+function isChase(p: { id: string; year: number }): boolean {
+  return CHASE_SEASONS[p.id]?.includes(p.year) === true;
+}
+
 /** The champion rungs, keyed on the exact win total that matches them. Every
  * total is a real club's real record; 🔱 is the record rung (see the file
  * comment) and 👑 is the only rung that names no club. */
@@ -585,6 +625,8 @@ export function earnedBadges(f: BadgeFacts): string[] {
   if (roster.some((p) => p.year === 1994 && !REPLACEMENTS.has(p.id)))
     out.push("strike");
   if (roster.some((p) => REPLACEMENTS.has(p.id))) out.push("crossed");
+  if (roster.some(isRecord)) out.push("recordbook");
+  if (roster.some(isChase)) out.push("chase");
   if (roster.some((p) => p.year === 2020)) out.push("covid");
   if (
     roster.some(isScandal) ||
