@@ -36,6 +36,9 @@
   /* WAR ladder follows the universal rarity ramp — gray → green → blue →
      violet → gold — with rust-red below gray for negative WAR. */
   --war-neg: #b3705f;
+  /* The pale-wash echo of --war-neg, for the anti-trophy pill. Solid, not
+     dashed: dashed is how a LOCKED badge reads, and an anti-trophy is earned. */
+  --brick-wash: #f2ded7;
   --war-low: #b5afa0;
   --war-mid: #2f9e44;
   --war-high: #3b7dd1;

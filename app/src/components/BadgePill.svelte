@@ -86,13 +86,13 @@
     border-color: var(--yellow);
     box-shadow: inset 0 0 0 1px var(--ink);
   }
-  /* The anti-trophy: ghost treatment — dashed hairline, no fill, muted ink.
-     A citation, not a prize. */
+  /* The anti-trophy: a brick wash, the pale-register echo of --war-neg, which
+     already means "below replacement" everywhere else in the game. Solid
+     border on purpose — dashed is how an UNEARNED badge reads, and these are
+     earned. A citation, but a citation you actually got. */
   .brag.ironic {
-    border-style: dashed;
-    border-color: var(--gray-ink);
-    background: transparent;
-    color: var(--muted);
+    background: var(--brick-wash);
+    border-color: var(--war-neg);
   }
   /* Locked: the fill drops to a tint of its tier so the row still reads as a
      rarity band, and the identity is replaced by a single mark. */
