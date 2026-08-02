@@ -5,9 +5,10 @@ import { earnedBadges } from "./badges";
 import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadSpecials, ownerFor } from "./data";
 import { eligibleTypes } from "./eligibility";
+import { recordFromTotal, type WarTier } from "./format";
 import { appendHistory, earnedBadgeKeys } from "./history";
 import { Rng, randomSeed } from "./rng";
-import { displayRecord, score } from "./scoring";
+import { GAMES, MARINERS_WINS, displayRecord, score } from "./scoring";
 import { SLOT_TYPES } from "./types";
 import type {
   Card,
@@ -142,10 +143,35 @@ export interface FinaleResult {
   budget: number;
   spinCount: number;
   totalWar: number;
-  /** WAR-optimal roster over every card this game landed on (null if the
+  /** Score-optimal club over every card this game landed on (null if the
    * cards couldn't be reloaded — score falls back to zero scout hits). */
   best: BestRoster | null;
   bestManager: BestManager | null;
+  /** THE CEILING: the highest finale total this game's cards could have
+   * produced — the same score() the stamp above comes from, so "you could have
+   * gone 141–21" is a real record and never below the one actually earned.
+   * Null only when the dream solve could not run (offline mid-game). Optional
+   * so a finale restored from an older save reads as "no ceiling known".
+   *
+   * It assumes perfect play of the cards the reel showed: every roster seat,
+   * the skipper, the owner and the ballpark chosen with hindsight, one pick per
+   * card plus a ✌️ Double Play second pick off one of them, at list prices,
+   * plus the one off-reel season ⭐ Prime Time reached, which the search treats
+   * as an extra card rather than charging it the spin it cost. */
+  bestPossibleTotal?: number | null;
+  /** That total on the finale's own ladder (`format.recordFromTotal`) — the
+   * identical function the stamp uses, so the two can never disagree. */
+  bestPossibleRecord?: { wins: number; losses: number; tier: WarTier } | null;
+  /** True when the ceiling IS the club the player built, i.e. the search found
+   * nothing better. Two different situations reach it and the display should
+   * know which it has: the player really did play the best club available, or
+   * the search lost to a line it does not model (measured at 0.4% of no-powerup
+   * games and 3.2% of full-powerup bot games — study 12). `best.total` is the
+   * solver's own unclamped answer, so `best.total < parts.total` distinguishes
+   * the second case; in it the dream club rendered below the stamp genuinely
+   * scores less than the ceiling printed above it, so "you matched the best club
+   * we found" is the honest wording rather than "you were perfect". */
+  playedTheCeiling?: boolean;
   /** True when the hired manager IS the dream team's manager. */
   managerHit: boolean;
   scoutHits: number;
@@ -177,6 +203,118 @@ const SAVE_KEY = "hotstove.current";
  * an in-flight club simply has no ages and earns neither age badge. Nothing is
  * discarded; the migration is the optional field. */
 const SAVE_VERSION = 6;
+
+/* ---------- the last finished game ---------- */
+
+/** The finale lives outside `hotstove.current` on purpose: a game in progress
+ * and the last game finished are different objects with different lifetimes,
+ * and the home screen has to tell them apart. `save()` still refuses to write
+ * a finale into the in-progress key, and `finishGame` still deletes that key —
+ * a finished game is not a resumable one.
+ *
+ * TWO keys, not one record with a flag:
+ *
+ * - `hotstove.finale` is the ARCHIVE — everything the finale screen renders.
+ *   Written once when the game ends, deleted only when a new game starts.
+ * - `hotstove.finale.open` is the BOOT CLAIM — "the finale screen is where the
+ *   player is standing". A reload holding the claim lands back on the finale;
+ *   ✕ and Modes drop the claim and leave the archive behind, which is what the
+ *   home screen's way back reads.
+ *
+ * Split because the two change at different moments and for different reasons:
+ * every exit is then a one-byte delete rather than a read-modify-write of a
+ * multi-kilobyte blob, and "claim with no readable archive" resolves to the
+ * home screen instead of a crash. */
+const FINALE_KEY = "hotstove.finale";
+const FINALE_OPEN_KEY = "hotstove.finale.open";
+/** v1 = the first stored finale. Bump whenever the archive stops being
+ * renderable by the finale screen; an unrecognised version reads as no stored
+ * finale, exactly like a corrupt one. */
+const FINALE_VERSION = 1;
+
+/** Everything the finale screen reads off a Game, plus the result itself.
+ *
+ * Deliberately less than the in-progress save: the rng stream, the spin log,
+ * the pending card and the powerup states have no reader once the game is
+ * over. `seen` and the front office are here because they are a few hundred
+ * bytes and a restored Game should not lie about state that cheap.
+ *
+ * Every field is plain JSON — `FinaleResult` bottoms out in numbers, strings,
+ * arrays and object literals (no Map, Set, Date or class instance anywhere in
+ * `ScoreParts`, `BestRoster` or `Signed`), so the round trip is lossless. */
+export interface StoredFinale {
+  v: number;
+  seed: number;
+  config: GameConfig;
+  spinCount: number;
+  seen: { team: string; year: number }[];
+  slots: (Signed | null)[];
+  owner: OwnerPick | null;
+  stadium: StadiumPick | null;
+  manager: ManagerPick | null;
+  finale: FinaleResult;
+}
+
+/** The archived finale, or null when there is none, it is corrupt, or it was
+ * written by a version this build cannot render. Same defensive shape as
+ * `loadSettings` / `loadCues` / `loadHistory`: an unreadable record is no
+ * record, never a throw — the home screen simply offers no way back. */
+export function loadStoredFinale(): StoredFinale | null {
+  try {
+    const raw = localStorage.getItem(FINALE_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (s?.v !== FINALE_VERSION) return null;
+    // The two things every surface dereferences: the ledger's numbers and the
+    // roster it renders a seat per. A record missing either is not a finale.
+    if (typeof s.finale?.parts?.total !== "number") return null;
+    if (!Array.isArray(s.slots)) return null;
+    return s as StoredFinale;
+  } catch {
+    return null;
+  }
+}
+
+/** Is the finale screen where the player left off? (The boot claim.) */
+export function finaleClaimed(): boolean {
+  try {
+    return localStorage.getItem(FINALE_OPEN_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/** Standing on the finale: a reload lands back here. Set when the game ends
+ * and when the home screen's way back opens the archive. */
+export function claimFinale(): void {
+  try {
+    localStorage.setItem(FINALE_OPEN_KEY, "1");
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** Left the finale (✕, Modes): a reload goes home from now on. The archive
+ * stays — being able to walk back in is the whole point of item two. */
+export function releaseFinale(): void {
+  try {
+    localStorage.removeItem(FINALE_OPEN_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** A new game supersedes the last finished one: archive and claim both go, so
+ * "an in-progress save AND a stored finale" is unreachable by construction
+ * rather than by a boot-time tiebreak. */
+export function clearStoredFinale(): void {
+  try {
+    localStorage.removeItem(FINALE_KEY);
+    localStorage.removeItem(FINALE_OPEN_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 export class Game {
   meta: Meta;
@@ -996,6 +1134,50 @@ export class Game {
 
   // ---------- finale ----------
 
+  /** Seasons this club holds that the reel never landed on — ⭐ Prime Time is
+   * the only way to reach one. Each comes back narrowed to the single item the
+   * powerup actually bought, so the dream solver can match what the player did
+   * without inheriting a whole card nobody ever saw. */
+  private async offReelCards(): Promise<Card[]> {
+    const seen = new Set(this.seen.map((s) => `${s.team}|${s.year}`));
+    const wanted = new Map<string, { team: string; year: number; players: Set<string>; manager: boolean }>();
+    const want = (team: string, year: number) => {
+      const key = `${team}|${year}`;
+      if (seen.has(key)) return null;
+      let entry = wanted.get(key);
+      if (!entry) {
+        entry = { team, year, players: new Set(), manager: false };
+        wanted.set(key, entry);
+      }
+      return entry;
+    };
+    for (const s of this.slots) {
+      if (!s) continue;
+      want(s.team, s.year)?.players.add(s.id);
+    }
+    if (this.manager) {
+      const e = want(this.manager.team, this.manager.year);
+      if (e) e.manager = true;
+    }
+    // One card that won't load must not cost the whole yardstick: the pool of
+    // spun cards is the yardstick, and these are an extra on top of it.
+    const loaded = await Promise.all(
+      [...wanted.values()].map(async (w) => {
+        try {
+          const card = await loadCard(w.team, w.year);
+          return {
+            ...card,
+            players: card.players.filter((p) => w.players.has(p.id)),
+            manager: w.manager ? card.manager : null,
+          };
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return loaded.filter((c): c is Card => c !== null);
+  }
+
   private async finishGame(): Promise<void> {
     const players = this.slots.filter((s): s is Signed => s !== null);
     // Reload every card this game landed on (all memoized from play) and solve
@@ -1009,7 +1191,12 @@ export class Game {
       const cards = await Promise.all(
         this.seen.map((s) => loadCard(s.team, s.year)),
       );
-      best = bestRoster(cards);
+      best = bestRoster(cards, {
+        // Moneyball / Blank Check hand out the cap, so the dream club has no
+        // owner or ballpark to solve for.
+        fixedBudgetM: this.fixedCap ? this.effectiveBudget : null,
+        offReel: await this.offReelCards(),
+      });
       bestManager = best.manager ?? null;
     } catch {
       /* offline mid-game: finish without the yardstick */
@@ -1095,6 +1282,15 @@ export class Game {
     // than noisy: on an empty log every badge genuinely is a first.
     const seenBefore = earnedBadgeKeys();
     const newBadges = badges.filter((k) => !seenBefore.has(k));
+    // The club actually built is a proven-reachable club, so it is the search's
+    // incumbent: the ceiling is never below it. The solver normally clears it by
+    // a wide margin; it can lose only on a line the search does not model (✌️
+    // Double Play taking two picks off one card, or the reel landing on one card
+    // twice), and printing "your best was worse than what you did" would be a
+    // bug on screen either way.
+    const solved = best?.total ?? null;
+    const bestPossibleTotal =
+      best === null || solved === null ? null : Math.max(solved, parts.total);
     this.finale = {
       parts,
       wins,
@@ -1109,11 +1305,51 @@ export class Game {
       bestManager,
       managerHit,
       scoutHits,
+      bestPossibleTotal,
+      bestPossibleRecord:
+        bestPossibleTotal === null
+          ? null
+          : recordFromTotal(bestPossibleTotal, GAMES, MARINERS_WINS),
+      playedTheCeiling: bestPossibleTotal !== null && bestPossibleTotal <= parts.total,
     };
     this.phase = "finale";
     this.recordHistory();
     try {
       localStorage.removeItem(SAVE_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+    // Strictly after the in-progress save is dropped: the two keys describe
+    // states that must never both hold, and this order means a storage failure
+    // leaves the older, smaller record rather than both.
+    this.archiveFinale();
+  }
+
+  /** Write the finale the screen is about to render, and claim the screen.
+   *
+   * Guarded like every other write here: a full or disabled localStorage costs
+   * the reload, never the finale the player already earned. The claim is set
+   * only after the archive lands, so a quota failure can't leave a boot claim
+   * pointing at nothing. */
+  private archiveFinale(): void {
+    if (!this.finale) return;
+    try {
+      localStorage.setItem(
+        FINALE_KEY,
+        JSON.stringify({
+          v: FINALE_VERSION,
+          seed: this.seed,
+          config: this.config,
+          spinCount: this.spinCount,
+          seen: this.seen,
+          slots: this.slots,
+          owner: this.owner,
+          stadium: this.stadium,
+          manager: this.manager,
+          finale: this.finale,
+        } satisfies StoredFinale),
+      );
+      claimFinale();
     } catch {
       /* storage unavailable */
     }
@@ -1178,6 +1414,51 @@ export class Game {
     }
   }
 
+  /** Rebuild the finished game the finale screen renders, from the archive.
+   *
+   * Field assignment only — `finishGame` never runs a second time, so the
+   * history row is not re-appended and the badges are not re-resolved. The
+   * result is a read-only Game: `phase === "finale"` means `save()` refuses to
+   * write it into the in-progress key, exactly as it always has. Synchronous
+   * because a finale needs no card fetch: everything on screen was resolved
+   * when the game ended and travels inside the record. */
+  static fromStoredFinale(
+    meta: Meta,
+    index: GameIndex,
+    owners: Owners,
+    rec: StoredFinale | null = loadStoredFinale(),
+  ): Game | null {
+    if (!rec) return null;
+    const game = new Game(
+      meta,
+      index,
+      owners,
+      rec.seed,
+      rec.config ?? DEFAULT_CONFIG,
+    );
+    game.spinCount = rec.spinCount ?? 0;
+    game.seen = rec.seen ?? [];
+    game.slots = rec.slots;
+    game.owner = rec.owner ?? null;
+    game.stadium = rec.stadium ?? null;
+    game.manager = rec.manager ?? null;
+    game.finale = rec.finale;
+    game.phase = "finale";
+    return game;
+  }
+
+  /** Boot: the finale the player never dismissed, or null to land home.
+   *
+   * A claim whose archive has gone missing or unreadable drops the claim and
+   * lands home — a boot claim can never resurrect a finale that cannot be
+   * rendered. */
+  static resumeFinale(meta: Meta, index: GameIndex, owners: Owners): Game | null {
+    if (!finaleClaimed()) return null;
+    const game = Game.fromStoredFinale(meta, index, owners);
+    if (!game) releaseFinale();
+    return game;
+  }
+
   static async restore(
     meta: Meta,
     index: GameIndex,
@@ -1232,6 +1513,17 @@ export class Game {
         if (game.powerups.doublePlay === "armed") {
           game.powerups.doublePlay = "ready";
           game.choicesLeft = Math.max(0, game.choicesLeft - 1);
+          // Reloading between a Double Play's two picks forfeits the second
+          // one, and a forfeited last choice ends the spin — the same rule
+          // `toggleDoublePlay` applies when the pill is disarmed by hand, run
+          // through the same `endSpin` so the two paths cannot drift.
+          //
+          // Ending it is not a nicety. Every action on a landed card is gated
+          // on `choicesLeft > 0`, and the only exits from a landed card are
+          // committing a choice or disarming the pill. Restoring to "landed,
+          // nothing left, no armed pill" satisfies neither, so the club sits
+          // on a card it can never leave.
+          if (game.choicesLeft === 0 && game.choicesUsed > 0) game.endSpin();
         }
       } else {
         game.phase = "preSpin";

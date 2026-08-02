@@ -1,5 +1,17 @@
+/** The dream-club solver. Two halves:
+ *
+ * - ROSTER MECHANICS (one pick per card, one season per human, slot capacity,
+ *   the joint manager solve) run through `dream()`, which hands the solver a
+ *   fixed bank. A fixed bank has no owner and no ballpark to buy, so no card is
+ *   spent on the front office and these tests say what they used to say. The
+ *   cap is deliberately enormous, which makes the payroll slope (20/budget)
+ *   negligible and leaves the objective reading as plain value.
+ * - THE FINALE OBJECTIVE (payroll bonus, luxury tax, owner, ballpark) runs
+ *   through the classic-bank entry point, where the front office is solved.
+ */
 import { describe, expect, it } from "vitest";
 import { bestRoster } from "../src/lib/bestroster";
+import { GAMES, MANAGER_PER_NET_WIN, score } from "../src/lib/scoring";
 import type { Card, CardPlayer } from "../src/lib/types";
 
 let pid = 0;
@@ -51,6 +63,13 @@ function card(players: CardPlayer[], over: Partial<Card> = {}): Card {
   };
 }
 
+/** A cap so large the payroll slope rounds away: the objective is value alone,
+ * and (being a fixed bank) no card is spent on an owner or a ballpark. This is
+ * the harness for every rule that is not about money. */
+const HUGE = 1e7;
+const dream = (cards: Card[]): ReturnType<typeof bestRoster> =>
+  bestRoster(cards, { fixedBudgetM: HUGE });
+
 /** One card per player: distinct team-seasons, no skipper. A spin buys one
  * thing from the card it lands on, so a roster test that wants eight players
  * needs eight cards — and no manager competing for them. */
@@ -74,6 +93,13 @@ function cardKeys(best: ReturnType<typeof bestRoster>): string[] {
   return keys;
 }
 
+/** How many cards supplied two things. ✌️ Double Play allows exactly one. */
+function doubledCards(best: ReturnType<typeof bestRoster>): number {
+  const counts = new Map<string, number>();
+  for (const k of cardKeys(best)) counts.set(k, (counts.get(k) ?? 0) + 1);
+  return [...counts.values()].filter((n) => n > 1).length;
+}
+
 const IF = { c: 0, if: 100, of: 0, dh: 0 };
 const OF = { c: 0, if: 0, of: 100, dh: 0 };
 const C = { c: 100, if: 0, of: 0, dh: 0 };
@@ -93,13 +119,13 @@ const fullSquad = (): CardPlayer[] => [
 
 describe("bestRoster", () => {
   it("fills every slot type from eight cards and maximizes WAR", () => {
-    const best = bestRoster(soloCards(fullSquad()));
+    const best = dream(soloCards(fullSquad()));
     expect(best.totalWar).toBeCloseTo(5 + 7 + 6 + 4 + 8 + 6 + 5 + 2, 1);
     expect(best.picks.every((p) => p !== null)).toBe(true);
   });
 
   it("routes an infielder to FLEX when both IF seats are taken by better years", () => {
-    const best = bestRoster(
+    const best = dream(
       soloCards([
         player({ pos: "SS", posG: IF, war: 9 }),
         player({ pos: "2B", posG: IF, war: 8 }),
@@ -113,7 +139,7 @@ describe("bestRoster", () => {
   it("uses at most one season per human across cards", () => {
     const early = player({ pos: "CF", posG: OF, war: 6, id: "trout" });
     const later = player({ pos: "CF", posG: OF, war: 9, id: "trout" });
-    const best = bestRoster([
+    const best = dream([
       card([early], { year: 2012, manager: null }),
       card([later], { year: 2016, manager: null }),
     ]);
@@ -123,14 +149,22 @@ describe("bestRoster", () => {
     expect(trouts[0]?.year).toBe(2016);
   });
 
-  it("never rosters negative-WAR players and leaves unfillable slots empty", () => {
-    const best = bestRoster([
-      card([player({ pos: "C", posG: C, war: -1 })], { manager: null }),
-    ]);
+  it("leaves out a season that costs more than the scout point it pays", () => {
+    // A seat on the dream club is worth SCOUT_HIT_POINTS (1.0) all by itself,
+    // because a player who drafts it scores that point. So the bar is −1.0 WAR,
+    // not zero: at −2.0 this catcher still loses the club half a win.
+    const best = dream([card([player({ pos: "C", posG: C, war: -2 })], { manager: null })]);
     expect(best.totalWar).toBe(0);
     expect(best.picks.every((p) => p === null)).toBe(true);
     expect(best.manager).toBeNull();
     expect(best.dreamSeats).toBe(0);
+  });
+
+  it("rosters a slightly below-replacement season, because the seat itself scores", () => {
+    // −0.5 WAR costs half a win and pays a whole scout point: net +0.5.
+    const best = dream([card([player({ pos: "C", posG: C, war: -0.5 })], { manager: null })]);
+    expect(best.picks[0]?.war).toBe(-0.5);
+    expect(best.dreamSeats).toBe(1);
   });
 });
 
@@ -141,7 +175,7 @@ describe("bestRoster awards in the objective", () => {
     // catches every hitter, so two catchers would simply both roster.
     const mvpSeason = player({ pos: "C", posG: C, war: 7, awards: ["MVP"], id: "star" });
     const plainSeason = player({ pos: "C", posG: C, war: 9, id: "star" });
-    const best = bestRoster([
+    const best = dream([
       card([mvpSeason], { year: 2001, manager: null }),
       card([plainSeason], { year: 2002, manager: null }),
     ]);
@@ -161,7 +195,7 @@ describe("bestRoster awards in the objective", () => {
       [card([plain], { year: 2001, manager: null }), card([gg], { year: 2002, manager: null })],
       [card([gg], { year: 2002, manager: null }), card([plain], { year: 2001, manager: null })],
     ]) {
-      const chosen = bestRoster(cards).picks.filter((p) => p?.id === "dup");
+      const chosen = dream(cards).picks.filter((p) => p?.id === "dup");
       expect(chosen).toHaveLength(1);
       expect(chosen[0]?.year).toBe(2002);
       expect(chosen[0]?.awards).toEqual(["GG"]);
@@ -169,7 +203,7 @@ describe("bestRoster awards in the objective", () => {
   });
 
   it("matches the WAR-only objective when no season has awards", () => {
-    const best = bestRoster(
+    const best = dream(
       soloCards([
         player({ pos: "SS", posG: IF, war: 9 }),
         player({ pos: "2B", posG: IF, war: 8 }),
@@ -184,16 +218,17 @@ describe("bestRoster awards in the objective", () => {
   it("a below-replacement season with a big award can now make the roster", () => {
     // −0.5 WAR + MVP (3 pts) = 2.5 value: the objective says it belongs.
     const oddMvp = player({ pos: "C", posG: C, war: -0.5, awards: ["MVP"], id: "odd" });
-    const best = bestRoster([card([oddMvp], { manager: null })]);
+    const best = dream([card([oddMvp], { manager: null })]);
     expect(best.picks[0]?.id).toBe("odd");
     expect(best.totalWar).toBeCloseTo(-0.5, 1);
   });
 });
 
-describe("bestRoster one pick per card", () => {
-  it("takes at most one player from a stacked card", () => {
-    // Three cards, eight great players apiece: the dream team can still only
-    // be three deep, because three spins is three choices.
+describe("bestRoster one pick per card, plus one ✌️", () => {
+  it("takes one player per stacked card, and two off exactly one of them", () => {
+    // Three cards, eight great players apiece. Three spins is three choices —
+    // plus the Double Play every game starts holding, which buys a second pick
+    // off one of those spins. Four picks, never five.
     const stacked = [0, 1, 2].map((i) =>
       card(fullSquad(), {
         team: `S${i}`,
@@ -203,13 +238,13 @@ describe("bestRoster one pick per card", () => {
         manager: null,
       }),
     );
-    const best = bestRoster(stacked);
-    const filled = best.picks.filter((p) => p !== null);
-    expect(filled).toHaveLength(3);
+    const best = dream(stacked);
+    expect(best.picks.filter((p) => p !== null)).toHaveLength(4);
     expect(new Set(cardKeys(best)).size).toBe(3);
+    expect(doubledCards(best)).toBe(1);
   });
 
-  it("never repeats a team-season across seats or the dugout", () => {
+  it("spends its one Double Play on a single card, never two", () => {
     const cards = [0, 1, 2, 3, 4].map((i) =>
       card(fullSquad(), {
         team: `S${i}`,
@@ -220,30 +255,39 @@ describe("bestRoster one pick per card", () => {
         losses: 62 + i,
       }),
     );
-    const best = bestRoster(cards);
+    const best = dream(cards);
     const keys = cardKeys(best);
-    expect(keys).toHaveLength(5); // four seats + the skipper, one per card
-    expect(new Set(keys).size).toBe(keys.length);
+    expect(keys).toHaveLength(6); // five cards, one of them twice
+    expect(doubledCards(best)).toBe(1);
   });
 
   it("collapses duplicate team-seasons in the input to a single card", () => {
     const one = card(fullSquad(), { manager: null });
-    const dupe = bestRoster([one, card(fullSquad(), { manager: null })]);
-    expect(dupe.picks.filter((p) => p !== null)).toHaveLength(1);
-    expect(bestRoster([one]).totalWar).toBe(dupe.totalWar);
+    const dupe = dream([one, card(fullSquad(), { manager: null })]);
+    // One card in the pool: one pick, plus the Double Play's second.
+    expect(dupe.picks.filter((p) => p !== null)).toHaveLength(2);
+    expect(dream([one]).totalWar).toBe(dupe.totalWar);
   });
 
-  it("keeps the skipper's card out of the player picks", () => {
-    // The dugout card also holds the single best bat in the pool. A solver that
-    // billed the manager separately would take both off one spin.
-    const boss = card([player({ pos: "C", posG: C, war: 12 })], {
-      team: "BOS",
-      franchise: "BOS",
-      name: "Boss Nine",
-      year: 1975,
-      wins: 130,
-      losses: 32, // net +98 → 19.6, far and away the best skipper
-    });
+  it("never takes three things off one card", () => {
+    // The dugout card also holds the three best bats in the pool. One spin
+    // plus one Double Play is two picks — a solver that billed the manager
+    // separately would take all four.
+    const boss = card(
+      [
+        player({ pos: "C", posG: C, war: 12 }),
+        player({ pos: "CF", posG: OF, war: 11 }),
+        player({ pos: "SP", posG: NONE, gs: 30, war: 10 }),
+      ],
+      {
+        team: "BOS",
+        franchise: "BOS",
+        name: "Boss Nine",
+        year: 1975,
+        wins: 130,
+        losses: 32, // net +98 → 19.6, far and away the best skipper
+      },
+    );
     const rest = [1, 2, 3].map((i) =>
       card([player({ pos: "CF", posG: OF, war: 4 })], {
         team: `R${i}`,
@@ -254,9 +298,8 @@ describe("bestRoster one pick per card", () => {
         losses: 81,
       }),
     );
-    const best = bestRoster([boss, ...rest]);
-    const fromBoss = cardKeys(best).filter((k) => k === "BOS 1975");
-    expect(fromBoss).toHaveLength(1);
+    const best = dream([boss, ...rest]);
+    expect(cardKeys(best).filter((k) => k === "BOS 1975")).toHaveLength(2);
   });
 });
 
@@ -265,6 +308,8 @@ describe("bestRoster joint manager solve", () => {
     // A: skipper +100 net (20.0) and a 9.0 WAR catcher. B: skipper +90 (18.0)
     // and a 1.0 WAR catcher. Greedy hires A's skipper and is left with B's
     // filler bat: 21.0. The joint solve hires B and takes A's catcher: 27.0.
+    // Card D is the richest place to spend the Double Play (two 9-WAR seats off
+    // one spin), which keeps A down to the single pick the rule gives it.
     const a = card([player({ pos: "C", posG: C, war: 9 })], {
       team: "AAA", franchise: "AAA", name: "A Nine", year: 1991,
       wins: 131, losses: 31, manager: "Skipper A",
@@ -273,11 +318,16 @@ describe("bestRoster joint manager solve", () => {
       team: "BBB", franchise: "BBB", name: "B Nine", year: 1992,
       wins: 126, losses: 36, manager: "Skipper B",
     });
-    const best = bestRoster([a, b]);
+    const d = card(
+      [
+        player({ pos: "CF", posG: OF, war: 9 }),
+        player({ pos: "SP", posG: NONE, gs: 30, war: 9 }),
+      ],
+      { team: "DDD", franchise: "DDD", name: "D Nine", year: 1993, manager: null },
+    );
+    const best = dream([a, b, d]);
     expect(best.manager?.name).toBe("Skipper B");
-    expect(best.totalWar).toBeCloseTo(9, 1);
-    expect(best.picks.filter((p) => p !== null)).toHaveLength(1);
-    expect(best.picks.find((p) => p !== null)?.team).toBe("AAA");
+    expect(best.picks.find((p) => p?.war === 9 && p?.pos === "C")?.team).toBe("AAA");
   });
 
   it("hires the plain skipper when no player competes for his card", () => {
@@ -291,7 +341,7 @@ describe("bestRoster joint manager solve", () => {
       team: "BBB", franchise: "BBB", name: "B Nine", year: 1992,
       wins: 126, losses: 36, manager: "Skipper B",
     });
-    const best = bestRoster([a, b, ...soloCards([player({ pos: "C", posG: C, war: 9 })])]);
+    const best = dream([a, b, ...soloCards([player({ pos: "C", posG: C, war: 9 })])]);
     expect(best.manager?.name).toBe("Skipper A");
     expect(best.totalWar).toBeCloseTo(9, 1);
   });
@@ -309,14 +359,14 @@ describe("bestRoster joint manager solve", () => {
         wins: 86, losses: 76, manager: "Plain Skip",
       }),
     ];
-    expect(bestRoster(mk(true)).manager?.name).toBe("Trophy Skip");
-    expect(bestRoster(mk(false)).manager?.name).toBe("Plain Skip");
+    expect(dream(mk(true)).manager?.name).toBe("Trophy Skip");
+    expect(dream(mk(false)).manager?.name).toBe("Plain Skip");
   });
 
   it("hires a skipper even when every available record is losing", () => {
     // The game makes a manager mandatory, so the yardstick spends a card on
     // one too — the least-bad dugout, not an empty one.
-    const best = bestRoster([
+    const best = dream([
       card([], {
         team: "BAD", franchise: "BAD", name: "Bad Nine", year: 1991,
         wins: 50, losses: 112, manager: "Worse Skip",
@@ -330,7 +380,7 @@ describe("bestRoster joint manager solve", () => {
   });
 
   it("leaves the dugout empty when no spun card carried a manager", () => {
-    const best = bestRoster(soloCards(fullSquad()));
+    const best = dream(soloCards(fullSquad()));
     expect(best.manager).toBeNull();
     expect(best.dreamSeats).toBe(8);
   });
@@ -339,8 +389,7 @@ describe("bestRoster joint manager solve", () => {
 describe("bestRoster human uniqueness under the card cap", () => {
   it("seats a two-card human once and backfills from the other card", () => {
     // Both cards carry the same star; only one of them also carries a spare
-    // bat. Optimal: the star off the card that has nothing else, the spare
-    // off the other.
+    // bat. Whichever card seats the star, the human may only play once.
     const star = (): CardPlayer => player({ pos: "C", posG: C, war: 8, id: "star" });
     const cards = [
       card([star()], { team: "X1", franchise: "X1", name: "X One", year: 1991, manager: null }),
@@ -348,17 +397,15 @@ describe("bestRoster human uniqueness under the card cap", () => {
         team: "X2", franchise: "X2", name: "X Two", year: 1992, manager: null,
       }),
     ];
-    const best = bestRoster(cards);
+    const best = dream(cards);
     const ids = best.picks.filter((p) => p !== null).map((p) => p!.id);
     expect(ids.sort()).toEqual(["spare", "star"]);
-    expect(best.picks.find((p) => p?.id === "star")?.team).toBe("X1");
     expect(best.totalWar).toBeCloseTo(13, 1);
-    expect(new Set(cardKeys(best)).size).toBe(2);
   });
 
   it("holds both rules at once across a crowded pool", () => {
     // Five cards, three shared humans, a skipper on each: whatever the solve
-    // returns, no human repeats and no team-season repeats.
+    // returns, no human repeats and no card gives up more than two things.
     const shared = ["ace", "bat", "arm"];
     const cards = [0, 1, 2, 3, 4].map((i) =>
       card(
@@ -374,12 +421,11 @@ describe("bestRoster human uniqueness under the card cap", () => {
         },
       ),
     );
-    const best = bestRoster(cards);
+    const best = dream(cards);
     const ids = best.picks.filter((p) => p !== null).map((p) => p!.id);
     expect(new Set(ids).size).toBe(ids.length);
-    const keys = cardKeys(best);
-    expect(new Set(keys).size).toBe(keys.length);
-    expect(keys.length).toBeLessThanOrEqual(5);
+    expect(doubledCards(best)).toBeLessThanOrEqual(1);
+    expect(new Set(cardKeys(best)).size).toBeLessThanOrEqual(5);
   });
 });
 
@@ -406,20 +452,20 @@ describe("bestRoster with a small card pool", () => {
     );
   };
 
-  it("fills only eight of nine seats from eight cards", () => {
-    // Eight spins buy eight things, and one of them has to be the skipper.
-    const best = bestRoster(pool(8));
+  it("fills all nine seats from eight cards, one of them doubled", () => {
+    // Eight spins buy eight things; the Double Play buys the ninth off a card
+    // that already gave up a bat, which is exactly the line the game allows.
+    const best = dream(pool(8));
     expect(best.manager).not.toBeNull();
-    expect(best.picks.filter((p) => p !== null)).toHaveLength(7);
-    expect(best.dreamSeats).toBe(8);
-    expect(new Set(cardKeys(best)).size).toBe(8);
+    expect(best.picks.filter((p) => p !== null)).toHaveLength(8);
+    expect(best.dreamSeats).toBe(9);
+    expect(doubledCards(best)).toBe(1);
   });
 
-  it("fills all nine seats from nine cards", () => {
-    const best = bestRoster(pool(9));
-    expect(best.manager).not.toBeNull();
-    expect(best.picks.every((p) => p !== null)).toBe(true);
-    expect(best.dreamSeats).toBe(9);
+  it("fills only three seats from three cards plus the doubled one", () => {
+    const best = dream(pool(3));
+    expect(best.dreamSeats).toBe(4);
+    expect(new Set(cardKeys(best)).size).toBe(3);
   });
 
   it("counts only reachable seats when most cards have no usable player", () => {
@@ -428,18 +474,19 @@ describe("bestRoster with a small card pool", () => {
     const cards = pool(8).map((c, i) =>
       i < 6 ? { ...c, players: [player({ pos: "C", posG: C, war: -2 })] } : c,
     );
-    const best = bestRoster(cards);
+    const best = dream(cards);
     expect(best.picks.filter((p) => p !== null)).toHaveLength(2);
     expect(best.manager).not.toBeNull();
     expect(best.dreamSeats).toBe(3);
   });
 
   it("survives an empty card pool", () => {
-    const best = bestRoster([]);
+    const best = dream([]);
     expect(best.picks.every((p) => p === null)).toBe(true);
     expect(best.manager).toBeNull();
     expect(best.dreamSeats).toBe(0);
     expect(best.totalWar).toBe(0);
+    expect(best.total).toBe(0);
   });
 });
 
@@ -468,8 +515,7 @@ describe("bestRoster determinism", () => {
     const cards = pool6();
     const fwd = bestRoster(cards);
     const rev = bestRoster([...cards].reverse());
-    expect(rev.totalWar).toBeCloseTo(fwd.totalWar, 5);
-    expect(rev.manager?.netWins).toBe(fwd.manager?.netWins);
+    expect(rev.total).toBeCloseTo(fwd.total!, 5);
   });
 
   function pool6(): Card[] {
@@ -486,4 +532,147 @@ describe("bestRoster determinism", () => {
       ),
     );
   }
+});
+
+// ---------------------------------------------------------------------------
+// The finale objective: front office and payroll
+// ---------------------------------------------------------------------------
+
+/** Rebuild the finale total from the club the solver handed back, exactly the
+ * way engine.finishGame does. The solver's `total` must equal this or the
+ * ceiling on screen is not the score of the club on screen. */
+function rescore(best: ReturnType<typeof bestRoster>): number {
+  const picks = best.picks.filter((p) => p !== null);
+  const mgr = best.manager;
+  return score({
+    totalWar: picks.reduce((t, p) => t + p!.war, 0),
+    spendM: picks.reduce((t, p) => t + (p!.cost ?? 0), 0),
+    budgetM: best.budget!,
+    awardLists: picks.map((p) => p!.awards),
+    rings: picks.filter((p) => p!.ws).length + (mgr?.ws ? 1 : 0),
+    pennants: picks.filter((p) => p!.pen).length + (mgr?.pen ? 1 : 0),
+    managerRecord: mgr ? [mgr.netWins, 0] : null,
+    scoutHits: best.dreamSeats!,
+    managerMoty: mgr?.moty === true,
+  }).total;
+}
+
+/** Nine cards, distinct budgets and ballparks, one bat apiece. */
+function frontOfficePool(over: (i: number) => Partial<Card> = () => ({})): Card[] {
+  const kinds: Partial<CardPlayer>[] = [
+    { pos: "C", posG: C },
+    { pos: "SS", posG: IF },
+    { pos: "2B", posG: IF },
+    { pos: "CF", posG: OF },
+    { pos: "3B", posG: IF },
+    { pos: "SP", posG: NONE, gs: 30 },
+    { pos: "SP", posG: NONE, gs: 30 },
+    { pos: "RP", posG: NONE, relIP: 60 },
+    { pos: "1B", posG: IF },
+  ];
+  return Array.from({ length: 9 }, (_, i) =>
+    card([player({ ...kinds[i], war: 6, cost: 10 })], {
+      team: `F${i}`, franchise: `F${i}`, name: `Front ${i}`, year: 1990 + i,
+      wins: 90, losses: 72,
+      budget: 20 + 20 * i,
+      stadiumMult: 0.85 + 0.03 * i,
+      ...over(i),
+    }),
+  );
+}
+
+describe("bestRoster front office", () => {
+  it("hires an owner and buys a ballpark, each off its own card", () => {
+    const best = bestRoster(frontOfficePool());
+    expect(best.owner).not.toBeNull();
+    expect(best.park).not.toBeNull();
+    expect(`${best.owner!.team} ${best.owner!.year}`).not.toBe(
+      `${best.park!.team} ${best.park!.year}`,
+    );
+    expect(best.budget).toBeCloseTo(best.owner!.budget * best.park!.mult, 6);
+    // Neither front-office card may also fill a seat: one pick per card, and
+    // the Double Play may double at most one of them.
+    expect(doubledCards(best)).toBeLessThanOrEqual(1);
+  });
+
+  it("a fixed bank hires nobody and keeps the cap it was handed", () => {
+    const best = bestRoster(frontOfficePool(), { fixedBudgetM: 51.5 });
+    expect(best.owner).toBeNull();
+    expect(best.park).toBeNull();
+    expect(best.budget).toBe(51.5);
+  });
+
+  it("the reported total is the score of the club it returns", () => {
+    for (const cards of [frontOfficePool(), frontOfficePool((i) => ({ budget: 90 - 5 * i }))]) {
+      const best = bestRoster(cards);
+      expect(best.total).toBeCloseTo(rescore(best), 6);
+    }
+  });
+
+  it("picks the bankroll its roster can actually fill, not the fattest one", () => {
+    // Every bat costs $10M and nine seats are on offer, so a club spends about
+    // $80M. A $400M owner would leave the payroll 80% empty and give back most
+    // of the bonus; the solve is expected to shop nearer its own spend.
+    const best = bestRoster(
+      frontOfficePool((i) => ({ budget: [40, 60, 80, 100, 400, 400, 400, 400, 400][i], stadiumMult: 1 })),
+    );
+    expect(best.budget).toBeLessThan(400);
+    expect(best.spend! / best.budget!).toBeGreaterThan(0.5);
+  });
+
+  it("crosses the payroll when one monster season is worth the tax", () => {
+    // Every bankroll is $40M and the ordinary bats cost $1M, so a legal club
+    // banks about −6 on the bonus. One card holds a 30-WAR season at $45M:
+    // signing him blows past the cap, forfeits the bonus and pays ~$12M of tax,
+    // and still wins by 18 points. The search must be able to reach that club —
+    // a solver that treats the cap as a wall never sees it at all.
+    const cards = frontOfficePool(() => ({ budget: 40, stadiumMult: 1 })).map((c) => ({
+      ...c,
+      players: c.players.map((p) => ({ ...p, cost: 1 })),
+    }));
+    cards[0] = card([player({ pos: "C", posG: C, war: 30, cost: 45 })], {
+      team: "MON", franchise: "MON", name: "Monster", year: 1927,
+      wins: 90, losses: 72, budget: 40, stadiumMult: 1,
+    });
+    const best = bestRoster(cards);
+    expect(best.picks.some((p) => p?.war === 30)).toBe(true);
+    expect(best.spend!).toBeGreaterThan(best.budget!);
+    expect(best.total!).toBeGreaterThan(best.underBudgetTotal!);
+  });
+
+  it("stays under the payroll when the tax would cost more than the talent", () => {
+    const best = bestRoster(frontOfficePool(() => ({ budget: 200, stadiumMult: 1 })));
+    expect(best.spend!).toBeLessThanOrEqual(best.budget!);
+    expect(best.total).toBe(best.underBudgetTotal);
+  });
+});
+
+describe("bestRoster off-reel seasons (⭐ Prime Time)", () => {
+  const offReelCard = card([player({ pos: "CF", posG: OF, war: 12, cost: 8, id: "prime" })], {
+    team: "OFF", franchise: "OFF", name: "Off Reel", year: 1955,
+    budget: 999, stadiumMult: 1.15, manager: null,
+  });
+
+  it("seats a season the reel never landed on", () => {
+    const best = bestRoster(frontOfficePool(), { offReel: [offReelCard] });
+    expect(best.picks.some((p) => p?.id === "prime")).toBe(true);
+  });
+
+  it("never hires an owner or a ballpark off one", () => {
+    // Prime Time reaches players and skippers only, so a season it reached
+    // cannot also hand over its bankroll — which would be a free $999M cap.
+    const best = bestRoster(frontOfficePool(), { offReel: [offReelCard] });
+    expect(best.owner?.team).not.toBe("OFF");
+    expect(best.park?.team).not.toBe("OFF");
+    expect(best.budget).toBeLessThan(999);
+  });
+});
+
+describe("bestRoster ceiling sanity", () => {
+  it("the ceiling never asks for more than a 162-game season's worth of wins", () => {
+    const best = bestRoster(frontOfficePool(() => ({ budget: 100, stadiumMult: 1 })));
+    const picks = best.picks.filter((p) => p !== null);
+    expect(50 + picks.reduce((t, p) => t + p!.war, 0) + (best.manager?.netWins ?? 0) * MANAGER_PER_NET_WIN)
+      .toBeLessThanOrEqual(GAMES);
+  });
 });

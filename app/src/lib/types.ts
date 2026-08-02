@@ -22,6 +22,15 @@ export interface CardPlayer {
   debut: string;
   teams: string[];
   age?: number;
+  /** Birth country as its display name ("Dominican Republic", "Puerto Rico",
+   * "Germany"). Historical names are folded into the current one, so a country
+   * counts once however Lahman spelled it that decade. Absent only when Lahman
+   * records no birth country — no card player-season today. */
+  bc?: string;
+  /** In the Hall of Fame, elected as a player. Career-level, so it rides every
+   * season of his; present only when true. Managers elected as managers carry
+   * `managerHof` on the card instead. */
+  hof?: boolean;
   bat?: { avg: number; obp: number; slg: number; hr: number; rbi: number; sb: number };
   pit?: { w: number; l: number; sv: number; era: number; so: number };
 }
@@ -44,6 +53,10 @@ export interface Card {
   /** The primary manager won the BBWAA Manager of the Year that season
    * (present only when true, like the index's ws/pen). */
   managerMoty?: boolean;
+  /** The primary manager is in the Hall of Fame on a manager's plaque
+   * (present only when true). A skipper elected as a player — Frank Robinson,
+   * Paul Molitor — does not carry this. */
+  managerHof?: boolean;
   ws: boolean;
   pen: boolean;
   attendance: number;
@@ -123,6 +136,8 @@ export interface SpecialSeason {
   mgr: string | null;
   /** The manager won the BBWAA Manager of the Year that season (only when true). */
   moty?: boolean;
+  /** The manager is in the Hall of Fame on a manager's plaque (only when true). */
+  hof?: boolean;
   w: number;
   l: number;
   /** Attendance percentile within the year, 0–1. */

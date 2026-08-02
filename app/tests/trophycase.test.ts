@@ -13,10 +13,11 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { render } from "svelte/server";
+import BadgeSlot from "../src/components/BadgeSlot.svelte";
 import Home from "../src/components/Home.svelte";
 import TrophyModal from "../src/components/TrophyModal.svelte";
 import { BADGES, BADGE_BY_KEY, COLLECTIBLE } from "../src/lib/badges";
-import { badgeCase } from "../src/lib/settings";
+import { badgeCase, clearBadgeCue, loadCues, noteNewBadges } from "../src/lib/settings";
 import type { GameConfig } from "../src/lib/engine.svelte";
 
 const store = new Map<string, string>();
@@ -40,7 +41,7 @@ function game(badges: unknown, bank = "classic"): unknown {
 }
 
 function home(): string {
-  return render(Home, { props: { config: CLASSIC, onplay: () => {} } }).body;
+  return render(Home, { props: { config: CLASSIC, onplay: () => {}, onlast: () => {} } }).body;
 }
 
 /** The case renders in its own sheet now, not on the home screen. */
@@ -287,6 +288,143 @@ describe("the trophy case sheet", () => {
     expect(body).toContain("×2");
     // Boundary-anchored: a legitimate ×12 must not read as an unmarked ×1.
     expect(body).not.toMatch(/×1(?!\d)/);
+  });
+
+  /* BadgeSlot is the tappable pill on BOTH surfaces — the case and the finale
+   * brag row — so its contract is asserted once here rather than twice.
+   *
+   * The reveal is a floating panel, placed by measurement at runtime, so most
+   * of what it promises (it points at its pill, it stays inside the row, it
+   * moves nothing) is geometry that only exists in a laid-out browser and is
+   * covered by the Playwright pass instead. What SSR can pin down is the one
+   * structural fact that geometry rests on: the button and the panel are
+   * SIBLINGS, and the panel is a `<p>`.
+   *
+   * Sibling, because an absolutely positioned box is placed against its
+   * containing block — being a sibling is what makes that block the caller's
+   * ROW, which is in turn what lets the panel be clamped inside the row and
+   * therefore inside a scrolling sheet. Nested in the button, it would be
+   * measured against the pill and could never be fenced.
+   *
+   * A `<p>` and not a second button, because the finale staggers its deal-in
+   * with `.brags > button:nth-of-type(n) .brag`. That selector counts BUTTONS
+   * precisely so an opened panel cannot renumber the pills; a panel that
+   * rendered as a button would put the count back in play. */
+  describe("the shared badge reveal", () => {
+    function slot(open: boolean): string {
+      return render(BadgeSlot, {
+        props: { badge: BADGE_BY_KEY.crystal, open, ontoggle: () => {} },
+      }).body;
+    }
+
+    it("shows the trigger only when open, and says so in aria", () => {
+      const shut = slot(false);
+      expect(shut).toContain('aria-expanded="false"');
+      expect(shut).not.toContain(BADGE_BY_KEY.crystal.how);
+      // Nothing to point at while it is shut.
+      expect(shut).not.toContain("aria-controls");
+
+      const open = slot(true);
+      expect(open).toContain('aria-expanded="true"');
+      expect(open).toContain(BADGE_BY_KEY.crystal.how);
+    });
+
+    it("points aria-controls at the element it actually rendered", () => {
+      const body = slot(true);
+      const controls = body.match(/aria-controls="([^"]+)"/)?.[1];
+      expect(controls).toBeTruthy();
+      expect(body).toContain(`id="${controls}"`);
+    });
+
+    it("renders the reveal as a sibling of the button, after it", () => {
+      const body = slot(true);
+      const end = body.indexOf("</button>");
+      expect(end).toBeGreaterThan(-1);
+      // The trigger text sits outside the button entirely.
+      expect(body.indexOf(BADGE_BY_KEY.crystal.how)).toBeGreaterThan(end);
+      // Exactly one button per slot, open or shut — the finale's stagger
+      // selector counts buttons, so a second one would renumber the pills.
+      expect((body.match(/<button/g) ?? []).length).toBe(1);
+      expect((slot(false).match(/<button/g) ?? []).length).toBe(1);
+    });
+
+    it("ships the connector with the panel and nothing else", () => {
+      const open = slot(true);
+      const panel = open.slice(open.indexOf("</button>"));
+      // The arrow is the panel's own child — it is what the runtime aims at
+      // the pill, and it is decorative, so it stays out of the reading order.
+      expect(panel).toContain("notch");
+      expect(panel).toContain('aria-hidden="true"');
+      // The badge's emoji is deliberately NOT repeated in the panel: the arrow
+      // is what says which pill this belongs to. It still rides on the PILL,
+      // which is why this is asserted on the panel's slice and not the whole
+      // render.
+      expect(panel).not.toContain(BADGE_BY_KEY.crystal.emoji);
+      expect(open).toContain(BADGE_BY_KEY.crystal.emoji);
+      // A shut slot has no panel, so no connector either.
+      expect(slot(false)).not.toContain("notch");
+    });
+  });
+
+  /* The NEW flags inside the case, and the handover that makes them possible.
+   *
+   * The trophy button clears the cue on the tap that OPENS this sheet, so by
+   * the time the sheet mounts the stored list is already gone. The clear hands
+   * its list to `takeOpenedBadgeCue`, which the sheet takes once. Every test
+   * here reproduces that real order — note, clear, then render — because a test
+   * that rendered before clearing would pass against a broken implementation. */
+  describe("new badges inside the case", () => {
+    it("flags the badges that were pending when the case was opened", () => {
+      seed(game(["crystal", "twoway", "hundred"]));
+      noteNewBadges(["crystal", "hundred"]);
+      // The button's half of the sequence.
+      clearBadgeCue();
+      expect(loadCues().pendingBadges).toEqual([]);
+
+      const body = modal();
+      // Two flags, on the two badges that were pending.
+      expect((body.match(/>NEW</g) ?? []).length).toBe(2);
+      const crystal = body.indexOf("CRYSTAL BALL");
+      const twoway = body.indexOf("THE TWO-WAY GUY");
+      const firstNew = body.indexOf(">NEW<");
+      expect(firstNew).toBeGreaterThan(-1);
+      // The flagged rare leads its band, ahead of the unflagged one.
+      expect(crystal).toBeLessThan(twoway);
+    });
+
+    it("shows a clean board on the next open", () => {
+      seed(game(["crystal", "hundred"]));
+      noteNewBadges(["crystal"]);
+      clearBadgeCue();
+      expect(modal()).toContain(">NEW<");
+      // Same session, sheet opened again: the cue was taken, not read.
+      expect(modal()).not.toContain(">NEW<");
+    });
+
+    it("flags nothing when the case is opened with no news", () => {
+      seed(game(["crystal", "hundred"]));
+      // No noteNewBadges, so the button never lights and never clears.
+      expect(modal()).not.toContain(">NEW<");
+    });
+
+    it("ignores a pending key the player has no earned tile for", () => {
+      // A retired key, or a finale whose history write never landed. It must
+      // not invent a pill, and must not flag anything else.
+      seed(game(["crystal"]));
+      noteNewBadges(["moonshot"]);
+      clearBadgeCue();
+      const body = modal();
+      expect(body).not.toContain(">NEW<");
+      expect(body).toContain("CRYSTAL BALL");
+    });
+
+    it("carries flags across several bands at once", () => {
+      // A first-ever game can earn a handful in one go.
+      seed(game(["crown", "mariners", "crystal", "cubs", "hundred", "skull"]));
+      noteNewBadges(["crown", "mariners", "crystal", "cubs", "hundred", "skull"]);
+      clearBadgeCue();
+      expect((modal().match(/>NEW</g) ?? []).length).toBe(6);
+    });
   });
 
   it("says so plainly when nothing is earned yet", () => {

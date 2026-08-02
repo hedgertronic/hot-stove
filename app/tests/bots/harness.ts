@@ -15,6 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { bestRoster } from "../../src/lib/bestroster";
 import * as engineModule from "../../src/lib/engine.svelte";
 import { DEFAULT_CONFIG, Game, SLOT_TYPES } from "../../src/lib/engine.svelte";
 import type { GameConfig, PowerupKey, SpecialKey, Signed } from "../../src/lib/engine.svelte";
@@ -347,6 +348,37 @@ export interface GameResult {
    * with a bigger bankroll than the one rerolled away (bank-shopping). */
   rerolls: number;
   rerollsRicher: number;
+  /** Distinct cards the reel landed on — the dream solver's whole card pool. */
+  seenCount: number;
+  /** Commitments the finished club made (roster + skipper + front office). */
+  commitments: number;
+  /** Commitments beyond the first taken off a single card — what ✌️ Double
+   * Play buys, and the one way a club outruns one-pick-per-card. */
+  extraPerCard: number;
+  /** Signings whose season came off a card the reel never landed on (⭐ Prime
+   * Time reaching outside the pool). */
+  offPoolPicks: number;
+  /** Best possible total the solver proved reachable, and its record. */
+  ceiling: number | null;
+  ceilingRecord: string | null;
+  /** True when the ceiling had to fall back on the club actually built
+   * (the solver's own search found nothing better). */
+  ceilingIsAchieved: boolean;
+  /** The solver's own answer, BEFORE the finale clamps it up to the club the
+   * player actually built — the number that says whether the search is strong
+   * enough to be interesting. */
+  solverTotal: number | null;
+  /** Wall time of one dream solve, ms (the finale's own call, replayed). */
+  solveMs: number;
+  /** The dream club's payroll and cap, for the over-budget question. */
+  dreamSpend: number;
+  dreamBudget: number;
+  dreamSeats: number;
+  /** The dream club seats the ⭐ Prime Time season the reel never showed. */
+  dreamUsesOffReel: boolean;
+  /** Best total the solver could reach WITHOUT crossing the cap — the control
+   * for "does it ever pay to go over?" (null when not measured). */
+  dreamUnderCap: number | null;
   /** What each spent powerup was spent ON (allocation shifts, Study 7). */
   uses: UseCounts;
   /** When Prime bought an owner: chosen year's bank − landed tile's bank. */
@@ -939,6 +971,9 @@ export async function playGame(
   cfg: BotConfig,
   d: HarnessData,
   gameConfig: GameConfig = DEFAULT_CONFIG, // classic bank, standard difficulty
+  /** Hook for studies that need the finished Game itself (the club, the cards
+   * it saw) rather than the summary row. */
+  inspect?: (g: Game) => void,
 ): Promise<GameResult> {
   store.clear();
   const track: Track = {
@@ -986,9 +1021,64 @@ export async function playGame(
   const spent = Object.fromEntries(
     ALL_POWERUPS.map((k) => [k, g.powerups[k] === "spent"]),
   ) as Record<PowerupKey, boolean>;
+  // Card accounting: how the finished club maps onto the cards the reel showed.
+  // Owner and stadium carry a franchise, not an era team code, so they resolve
+  // through the index before they can be compared with `seen`.
+  const teamFor = (franchise: string, year: number): string =>
+    d.index.cards.find((c) => c.franchise === franchise && c.year === year)?.team ?? franchise;
+  const seenKeys = new Set(g.seen.map((s) => `${s.team}|${s.year}`));
+  const commitKeys: string[] = [];
+  for (const s of g.slots) if (s) commitKeys.push(`${s.team}|${s.year}`);
+  if (g.manager) commitKeys.push(`${g.manager.team}|${g.manager.year}`);
+  if (g.owner) commitKeys.push(`${teamFor(g.owner.franchise, g.owner.year)}|${g.owner.year}`);
+  if (g.stadium) commitKeys.push(`${teamFor(g.stadium.franchise, g.stadium.year)}|${g.stadium.year}`);
+  const perCard = new Map<string, number>();
+  for (const k of commitKeys) perCard.set(k, (perCard.get(k) ?? 0) + 1);
+  const extraPerCard = [...perCard.values()].reduce((sum, n) => sum + (n - 1), 0);
+  const offPoolPicks = commitKeys.filter((k) => !seenKeys.has(k)).length;
+  // Replay the finale's own dream solve to time it and to see the solver's raw
+  // answer, which the finale then clamps up to the club the player built. Same
+  // inputs, same options — the engine assembles the off-reel pool the same way
+  // (a ⭐ Prime Time signing's card, narrowed to that one player).
+  const offReel: Card[] = [];
+  for (const s of g.slots) {
+    if (!s || seenKeys.has(`${s.team}|${s.year}`)) continue;
+    const c = d.cards.get(`${s.team}_${s.year}`);
+    if (c) offReel.push({ ...c, players: c.players.filter((p) => p.id === s.id), manager: null });
+  }
+  if (g.manager && !seenKeys.has(`${g.manager.team}|${g.manager.year}`)) {
+    const c = d.cards.get(`${g.manager.team}_${g.manager.year}`);
+    if (c) offReel.push({ ...c, players: [] });
+  }
+  const pool = g.seen.map((s) => d.cards.get(`${s.team}_${s.year}`)!).filter(Boolean);
+  const t0 = performance.now();
+  const solved = bestRoster(pool, {
+    fixedBudgetM: g.fixedCap ? g.effectiveBudget : null,
+    offReel,
+  });
+  const solveMs = performance.now() - t0;
+  inspect?.(g);
   return {
     seed,
     total: f.parts.total,
+    seenCount: seenKeys.size,
+    commitments: commitKeys.length,
+    extraPerCard,
+    offPoolPicks,
+    ceiling: f.bestPossibleTotal ?? null,
+    ceilingRecord: f.bestPossibleRecord
+      ? `${f.bestPossibleRecord.wins}-${f.bestPossibleRecord.losses}`
+      : null,
+    ceilingIsAchieved: (f.bestPossibleTotal ?? -Infinity) <= f.parts.total,
+    solverTotal: solved.total ?? null,
+    solveMs,
+    dreamSpend: solved.spend ?? 0,
+    dreamBudget: solved.budget ?? 0,
+    dreamSeats: solved.dreamSeats ?? 0,
+    dreamUnderCap: solved.underBudgetTotal ?? null,
+    dreamUsesOffReel: solved.picks.some(
+      (p) => p !== null && !seenKeys.has(`${p.team}|${p.year}`),
+    ),
     war: f.totalWar,
     spend: f.spend,
     budget: f.budget,

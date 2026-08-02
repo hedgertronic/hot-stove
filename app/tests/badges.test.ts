@@ -96,7 +96,7 @@ function ladderAt(wins: number): string[] {
   if (wins >= CROWN_WINS) return ["crown"];
   if (MATCHED[wins]) return [MATCHED[wins]];
   if (wins >= HUNDRED_WINS) return ["hundred"];
-  if (wins === 0) return ["dayjob"];
+  if (wins <= 0) return ["dayjob"];
   if (wins <= WORST_WINS) return ["worst"];
   if (GAMES - wins >= 100) return ["skull"];
   return [];
@@ -282,7 +282,7 @@ describe("the on-field axis is exclusive", () => {
       // The two anti-trophies share this axis, so a season bad enough still
       // lands one badge — the floor of the ladder, not a gap in it.
       if (w >= HUNDRED_WINS) expect(got, `${w} wins`).toEqual(["hundred"]);
-      else if (w === 0) expect(got, `${w} wins`).toEqual(["dayjob"]);
+      else if (w <= 0) expect(got, `${w} wins`).toEqual(["dayjob"]);
       else if (w <= WORST_WINS) expect(got, `${w} wins`).toEqual(["worst"]);
       else if (losses >= 100) expect(got, `${w} wins`).toEqual(["skull"]);
       else expect(got, `${w} wins`).toEqual([]);
@@ -320,6 +320,122 @@ describe("the floor of the ladder", () => {
     expect(
       earnedBadges(f({ baselineWins: 1, baselineLosses: GAMES - 1 })),
     ).not.toContain("dayjob");
+  });
+
+  /** The rung is "at or below zero", not "exactly zero", and the difference is
+   * not hypothetical. `scoring.displayRecord` clamps only its upper end — it
+   * rounds `expectedWins`, which is capped at 162 and unbounded below — so the
+   * fallback record can arrive negative. Against an exact-match test every
+   * negative record fell through to 📉, which inverts the ladder the file
+   * specifies: 👔 is the floor and supersedes 📉, the way 👑 supersedes a
+   * named rung. */
+  it("keeps the day job below zero too, and does not hand it to the worst record", () => {
+    for (const w of [0, -1, -5, -40, -120]) {
+      const got = only(earnedBadges(f({ baselineWins: w, baselineLosses: GAMES - w })), ONFIELD);
+      expect(got, `${w} wins`).toEqual(["dayjob"]);
+    }
+    // …and the rung above it still belongs to 📉.
+    expect(
+      only(earnedBadges(f({ baselineWins: 1, baselineLosses: 161 })), ONFIELD),
+    ).toEqual(["worst"]);
+    expect(
+      only(earnedBadges(f({ baselineWins: WORST_WINS, baselineLosses: 122 })), ONFIELD),
+    ).toEqual(["worst"]);
+    // …and the rung above THAT belongs to 💀, at the first total that is not
+    // a record-worst season but is still a hundred losses.
+    expect(
+      only(earnedBadges(f({ baselineWins: 41, baselineLosses: 121 })), ONFIELD),
+    ).toEqual(["skull"]);
+  });
+
+  /** The floor rungs read the STAMPED record — what the finale prints — and
+   * the top of the ladder reads the baseline. This is the case the split
+   * exists for: a season worth 50 baseline wins that spends itself to a −16
+   * points total stamps 0–162, and the player looking at that stamp is owed
+   * 👔. Before the split the badge read a number the screen never showed and
+   * handed them 💀 instead. */
+  describe("the floor rungs read the stamped record", () => {
+    const stamped = (wins: number, baselineWins = 50) =>
+      only(
+        earnedBadges(
+          f({
+            baselineWins,
+            baselineLosses: GAMES - baselineWins,
+            stamp: { wins, losses: GAMES - wins },
+          }),
+        ),
+        ONFIELD,
+      );
+
+    it("takes the day job from a stamped 0-162, whatever the club was worth", () => {
+      expect(stamped(0, 50)).toEqual(["dayjob"]);
+      expect(stamped(0, 81)).toEqual(["dayjob"]);
+      // …which is exactly the season the baseline would have called a 💀.
+      expect(
+        only(
+          earnedBadges(f({ baselineWins: 50, baselineLosses: 112 })),
+          ONFIELD,
+        ),
+      ).toEqual(["skull"]);
+    });
+
+    it("moves all three floor rungs together, so the ladder stays one ladder", () => {
+      expect(stamped(0)).toEqual(["dayjob"]);
+      expect(stamped(1)).toEqual(["worst"]);
+      expect(stamped(WORST_WINS)).toEqual(["worst"]);
+      expect(stamped(WORST_WINS + 1)).toEqual(["skull"]);
+      expect(stamped(62)).toEqual(["skull"]);
+      expect(stamped(63)).toEqual([]);
+    });
+
+    /** The top of the ladder deliberately does NOT move. Awards, rings and the
+     * payroll bonus add twenty wins to a stamp routinely, so a stamp-keyed 💯
+     * would be near-automatic — the reason the file gives for keying the
+     * champion rungs to the baseline in the first place. */
+    it("leaves the champion rungs on the baseline", () => {
+      // A club worth 81 baseline wins that scored 140 points is not a
+      // hundred-win club, however the stamp reads.
+      expect(stamped(140, 81)).toEqual([]);
+      // …and a genuine 103-win club is 🐻 whatever it scored.
+      expect(stamped(120, 103)).toEqual(["cubs"]);
+    });
+
+    /** The one case where the two records point opposite ways at once: a real
+     * club that taxed itself under water. The top of the ladder wins, because
+     * it is checked first — one badge, not two, which is what the exclusive
+     * axis requires. It is worth pinning rather than discovering. */
+    it("gives a taxed-out champion its rung and not the floor", () => {
+      expect(stamped(0, 103)).toEqual(["cubs"]);
+    });
+
+    it("falls back to the baseline pair when no stamp is supplied", () => {
+      // Which is the behaviour that shipped before the field existed, so an
+      // engine that has not adopted it yet keeps working.
+      expect(
+        only(earnedBadges(f({ baselineWins: 50, baselineLosses: 112 })), ONFIELD),
+      ).toEqual(["skull"]);
+      expect(
+        only(earnedBadges(f({ baselineWins: 0, baselineLosses: GAMES })), ONFIELD),
+      ).toEqual(["dayjob"]);
+    });
+
+    it("still fires at most one on-field badge, over both records at once", () => {
+      for (let b = -20; b <= GAMES; b += 7) {
+        for (let s = -20; s <= GAMES; s += 7) {
+          const got = only(
+            earnedBadges(
+              f({
+                baselineWins: b,
+                baselineLosses: GAMES - b,
+                stamp: { wins: s, losses: GAMES - s },
+              }),
+            ),
+            ONFIELD,
+          );
+          expect(got.length, `baseline ${b}, stamp ${s}`).toBeLessThanOrEqual(1);
+        }
+      }
+    });
   });
 
   it("lets the day job supersede both the worst record and the skull", () => {
@@ -517,6 +633,111 @@ describe("roster shape", () => {
     expect(earnedBadges(f({ roster }))).not.toContain("noweak");
   });
 
+  /** The three shape badges are one question — how a club's WAR is spread over
+   * eight seats — asked three ways, so they are tested together and the
+   * pairwise logic is asserted rather than argued. 🧱 wants no soft seat, ⛰️
+   * wants two carrying seats and three dead ones, ⚖️ wants every seat close to
+   * every other, and 🌟 counts the gold ones. */
+  describe("the shape badges", () => {
+    /** A club of eight, seat by seat. */
+    const shaped = (wars: number[]) =>
+      earnedBadges(f({ roster: wars.map((war) => player({ war })) }));
+
+    it("takes stars-and-scrubs at two carrying seats and three dead ones", () => {
+      expect(shaped([6.0, 6.0, 1.0, 1.0, 1.0, 3, 3, 3])).toContain("topheavy");
+      // One star short.
+      expect(shaped([6.0, 5.9, 1.0, 1.0, 1.0, 3, 3, 3])).not.toContain(
+        "topheavy",
+      );
+      // One scrub short.
+      expect(shaped([6.0, 6.0, 1.0, 1.0, 1.1, 3, 3, 3])).not.toContain(
+        "topheavy",
+      );
+    });
+
+    it("wants all eight seats before it calls a club any shape at all", () => {
+      // Seven dead seats and one star is not stars-and-scrubs, and seven
+      // identical seats are not a club with no drop-off — a vacancy must never
+      // buy a badge whose copy claims a whole roster.
+      const seven = earnedBadges(
+        f({ roster: [6.0, 6.0, 1.0, 1.0, 1.0, 3, 3].map((war) => player({ war })) }),
+      );
+      expect(seven).not.toContain("topheavy");
+      expect(seven).not.toContain("balanced");
+      expect(seven).not.toContain("gold");
+      expect(earnedBadges(f({ roster: [] }))).not.toContain("balanced");
+    });
+
+    it("takes no-drop-off for a deep club and refuses a uniformly bad one", () => {
+      // Eight useful seats, nothing much between them: the badge.
+      expect(shaped([7.0, 4.5, 4.0, 3.8, 3.5, 3.2, 3.0, 3.0])).toContain(
+        "balanced",
+      );
+      // The same tight spread, but nobody in it is any good. This is the whole
+      // objection the floor answers: a bare gap test is a trophy for eight
+      // mediocre men, and it is the shape a club lands on when nothing good
+      // ever showed up on the reel.
+      expect(shaped([2.9, 2.5, 2.0, 1.5, 1.0, 0.5, 0.2, 0.0])).not.toContain(
+        "balanced",
+      );
+      expect(shaped([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])).not.toContain(
+        "balanced",
+      );
+    });
+
+    it("loses no-drop-off to one seat that carries the club", () => {
+      expect(shaped([7.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0])).toContain(
+        "balanced",
+      );
+      expect(shaped([7.1, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0])).not.toContain(
+        "balanced",
+      );
+      // …and to one seat that drags it down, even with the gap unchanged.
+      expect(shaped([6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 2.9])).not.toContain(
+        "balanced",
+      );
+    });
+
+    /** ⚖️ and ⛰️ are structurally exclusive and neither an axis nor a resolver
+     * enforces it: ⛰️ needs a seat at 6.0+ and a seat at 1.0−, i.e. a spread of
+     * at least 5.0, where ⚖️ refuses any spread of 3.0 or more. The exclusivity
+     * is in the world, which is why both ride the stacking axis. This sweep is
+     * what would notice if a threshold moved and quietly opened a gap. */
+    it("never fires no-drop-off and stars-and-scrubs together, over any club", () => {
+      for (let hi = 0; hi <= 12; hi += 0.5) {
+        for (let lo = 0; lo <= hi; lo += 0.5) {
+          for (const mid of [0, 1, 3, 5, 8]) {
+            const got = shaped([hi, hi, lo, lo, lo, mid, mid, mid]);
+            const both = got.filter(
+              (k) => k === "balanced" || k === "topheavy",
+            );
+            expect(both.length, `hi=${hi} lo=${lo} mid=${mid}`).toBeLessThanOrEqual(1);
+          }
+        }
+      }
+    });
+
+    /** ⚖️ and 🧱 CAN co-fire, and that is coherent rather than a bug: a club of
+     * eight 4.5-WAR men has no soft seat and no drop-off, and both statements
+     * are true of it. What would make ⚖️ worthless is the reverse — if every
+     * 🧱 club also cleared the gap, so the badge added nothing. It does not:
+     * 🧱's floor is 4.0 with no ceiling at all. */
+    it("stacks with no-scrubs on a deep even club, and separates on a lopsided one", () => {
+      const both = shaped([4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5]);
+      expect(both).toContain("noweak");
+      expect(both).toContain("balanced");
+      const lopsided = shaped([9.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]);
+      expect(lopsided).toContain("noweak");
+      expect(lopsided).not.toContain("balanced");
+    });
+
+    it("takes the gold at five seats over the rung, and not at four", () => {
+      expect(shaped([8.0, 8.0, 8.0, 8.0, 8.0, 1, 1, 1])).toContain("gold");
+      expect(shaped([8.0, 8.0, 8.0, 8.0, 7.9, 1, 1, 1])).not.toContain("gold");
+      expect(shaped([12, 11, 10, 9, 8, 8, 8, 8])).toContain("gold");
+    });
+  });
+
   it("takes the two-way guy from any slashed position, at any roster size", () => {
     expect(earnedBadges(f({ roster: [player({ pos: "SP/DH" })] }))).toContain(
       "twoway",
@@ -524,11 +745,97 @@ describe("roster shape", () => {
     expect(earnedBadges(f({ roster: club(8) }))).not.toContain("twoway");
   });
 
-  it("takes Cooperstown at 30 award points and the rings at four", () => {
+  it("takes the hardware collection at 30 award points and the rings at four", () => {
     expect(earnedBadges(f({ awardPoints: 30 }))).toContain("cooperstown");
     expect(earnedBadges(f({ awardPoints: 29.9 }))).not.toContain("cooperstown");
     expect(earnedBadges(f({ rings: 4 }))).toContain("rings");
     expect(earnedBadges(f({ rings: 3 }))).not.toContain("rings");
+  });
+
+  /** The key `cooperstown` still means thirty award points, which is what
+   * everyone holding it actually earned; only the name and glyph moved off it.
+   * The Hall of Fame badge that took the name has its own key, so no earned
+   * badge silently changes meaning. */
+  it("keeps the Cooperstown name and the Cooperstown key on different badges", () => {
+    expect(BADGE_BY_KEY.cooperstown.label).toBe("HARDWARE STORE");
+    expect(BADGE_BY_KEY.hall.label).toBe("COOPERSTOWN CLASS");
+    expect(BADGE_BY_KEY.cooperstown.how).toContain("award points");
+    expect(BADGE_BY_KEY.hall.emoji).toBe("🏛️");
+  });
+
+  /** 🏛️ counts men, not points, and the skipper's chair is one of the seats —
+   * the same reading that puts the Astros' manager on 🗑️. Both flags are
+   * optional, so a club restored from a save written before they existed must
+   * count as no Hall of Famers at all. */
+  describe("the Hall of Fame", () => {
+    const hallClub = (n: number, managerHof = false) =>
+      earnedBadges(
+        f({
+          roster: [
+            ...Array.from({ length: n }, () => player({ hof: true })),
+            ...club(8 - n),
+          ],
+          managerHof,
+        }),
+      );
+
+    it("takes it at four Hall of Famers and not at three", () => {
+      expect(hallClub(4)).toContain("hall");
+      expect(hallClub(3)).not.toContain("hall");
+      expect(hallClub(8)).toContain("hall");
+    });
+
+    it("counts a Hall of Fame skipper as the fourth", () => {
+      expect(hallClub(3, true)).toContain("hall");
+      expect(hallClub(2, true)).not.toContain("hall");
+      // A Hall of Fame skipper alone is one man, not a club.
+      expect(hallClub(0, true)).not.toContain("hall");
+    });
+
+    it("counts a club with no flags at all as no Hall of Famers", () => {
+      expect(earnedBadges(f({ roster: club(8) }))).not.toContain("hall");
+    });
+
+    it("does not need a full roster — the Hall is a count, not a shape", () => {
+      expect(
+        earnedBadges(
+          f({ roster: Array.from({ length: 4 }, () => player({ hof: true })) }),
+        ),
+      ).toContain("hall");
+    });
+  });
+
+  /** 🌎 counts distinct birth countries over a FULL club. Two things would
+   * break silently: a missing country counted as a country of its own, and a
+   * partial roster earning a badge whose copy claims a whole club. */
+  describe("the world tour", () => {
+    const born = (countries: (string | undefined)[]) =>
+      earnedBadges(f({ roster: countries.map((country) => player({ country })) }));
+
+    it("takes five distinct countries over eight seats, and not four", () => {
+      expect(
+        born(["USA", "Dominican Republic", "Venezuela", "Japan", "Curaçao", "USA", "USA", "USA"]),
+      ).toContain("worldtour");
+      expect(
+        born(["USA", "Dominican Republic", "Venezuela", "Japan", "USA", "USA", "USA", "USA"]),
+      ).not.toContain("worldtour");
+    });
+
+    it("counts an unknown country as no country at all", () => {
+      // Four known plus three blanks is four countries, not five or seven.
+      expect(
+        born(["USA", "Japan", "Cuba", "Mexico", undefined, undefined, undefined, undefined]),
+      ).not.toContain("worldtour");
+      expect(born(["USA", "Japan", "Cuba", "Mexico", "", "", "", ""])).not.toContain(
+        "worldtour",
+      );
+    });
+
+    it("wants the club full before it claims a whole roster travelled", () => {
+      expect(
+        born(["USA", "Dominican Republic", "Venezuela", "Japan", "Curaçao"]),
+      ).not.toContain("worldtour");
+    });
   });
 
   /** 🧓 and 🍼 are one idea pointed in two directions, so they are asserted
@@ -627,6 +934,109 @@ describe("roster shape", () => {
     expect(
       earnedBadges(f({ divisions: [...four, "NL/E", "NL/E", "NL/E", "NL/E"] })),
     ).not.toContain("division");
+  });
+
+  /** 🕶️ is the one badge about the ORDER a club was built in. Clean House hides
+   * the payroll until an owner is hired, so eight signings made first are eight
+   * bets — and the badge wants the bet to have come off. */
+  describe("flying blind", () => {
+    const blind = (over: Partial<BadgeFacts> = {}) =>
+      earnedBadges(
+        f({
+          ownerLast: true,
+          roster: club(8),
+          budgetM: 100,
+          spendM: 90,
+          ...over,
+        }),
+      );
+
+    it("takes it for a full club drafted before the owner, inside the cap", () => {
+      expect(blind()).toContain("flyingblind");
+    });
+
+    it("wants the owner to have come last", () => {
+      expect(blind({ ownerLast: false })).not.toContain("flyingblind");
+      // A fact set from before the field existed is not a blind draft.
+      expect(blind({ ownerLast: undefined })).not.toContain("flyingblind");
+    });
+
+    it("wants all eight seats — a half-built club that waited is not nerve", () => {
+      expect(blind({ roster: club(7) })).not.toContain("flyingblind");
+    });
+
+    it("wants the payroll to have survived contact with the cap", () => {
+      expect(blind({ spendM: 100 })).toContain("flyingblind");
+      expect(blind({ spendM: 100.1 })).not.toContain("flyingblind");
+    });
+
+    it("refuses a club that simply spent nothing", () => {
+      // 60% of the cap is 🧾 POCKETED THE DIFFERENCE's own line, reused so the
+      // two badges are exact complements rather than near-neighbours.
+      expect(blind({ spendM: 60.1 })).toContain("flyingblind");
+      expect(blind({ spendM: 60 })).not.toContain("flyingblind");
+      expect(blind({ spendM: 20 })).not.toContain("flyingblind");
+    });
+
+    it("never fires in a bank with no owner seat and no unknown payroll", () => {
+      // Moneyball and Blank Check know the cap from the first spin, and
+      // hireOwner() returns before it can record anything — so the flag is
+      // never set and no mode gate is needed to keep the badge out.
+      expect(blind({ ownerLast: false, owner: null, stadium: null })).not.toContain(
+        "flyingblind",
+      );
+    });
+
+    it("never divides by a payroll of zero", () => {
+      expect(blind({ budgetM: 0, spendM: 0 })).not.toContain("flyingblind");
+    });
+
+    /** The payroll axis is exclusive and 🕶️ is not on it, so the check that
+     * matters is whether it can say the opposite thing to whichever payroll
+     * face fired. It cannot: 🧾 needs 60% or less and 🧮 needs 50% or less,
+     * both below 🕶️'s floor, and 💸 needs the cap busted, which 🕶️ forbids. */
+    it("never co-fires with a payroll badge that contradicts it", () => {
+      for (let spendM = 0; spendM <= 200; spendM += 2.5) {
+        const budgetM = 100;
+        const budgetBonus = spendM > budgetM ? 0 : (spendM / budgetM) * 10;
+        for (const [w, l] of [
+          [50, 112],
+          [110, 52],
+        ]) {
+          const got = earnedBadges(
+            f({
+              ownerLast: true,
+              roster: club(8),
+              budgetM,
+              spendM,
+              budgetBonus,
+              baselineWins: w,
+              baselineLosses: l,
+            }),
+          );
+          if (!got.includes("flyingblind")) continue;
+          expect(got, `$${spendM}M of $${budgetM}M`).not.toContain("pocket");
+          expect(got, `$${spendM}M of $${budgetM}M`).not.toContain("pinch");
+          expect(got, `$${spendM}M of $${budgetM}M`).not.toContain("farm");
+        }
+      }
+    });
+
+    /** …and the one it SHOULD stack with. Landing on the number you could not
+     * see is the best possible version of this story. */
+    it("stacks with spending every dime", () => {
+      const got = earnedBadges(
+        f({
+          ownerLast: true,
+          roster: club(8),
+          budgetM: 100,
+          spendM: 99.9,
+          budgetBonus: 9.99,
+        }),
+      );
+      expect(got).toContain("flyingblind");
+      expect(got).toContain("dime");
+    });
   });
 
   /** The front office is three separate picks, and these are the two badges
@@ -910,6 +1320,130 @@ describe("the era badges", () => {
     });
   });
 
+  /** 💊 is keyed to the person and never to the season, because a suspension
+   * is a fact the man carries into every uniform he ever wore. The negative
+   * case is the one worth pinning: the two collision ids that look like
+   * matches by name and are different people. badges-supply holds the other
+   * half — that all four ids are still draftable. */
+  describe("the drug suspensions", () => {
+    const fired = (id: string) =>
+      earnedBadges(f({ roster: [player({ id })] })).includes("suspended");
+
+    it("fires on a suspended player in any uniform, in any year", () => {
+      expect(fired("rodrial01")).toBe(true);
+      expect(
+        earnedBadges(
+          f({ roster: [player({ id: "palmera01", team: "TEX", year: 1993 })] }),
+        ),
+      ).toContain("suspended");
+    });
+
+    it("leaves the two name collisions alone", () => {
+      // The 2007 Royals pitcher, not the Brewers outfielder.
+      expect(fired("braunry01")).toBe(false);
+      expect(fired("braunry02")).toBe(true);
+      // The 1997–2002 pitcher, not the slugger.
+      expect(fired("cruzne01")).toBe(false);
+      expect(fired("cruzne02")).toBe(true);
+    });
+
+    it("fires once for a club carrying several of them", () => {
+      const got = earnedBadges(
+        f({
+          roster: [
+            player({ id: "rodrial01" }),
+            player({ id: "braunry02" }),
+            player({ id: "canoro01" }),
+          ],
+        }),
+      );
+      expect(got.filter((k) => k === "suspended")).toHaveLength(1);
+    });
+
+    it("spares a club with nobody on the list", () => {
+      expect(earnedBadges(f({ roster: club(8) }))).not.toContain("suspended");
+    });
+  });
+
+  /** 🎲 has two paths to the same badge — a man on the roster, or Rose in the
+   * dugout — and the second is what makes it reachable at all. It mirrors 🗑️,
+   * which also counts the skipper's seat. */
+  describe("the betting cloud", () => {
+    it("fires on any of the four men, wherever they played", () => {
+      for (const id of ["rosepe01", "marcatu01", "claseem01", "ortizlu03"]) {
+        expect(
+          earnedBadges(f({ roster: [player({ id })] })),
+          id,
+        ).toContain("gambling");
+      }
+    });
+
+    it("takes it from Rose in the dugout, across all five Reds years", () => {
+      for (const year of [1985, 1986, 1987, 1988, 1989]) {
+        expect(
+          earnedBadges(f({ roster: club(8), managerTeam: "CIN", managerYear: year })),
+          `CIN ${year}`,
+        ).toContain("gambling");
+      }
+    });
+
+    it("spares the Reds before and after him, and every other dugout", () => {
+      for (const year of [1984, 1990, 1995]) {
+        expect(
+          earnedBadges(f({ roster: club(8), managerTeam: "CIN", managerYear: year })),
+          `CIN ${year}`,
+        ).not.toContain("gambling");
+      }
+      expect(
+        earnedBadges(f({ roster: club(8), managerTeam: "PIT", managerYear: 1986 })),
+      ).not.toContain("gambling");
+      // Half a dugout is not half a scandal.
+      expect(
+        earnedBadges(f({ roster: club(8), managerTeam: "CIN", managerYear: null })),
+      ).not.toContain("gambling");
+    });
+
+    it("fires once when Rose is both signed and hired", () => {
+      const got = earnedBadges(
+        f({
+          roster: [player({ id: "rosepe01", name: "Pete Rose" })],
+          managerTeam: "CIN",
+          managerYear: 1985,
+          managerName: "Pete Rose",
+        }),
+      );
+      expect(got.filter((k) => k === "gambling")).toHaveLength(1);
+      // …and the player-manager badge comes along, which is the correct and
+      // quite funny outcome: Rose is the reason 📋 exists.
+      expect(got).toContain("playermanager");
+    });
+  });
+
+  /** The two seed badges. Both read a boolean the engine resolves, and both
+   * fields are optional — a fact set assembled before they existed must earn
+   * neither rather than earning one by default. */
+  describe("seed provenance", () => {
+    it("takes the asterisk for a seed already in the log", () => {
+      expect(earnedBadges(f({ replayedSeed: true }))).toContain("asterisk");
+      expect(earnedBadges(f({ replayedSeed: false }))).not.toContain(
+        "asterisk",
+      );
+    });
+
+    it("takes word of mouth for a code that came from somewhere else", () => {
+      expect(earnedBadges(f({ sharedSeed: true }))).toContain("wordofmouth");
+      expect(earnedBadges(f({ sharedSeed: false }))).not.toContain(
+        "wordofmouth",
+      );
+    });
+
+    it("earns neither when the facts predate the fields", () => {
+      const got = earnedBadges(BASE);
+      expect(got).not.toContain("asterisk");
+      expect(got).not.toContain("wordofmouth");
+    });
+  });
+
   /** The two poles of the year axis. 📆 is existential over the decade
    * buckets — SOME decade holds five — and never over a named one, which is
    * what keeps the short 1985–89 and 2020–25 buckets from making the badge
@@ -1008,7 +1542,8 @@ describe("the earned list as a whole", () => {
     );
     // 🧗 and 📆 come along for the ride and belong in the list: BASE spends no
     // powerups, so a 120-win season is a handicap run, and eight 2020 seasons
-    // are eight players in one decade bucket.
+    // are eight players in one decade bucket. ⚖️ does too — eight identical
+    // 6.0-WAR seats are a club with no drop-off at all, which is the trigger.
     expect(got).toEqual([
       "crown",
       "perfect",
@@ -1017,6 +1552,7 @@ describe("the earned list as a whole", () => {
       "allstars",
       "twoway",
       "noweak",
+      "balanced",
       "cooperstown",
       "rings",
       "skipper",

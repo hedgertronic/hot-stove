@@ -1,0 +1,112 @@
+=== Study 13: roster shapes (Clean House + all powerups) ===
+n=6000 games, 520.30s wall clock. Full clubs: 6000 (100.00%).
+
+--- 1. Seats at or above a WAR rung, per club (full clubs only) ---
+  floor 8.0 WAR:
+    >=0 seats:  100.00%   (exactly 0:    8.43%)
+    >=1 seats:   91.57%   (exactly 1:   29.92%)
+    >=2 seats:   61.65%   (exactly 2:   34.62%)
+    >=3 seats:   27.03%   (exactly 3:   19.92%)
+    >=4 seats:    7.12%   (exactly 4:    6.28%)
+    >=5 seats:    0.83%   (exactly 5:    0.78%)
+    >=6 seats:    0.05%   (exactly 6:    0.05%)
+  floor 6.0 WAR:
+    >=0 seats:  100.00%   (exactly 0:    0.00%)
+    >=1 seats:  100.00%   (exactly 1:    0.42%)
+    >=2 seats:   99.58%   (exactly 2:    4.08%)
+    >=3 seats:   95.50%   (exactly 3:   16.52%)
+    >=4 seats:   78.98%   (exactly 4:   32.52%)
+    >=5 seats:   46.47%   (exactly 5:   31.05%)
+    >=6 seats:   15.42%   (exactly 6:   13.62%)
+    >=7 seats:    1.80%   (exactly 7:    1.78%)
+    >=8 seats:    0.02%   (exactly 8:    0.02%)
+  floor 4.0 WAR:
+    >=0 seats:  100.00%   (exactly 0:    0.00%)
+    >=1 seats:  100.00%   (exactly 1:    0.00%)
+    >=2 seats:  100.00%   (exactly 2:    0.00%)
+    >=3 seats:  100.00%   (exactly 3:    0.18%)
+    >=4 seats:   99.82%   (exactly 4:    2.00%)
+    >=5 seats:   97.82%   (exactly 5:   14.18%)
+    >=6 seats:   83.63%   (exactly 6:   43.90%)
+    >=7 seats:   39.73%   (exactly 7:   36.77%)
+    >=8 seats:    2.97%   (exactly 8:    2.97%)
+
+--- 1b. Share of clubs whose seat of each type holds an 8.0+ season ---
+    slot 0 (C):    1.43%
+    slot 1 (IF):   29.28%
+    slot 2 (IF):   22.00%
+    slot 3 (OF):   34.32%
+    slot 4 (FLEX):   34.22%
+    slot 5 (SP):   37.48%
+    slot 6 (SP):   29.52%
+    slot 7 (RP):    0.00%
+
+--- 2. Best-to-worst WAR gap vs roster quality (full clubs only) ---
+gap <=      share   median roster WAR   median min seat   median max seat  % also >=4.0 floor
+1.5         0.00
+2           0.00
+2.5         0.00
+3            0.08               44.30              4.20              7.20               80.00
+3.5          0.55               46.80              4.20              7.40               66.67
+4            1.47               46.45              3.80              7.50               38.64
+5            7.25               47.20              3.60              7.90               20.46
+6           20.45               47.60              3.20              8.30               11.00
+  all full clubs: median roster WAR 48.70, median gap 7.40
+
+--- 2b. Gap plus a quality floor: % of full clubs earning both ---
+floor       gap<=2   gap<=2.5     gap<=3   gap<=3.5     gap<=4
+2             0.00       0.00       0.08       0.55       1.47
+2.5           0.00       0.00       0.08       0.55       1.45
+3             0.00       0.00       0.08       0.53       1.38
+3.5           0.00       0.00       0.08       0.52       1.22
+4             0.00       0.00       0.07       0.37       0.57
+
+--- 2c. Inside the 🧱 population (every seat >= 4.0), what the gap adds ---
+  🧱-shaped clubs: 178 (2.97% of full clubs)
+    of those, gap <= 2:    0.00% (0)
+    of those, gap <= 2.5:    0.00% (0)
+    of those, gap <= 3:    2.25% (4)
+    of those, gap <= 3.5:   12.36% (22)
+    of those, gap <= 4:   19.10% (34)
+    of those, gap <= 5:   50.00% (89)
+  median gap inside 🧱: 5.05
+
+--- 2d. ⛰️ shape (2 seats >=6.0 and 3 seats <=1.0): 0.03% of full clubs ---
+
+--- 3. Hall of Famers per club (players + a HOF skipper) ---
+    >=1:   85.35%   (exactly 1:   32.70%)
+    >=2:   52.65%   (exactly 2:   30.98%)
+    >=3:   21.67%   (exactly 3:   15.57%)
+    >=4:    6.10%   (exactly 4:    5.07%)
+    >=5:    1.03%   (exactly 5:    0.92%)
+    >=6:    0.12%   (exactly 6:    0.12%)
+
+--- 4. Distinct birth countries per FULL club (blind play) ---
+    >=2:   89.85%   (of all games:   89.85%)
+    >=3:   55.40%   (of all games:   55.40%)
+    >=4:   19.80%   (of all games:   19.80%)
+    >=5:    3.70%   (of all games:    3.70%)
+    >=6:    0.35%   (of all games:    0.35%)
+    >=7:    0.02%   (of all games:    0.02%)
+
+--- 5. Baseline wins vs the stamped record ---
+  median baseline 102.00, median stamp 137.00
+  baseline   👔   0.00%   📉   0.00%   💀   0.00%   💯+  66.00%
+  stamp      👔   0.00%   📉   0.00%   💀   0.00%   💯+  99.87%
+  (💯+ on the stamp is why the TOP of the ladder stays on the baseline.)
+
+--- 3. Badges per season (PILL_CAP calibration) ---
+  mean 3.00, median 3.00
+     0 badges:    2.12%  (cumulative over cap 4: 15.45%)
+     1 badges:   14.07%  (cumulative over cap 4: 15.45%)
+     2 badges:   23.70%  (cumulative over cap 4: 15.45%)
+     3 badges:   26.45%  (cumulative over cap 4: 15.45%)
+     4 badges:   18.22%  (cumulative over cap 4: 15.45%)
+     5 badges:    9.63%  (cumulative over cap 4: 15.45%)
+     6 badges:    3.87%  (cumulative over cap 4: 15.45%)
+     7 badges:    1.13%  (cumulative over cap 4: 15.45%)
+     8 badges:    0.50%  (cumulative over cap 4: 15.45%)
+     9 badges:    0.18%  (cumulative over cap 4: 15.45%)
+    10 badges:    0.13%  (cumulative over cap 4: 15.45%)
+  seasons earning MORE than 4 badges: 15.45%
+  seasons earning MORE than 5 badges: 5.82%

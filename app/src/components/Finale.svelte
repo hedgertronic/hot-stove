@@ -5,7 +5,7 @@
   import { GAMES, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
   import { shareText as shareResult } from "../lib/share";
   import AwardPill from "./AwardPill.svelte";
-  import BadgePill from "./BadgePill.svelte";
+  import BadgeSlot from "./BadgeSlot.svelte";
 
   let {
     game,
@@ -236,6 +236,12 @@
   const PILL_CAP = 4;
   const brags = $derived(bragRow(fin.badges ?? [], fin.newBadges ?? [], PILL_CAP));
 
+  /** The one open badge in the row, by key — the same one-at-a-time reveal the
+   * trophy case runs, through the same BadgeSlot. A badge earned here explains
+   * itself here, so a player never has to go find the case to learn what they
+   * just did. */
+  let openBrag = $state<string | null>(null);
+
   /** The shareable string. Facts in, string out — lib/share owns the format,
    * including the record, which it derives from the total so a shared record
    * can never disagree with the stamp above it. The grid is the finished
@@ -373,11 +379,17 @@
 {#if bragsShown && brags.length > 0}
   <div class="brags">
     {#each brags as b (b.def.key)}
-      <!-- The pill itself is BadgePill's, shared with the home trophy case, so
-           a badge looks the same the moment it is earned as it does in the
-           case. `animate` asks for the thunk-in entrance; the row supplies the
-           left-to-right stagger below. -->
-      <BadgePill badge={b.def} animate fresh={b.fresh} />
+      <!-- The pill and the tap-to-explain are BadgeSlot's, shared with the home
+           trophy case, so a badge looks and behaves the same the moment it is
+           earned as it does in the case. `animate` asks for the thunk-in
+           entrance; the row supplies the left-to-right stagger below. -->
+      <BadgeSlot
+        badge={b.def}
+        animate
+        fresh={b.fresh}
+        open={openBrag === b.def.key}
+        ontoggle={() => (openBrag = openBrag === b.def.key ? null : b.def.key)}
+      />
     {/each}
   </div>
 {/if}
@@ -517,27 +529,36 @@
      the row breaks between pills and never inside one — which costs nothing,
      because the widest pill in the set (🔱 MATCHED THE 2001 MARINERS, 232px)
      still fits the row's width on a 360px screen. The pills themselves are
-     BadgePill's; this rule owns layout only. */
+     BadgeSlot's; this rule owns layout only.
+     `position: relative` is BadgeSlot's contract: the row is the containing
+     block for an opened badge's panel, so the panel is clamped to this box and
+     floats over the stamp and the buttons instead of displacing them. */
   .brags {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 6px 8px;
     margin-top: 12px;
+    position: relative;
   }
   /* The left-to-right deal. BadgePill's `animate` supplies the thunk; the
      order the pills arrive in is the ROW's business, so the delay lives here,
-     one rule per seat up to PILL_CAP. Positional rather than class-based so it
-     stays true whatever pill markup the shared component renders.
+     one rule per seat up to PILL_CAP.
+     Two things the selector has to get right. It reaches THROUGH the button
+     BadgeSlot wraps each pill in, because the animation is on the pill and a
+     delay set on the wrapper would apply to nothing. And it counts buttons
+     rather than children, because opening a badge inserts its reveal into this
+     same row — an nth-child count would renumber every pill after the open one
+     and re-fire a delay on an animation that has already played.
      No reduced-motion override is needed: BadgePill drops the animation
      entirely there, and a delay on nothing is nothing. */
-  .brags > :global(:nth-child(2)) {
+  .brags > :global(button:nth-of-type(2) .brag) {
     animation-delay: 0.12s;
   }
-  .brags > :global(:nth-child(3)) {
+  .brags > :global(button:nth-of-type(3) .brag) {
     animation-delay: 0.24s;
   }
-  .brags > :global(:nth-child(4)) {
+  .brags > :global(button:nth-of-type(4) .brag) {
     animation-delay: 0.36s;
   }
   .ledger {

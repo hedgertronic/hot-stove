@@ -25,10 +25,17 @@
   let { badge, locked = false, count = 1, animate = false, fresh = false }: Props = $props();
 </script>
 
+<!-- Every visible part is its own element, and every gap between them is the
+     flex `gap` below. The pill carries no markup whitespace at all: inside a
+     flex container a run of text and a run of whitespace become one anonymous
+     item, so a newline between two bare `{...}` tags renders as a real space
+     that `gap` cannot see or control. Wrapping the glyph and the label makes
+     each one an item, which is what puts the spacing entirely in CSS. -->
 <span
   class="brag {badge.rarity}"
   class:locked
   class:animate
+  class:withnew={fresh && !locked}
   title={locked ? undefined : badge.label}
 >
   {#if locked && (badge.ironic || badge.secret)}
@@ -37,23 +44,23 @@
          become an errand. The anti-trophies stay in the brick band and out of
          the progress fraction, which is what keeps a 💀 reading as a hazard
          sign rather than a target. -->
-    {badge.emoji}
-    <span aria-hidden="true">? ? ?</span>
-    <span class="sr">An undiscovered badge</span>
+    <span class="ico">{badge.emoji}</span><span aria-hidden="true">? ? ?</span><span class="sr"
+      >An undiscovered badge</span
+    >
   {:else if locked}
     <!-- Glyph and name, never the `how`. A name is direction — "MATCHED THE
          2016 CUBS" sends you to look up what they did — while the trigger
          behind it stays the reward for earning the badge. -->
-    {badge.emoji}
-    {badge.label}
-    <span class="sr">Not yet earned</span>
+    <span class="ico">{badge.emoji}</span><span class="name">{badge.label}</span><span class="sr"
+      >Not yet earned</span
+    >
   {:else}
     <!-- Real text, not an icon or a color: "NEW" is read aloud by a screen
          reader in the pill's own reading order, so the cue costs no extra
          aria and survives a player who cannot see the contrast carrying it. -->
-    {#if fresh}<span class="fresh">NEW</span>{/if}
-    {badge.emoji}
-    {badge.label}{#if count > 1}<span class="count">×{count}</span>{/if}
+    {#if fresh}<span class="fresh">NEW</span>{/if}<span class="ico">{badge.emoji}</span><span
+      class="name">{badge.label}</span
+    >{#if count > 1}<span class="count">×{count}</span>{/if}
   {/if}
 </span>
 
@@ -66,8 +73,16 @@
 
      Green and pink are deliberately absent — green means "found on the dream
      team" (.qrow.dreamhit) and pink means the manager (.skiprow). A rarity
-     ramp that spent either would make two unrelated things look related. */
+     ramp that spent either would make two unrelated things look related.
+
+     Flex, so the spacing between the chip, the glyph and the label is one
+     structural `gap` rather than a mix of margins and rendered markup spaces,
+     and so `align-items` centres the parts for real instead of nudging them
+     with `vertical-align`. */
   .brag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     border: 2px solid var(--ink);
     border-radius: 999px;
     background: var(--gray-bg);
@@ -76,6 +91,17 @@
     letter-spacing: 0.06em;
     padding: 3px 12px;
     white-space: nowrap;
+  }
+  /* When a pill opens with the NEW chip, its left inset matches the chip's own
+     top and bottom inset — the chip sits in an even well of paper rather than
+     being pushed off the left edge. The pill's height leaves 5.03px above and
+     below a chip this tall, so 5px here puts all three within a hundredth of a
+     pixel of each other.
+     The RIGHT side keeps the label's 12px, and that asymmetry is the point: the
+     chip is a solid ink shape with no side bearing, the label is type that
+     carries its own. Matching the two numbers would not match the two gaps. */
+  .brag.withnew {
+    padding-left: 5px;
   }
   .animate {
     animation: thunk-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -129,14 +155,17 @@
      `animation-delay` on the pill element, and a second animation on the same
      element would inherit that one delay and fight the deal-in. */
   .fresh {
-    margin-right: 6px;
     border-radius: 999px;
     background: var(--ink);
     color: var(--card);
     font-size: 8.5px;
     letter-spacing: 0.1em;
+    /* Its own line-height, not the page's 1.55: as a flex item the chip is a
+       box, and an inherited factor would size that box off the paragraph
+       rhythm rather than off the chip. 1.2 plus symmetric padding is the whole
+       height, so the chip clears the pill's inner edge top and bottom. */
+    line-height: 1.2;
     padding: 1px 5px;
-    vertical-align: 1px;
   }
   /* Legend is the one inverted pill — an ink chip on an ink fill is invisible,
      so the chip inverts with it. */
@@ -145,9 +174,11 @@
     color: var(--ink);
   }
   .count {
-    margin-left: 6px;
     opacity: 0.7;
   }
+  /* Out of flow, so it is not a flex item: the screen-reader string sits in the
+     pill's reading order without taking a seat in the row or a share of the
+     gap. */
   .sr {
     position: absolute;
     width: 1px;

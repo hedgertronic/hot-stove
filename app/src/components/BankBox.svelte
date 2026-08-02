@@ -68,13 +68,13 @@
     {/if}
   </div>
   <div class="meter-lbl disp">
-    <span>SPENT {money(spend)}</span>
+    <span class="spent">SPENT <span class="amt">{money(spend)}</span></span>
     {#if !capKnown}
       <span class="nocap">$??? LEFT</span>
     {:else if over}
-      <span class="warn">{money(spend - cap)} OVER PAYROLL</span>
+      <span class="warn"><span class="amt">{money(spend - cap)}</span> OVER PAYROLL</span>
     {:else}
-      <span>{money(cap - spend)} LEFT</span>
+      <span class="left"><span class="amt">{money(cap - spend)}</span> LEFT</span>
     {/if}
   </div>
 </div>
@@ -198,10 +198,36 @@
     color: var(--muted);
     margin-top: 4px;
   }
-  .warn {
+  /* The two directions money travels, in the two colours the meter above
+     already spends on them: what has gone out is the bar's orange, what is
+     still there is the bar's green. The row becomes a legend for the fill
+     rather than a caption under it.
+
+     Orange here cannot be confused with the over-payroll warning that spends
+     the same hue. That warning REPLACES the green figure — the two never
+     render together — so orange on the right always means trouble while
+     orange on the left always means outflow, and an over-payroll box turning
+     entirely orange is the correct reading of an over-payroll box.
+
+     The colour lands on the amounts alone. "SPENT" and "LEFT" are constants
+     and the figures are the variables, so only the variables carry the
+     signal. Size and weight stay on the label row's scale: before an owner is
+     hired the opposite end of this row is an unknown, and a figure that
+     outgrew it would be shouting at a question mark. */
+  .spent .amt {
     color: var(--orange);
   }
-  /* Same size/weight/color as the SPENT label; italic alone marks the unknown. */
+  .left .amt {
+    color: var(--green-deep);
+  }
+  /* The overrun follows the row's own rule: the figure carries the colour and
+     the words stay a label. "OVER PAYROLL" is the constant here — the only
+     thing that varies is how far over. */
+  .warn .amt {
+    color: var(--orange);
+  }
+  /* The one half of this row with no figure in it, so there is nothing for the
+     colour rule to land on; italic alone marks the unknown. */
   .nocap {
     color: var(--muted);
     font-style: italic;

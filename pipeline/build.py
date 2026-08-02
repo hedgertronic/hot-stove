@@ -48,7 +48,7 @@ ASKING_PER_WAR = 0.0
 
 LAHMAN_TABLES = ["People", "Teams", "Appearances", "Batting", "Pitching",
                  "Salaries", "AwardsPlayers", "AwardsSharePlayers", "Managers",
-                 "AllstarFull", "AwardsManagers"]
+                 "AllstarFull", "AwardsManagers", "HallOfFame"]
 
 
 def load_raw() -> dict:
@@ -117,7 +117,7 @@ def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]
             extras["pit"] = {"w": pit["w"], "l": pit["l"], "sv": pit["sv"],
                              "era": round(9 * pit["er"] / (pit["outs"] / 3), 2),
                              "so": pit["so"]}
-        players.append({
+        player = {
             **extras,
             "id": bbref_id,
             "name": e["name"],
@@ -143,7 +143,19 @@ def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]
             },
             "debut": gd.debut_franchise.get(lahman_id),
             "teams": sorted(e["teams"]),
-        })
+        }
+        # Birth country, absent only when Lahman has no birthCountry for the
+        # player (zero of the 1985-2025 card player-seasons today). The value
+        # is the display name, not a code: a 2-letter code would save 112KB
+        # across data/ (94 bytes on an average card) at the price of a second
+        # lookup table every consumer has to carry.
+        if country := gd.birth_country.get(lahman_id):
+            player["bc"] = country
+        # Hall of Fame as a player. Written only when true, like the card's
+        # ws/pen flags — 955 of 35,720 player-seasons carry it.
+        if lahman_id in gd.hof_players:
+            player["hof"] = True
+        players.append(player)
     players.sort(key=lambda p: p["war"], reverse=True)
     return players
 
@@ -172,6 +184,9 @@ def main() -> None:
     min_budget = None  # league-minimum bankroll: the no-owner floor (meta.minBudget)
     player_seasons: dict[str, list[list]] = defaultdict(list)  # bbrefID -> [[br, year]]
     specials: dict[str, list[dict]] = defaultdict(list)  # franchID -> FO timeline
+    seasons, no_country, hof_seasons = 0, 0, 0
+    hof_ids: set[str] = set()
+    hof_mgr_cards, hof_mgr_ids = 0, set()
 
     for (year, br), row in sorted(gd.team_rows.items()):
         factor = gd.proration[year]
@@ -185,6 +200,9 @@ def main() -> None:
         # BBWAA Manager of the Year that season — lean flag, present only when
         # true (like the index's ws/pen), read by the Skipper scoring bonus.
         mgr_moty = (mgr_pid, year) in gd.manager_moty
+        # In the Hall of Fame on a manager's plaque. Career-level, so it rides
+        # every card that skipper appears on; present only when true.
+        mgr_hof = mgr_pid in gd.hof_managers
         card = {
             "year": year,
             "team": br,
@@ -212,9 +230,19 @@ def main() -> None:
         }
         if mgr_moty:
             card["managerMoty"] = True
+        if mgr_hof:
+            card["managerHof"] = True
         min_budget = card["budget"] if min_budget is None else min(min_budget, card["budget"])
+        if mgr_hof:
+            hof_mgr_cards += 1
+            hof_mgr_ids.add(mgr_pid)
         for p in card["players"]:
             player_seasons[p["id"]].append([br, year])
+            seasons += 1
+            no_country += "bc" not in p
+            if p.get("hof"):
+                hof_seasons += 1
+                hof_ids.add(p["id"])
         special = {
             "team": br, "year": year, "name": row["name"], "park": row["park"],
             "mgr": card["manager"], "w": card["wins"], "l": card["losses"],
@@ -223,6 +251,8 @@ def main() -> None:
         }
         if mgr_moty:
             special["moty"] = True
+        if mgr_hof:
+            special["hof"] = True
         specials[row["franchID"]].append(special)
         (cards_dir / f"{br}_{year}.json").write_text(json.dumps(card))
         # lg/div are the season's actual league + division (Lahman Teams), so
@@ -276,6 +306,10 @@ def main() -> None:
           f"e.g. 1987=${gd.floor[1987]:,} 2023=${gd.floor[2023]:,}")
     print(f"players.json: {len(player_seasons)} players, "
           f"{(DATA_DIR / 'players.json').stat().st_size:,} bytes")
+    print(f"birth country: {seasons - no_country:,}/{seasons:,} player-seasons "
+          f"({no_country} missing)")
+    print(f"hall of fame: {len(hof_ids)} players / {hof_seasons:,} player-seasons; "
+          f"{len(hof_mgr_ids)} managers on {hof_mgr_cards} cards")
 
     # Short-stint audit: player-seasons on cards only via the WAR >= 2.0
     # override (below every playing-time floor).

@@ -16,15 +16,28 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { BADGES, CROWN_WINS, MATCHED, WORST_WINS } from "../src/lib/badges";
+import {
+  BADGES,
+  CROWN_WINS,
+  GAMBLERS,
+  MATCHED,
+  SUSPENDED,
+  WORST_WINS,
+} from "../src/lib/badges";
 
 interface CardPlayerRow {
   /** The stable id 🏦 keys on — a name is not enough, the trigger reads ids. */
   id: string;
   name: string;
   pos: string;
+  war: number;
   awards: string[];
   age?: number;
+  posG?: { c?: number; if?: number; of?: number };
+  /** In the Hall of Fame as a player. */
+  hof?: boolean;
+  /** Birth country, as the pipeline normalises it. */
+  bc?: string;
 }
 interface CardRow {
   year: number;
@@ -32,6 +45,9 @@ interface CardRow {
   wins: number;
   losses: number;
   ws: boolean;
+  manager: string | null;
+  /** This card's skipper is in the Hall of Fame as a manager. */
+  managerHof?: boolean;
   players: CardPlayerRow[];
 }
 interface IndexRow {
@@ -271,6 +287,259 @@ describe("forty years is still the whole dataset", () => {
     expect(Math.min(...years)).toBe(1985);
     expect(Math.max(...years)).toBe(2025);
     expect(Math.max(...years) - Math.min(...years)).toBe(40);
+  });
+});
+
+/** 💊 and 🎲 name living people off hard-coded Baseball-Reference ids. An id
+ * that no longer appears on any card leaves a name silently unreachable — the
+ * badge keeps rendering and simply never fires for that man — and an id that
+ * resolves to the WRONG man is worse, because the badge fires and accuses
+ * somebody who was never suspended. Both halves are pinned. */
+describe("the curated people are still on the cards", () => {
+  const seasonsOf = (id: string) =>
+    CARDS.filter((c) => c.players.some((p) => p.id === id));
+
+  it("can still deal every suspended player at least one card", () => {
+    const missing = [...SUSPENDED].filter((id) => seasonsOf(id).length === 0);
+    expect(missing).toEqual([]);
+    expect(SUSPENDED.size).toBe(27);
+  });
+
+  /** The two collision traps the 💊 list was built around. Both are real,
+   * draftable men who share a surname and a first initial with a suspended
+   * player and were never suspended themselves — the same shape as the Pedro
+   * Borbón Jr. trap on the 🚧 list. If a regen ever swapped the two ids, the
+   * badge would quietly start accusing the wrong person. */
+  it("keeps the two name collisions off the suspended list", () => {
+    for (const [wrong, right, surname] of [
+      ["braunry01", "braunry02", "Ryan Braun"],
+      ["cruzne01", "cruzne02", "Nelson Cruz"],
+    ]) {
+      expect(SUSPENDED.has(wrong), `${wrong} must not be listed`).toBe(false);
+      expect(SUSPENDED.has(right), `${right} must be listed`).toBe(true);
+      // …and both are still real, distinct, draftable people, which is what
+      // makes the trap a trap rather than a typo.
+      expect(seasonsOf(wrong).length, `${wrong} on a card`).toBeGreaterThan(0);
+      expect(seasonsOf(right).length, `${right} on a card`).toBeGreaterThan(0);
+      const names = new Set(
+        [wrong, right].flatMap((id) =>
+          CARDS.flatMap((c) => c.players.filter((p) => p.id === id).map((p) => p.name)),
+        ),
+      );
+      expect([...names]).toEqual([surname]);
+    }
+  });
+
+  it("can still deal all four men under a betting cloud", () => {
+    expect([...GAMBLERS].sort()).toEqual([
+      "claseem01",
+      "marcatu01",
+      "ortizlu03",
+      "rosepe01",
+    ]);
+    const where = (id: string) =>
+      seasonsOf(id)
+        .map((c) => `${c.team} ${c.year}`)
+        .sort();
+    expect(where("rosepe01")).toEqual(["CIN 1985", "CIN 1986"]);
+    expect(where("marcatu01")).toEqual(["PIT 2022", "PIT 2023"]);
+    // Clase and Ortiz are the reason the badge's copy names no verdict; the
+    // pin is here so a regen dropping either one is visible.
+    expect(where("claseem01").length).toBeGreaterThan(0);
+    expect(where("ortizlu03").length).toBeGreaterThan(0);
+  });
+
+  /** The 🎲 trigger's manager half is a bare team-and-year window with Rose's
+   * name only in a comment. Nothing in the app would notice if the CIN
+   * 1985–89 cards stopped carrying him — the badge would keep firing for
+   * whoever managed the Reds instead. */
+  it("still seats Pete Rose in the Reds dugout for exactly five years", () => {
+    const roseYears = CARDS.filter((c) => c.manager === "Pete Rose")
+      .map((c) => `${c.team} ${c.year}`)
+      .sort();
+    expect(roseYears).toEqual([
+      "CIN 1985",
+      "CIN 1986",
+      "CIN 1987",
+      "CIN 1988",
+      "CIN 1989",
+    ]);
+  });
+});
+
+/** Why there is no ALL-GOLD badge, recorded as an assertion rather than as a
+ * paragraph nobody reads. The club has a mandatory RP seat and eligibility.ts
+ * fills it only from `pos === "RP"`, so the best relief season in the set is a
+ * hard ceiling on any "every player at N WAR" badge. It is 7.2 — under the 8.0
+ * gold rung — which makes an all-gold roster impossible rather than rare.
+ * 🧱's 4.0 floor is the highest rung the RP seat can actually clear, and 🌟
+ * counts gold seats instead of demanding all of them. */
+describe("the gold ceiling the shape badges are written around", () => {
+  const MIN_POS_G = 10;
+  const seats = CARDS.flatMap((c) => c.players);
+
+  it("keeps the relief ceiling under the gold rung", () => {
+    const rp = seats.filter((p) => p.pos === "RP");
+    const best = Math.max(...rp.map((p) => p.war));
+    expect(best).toBe(7.2);
+    expect(best).toBeLessThan(8.0);
+    expect(rp.filter((p) => p.war === best).map((p) => p.name)).toEqual([
+      "Mark Eichhorn",
+    ]);
+  });
+
+  /** Catcher is the second choke point, and the one that decides whether the
+   * arithmetic ceiling is 6 gold seats or 7: exactly one catcher season in the
+   * whole set reaches 8.0, so a club can only hold a seventh gold seat by
+   * landing that one card. */
+  it("finds exactly one gold catcher season in the whole set", () => {
+    const gold = seats
+      .filter((p) => (p.posG?.c ?? 0) >= MIN_POS_G && p.war >= 8.0)
+      .map((p) => p.name);
+    expect(gold).toEqual(["Mike Piazza"]);
+  });
+});
+
+/** 👔 claims the ladder's floor — "an 0–162 season, every game lost" — and the
+ * trigger reads BASELINE wins, which is 50 replacement wins plus roster WAR
+ * plus the skipper's net. So the floor under a baseline is a data fact, and
+ * this pins it: the worst season available at every seat, plus the worst
+ * manager in the set, still leaves a club above zero. 👔 is the ladder's
+ * stated floor rather than a rung anyone reaches, and that is on purpose —
+ * but it should be true on purpose rather than by accident. */
+describe("the floor a baseline can actually reach", () => {
+  const MIN_POS_G = 10;
+  const SLOTS = ["C", "IF", "IF", "OF", "FLEX", "SP", "SP", "RP"];
+  const eligible = (p: CardPlayerRow): string[] => {
+    const t: string[] = [];
+    if ((p.posG?.c ?? 0) >= MIN_POS_G) t.push("C");
+    if ((p.posG?.if ?? 0) >= MIN_POS_G) t.push("IF");
+    if ((p.posG?.of ?? 0) >= MIN_POS_G) t.push("OF");
+    if (p.pos.startsWith("SP")) t.push("SP");
+    if (p.pos === "RP") t.push("RP");
+    if (!(p.pos.startsWith("SP") || p.pos === "RP") || p.pos.includes("/"))
+      t.push("FLEX");
+    return t;
+  };
+
+  it("cannot build a club bad enough to lose all 162", () => {
+    const worst = new Map<string, number>();
+    for (const p of CARDS.flatMap((c) => c.players))
+      for (const t of eligible(p))
+        worst.set(t, Math.min(worst.get(t) ?? Infinity, p.war));
+    // Reusing one man across the seats he is eligible for, which only makes
+    // the bound looser — a real club has to find eight different people.
+    const floorWar = SLOTS.reduce((sum, t) => sum + (worst.get(t) ?? 0), 0);
+    const worstManagerWins =
+      0.2 * Math.min(...CARDS.map((c) => c.wins - c.losses));
+    const floorBaseline = 50 + floorWar + worstManagerWins;
+    expect(floorBaseline).toBeGreaterThan(0);
+    // Which also means 📉 WORST RECORD, at 40 wins or fewer, is the lowest
+    // rung a real club can reach at all.
+    expect(floorBaseline).toBeLessThan(WORST_WINS);
+  });
+});
+
+/** 🏛️ is the one badge in the set whose subject is not closed: the Hall elects
+ * people every January, so its difficulty drifts with each data regen and
+ * nothing else in the suite could notice — the trigger is a count over a flag,
+ * and it keeps working while quietly getting easier. These are the numbers the
+ * HALL_COUNT threshold was chosen against; a regen that moves them should fail
+ * loudly and have the rung re-decided, not slide.
+ *
+ * The era-lock is pinned too, because it looks like a bug and is not:
+ * induction needs retirement plus a waiting period, so the recent end of the
+ * dataset carries no Hall of Famers at all and never will. */
+describe("the Hall of Fame supply", () => {
+  const seats = CARDS.flatMap((c) => c.players);
+  const hofSeats = seats.filter((p) => p.hof === true);
+
+  it("still carries the Hall on the cards, players and skippers both", () => {
+    expect(hofSeats.length).toBe(955);
+    expect(new Set(hofSeats.map((p) => p.id)).size).toBe(70);
+    expect(CARDS.filter((c) => c.managerHof === true).length).toBe(125);
+    // Nine men, not fourteen: the flag is `category = "Manager"` strictly, so
+    // Frank Robinson — in the Hall as a player, a manager for sixteen years —
+    // is not a Hall of Fame manager here.
+    expect(
+      new Set(
+        CARDS.filter((c) => c.managerHof === true).map((c) => c.manager),
+      ).size,
+    ).toBe(9);
+  });
+
+  /** The threshold's own supply floor: a club is built across roughly eleven
+   * cards, and HALL_COUNT is four. If no card could supply more than two the
+   * badge would need four separate landings to agree, which is a different
+   * badge from the one the copy describes. */
+  it("can still deal several Hall of Famers off a single card", () => {
+    const per = CARDS.map((c) => c.players.filter((p) => p.hof === true).length);
+    expect(Math.max(...per)).toBeGreaterThanOrEqual(4);
+    expect(per.filter((n) => n > 0).length).toBe(558);
+  });
+
+  it("records that the recent end of the dataset can never carry the flag", () => {
+    const modern = seats.filter(() => false);
+    void modern;
+    const recent = CARDS.filter((c) => c.year >= 2020).flatMap((c) => c.players);
+    expect(recent.length).toBeGreaterThan(5000);
+    expect(recent.filter((p) => p.hof === true)).toEqual([]);
+    // …and that the decay toward it is monotone enough to be the reason,
+    // rather than an accident of one bad decade.
+    const rate = (from: number, to: number): number => {
+      const rows = CARDS.filter((c) => c.year >= from && c.year <= to).flatMap(
+        (c) => c.players,
+      );
+      return (100 * rows.filter((p) => p.hof === true).length) / rows.length;
+    };
+    expect(rate(1985, 1994)).toBeGreaterThan(rate(1995, 2004));
+    expect(rate(1995, 2004)).toBeGreaterThan(rate(2005, 2014));
+    expect(rate(2015, 2025)).toBeLessThan(0.5);
+  });
+});
+
+/** 🌎 counts distinct birth countries, and the shape of that supply is what
+ * makes it a COUNT badge rather than a set of per-country badges: the head is
+ * one country and the tail is single men. If the distribution ever flattened,
+ * COUNTRY_COUNT would be measuring something else. */
+describe("the birth-country supply", () => {
+  const seats = CARDS.flatMap((c) => c.players);
+  const countries = seats.map((p) => p.bc);
+
+  it("carries a country on every draftable player", () => {
+    expect(countries.filter((c) => !c)).toEqual([]);
+  });
+
+  it("keeps one country dominant and the tail unfindable", () => {
+    const counts = new Map<string, number>();
+    for (const c of countries) counts.set(c!, (counts.get(c!) ?? 0) + 1);
+    expect(counts.size).toBeGreaterThan(30);
+    const usa = (100 * (counts.get("USA") ?? 0)) / countries.length;
+    expect(usa).toBeGreaterThan(70);
+    // Counted in PEOPLE rather than seasons, most of the map is one man deep:
+    // 23 of the 39 countries have five draftable players or fewer and 15 have
+    // exactly one — Scotland, Spain, Indonesia, Portugal and eleven others.
+    // That is why nothing in this game asks a player to collect them all.
+    const players = new Map<string, Set<string>>();
+    for (const p of seats) {
+      const set = players.get(p.bc!) ?? new Set<string>();
+      set.add(p.id);
+      players.set(p.bc!, set);
+    }
+    const tiny = [...players.values()].filter((s) => s.size <= 5).length;
+    const singletons = [...players.values()].filter((s) => s.size === 1).length;
+    expect(tiny).toBeGreaterThan(counts.size / 2);
+    expect(singletons).toBeGreaterThan(10);
+  });
+
+  /** The historical spellings the pipeline normalises. Lahman records a
+   * country as of BIRTH, so the raw table carries both "West Germany" and
+   * "Germany" and would let one club earn two countries off two Germans. */
+  it("carries no un-normalised historical country names", () => {
+    const names = new Set(countries);
+    for (const stale of ["West Germany", "British Honduras", "South Vietnam"]) {
+      expect(names.has(stale), `${stale} should be normalised away`).toBe(false);
+    }
   });
 });
 

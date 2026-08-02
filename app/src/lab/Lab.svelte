@@ -3,6 +3,7 @@
    * components, fed by forged Game states from fixtures.ts. Nothing here
    * ships — App.svelte only imports this module in DEV. */
   import BadgePill from "../components/BadgePill.svelte";
+  import BadgeSlot from "../components/BadgeSlot.svelte";
   import BankBox from "../components/BankBox.svelte";
   import Finale from "../components/Finale.svelte";
   import PlayerList from "../components/PlayerList.svelte";
@@ -30,6 +31,7 @@
     specialPrimeGame,
     tdGame,
   } from "./fixtures";
+  import { BADGE_BY_KEY } from "../lib/badges";
 
   const market = marketGame();
   const scout = scoutGame();
@@ -56,6 +58,22 @@
 
   // The manager career sheet is a modal; a button summons it over the lab.
   let mgrSheet = $state(false);
+
+  /* The explanation panel. Two rows, because the interesting failure is
+     geometric: the panel floats, so what has to be checked is where it lands
+     and whether it stays inside its row. The first row is preset open on a
+     middle pill (the ordinary case, arrow centred). The second is a dense row
+     whose pills reach both margins, which is where the clamp does its work —
+     tap the leftmost and rightmost pills and the panel should stop at the
+     margin while the arrow slides along its edge to keep pointing. */
+  /* Filtered, because these name badges by key and the table they come from is
+     edited independently: a retired key must leave a shorter row here, not a
+     crashed lab. */
+  const byKey = (keys: string[]) => keys.map((k) => BADGE_BY_KEY[k]).filter((b) => b != null);
+  const HOW_ROW = byKey(["crown", "crystal", "allstars", "skull"]);
+  const EDGE_ROW = byKey(["hundred", "dime", "cubs", "twoway", "rings", "pocket"]);
+  let labHow = $state<string | null>("crystal");
+  let labEdge = $state<string | null>(null);
 
   const noop = () => {};
 </script>
@@ -105,8 +123,10 @@
   <PlayerList game={hd} confirmKey={null} setConfirm={noop} />
 
   <div class="psep">PAYROLL BOX</div>
-  <div class="cap">Pre-owner (hatched, $???)</div>
+  <div class="cap">Pre-owner, nothing signed yet (hatched, $???)</div>
   <BankBox game={banks.preOwner} />
+  <div class="cap">Pre-owner, $34M signed — the spent figure is the box's only real number</div>
+  <BankBox game={banks.preOwnerSpent} />
   <div class="cap">Classic, ~39% spent</div>
   <BankBox game={banks.normal} />
   <div class="cap">Classic, ~96% spent (near cap)</div>
@@ -149,6 +169,41 @@
         <BadgePill badge={row.badge} locked={row.locked} fresh={row.fresh ?? false} />
         <span class="lnote">{row.note}</span>
       </div>
+    {/each}
+  </div>
+
+  <div class="psep">BADGE PILLS · TAP TO EXPLAIN</div>
+  <div class="cap">
+    BadgeSlot — the tappable pill and its trigger panel, the one implementation
+    the finale row and the trophy case both render. The panel FLOATS: it
+    overlays whatever is beneath it and moves nothing, so the row it belongs to
+    looks identical open or shut. An arrow connects it to the pill. Preset open
+    on the second pill; tap any pill to move it, tap outside or press Escape to
+    dismiss.
+  </div>
+  <div class="howrow">
+    {#each HOW_ROW as b (b.key)}
+      <BadgeSlot
+        badge={b}
+        open={labHow === b.key}
+        ontoggle={() => (labHow = labHow === b.key ? null : b.key)}
+      />
+    {/each}
+  </div>
+
+  <div class="cap edgecap">
+    The clamp: a dense row whose pills reach both margins. A panel anchored to
+    the leftmost or rightmost pill has to stop at the row's edge rather than
+    hang past it — the arrow slides along the panel's own edge to keep pointing
+    at the pill. Nothing here may widen the column.
+  </div>
+  <div class="howrow">
+    {#each EDGE_ROW as b (b.key)}
+      <BadgeSlot
+        badge={b}
+        open={labEdge === b.key}
+        ontoggle={() => (labEdge = labEdge === b.key ? null : b.key)}
+      />
     {/each}
   </div>
 
@@ -295,6 +350,22 @@
     font-size: 10px;
     font-weight: 700;
     color: var(--muted);
+  }
+  /* The finale's own brag-row geometry, including the `position: relative`
+     BadgeSlot requires, so a panel anchors and clamps here the way it does
+     there. */
+  .howrow {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 8px;
+    position: relative;
+  }
+  /* The rows overlay rather than reflow, so a panel opened in the first row
+     lands on top of this caption — the gap is what keeps the two rows readable
+     while one of them is open. */
+  .edgecap {
+    margin-top: 74px;
   }
   .sheetbtn {
     display: block;

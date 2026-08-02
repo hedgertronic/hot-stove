@@ -255,6 +255,7 @@ function spendGame(config: GameConfig, costPaid: number, withOwner: boolean): Ga
 
 export const bankGames = () => ({
   preOwner: spendGame(CLASSIC, 0, false),
+  preOwnerSpent: spendGame(CLASSIC, 34, false),
   normal: spendGame(CLASSIC, 38, true), // ~39% of 96.7
   nearCap: spendGame(CLASSIC, 93, true), // ~96%
   over: spendGame(CLASSIC, 111, true), // $14.3M over
@@ -658,18 +659,45 @@ export const PILL_LADDER: {
     locked: true,
     note: "locked secret — glyph kept, name withheld: a hint, not an errand",
   },
-  // The finale-only state. Worth two rungs: the chip is ink-on-paper
-  // everywhere except legend, which is already ink-filled and inverts it.
-  {
-    badge: BADGE_BY_KEY.crystal,
-    locked: false,
-    fresh: true,
-    note: "NEW — first time ever earned; ink chip, leading the pill",
-  },
+  // The finale-only state, once per rarity. The chip's own geometry is the
+  // reason it needs the full ramp rather than one sample: it is a solid mass
+  // sitting inside the pill's left padding, so how snug it looks is a judgement
+  // against every fill behind it — and on legend it inverts to gold, or it
+  // would vanish into the ink.
   {
     badge: BADGE_BY_KEY.crown,
     locked: false,
     fresh: true,
     note: "NEW on legend — the chip inverts to gold, or it would vanish",
+  },
+  {
+    badge: BADGE_BY_KEY.mariners,
+    locked: false,
+    fresh: true,
+    note: "NEW on ultra — ink chip on gold, the highest-contrast pairing",
+  },
+  {
+    badge: BADGE_BY_KEY.crystal,
+    locked: false,
+    fresh: true,
+    note: "NEW on rare — first time ever earned; ink chip, leading the pill",
+  },
+  {
+    badge: BADGE_BY_KEY.allstars,
+    locked: false,
+    fresh: true,
+    note: "NEW on uncommon — sky wash behind the chip",
+  },
+  {
+    badge: BADGE_BY_KEY.hundred,
+    locked: false,
+    fresh: true,
+    note: "NEW on common — the one pill whose own border is a gray hairline",
+  },
+  {
+    badge: BADGE_BY_KEY.skull,
+    locked: false,
+    fresh: true,
+    note: "NEW on ironic — an anti-trophy can be a first, too",
   },
 ];

@@ -1,16 +1,27 @@
 <script lang="ts">
-  import { type Bank, type Difficulty, type GameConfig } from "../lib/engine.svelte";
+  import {
+    loadStoredFinale,
+    type Bank,
+    type Difficulty,
+    type GameConfig,
+  } from "../lib/engine.svelte";
   import { parseSeedCode, recordFromTotal } from "../lib/format";
   import { BANKS, DIFFICULTIES } from "../lib/modes";
   import { bestFor } from "../lib/settings";
-  import HelpModal from "./HelpModal.svelte";
+  import CornerButtons from "./CornerButtons.svelte";
   import Logo from "./Logo.svelte";
-  import TrophyModal from "./TrophyModal.svelte";
 
   let {
     config,
     onplay,
-  }: { config: GameConfig; onplay: (c: GameConfig, seed?: number) => void } = $props();
+    onlast,
+  }: {
+    config: GameConfig;
+    onplay: (c: GameConfig, seed?: number) => void;
+    /** Reopen the last finished game's finale (only ever called when one is
+     * stored — the control is absent otherwise). */
+    onlast: () => void;
+  } = $props();
 
   // Seed once from the saved settings; the rows edit local state until PLAY.
   // svelte-ignore state_referenced_locally
@@ -40,8 +51,16 @@
   );
 
 
-  let helpOpen = $state(false);
-  let trophyOpen = $state(false);
+  // The way back into the last finished game's finale. Read once: the home
+  // screen is rebuilt every time it is shown, and nothing writes the archive
+  // while it is on screen. Its record comes off the total through the SAME
+  // ladder the finale stamp and the book above use, so the row can never
+  // disagree with the screen it opens.
+  //
+  // GLOBAL, unlike the book above it: it is the last game played, whatever
+  // mode that game was. The row says LAST, the book says BEST.
+  const lastFinale = loadStoredFinale();
+  const lastRec = lastFinale === null ? null : recordFromTotal(lastFinale.finale.parts.total);
 
   // PLAY A SEED: a shared code replays that game's exact card sequence
   // under whatever mode combo is selected above.
@@ -73,8 +92,7 @@
 {/snippet}
 
 <div class="home disp">
-  <button class="help" onclick={() => (helpOpen = true)} aria-label="How to play">?</button>
-  <button class="help trophy" onclick={() => (trophyOpen = true)} aria-label="Trophy case"><svg class="tico" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 2h6v3.2a3 3 0 0 1-6 0V2Z M4 2.8H2.3v1.1a2 2 0 0 0 1.9 2 M10 2.8h1.7v1.1a2 2 0 0 1-1.9 2 M7 8.4v2.2 M4.6 11.9h4.8"/></svg></button>
+  <CornerButtons home />
 
   <div class="mast">
     <Logo big />
@@ -178,15 +196,25 @@
     </div>
   </div>
 
+  <!-- The way back into the last finished game. It lives under the book
+       because this is the screen's zone for games already played — NOT beside
+       PLAY A SEED, which expands in place into a text input and starts a new
+       game; a sibling of that control would jump every time the seed row
+       opened, and would promise a fresh game rather than a finished one.
+       Absent, never disabled, when no game has been finished: the book's "—"
+       is an empty value, this is a control with nowhere to go. -->
+  {#if lastRec}
+    <button class="row lastfin" onclick={onlast}>
+      <span class="ric">🧾</span>
+      <span class="rname">LAST FINALE</span>
+      <span class="rmeta">
+        <span class="pill cash">{lastRec.wins}–{lastRec.losses}</span>
+        <span class="chev" aria-hidden="true">›</span>
+      </span>
+    </button>
+  {/if}
+
 </div>
-
-{#if helpOpen}
-  <HelpModal onclose={() => (helpOpen = false)} />
-{/if}
-
-{#if trophyOpen}
-  <TrophyModal onclose={() => (trophyOpen = false)} />
-{/if}
 
 <style>
   .home {
@@ -200,59 +228,6 @@
       max-width: 540px;
       margin: 0 auto;
     }
-  }
-  /* Same twin pill as the in-game HUD's ?, hugging the column's top-left. */
-  .help {
-    position: absolute;
-    top: 0;
-    left: 0;
-    border: 2px solid var(--ink);
-    border-radius: 999px;
-    background: var(--card);
-    color: var(--muted);
-    font-family: inherit;
-    font-weight: 800;
-    /* 12px, not 10: the trophy is a 13px drawing, and a 10px ? beside it read
-       as the smaller sibling rather than its twin. */
-    font-size: 12px;
-    line-height: 1;
-    padding: 0;
-    width: 28px;
-    text-align: center;
-    cursor: pointer;
-    /* Fixed height and centring so all three corner pills share one box: the
-       ? and ✕ are 10px text glyphs and the trophy is a 13px drawing, and
-       letting content set the height made the trophy the odd one out. */
-    height: 22px;
-    box-sizing: border-box;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  /* The second corner button. Mirrors .help exactly and sits inboard of it,
-     so the pair reads as one control group rather than two lone glyphs. */
-  /* Inboard of the ?, sharing its geometry — one control group in the corner
-     rather than two lone glyphs. `right: auto` matters: .help pins left, and a
-     rule setting only `right` would leave both anchored to the same corner. */
-  .trophy {
-    left: 32px;
-    right: auto;
-  }
-  /* Line art rather than an emoji: the ?/✕ pills are 10px text glyphs, and a
-     colour emoji dropped into that geometry sits low and reads as a sticker on
-     a control. Stroked ink matches the punch mark the home rows already use. */
-  .tico {
-    width: 13px;
-    height: 13px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.3;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .help:focus-visible {
-    outline: 3px solid var(--blue);
-    outline-offset: 2px;
   }
   .mast {
     text-align: center;
@@ -592,6 +567,24 @@
     /* Brighter than --war-elite, matching the finale stamp: at heavy stamp
        weight the token's #c98a08 reads brown; true gold needs the chroma. */
     color: #e0a010;
+  }
+  /* The way back into the last finale: the punch list's row shape, minus the
+     punch. It is navigation, not a fourth option — no punch box, no
+     aria-pressed, and a chevron where the mode rows carry their meta — so it
+     reads as filled cardstock you can walk through rather than a seat you
+     could take. */
+  .lastfin {
+    width: 100%;
+    margin-top: 8px;
+    border-style: solid;
+    background: var(--card);
+    color: var(--ink);
+  }
+  .chev {
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--muted);
   }
   /* The exact points, quiet and tabular under the record — the finale's
      .tpts voice sized down to the miniature. */

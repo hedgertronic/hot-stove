@@ -64,6 +64,36 @@ POS_G_COLS = {
     "LF": "G_lf", "CF": "G_cf", "RF": "G_rf", "DH": "G_dh", "P": "G_p",
 }
 
+# Birth countries are stored as the display name itself (no code table), so this
+# map holds only the names Lahman spells differently from the label the game
+# shows. Anything absent passes through unchanged — Lahman's other 30-odd values
+# in the 1985-2025 window are already the plain English name.
+#
+# Two kinds of entry, and the difference matters: the first three are pure
+# spelling fixes, the last three MERGE two Lahman values into one country. A
+# merge is required wherever a country changed names mid-era, because a
+# "players from N countries" count would otherwise credit two countries to two
+# men born in the same place.
+BIRTH_COUNTRY = {
+    # Spelling — Lahman abbreviates these three and only these three.
+    "D.R.": "Dominican Republic",
+    "P.R.": "Puerto Rico",
+    "CAN": "Canada",
+    # Spelling — Lahman uses the Spanish endonym; every other value is the
+    # English name, so this keeps one language across the field.
+    "México": "Mexico",
+    # MERGE — the Federal Republic kept its name after 1990 reunification, so
+    # players born pre-1990 in the west and players born in "Germany" are one
+    # country. 9 card players are "West Germany", 4 are "Germany".
+    "West Germany": "Germany",
+    # MERGE — British Honduras was renamed Belize in 1973. Lahman carries no
+    # "Belize" rows today, so this entry is currently a rename of 1 player, and
+    # it is what keeps a future Belize row from splitting the country in two.
+    "British Honduras": "Belize",
+    # MERGE — South Vietnam was absorbed into Vietnam in 1975. 1 card player.
+    "South Vietnam": "Vietnam",
+}
+
 
 def _f(v: Any) -> float:
     try:
@@ -101,6 +131,7 @@ class GameData:
         self._build_war()
         self._build_salaries()
         self._build_awards()
+        self._build_hall_of_fame()
         self._build_debuts()
         self._build_slot8()
         self._build_normalization()
@@ -110,6 +141,7 @@ class GameData:
     def _build_ids(self) -> None:
         self.b2l: dict[str, str] = {}
         self.birth: dict[str, tuple[int, int]] = {}  # playerID -> (year, month)
+        self.birth_country: dict[str, str] = {}  # playerID -> display country name
         # Two People rows can claim the same bbref key, and the loser silently
         # overwrote the winner under last-write-wins. 1,275 rows (almost all
         # Negro-League-era, never on B-R) carry an empty bbrefID and fall back
@@ -130,6 +162,8 @@ class GameData:
                 self.b2l[bbref] = r["playerID"]
             if by := _i(r.get("birthYear")):
                 self.birth[r["playerID"]] = (by, _i(r.get("birthMonth")) or 7)
+            if country := (r.get("birthCountry") or "").strip():
+                self.birth_country[r["playerID"]] = BIRTH_COUNTRY.get(country, country)
 
     def seasonal_age(self, lahman_id: str, year: int) -> int | None:
         """Baseball convention: age on June 30 of the season."""
@@ -375,6 +409,33 @@ class GameData:
                     codes = self.awards[(pid, year)]
                     if not any(c in codes for c in place_codes):
                         codes.append(place_codes[place])
+
+    # -- Hall of Fame ------------------------------------------------------
+
+    def _build_hall_of_fame(self) -> None:
+        """Cooperstown inductees, split by the ballot they went in on.
+
+        HallOfFame carries one row per person per ballot appearance, so only
+        `inducted == "Y"` rows count (a 14-time also-ran is not a Hall of
+        Famer). `category` splits the plaque: Player and Manager are the two
+        the game can put on a card; Executive, Pioneer and Umpire have no
+        drafting surface and are dropped.
+
+        The two sets are kept apart because they answer different questions.
+        A player elected as a player who later managed (Frank Robinson, Paul
+        Molitor, Ryne Sandberg, Alan Trammell, Tony Perez) carries the player
+        flag on his playing seasons and does NOT make his teams' cards read
+        "Hall of Fame manager" — his plaque is for what he did at the plate.
+        """
+        self.hof_players: set[str] = set()
+        self.hof_managers: set[str] = set()
+        for r in self.raw["HallOfFame"]:
+            if r["inducted"] != "Y":
+                continue
+            if r["category"] == "Player":
+                self.hof_players.add(r["playerID"])
+            elif r["category"] == "Manager":
+                self.hof_managers.add(r["playerID"])
 
     # -- Debut franchise (for the Hometown Hero combo) ---------------------
 

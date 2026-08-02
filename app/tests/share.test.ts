@@ -63,10 +63,11 @@ const EXCLUSIVE: Record<string, string[]> = {
 
 const codePoints = (s: string) => [...s].length;
 const emojiOf = (key: string) => BADGES.find((b) => b.key === key)!.emoji;
-/** A badge's cost on line five: one separating space plus its emoji, which is
- * not reliably one code point (🏛️, 🗑️, 🕸️, 🏖️ each carry a variation
- * selector). */
-const badgeCost = (key: string) => 1 + codePoints(emojiOf(key));
+/** A badge's cost on line five: its emoji alone, which is not reliably one
+ * code point (🏛️, 🗑️, 🕸️, 🏖️ each carry a variation selector). The emoji butt
+ * against each other, so a badge costs no separator — the whole run is one
+ * part of the line and buys exactly one space, wherever it is counted. */
+const badgeCost = (key: string) => codePoints(emojiOf(key));
 
 /** The longest badge list the trigger set can produce, DERIVED: every badge
  * that stacks freely, plus the priciest member of each exclusive group.
@@ -145,7 +146,7 @@ describe("shareText golden strings", () => {
         "🟨🟡🟣",
         "🟡🟣🔵",
         "🟡🟣🔵",
-        "162–0 🔱 🏆 💵 🔮",
+        "162–0 🔱🏆💵🔮",
       ].join("\n"),
     );
   });
@@ -161,7 +162,7 @@ describe("shareText golden strings", () => {
         badges: ["skull", "farm"],
       }),
     ).toBe(
-      ["HOT STOVE 📊💸", "🟥🔴⚪", "⚪🔴⚪", "⚪⚪🔴", "41–121 💀 💸"].join(
+      ["HOT STOVE 📊💸", "🟥🔴⚪", "⚪🔴⚪", "⚪⚪🔴", "41–121 💀💸"].join(
         "\n",
       ),
     );
@@ -205,7 +206,7 @@ describe("shareText golden strings", () => {
       shareText({ ...BASE, seed: 0xa3f2, badges: ["mariners", "perfect"] })
         .split("\n")
         .at(-1),
-    ).toBe("104–58 🔱 🏆 #WDU");
+    ).toBe("104–58 🔱🏆 #WDU");
   });
 });
 
@@ -298,9 +299,20 @@ describe("line five has no trailing whitespace", () => {
   });
 
   it("separates the record from its badges with exactly one space", () => {
-    expect(shareScoreLine(104.3, ["mariners", "perfect"])).toBe("104–58 🔱 🏆");
+    expect(shareScoreLine(104.3, ["mariners", "perfect"])).toBe("104–58 🔱🏆");
     expect(shareScoreLine(104.3, [])).toBe("104–58");
     expect(shareScoreLine(104.3)).toBe("104–58");
+  });
+
+  /** The badges are one haul, not a list of remarks: however many fire, the
+   * line spends exactly one space on them, and the seed keeps its own. */
+  it("spends no space between one badge and the next", () => {
+    for (const badges of [FOUR, MAXIMAL, BADGES.map((b) => b.key)]) {
+      const last = shareText({ ...BASE, badges }).split("\n")[4];
+      expect(last.split(" ")).toHaveLength(2);
+    }
+    expect(shareText({ ...BASE, badges: FOUR, seed: 0xa3f2 }).split("\n")[4].split(" "))
+      .toHaveLength(3);
   });
 });
 
@@ -312,8 +324,8 @@ describe("badges cross the boundary as keys", () => {
   it("resolves every key in the set to its own emoji, in the order given", () => {
     for (const b of BADGES)
       expect(shareScoreLine(104.3, [b.key])).toBe(`104–58 ${b.emoji}`);
-    expect(shareScoreLine(104.3, ["perfect", "mariners"])).toBe("104–58 🏆 🔱");
-    expect(shareScoreLine(104.3, ["mariners", "perfect"])).toBe("104–58 🔱 🏆");
+    expect(shareScoreLine(104.3, ["perfect", "mariners"])).toBe("104–58 🏆🔱");
+    expect(shareScoreLine(104.3, ["mariners", "perfect"])).toBe("104–58 🔱🏆");
   });
 
   it("never prints a raw key", () => {
@@ -498,27 +510,31 @@ describe("line width budget", () => {
   const RECORD_LEN = 6;
   const SEED_LEN = 9; // " #" plus a seven-character code
   const cost = (keys: string[]) => keys.reduce((n, k) => n + badgeCost(k), 0);
+  /** The record, plus the badge run and the ONE space that precedes it. A
+   * seasonless line pays nothing for badges that did not fire. */
+  const lineFive = (keys: string[]) =>
+    RECORD_LEN + (keys.length > 0 ? 1 + cost(keys) : 0);
 
   /** The most decorated season the triggers allow, seedless — how it ships. */
-  const SHIPPED_MAX_LEN = RECORD_LEN + cost(MAXIMAL);
+  const SHIPPED_MAX_LEN = lineFive(MAXIMAL);
   /** Absolute paranoia bound: every badge in the set at once, plus a seed.
    * No game can earn this — the exclusive axes forbid it — so nothing the
    * engine produces may come near it. */
-  const MAX_LEN = RECORD_LEN + cost(BADGES.map((b) => b.key)) + SEED_LEN;
+  const MAX_LEN = lineFive(BADGES.map((b) => b.key)) + SEED_LEN;
 
   it("pins the worst case the triggers allow", () => {
     // 32 badges — 4 group representatives + 28 stackers — over a 6-character
     // record. The number is asserted so that a badge added without thought
     // shows up as a failing width rather than a silently longer share line.
     expect(MAXIMAL).toHaveLength(32);
-    expect(SHIPPED_MAX_LEN).toBe(81);
+    expect(SHIPPED_MAX_LEN).toBe(50);
     // total 104.3 gives the six-character record; 400 would clamp to "162–0".
     const s = shareText({ ...BASE, total: 104.3, badges: MAXIMAL });
     expect(codePoints(s.split("\n")[4])).toBe(SHIPPED_MAX_LEN);
   });
 
   it("keeps every line inside the absolute budget at worst case", () => {
-    expect(MAX_LEN).toBe(121);
+    expect(MAX_LEN).toBe(75);
     const s = shareText({
       ...BASE,
       total: 104.3,
@@ -546,7 +562,7 @@ describe("line width budget", () => {
 
   it("keeps a four-badge line — the pill row's cap — well under the ceiling", () => {
     const s = shareText({ ...BASE, total: 104.3, badges: FOUR });
-    expect(codePoints(s.split("\n")[4])).toBe(14);
+    expect(codePoints(s.split("\n")[4])).toBe(11);
   });
 
   it("pins the title's width", () => {

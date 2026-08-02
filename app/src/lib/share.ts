@@ -11,7 +11,7 @@ import { GAMES, MARINERS_WINS } from "./scoring";
  *   🟩🟢🔵                 🟨🟡🟣
  *   🟢🔵⚪                 🟡🟣🔵
  *   🟣🟢⚪                 🟡🟣🔵
- *   104–58               162–0 🔱 🏆 💵 🔮
+ *   104–58               162–0 🔱🏆💵🔮
  *
  *   1.   Title — the game, and the two mode emoji that qualify the score.
  *   2-4. The finished roster as a fixed 3×3: the manager, then the eight
@@ -160,16 +160,22 @@ export function shareRecord(total: number): string {
 /** The last line: the record, then the emoji of any badge that fired, then the
  * seed if one was asked for. `badges` arrives as KEYS and is resolved through
  * `badges.badgeEmoji` here. Assembled by joining only the parts that exist, so
- * a bare record has no trailing space — the emoji separate themselves, and a
- * lone space at the end of a line is invisible in a diff and permanent in a
- * text message.
+ * a bare record has no trailing space — a lone space at the end of a line is
+ * invisible in a diff and permanent in a text message.
+ *
+ * The badges are ONE part, not one part each: emoji butt against each other
+ * and the line spends a single space separating the run from the record. They
+ * are a haul rather than a list — the same reason the grid's cells touch —
+ * and spacing them out made four badges read as four separate remarks.
+ * Everything else on the line is a different KIND of thing, so the record, the
+ * haul, and the seed each keep their own space.
  *
  * Badges ride this line rather than taking their own because five lines is the
  * invariant; a decorated season and a quiet one must be the same height. */
 export function shareScoreLine(total: number, badges: string[] = [], seed?: number): string {
-  const parts = [shareRecord(total), ...badgeEmoji(badges)];
+  const parts = [shareRecord(total), badgeEmoji(badges).join("")];
   if (seed !== undefined) parts.push(`#${seedCode(seed)}`);
-  return parts.join(" ");
+  return parts.filter(Boolean).join(" ");
 }
 
 /** The full shareable string: title, the 3×3 grid, and the score line.

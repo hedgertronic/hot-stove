@@ -1,52 +1,110 @@
-/** Score-optimal club from the cards a game actually spun — the finale's
- * "best possible squad" yardstick. The objective is WAR + award points +
- * ring/pennant points (the same 1-point-per-win weighting score() uses), so
- * an MVP season or a championship teammate can out-rank a slightly higher
- * plain WAR — you can see a champion's 💍 coming when the card is in front
- * of you. Money is ignored on purpose: the yardstick answers "did you spot
- * the value?", not "could you afford it?".
+/** The best club the cards a game actually spun could have produced — the
+ * finale's "you could have gone 141–21" yardstick, and the dream team the
+ * ⭐ scout hits are counted against.
  *
- * Three rules shape a legal dream club, and all three are solved together:
+ * OBJECTIVE. The solver maximizes the finale's OWN total, not WAR:
  *
- * 1. ONE PICK PER CARD. A spin lands on one team-season and buys one thing —
- *    a player OR the skipper, never both. So the yardstick is a roster the
- *    player could genuinely have drafted, not five 1998 Yankees off a single
- *    card.
+ *   total = min(50 + WAR + 0.2·mgrNet, 162)      (expected wins)
+ *         + 10·(2·spend/budget − 1)               (payroll bonus, 0 when over)
+ *         + awardPoints (+2 for a MotY skipper)
+ *         + 3·rings + 1·pennants
+ *         + 1·scoutHits
+ *         − max(0, spend − budget)                (luxury tax)
+ *
+ * A WAR-max club that spends 45% of its payroll gives back ~1 point of that
+ * bonus for every 1% of the bankroll it leaves on the table, so the old
+ * WAR-max yardstick could and did print a club that SCORES LESS than the one
+ * the player built. Every term above is in the objective now, which is why the
+ * owner and the ballpark are solved too: they set `budget`, and the payroll
+ * bonus is not separable from that choice.
+ *
+ * THE SCOUT TERM IS A FIXED POINT, not a circularity. The player's scout bonus
+ * is |their club ∩ this club|, so this club's own score has to assume it hits
+ * itself. Write base(R) for everything except the scout term and seats(R) for
+ * the roster+skipper seats R fills. Choosing D = argmax [base(R) + seats(R)]
+ * is self-consistent: for any legal club R,
+ *   score(R) = base(R) + |R ∩ D| ≤ base(R) + seats(R) ≤ base(D) + seats(D)
+ * so D really is the best club available, whichever club the player built.
+ * Owner and ballpark earn no scout point (the engine counts players and the
+ * skipper only), so `dreamSeats` still tops out at 9.
+ *
+ * WHAT A LEGAL CLUB IS. Five rules, all solved together:
+ *
+ * 1. ONE PICK PER CARD, PLUS ONE ✌️. A spin lands on one team-season and buys
+ *    one thing — a player, the skipper, the owner, OR the ballpark. So the
+ *    yardstick is a club the player could genuinely have drafted, not five 1998
+ *    Yankees off a single card. Double Play is the one exception the game
+ *    itself grants, and every game starts holding it: exactly one card may
+ *    supply two things.
  * 2. ONE SEASON PER HUMAN. The same B-R id may fill only one seat, the same
- *    rule the draft enforces. A human can appear on several cards (a midseason
- *    trade, or two spun years of one franchise), so this does not fall out of
- *    rule 1 for free.
+ *    rule the draft enforces.
  * 3. SLOT CAPACITY. C1 IF2 OF1 FLEX1 SP2 RP1, plus one manager seat.
+ * 4. THE FRONT OFFICE COSTS CARDS TOO. Classic bank hires an owner and buys a
+ *    ballpark, each off its own card; budget = owner payroll × park multiplier.
+ *    Fixed banks (Moneyball, Blank Check) skip both — their cap is a constant.
+ * 5. THE MARKET IS WHAT THE PLAYER SAW. Only players the card list would have
+ *    shown (`visible`, mirroring Game.visiblePlayers) can be signed, at their
+ *    listed price.
  *
- * The manager is folded in as a seventh slot type worth (W − L) × 0.2 +
- * (Manager of the Year ? 2 : 0) — the skipper's full score value, in the same
- * 1-point-per-win units as everything else. He is solved jointly with the
- * roster because he consumes a card: hiring the best skipper greedily and
- * filling the roster from what's left is not optimal, and neither is the
- * reverse. The manager seat is REQUIRED whenever any spun card offers a
- * skipper, because the game requires one too (Game.complete). That means a
- * card is spent on the dugout even when every available skipper carries
- * negative value — a manager-less roster could score higher, but the player
- * was never allowed to build one, so the yardstick doesn't either.
+ * WHAT THE CEILING ASSUMES, in one sentence: perfect play of the cards the reel
+ * actually showed you — every roster seat, the skipper, the owner and the
+ * ballpark chosen with hindsight, one pick per card plus a ✌️ Double Play
+ * second pick off one of them, at list prices, plus the one off-reel season
+ * ⭐ Prime Time reached, which enters the pool as an extra card rather than
+ * being charged the spin it really cost.
  *
- * Solve shape: a DP over cards (choose at most one candidate per card) across
- * the 2·3·2·2·3·2·2 = 288 capacity states. That DP enforces rules 1 and 3
- * exactly but relaxes rule 2, so its value is an upper bound. Conflict-driven
- * branch and bound closes the gap: when a solution seats one human twice off
- * cards A and B, branch on forbidding him on A / forbidding him on B — every
- * legal club lies in one branch or the other — and prune any node whose relaxed
- * value can't beat the best legal club found so far. Deterministic throughout:
- * stable iteration order, strict-improvement updates, and a fixed branch order,
- * so ties always resolve the same way on every device. */
+ * That last clause is a known, measured generosity: a real Prime spends the
+ * landed card's choice and buys elsewhere, so the club ends level on picks,
+ * while here the landed card keeps its pick and the off-reel season adds one.
+ * It can only raise the ceiling, never lower it, and the off-reel card is
+ * barred from the front office and from the Double Play so the extra stays a
+ * single seat.
+ *
+ * Not modeled, deliberately: 🏠 Homegrown's discount (it only ever lowers
+ * payroll, and under the bonus that is a cost, not a saving), 🔁 Trade Deadline
+ * (re-choosing a seat is free to a solver that chose with hindsight), and
+ * 🎟️/🚚 rerolls (they change WHICH cards you see, and the pool already is the
+ * cards you saw). The finale clamps the ceiling up to the club actually built,
+ * so a line this search cannot see can never make the ceiling read below it.
+ *
+ * SOLVE SHAPE. For a fixed budget the score is linear in payroll on each side
+ * of the cap: below it every $1M is worth +20/budget points, above it every
+ * $1M is worth −1. So each (owner, ballpark) pair is solved as a Lagrangian
+ * sweep — a DP over cards (at most one candidate each) across the
+ * 2·3·2·2·3·2·2 = 288 capacity states, maximizing value + λ·spend — and every
+ * club that falls out is then scored EXACTLY by score(). λ = 20/budget solves
+ * the under-cap branch and λ = −1 solves the over-cap branch exactly, so an
+ * over-cap optimum is genuinely reachable by the search rather than clamped
+ * away; λ = 0 is the plain best-players club between them; and when the
+ * under-cap solve overshoots the cap, λ is bisected down to find the richest
+ * club that still fits. The DP relaxes rule 2, so conflict-driven branch and
+ * bound closes that gap on the winner.
+ *
+ * Three passes, because ~180 front offices × a full sweep is too slow for a
+ * finale on a phone: pass 1 ranks every (owner, ballpark) pair on the two
+ * budget-INDEPENDENT probes (λ = 0 and λ = −1, one DP shared by both orderings
+ * of a card pair, since only the cap differs); pass 2 runs the full sweep and
+ * the bisection on the best few; pass 3 tries the Double Play card on the best
+ * few of those. Passes 2 and 3 are shortlist heuristics — they can only raise
+ * the answer, and every club they consider is legal and scored exactly, so the
+ * number printed is always a club somebody could really have built.
+ *
+ * Deterministic throughout: stable iteration order, strict-improvement
+ * updates, fixed λ schedule and a fixed branch order, so two runs of the same
+ * seed always print the same club. */
 import { eligibleTypes } from "./eligibility";
 import {
   AWARD_POINTS,
+  BUDGET_BONUS_MAX,
+  LUXURY_TAX_PER_M,
   MANAGER_MOTY_POINTS,
   MANAGER_PER_NET_WIN,
   PENNANT_POINTS,
   RING_POINTS,
+  SCOUT_HIT_POINTS,
+  score,
 } from "./scoring";
-import type { Card, SlotType } from "./types";
+import type { Card, CardPlayer, SlotType } from "./types";
 
 export interface BestPick {
   id: string;
@@ -59,6 +117,9 @@ export interface BestPick {
   ws: boolean;
   pen: boolean;
   awards: string[];
+  /** Listed price, $M — what this seat costs the dream club's payroll.
+   * Optional so hand-built lab fixtures stay valid; the solver always sets it. */
+  cost?: number;
 }
 
 /** The dream club's skipper — the same shape the finale renders for the hired
@@ -74,6 +135,27 @@ export interface BestManagerPick {
   moty: boolean;
 }
 
+/** The dream club's owner: the card whose payroll it plays under. Carries the
+ * card's coordinates rather than the owner's name — the name lives in
+ * data/owners.json, which the solver deliberately does not load. */
+export interface BestOwnerPick {
+  team: string;
+  year: number;
+  teamName: string;
+  franchise: string;
+  budget: number;
+}
+
+/** The dream club's ballpark: the card whose multiplier it plays under. */
+export interface BestParkPick {
+  team: string;
+  year: number;
+  teamName: string;
+  franchise: string;
+  park: string;
+  mult: number;
+}
+
 export interface BestRoster {
   /** One entry per roster slot, SLOT_TYPES order (null = best play is empty). */
   picks: (BestPick | null)[];
@@ -85,8 +167,38 @@ export interface BestRoster {
    * skipper. This is the honest ⭐ denominator: with one pick per card, a game
    * that spun only 8 cards can never show 9 seats, so a fixed 8-or-9 would
    * advertise a target nobody could hit. Optional for the same fixture reason
-   * as `manager`; the solver always sets it. */
+   * as `manager`; the solver always sets it. Owner and ballpark are NOT counted
+   * — the engine awards no scout point for either. */
   dreamSeats?: number;
+  /** Front office the dream club runs (null under a fixed bank, which has no
+   * owner or ballpark to pick). */
+  owner?: BestOwnerPick | null;
+  park?: BestParkPick | null;
+  /** Payroll the dream club plays under: owner budget × ballpark multiplier. */
+  budget?: number;
+  /** What the dream club's eight seats cost, $M. */
+  spend?: number;
+  /** THE CEILING: the finale total this club scores, from the same score()
+   * the player's own stamp comes out of. */
+  total?: number;
+  /** Best total the search reached WITHOUT crossing the payroll. Equal to
+   * `total` unless the dream club deliberately pays the luxury tax, which is
+   * the whole reason the cap is not a hard constraint here: the bonus is worth
+   * at most 10 points and a single elite season can be worth more. Null when
+   * no club in the search stayed under (a pool too expensive to fit). */
+  underBudgetTotal?: number | null;
+}
+
+export interface BestClubOptions {
+  /** Moneyball / Blank Check: payroll is a constant, not a card choice, so the
+   * dream club hires no owner and buys no ballpark. Null (the default) is the
+   * classic bank, where both are solved. */
+  fixedBudgetM?: number | null;
+  /** Seasons the reel never landed on, reachable only because ⭐ Prime Time
+   * reached them — already narrowed to the single item that powerup bought.
+   * They fill roster and dugout seats but never the front office (Prime Time
+   * cannot target the owner or the ballpark). */
+  offReel?: Card[];
 }
 
 const TYPE_ORDER: SlotType[] = ["C", "IF", "OF", "FLEX", "SP", "RP"];
@@ -103,34 +215,11 @@ const SLOT_INDICES: Record<SlotType, number[]> = {
   RP: [7],
 };
 
-/** One thing a single card can supply: a player in one slot type, or the
- * skipper. `value` is what the DP maximizes; `playerId` is null for a manager
- * (skippers never collide with the one-season-per-human rule). */
-interface Candidate {
-  type: number;
-  value: number;
-  playerId: string | null;
-  pick: BestPick | null;
-  manager: BestManagerPick | null;
-}
-
-interface Chosen {
-  card: number;
-  cand: Candidate;
-}
-
-interface Relaxed {
-  value: number;
-  chosen: Chosen[];
-}
-
-const awardPts = (awards: string[]): number =>
-  awards.reduce((sum, a) => sum + (AWARD_POINTS[a] ?? 0), 0);
-
 const RADIX = CAPACITY.map((c) => c + 1);
 const STATES = RADIX.reduce((a, b) => a * b, 1); // 288
+const STRIDE = RADIX.map((_, t) => RADIX.slice(0, t).reduce((a, b) => a * b, 1));
 /** Digit weight of the manager seat: states at or above it have him hired. */
-const MGR_STRIDE = STATES / RADIX[MGR_TYPE]; // 144
+const MGR_STRIDE = STRIDE[MGR_TYPE]; // 144
 
 /** Ceiling on branch-and-bound nodes. Conflicts need one human seated twice in
  * an otherwise-optimal club, so real games settle in a handful of nodes; the cap
@@ -138,26 +227,73 @@ const MGR_STRIDE = STATES / RADIX[MGR_TYPE]; // 144
  * LEGAL club found so far — feasible and deterministic, but not proven optimal. */
 const MAX_NODES = 2000;
 
-function fill(state: number, type: number): number {
-  let stride = 1;
-  for (let t = 0; t < type; t++) stride *= RADIX[t];
-  const used = Math.floor(state / stride) % RADIX[type];
-  return used < CAPACITY[type] ? state + stride : -1;
+/** (owner, ballpark) pairs that get the full λ bisection after the cheap
+ * two-λ pass ranks them. Every pair is still solved and scored exactly at
+ * λ = 20/budget and λ = −1; this only bounds the extra refinement. */
+const REFINE_PAIRS = 8;
+/** Front offices that also get the ✌️ Double Play pass. The doubled card is
+ * worth a few points, so a pair it could lift past the leader is already near
+ * the top of the pass-1 ranking. */
+const DOUBLE_PAIRS = 2;
+/** λ bisection steps between "spend everything" and "spend nothing" when the
+ * under-cap solve overshoots the cap. Each step is one more DP over ~12 cards;
+ * 6 lands within ~1.5% of the crossing. */
+const BISECT_STEPS = 6;
+
+const awardPts = (awards: string[]): number =>
+  awards.reduce((sum, a) => sum + (AWARD_POINTS[a] ?? 0), 0);
+
+/** One thing a single card can supply: a player in one slot type, or the
+ * skipper. `base` is everything the finale scores except payroll; the DP
+ * maximizes base + λ·cost. `playerId` is null for a manager (skippers never
+ * collide with the one-season-per-human rule). */
+interface Item {
+  type: number;
+  base: number;
+  cost: number;
+  playerId: string | null;
+  pick: BestPick | null;
+  manager: BestManagerPick | null;
 }
 
-/** Every candidate one card can supply, in stable order: its players (each
- * eligible slot type) then its skipper. Non-positive player seasons are dropped
- * — they can never improve a value-max roster — but a card whose players all
- * drop is still worth keeping for its manager. */
-function cardCandidates(card: Card): Candidate[] {
-  const cands: Candidate[] = [];
-  for (const p of card.players) {
-    const value =
-      p.war +
-      awardPts(p.awards) +
-      (p.ws ? RING_POINTS : 0) +
-      (p.pen ? PENNANT_POINTS : 0);
-    if (value <= 0) continue;
+interface Chosen {
+  card: number;
+  item: Item;
+}
+
+/** One legal club the search produced, scored exactly. `dup` is the pool card
+ * this club bought two things off (✌️ Double Play), or −1. */
+interface Club {
+  total: number;
+  spend: number;
+  chosen: Chosen[];
+  dup: number;
+}
+
+/** The market the player actually saw on this card: below-replacement rows are
+ * hidden, EXCEPT the best player at any position that would otherwise vanish
+ * entirely. Mirrors Game.visiblePlayers — a dream club built out of rows the
+ * card never listed is not a club anyone could have drafted, and the payroll
+ * term makes expensive washouts tempting (they soak up bankroll), so this
+ * filter matters more here than it did under a WAR-max objective. */
+function visible(card: Card): CardPlayer[] {
+  const ps = card.players;
+  const rescued = new Set<string>();
+  for (const pos of new Set(ps.map((p) => p.pos))) {
+    const atPos = ps.filter((p) => p.pos === pos);
+    if (atPos.some((p) => p.war >= 0)) continue;
+    rescued.add(atPos.reduce((a, b) => (b.war > a.war ? b : a)).id);
+  }
+  return ps.filter((p) => p.war >= 0 || rescued.has(p.id));
+}
+
+/** Every item one card can supply, in stable order: its visible players (each
+ * eligible slot type) then its skipper. Nothing is dropped for being weak — a
+ * $30M washout can still be the best way to reach the payroll bonus, which is
+ * exactly the kind of play the old WAR-max objective could not see. */
+function cardItems(card: Card): Item[] {
+  const items: Item[] = [];
+  for (const p of visible(card)) {
     const pick: BestPick = {
       id: p.id,
       name: p.name,
@@ -169,11 +305,19 @@ function cardCandidates(card: Card): Candidate[] {
       ws: p.ws,
       pen: p.pen,
       awards: p.awards,
+      cost: p.cost,
     };
+    const base =
+      p.war +
+      awardPts(p.awards) +
+      (p.ws ? RING_POINTS : 0) +
+      (p.pen ? PENNANT_POINTS : 0) +
+      SCOUT_HIT_POINTS;
     for (const t of eligibleTypes(p))
-      cands.push({
+      items.push({
         type: TYPE_ORDER.indexOf(t),
-        value,
+        base,
+        cost: p.cost,
         playerId: p.id,
         pick,
         manager: null,
@@ -182,9 +326,13 @@ function cardCandidates(card: Card): Candidate[] {
   if (card.manager != null) {
     const netWins = card.wins - card.losses;
     const moty = card.managerMoty === true;
-    cands.push({
+    items.push({
       type: MGR_TYPE,
-      value: netWins * MANAGER_PER_NET_WIN + (moty ? MANAGER_MOTY_POINTS : 0),
+      base:
+        netWins * MANAGER_PER_NET_WIN +
+        (moty ? MANAGER_MOTY_POINTS : 0) +
+        SCOUT_HIT_POINTS,
+      cost: 0,
       playerId: null,
       pick: null,
       manager: {
@@ -199,141 +347,291 @@ function cardCandidates(card: Card): Candidate[] {
       },
     });
   }
-  return cands;
+  return items;
 }
 
-/** Best club under rules 1 and 3 only (one pick per card, slot capacity), with
- * `forbidden[c]` naming players this branch has barred from card c. Since a card
- * yields at most one pick, only its highest-value candidate per slot type can
- * ever be used — collapsing to that keeps each card's option list at seven. */
-function solveRelaxed(
-  cardCands: Candidate[][],
-  forbidden: Set<string>[],
-  forceManager: boolean,
-): Relaxed | null {
-  const options: Candidate[][] = cardCands.map((cands, c) => {
-    const byType: (Candidate | null)[] = Array(CAPACITY.length).fill(null);
-    for (const cand of cands) {
-      if (cand.playerId !== null && forbidden[c].has(cand.playerId)) continue;
-      const cur = byType[cand.type];
-      if (cur === null || cand.value > cur.value) byType[cand.type] = cand;
-    }
-    return byType.filter((x): x is Candidate => x !== null);
-  });
-
-  let dp = new Float64Array(STATES).fill(-Infinity);
-  dp[0] = 0;
-  const fromState: Int32Array[] = [];
-  const fromOpt: Int32Array[] = [];
-  for (let c = 0; c < options.length; c++) {
-    // Carrying dp forward is the "skip this card" move; its states keep a -1
-    // parent, which the unwind reads as "this card supplied nothing".
-    const next = Float64Array.from(dp);
-    const prevState = new Int32Array(STATES).fill(-1);
-    const prevOpt = new Int32Array(STATES).fill(-1);
-    for (let s = 0; s < STATES; s++) {
-      if (dp[s] === -Infinity) continue;
-      for (let oi = 0; oi < options[c].length; oi++) {
-        const cand = options[c][oi];
-        const ns = fill(s, cand.type);
-        if (ns < 0) continue;
-        const v = dp[s] + cand.value;
-        if (v > next[ns]) {
-          next[ns] = v;
-          prevState[ns] = s;
-          prevOpt[ns] = oi;
-        }
-      }
-    }
-    dp = next;
-    fromState.push(prevState);
-    fromOpt.push(prevOpt);
-  }
-
-  const first = forceManager ? MGR_STRIDE : 0;
-  let bestState = -1;
-  for (let s = first; s < STATES; s++)
-    if (dp[s] !== -Infinity && (bestState < 0 || dp[s] > dp[bestState])) bestState = s;
-  if (bestState < 0) return null; // no legal club (only when a manager is required and none exists)
-
-  const chosen: Chosen[] = [];
-  let state = bestState;
-  for (let c = options.length - 1; c >= 0; c--) {
-    const oi = fromOpt[c][state];
-    if (oi < 0) continue; // card skipped, state predates it — walk on unchanged
-    chosen.push({ card: c, cand: options[c][oi] });
-    state = fromState[c][state];
-  }
-  chosen.reverse(); // card-ascending, so conflict scans are stable
-  return { value: dp[bestState], chosen };
+function fill(state: number, type: number): number {
+  const used = Math.floor(state / STRIDE[type]) % RADIX[type];
+  return used < CAPACITY[type] ? state + STRIDE[type] : -1;
 }
 
 /** The first human seated twice, as [id, earlier card, later card]. Managers
  * carry no id and never conflict. */
 function findConflict(chosen: Chosen[]): [string, number, number] | null {
   const seen = new Map<string, number>();
-  for (const { card, cand } of chosen) {
-    if (cand.playerId === null) continue;
-    const prior = seen.get(cand.playerId);
-    if (prior !== undefined) return [cand.playerId, prior, card];
-    seen.set(cand.playerId, card);
+  for (const { card, item } of chosen) {
+    if (item.playerId === null) continue;
+    const prior = seen.get(item.playerId);
+    if (prior !== undefined) return [item.playerId, prior, card];
+    seen.set(item.playerId, card);
   }
   return null;
 }
 
-/** Drop every repeat seating of a human, keeping his earliest card — a legal
- * club, used to seed the search so a feasible answer always exists. */
-function repair(chosen: Chosen[]): Chosen[] {
+/** Make a relaxed solution legal: keep each human's earliest seating and refill
+ * the seat the repeat would have taken with the best other thing that card
+ * could have supplied. The refill matters — the DP is happy to seat one
+ * two-way bat at both IF and UTIL off the same card, and a repair that only
+ * deleted would hand back a club a seat short and score it as the ceiling. */
+function repair(chosen: Chosen[], items: Item[][], lambda: number): Chosen[] {
   const used = new Set<string>();
+  const filled = [0, 0, 0, 0, 0, 0, 0];
   const kept: Chosen[] = [];
-  for (const c of chosen) {
-    if (c.cand.playerId !== null) {
-      if (used.has(c.cand.playerId)) continue;
-      used.add(c.cand.playerId);
-    }
+  const take = (c: Chosen): void => {
+    if (c.item.playerId !== null) used.add(c.item.playerId);
+    filled[c.item.type] += 1;
     kept.push(c);
+  };
+  for (const c of chosen) {
+    if (c.item.playerId === null || !used.has(c.item.playerId)) {
+      take(c);
+      continue;
+    }
+    let best: Item | null = null;
+    let bestVal = 0;
+    for (const alt of items[c.card]) {
+      if (alt.playerId !== null && used.has(alt.playerId)) continue;
+      if (filled[alt.type] >= CAPACITY[alt.type]) continue;
+      const v = alt.base + lambda * alt.cost;
+      if (v <= 0) continue; // an empty seat beats a seat that costs points
+      if (best === null || v > bestVal) {
+        best = alt;
+        bestVal = v;
+      }
+    }
+    if (best !== null) take({ card: c.card, item: best });
   }
   return kept;
 }
 
-const totalValue = (chosen: Chosen[]): number =>
-  chosen.reduce((sum, c) => sum + c.cand.value, 0);
+/** The finale total a club scores, through the same score() that stamps the
+ * player's own record — the ceiling and the stamp can never be computed two
+ * different ways. */
+function evaluate(chosen: Chosen[], budgetM: number): number {
+  let totalWar = 0;
+  let spendM = 0;
+  let rings = 0;
+  let pennants = 0;
+  let scoutHits = 0;
+  let managerMoty = false;
+  let managerRecord: [number, number] | null = null;
+  const awardLists: string[][] = [];
+  for (const { item } of chosen) {
+    if (item.pick !== null) {
+      totalWar += item.pick.war;
+      spendM += item.cost;
+      awardLists.push(item.pick.awards);
+      if (item.pick.ws) rings += 1;
+      if (item.pick.pen) pennants += 1;
+      scoutHits += 1;
+    } else if (item.manager !== null) {
+      // score() only ever reads the difference, so net wins in the W column is
+      // the same input as the real 97–65.
+      managerRecord = [item.manager.netWins, 0];
+      if (item.manager.ws) rings += 1;
+      if (item.manager.pen) pennants += 1;
+      managerMoty = item.manager.moty;
+      scoutHits += 1;
+    }
+  }
+  return score({
+    totalWar,
+    spendM,
+    budgetM,
+    awardLists,
+    rings,
+    pennants,
+    managerRecord,
+    scoutHits,
+    managerMoty,
+  }).total;
+}
 
-export function bestRoster(cards: Card[]): BestRoster {
-  // One card per team-season: a reel that lands twice on the same card still
-  // only ever offered one choice from it.
-  const unique: Card[] = [];
-  const keys = new Set<string>();
-  for (const card of cards) {
-    const key = `${card.team}|${card.year}`;
-    if (keys.has(key)) continue;
-    keys.add(key);
-    unique.push(card);
+const spendOf = (chosen: Chosen[]): number =>
+  chosen.reduce((sum, c) => sum + c.item.cost, 0);
+
+/** The DP, reused across every (owner, ballpark, λ) solve of one game so the
+ * finale allocates its scratch once instead of ten thousand times. */
+class Dp {
+  private readonly cur = new Float64Array(STATES);
+  private readonly next = new Float64Array(STATES);
+  private readonly fromState: Int32Array[];
+  private readonly fromOpt: Int32Array[];
+  private readonly options: Item[][];
+
+  constructor(readonly items: Item[][]) {
+    this.fromState = items.map(() => new Int32Array(STATES));
+    this.fromOpt = items.map(() => new Int32Array(STATES));
+    this.options = items.map(() => []);
   }
 
-  const cardCands = unique.map(cardCandidates);
-  const forceManager = cardCands.some((cs) => cs.some((c) => c.type === MGR_TYPE));
-  const empty = unique.map(() => new Set<string>());
+  /** Best club under rules 1, 3, 4 and 5 (rule 2, one season per human, is
+   * relaxed — the caller repairs or branches). `skip` holds card indices the
+   * front office already claimed; `forbidden[c]` names players this branch has
+   * barred from card c. Since a card yields at most one pick, only its
+   * highest-scoring candidate per slot type can ever be used — collapsing to
+   * that keeps each card's option list at seven. */
+  solve(
+    lambda: number,
+    skip: readonly number[],
+    forbidden: Set<string>[] | null,
+    forceManager: boolean,
+  ): Chosen[] | null {
+    const n = this.items.length;
+    for (let c = 0; c < n; c++) {
+      const opts = this.options[c];
+      opts.length = 0;
+      if (skip.includes(c)) continue;
+      const byType: (Item | null)[] = [null, null, null, null, null, null, null];
+      const bestVal = [0, 0, 0, 0, 0, 0, 0];
+      for (const item of this.items[c]) {
+        if (item.playerId !== null && forbidden !== null && forbidden[c].has(item.playerId))
+          continue;
+        const v = item.base + lambda * item.cost;
+        if (byType[item.type] === null || v > bestVal[item.type]) {
+          byType[item.type] = item;
+          bestVal[item.type] = v;
+        }
+      }
+      for (const item of byType) if (item !== null) opts.push(item);
+    }
 
-  let bestChosen: Chosen[] = [];
-  let bestValue = -Infinity;
-  const root = solveRelaxed(cardCands, empty, forceManager);
-  if (root !== null) {
-    bestChosen = repair(root.chosen);
-    bestValue = totalValue(bestChosen);
+    let dp = this.cur;
+    let nxt = this.next;
+    dp.fill(-Infinity);
+    dp[0] = 0;
+    for (let c = 0; c < n; c++) {
+      // Carrying dp forward is the "skip this card" move; its states keep a -1
+      // parent, which the unwind reads as "this card supplied nothing".
+      nxt.set(dp);
+      const prevState = this.fromState[c].fill(-1);
+      const prevOpt = this.fromOpt[c].fill(-1);
+      const opts = this.options[c];
+      for (let s = 0; s < STATES; s++) {
+        const at = dp[s];
+        if (at === -Infinity) continue;
+        for (let oi = 0; oi < opts.length; oi++) {
+          const item = opts[oi];
+          const ns = fill(s, item.type);
+          if (ns < 0) continue;
+          const v = at + item.base + lambda * item.cost;
+          if (v > nxt[ns]) {
+            nxt[ns] = v;
+            prevState[ns] = s;
+            prevOpt[ns] = oi;
+          }
+        }
+      }
+      const tmp = dp;
+      dp = nxt;
+      nxt = tmp;
+    }
+
+    const first = forceManager ? MGR_STRIDE : 0;
+    let bestState = -1;
+    for (let s = first; s < STATES; s++)
+      if (dp[s] !== -Infinity && (bestState < 0 || dp[s] > dp[bestState])) bestState = s;
+    if (bestState < 0) return null; // no legal club (a manager is required and none is left)
+
+    const chosen: Chosen[] = [];
+    let state = bestState;
+    for (let c = n - 1; c >= 0; c--) {
+      const oi = this.fromOpt[c][state];
+      if (oi < 0) continue; // card skipped, state predates it — walk on unchanged
+      chosen.push({ card: c, item: this.options[c][oi] });
+      state = this.fromState[c][state];
+    }
+    chosen.reverse(); // card-ascending, so conflict scans are stable
+    return chosen;
   }
+}
 
+/** Every club worth scoring for one (owner, ballpark) budget, and the best
+ * total among them. λ = 20/budget is the exact under-cap payroll slope and
+ * λ = −LUXURY_TAX_PER_M the exact over-cap one, so the two branches are solved
+ * on their own terms and an over-budget club wins whenever it genuinely
+ * outscores every legal one. `refine` adds the bisection between them. */
+function sweep(
+  dp: Dp,
+  budgetM: number,
+  skip: readonly number[],
+  forceManager: boolean,
+  refine: boolean,
+  dup = -1,
+): { best: Club; bestUnder: Club | null } | null {
+  const found: Club[] = [];
+  const run = (lambda: number): Chosen[] | null => {
+    const raw = dp.solve(lambda, skip, null, forceManager);
+    if (raw === null) return null;
+    const chosen = repair(raw, dp.items, lambda);
+    found.push({ total: evaluate(chosen, budgetM), chosen, spend: spendOf(chosen), dup });
+    return chosen;
+  };
+
+  const lambdaUnder = budgetM > 0 ? (2 * BUDGET_BONUS_MAX) / budgetM : 0;
+  const under = run(lambdaUnder);
+  if (under === null) return null;
+  run(-LUXURY_TAX_PER_M);
+  // The third probe is the one that keeps rich owners in the race. λ = 20/budget
+  // buys the whole shop and gets taxed for it; λ = −1 buys nothing and forfeits
+  // the bonus. Against a $144M cap the club that actually wins is the plain
+  // best-players club sitting between them, and without this probe every big
+  // bankroll scores as one of its two extremes and loses to a $16M owner whose
+  // cheap roster maxes a bonus worth ten points — measured, on a real seed.
+  run(0);
+
+  // The under-cap optimum spends as close to the cap as it can. When the full
+  // slope overshoots, walk λ down until the club fits: every step is a real
+  // club on the value/payroll frontier, and every one gets scored exactly.
+  if (refine && spendOf(under) > budgetM) {
+    let lo = -LUXURY_TAX_PER_M; // spends least
+    let hi = lambdaUnder; // spends most
+    for (let i = 0; i < BISECT_STEPS; i++) {
+      const mid = (lo + hi) / 2;
+      const chosen = run(mid);
+      if (chosen === null) break;
+      if (spendOf(chosen) > budgetM) hi = mid;
+      else lo = mid;
+    }
+  }
+  return pick(found, budgetM);
+}
+
+function pick(found: Club[], budgetM: number): { best: Club; bestUnder: Club | null } | null {
+  if (found.length === 0) return null;
+  let best = found[0];
+  let bestUnder: Club | null = null;
+  for (const f of found) {
+    if (f.total > best.total) best = f;
+    if (f.spend <= budgetM && (bestUnder === null || f.total > bestUnder.total)) bestUnder = f;
+  }
+  return { best, bestUnder };
+}
+
+/** Close the one-season-per-human gap on a club the DP relaxed: branch on
+ * forbidding the doubled human from one card or the other — every legal club
+ * lies in one branch — and keep whatever scores best. */
+function branchAndBound(
+  dp: Dp,
+  cardCount: number,
+  budgetM: number,
+  skip: readonly number[],
+  forceManager: boolean,
+  lambda: number,
+  incumbent: Club,
+): Club {
+  let best = incumbent;
   let nodes = 0;
   const search = (forbidden: Set<string>[]): void => {
     if (nodes >= MAX_NODES) return;
-    nodes++;
-    const r = solveRelaxed(cardCands, forbidden, forceManager);
-    if (r === null) return;
-    if (r.value <= bestValue) return; // relaxation is an upper bound: nothing to find here
-    const conflict = findConflict(r.chosen);
+    nodes += 1;
+    const raw = dp.solve(lambda, skip, forbidden, forceManager);
+    if (raw === null) return;
+    const conflict = findConflict(raw);
     if (conflict === null) {
-      bestChosen = r.chosen; // legal, and strictly better than the incumbent
-      bestValue = r.value;
+      const total = evaluate(raw, budgetM);
+      if (total > best.total)
+        best = { total, chosen: raw, spend: spendOf(raw), dup: incumbent.dup };
       return;
     }
     const [id, a, b] = conflict;
@@ -343,20 +641,225 @@ export function bestRoster(cards: Card[]): BestRoster {
       search(nf);
     }
   };
-  if (root !== null) search(empty);
+  search(Array.from({ length: cardCount }, () => new Set<string>()));
+  return best;
+}
 
+const EMPTY: BestRoster = {
+  picks: Array(8).fill(null),
+  totalWar: 0,
+  manager: null,
+  dreamSeats: 0,
+  owner: null,
+  park: null,
+  budget: 0,
+  spend: 0,
+  total: 0,
+};
+
+export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoster {
+  // One entry per team-season: a reel that lands twice on the same card still
+  // only ever offered one choice from it.
+  const pool: Card[] = [];
+  const frontOffice: boolean[] = [];
+  const keys = new Set<string>();
+  for (const card of cards) {
+    const key = `${card.team}|${card.year}`;
+    if (keys.has(key)) continue;
+    keys.add(key);
+    pool.push(card);
+    frontOffice.push(true);
+  }
+  for (const card of opts.offReel ?? []) {
+    const key = `${card.team}|${card.year}`;
+    if (keys.has(key)) continue;
+    keys.add(key);
+    pool.push(card);
+    frontOffice.push(false); // ⭐ Prime Time never reaches an owner or a park
+  }
+  if (pool.length === 0) return { ...EMPTY, picks: Array(8).fill(null) };
+
+  const items = pool.map(cardItems);
+  const dp = new Dp(items);
+  const hasManager = items.some((list) => list.some((i) => i.type === MGR_TYPE));
+  // ✌️ Double Play buys a second thing off one spin, so exactly one card in the
+  // pool may supply two items. Modeled by handing the DP a second copy of that
+  // card: the one-season-per-human rule then falls out of the machinery that
+  // already exists, since the two copies carry the same B-R ids.
+  const doubled = (x: number): Dp => new Dp([...items, items[x]]);
+
+  // Candidate front offices. Under a fixed bank there is none and the budget is
+  // a constant; otherwise every ordered (owner card, ballpark card) pair is a
+  // different cap AND a different pair of cards spent away from the roster, so
+  // the two choices cannot be made independently of it.
+  interface Pair {
+    owner: number;
+    park: number;
+    budget: number;
+    skip: number[];
+  }
+  const pairs: Pair[] = [];
+  const fixed = opts.fixedBudgetM ?? null;
+  if (fixed !== null) {
+    pairs.push({ owner: -1, park: -1, budget: fixed, skip: [] });
+  } else {
+    const fo = pool.map((_, i) => i).filter((i) => frontOffice[i]);
+    for (const o of fo)
+      for (const p of fo)
+        if (o !== p)
+          pairs.push({
+            owner: o,
+            park: p,
+            budget: pool[o].budget * pool[p].stadiumMult,
+            skip: [o, p],
+          });
+    if (pairs.length === 0) {
+      // Degenerate pool (a completed classic game always spun at least two
+      // cards): price the club off whatever single card there is.
+      const b = fo.length > 0 ? pool[fo[0]].budget * pool[fo[0]].stadiumMult : 0;
+      pairs.push({ owner: -1, park: -1, budget: b, skip: [] });
+    }
+  }
+
+  // Pass 1 — every pair at both exact slopes. Pass 2 — the λ bisection, on the
+  // pairs pass 1 ranked highest (the refinement moves a few points at most, so
+  // a pair it could promote past the leader is already in this shortlist).
+  const scored: { pair: Pair; best: Club; manager: boolean }[] = [];
+  let underBudget: number | null = null;
+  const note = (u: Club | null): void => {
+    if (u !== null && (underBudget === null || u.total > underBudget)) underBudget = u.total;
+  };
+  // Pass 1 ranks the front offices on the two probes that do not depend on the
+  // budget at all — the plain best-players club (λ = 0) and the thriftiest one
+  // (λ = −1). Both come out of the same DP for the two orderings of a card
+  // pair, since only the cap differs between "A owns, B's park" and the
+  // reverse, so one solve serves two candidates.
+  const seenSkip = new Map<string, { clubs: Chosen[][]; manager: boolean }>();
+  for (const pair of pairs) {
+    const key = pair.skip.length === 2 ? `${Math.min(...pair.skip)}|${Math.max(...pair.skip)}` : "-";
+    let probe = seenSkip.get(key);
+    if (probe === undefined) {
+      let forceManager = hasManager;
+      let plain = dp.solve(0, pair.skip, null, forceManager);
+      // A pool whose only skipper went to the front office cannot seat one; the
+      // player could not have built that club either, so the pair runs without
+      // the dugout rather than dropping out of the search entirely.
+      if (plain === null) {
+        forceManager = false;
+        plain = dp.solve(0, pair.skip, null, forceManager);
+      }
+      const thrifty = dp.solve(-LUXURY_TAX_PER_M, pair.skip, null, forceManager);
+      const clubs = [plain, thrifty]
+        .filter((c): c is Chosen[] => c !== null)
+        .map((c) => repair(c, dp.items, 0));
+      probe = { clubs, manager: forceManager };
+      seenSkip.set(key, probe);
+    }
+    if (probe.clubs.length === 0) continue;
+    const out = pick(
+      probe.clubs.map((chosen) => ({
+        total: evaluate(chosen, pair.budget),
+        chosen,
+        spend: spendOf(chosen),
+        dup: -1,
+      })),
+      pair.budget,
+    );
+    if (out !== null) {
+      scored.push({ pair, best: out.best, manager: probe.manager });
+      note(out.bestUnder);
+    }
+  }
+  if (scored.length === 0) return { ...EMPTY, picks: Array(8).fill(null) };
+  const order = scored
+    .map((s, i) => ({ s, i }))
+    .sort((a, b) => b.s.best.total - a.s.best.total || a.i - b.i);
+  for (const { s } of order.slice(0, REFINE_PAIRS)) {
+    const refined = sweep(dp, s.pair.budget, s.pair.skip, s.manager, true);
+    if (refined === null) continue;
+    if (refined.best.total > s.best.total) s.best = refined.best;
+    note(refined.bestUnder);
+  }
+  // Pass 3 — one card doubled, on the front offices pass 2 left on top. The
+  // doubled card may be the owner's or the ballpark's: spending both of a
+  // Double Play's picks on one spin's card is exactly what the powerup allows.
+  for (const { s } of order.slice(0, DOUBLE_PAIRS)) {
+    for (let x = 0; x < pool.length; x++) {
+      // Never the off-reel card: ⭐ Prime Time buys one named season, and
+      // doubling it would invent a second pick nobody was ever offered.
+      if (!frontOffice[x]) continue;
+      const out = sweep(doubled(x), s.pair.budget, s.pair.skip, s.manager, false, x);
+      if (out === null) continue;
+      if (out.best.total > s.best.total) s.best = out.best;
+      note(out.bestUnder);
+    }
+  }
+
+  let winner = scored[0];
+  for (const s of scored) if (s.best.total > winner.best.total) winner = s;
+  // Only the winner pays for the one-season-per-human search: a conflict needs
+  // one human seated twice in an otherwise-optimal club, and the repair above
+  // already made every candidate legal, so this recovers the seat rather than
+  // finding a different club.
+  {
+    const b = winner.pair.budget;
+    const lambda = b > 0 ? (2 * BUDGET_BONUS_MAX) / b : 0;
+    const d = winner.best.dup;
+    winner.best = branchAndBound(
+      d < 0 ? dp : doubled(d),
+      pool.length + (d < 0 ? 0 : 1),
+      b,
+      winner.pair.skip,
+      winner.manager,
+      lambda,
+      winner.best,
+    );
+  }
+
+  const chosen = winner.best.chosen;
   const picks: (BestPick | null)[] = Array(8).fill(null);
   let manager: BestManagerPick | null = null;
-  const players = bestChosen.filter((c) => c.cand.pick !== null);
-  for (const c of bestChosen) if (c.cand.manager !== null) manager = c.cand.manager;
+  const players = chosen.filter((c) => c.item.pick !== null);
+  for (const c of chosen) if (c.item.manager !== null) manager = c.item.manager;
   const seats: Record<number, number> = {};
-  for (const { cand } of players.sort((a, b) => b.cand.pick!.war - a.cand.pick!.war)) {
-    const seat = seats[cand.type] ?? 0;
-    seats[cand.type] = seat + 1;
-    picks[SLOT_INDICES[TYPE_ORDER[cand.type]][seat]] = cand.pick;
+  for (const { item } of players.sort((a, b) => b.item.pick!.war - a.item.pick!.war)) {
+    const seat = seats[item.type] ?? 0;
+    seats[item.type] = seat + 1;
+    picks[SLOT_INDICES[TYPE_ORDER[item.type]][seat]] = item.pick;
   }
-  // dp holds value (WAR + awards + pedigree); the reported total stays pure WAR.
-  const totalWar = players.reduce((sum, c) => sum + c.cand.pick!.war, 0);
-  const dreamSeats = players.length + (manager !== null ? 1 : 0);
-  return { picks, totalWar: Math.round(totalWar * 10) / 10, manager, dreamSeats };
+  const totalWar = players.reduce((sum, c) => sum + c.item.pick!.war, 0);
+  const ownerCard = winner.pair.owner >= 0 ? pool[winner.pair.owner] : null;
+  const parkCard = winner.pair.park >= 0 ? pool[winner.pair.park] : null;
+  return {
+    picks,
+    // dp maximizes the finale total; the reported totalWar stays pure WAR.
+    totalWar: Math.round(totalWar * 10) / 10,
+    manager,
+    dreamSeats: players.length + (manager !== null ? 1 : 0),
+    owner:
+      ownerCard === null
+        ? null
+        : {
+            team: ownerCard.team,
+            year: ownerCard.year,
+            teamName: ownerCard.name,
+            franchise: ownerCard.franchise,
+            budget: ownerCard.budget,
+          },
+    park:
+      parkCard === null
+        ? null
+        : {
+            team: parkCard.team,
+            year: parkCard.year,
+            teamName: parkCard.name,
+            franchise: parkCard.franchise,
+            park: parkCard.park,
+            mult: parkCard.stadiumMult,
+          },
+    budget: winner.pair.budget,
+    spend: Math.round(spendOf(chosen) * 10) / 10,
+    total: winner.best.total,
+    underBudgetTotal: underBudget,
+  };
 }

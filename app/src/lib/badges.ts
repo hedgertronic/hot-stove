@@ -137,6 +137,15 @@ export interface BadgeRosterEntry {
    * restores players without one, and a missing age must count as NEITHER old
    * nor young — every age trigger tests `age != null` first. */
   age?: number;
+  /** In the Hall of Fame as a PLAYER (Lahman `HallOfFame`, `inducted = "Y"`
+   * and `category = "Player"`). Optional for the same reason `age` is: a club
+   * restored from a save written before the field existed must count as no
+   * Hall of Famers rather than as an unknown that pads the count. */
+  hof?: boolean;
+  /** Birth country as the cards spell it ("Dominican Republic", "Curaçao").
+   * Optional for the `age` reason; a missing country counts as NO country
+   * rather than as a shared unknown that pads the distinct count. */
+  country?: string;
 }
 
 /** Everything the triggers need. Assembled once at the finale; the share
@@ -144,6 +153,23 @@ export interface BadgeRosterEntry {
 export interface BadgeFacts {
   baselineWins: number;
   baselineLosses: number;
+  /** The record the finale STAMPS on the season — `recordFromTotal(total)`,
+   * i.e. the points total rounded and clamped into 0–162.
+   *
+   * The two records answer different questions and the ladder uses both on
+   * purpose. `baselineWins` is what the CLUB is worth: 50 replacement wins
+   * plus roster WAR plus the skipper's net, before a single award, ring or
+   * payroll bonus is counted. The stamp is what the SEASON scored, modifiers
+   * and luxury tax included. The champion rungs and 💯 read the baseline,
+   * because awards and rings routinely add twenty wins to a stamp and keying
+   * 💯 to that would make it automatic. The three floor rungs read the stamp,
+   * because they are anti-trophies about a result — and the stamp is the only
+   * record the player is ever shown.
+   *
+   * Optional so the engine can adopt it in its own commit; every floor rung
+   * falls back to the baseline pair when it is absent, which is the behaviour
+   * that shipped before the field existed. */
+  stamp?: { wins: number; losses: number };
   /** Final points — 🏆 fires at the 162 goal. */
   total: number;
   spendM: number;
@@ -161,6 +187,12 @@ export interface BadgeFacts {
   managerYear: number | null;
   /** The hired skipper's name, or null with the dugout empty. */
   managerName: string | null;
+  /** The hired skipper is in the Hall of Fame AS A MANAGER — Lahman's
+   * `category = "Manager"`, strictly. The loose "in the Hall in any capacity"
+   * reading would add men like Frank Robinson, who is in as a player and
+   * happened to manage; the badge counts the chair, not the man. Nine
+   * managers, on 125 of the 1,188 cards. Optional for the `age` reason. */
+  managerHof?: boolean;
   /** `Game.pedigree.rings`. */
   rings: number;
   /** `ScoreParts.awardPoints` — includes the manager's MotY points. */
@@ -181,6 +213,52 @@ export interface BadgeFacts {
    * ends of the toolbox axis read this, and `total` is carried rather than
    * assumed so a seventh powerup does not silently break 🧰. */
   powerups: { spent: number; total: number };
+  /** True when this game's seed already appears in the local history log —
+   * i.e. the player entered a code they had played before.
+   *
+   * Resolved in the engine because it is a question about the log BEFORE this
+   * game joins it: `recordHistory()` appends a row carrying this same seed, so
+   * a check made one line later would answer "yes" on every game, forever,
+   * with no error and no symptom.
+   *
+   * No entered-vs-random flag is needed to make it mean what it says. `Game`
+   * seeds are uint32 (`rng.randomSeed()` masks with `>>> 0`), so a random seed
+   * colliding with one already in a local log is about 1 in 4 million after a
+   * thousand games — "this seed is in my history" IS "I typed it in".
+   *
+   * Optional so that a fact set built before the field existed — a restored
+   * save, a forged test fixture — reads as "not a replay" rather than failing
+   * to type-check. */
+  replayedSeed?: boolean;
+  /** True when the owner was hired with all eight roster seats already filled
+   * — the whole club drafted before the payroll was known.
+   *
+   * A derived fact rather than the spin log, because the log cannot answer
+   * this question cleanly on its own: ✌️ Double Play signs two men off one
+   * card and 🔁 Trade Deadline logs a `swap` that replaces one, so counting
+   * `sign` entries before the `owner` entry is not the same as counting filled
+   * seats. The engine records the answer at the moment it hires the owner,
+   * where the roster is right there to look at.
+   *
+   * Only Clean House can set it, and no mode gate is needed for that:
+   * `hireOwner()` returns immediately when `fixedCap` is true, so Moneyball
+   * and Blank Check — which know their payroll from the first spin and have no
+   * owner seat at all — never reach the line that records it.
+   *
+   * Optional for the `age` reason: a fact set assembled before the field
+   * existed reads as "not blind" rather than earning the badge by default. */
+  ownerLast?: boolean;
+  /** True when the player typed this game's seed in AND it is NOT already in
+   * their local history — a code that came from somewhere else.
+   *
+   * This half genuinely does need the engine to know the seed was entered
+   * rather than rolled: a random seed is also absent from the log, and without
+   * the flag every fresh game would earn it. `replayedSeed` and `sharedSeed`
+   * are mutually exclusive by construction (see the engine note in the def
+   * below), so the two seed badges can never co-fire.
+   *
+   * Optional for the same reason as `replayedSeed`. */
+  sharedSeed?: boolean;
 }
 
 const FARM_TAX_M = 15; // $M over the bankroll before the overrun earns its pill
@@ -189,8 +267,45 @@ const CHEAP_PCT = 0.6; // spend/cap at or under this is a pocketed payroll
 const PINCH_PCT = 0.5; // …and this cheap WITH a winning record is a skill brag
 const PINCH_WINS = 95;
 const CRYSTAL_HITS = 7; // dream-team picks found (of 8, or 9 with a manager)
+/* 🕶️ needs a result as well as the nerve, and CHEAP_PCT is the number that
+ * supplies it. Above 60% of the cap the club has genuinely committed the
+ * payroll it did not know it had; at or below it, signing eight cheap men and
+ * finishing well under is timidity rather than daring. Reusing 🧾 POCKETED THE
+ * DIFFERENCE's own line makes the two badges exact complements — 🧾 wants
+ * spend ≤ 60%, 🕶️ wants spend > 60%, so they can never co-fire and say
+ * opposite things about the same payroll. */
 const RING_BEARERS = 4;
 const COOPERSTOWN_PTS = 30;
+/** Hall of Famers on one club, counting the skipper's chair. Measured over
+ * 6,000 bot seasons: three is 21.67%, four is 6.10%, five is 1.03%.
+ *
+ * Four is the rung. Five would be a second ~1% badge that fires on almost the
+ * same clubs as 🌟 MURDERERS' ROW — Hall of Famers ARE the highest-WAR
+ * seasons in the set, so the two would move together and say one thing twice.
+ * Three fires in one game in five, which is not a class of anything. Four sits
+ * beside 🏅 ALL-STAR ROSTER (6.05) and 💎 THE FRANCHISE PLAYER (6.47), and
+ * it shares 💍 RING BEARERS' shape — "four or more players who…".
+ *
+ * The supply is 70 distinct men over 955 player-seasons (2.67% of the pool) on
+ * 558 of the 1,188 cards, plus nine Hall of Fame managers on 125 cards. */
+const HALL_COUNT = 4;
+/** Five countries of birth across eight seats. The count, never a named
+ * country: 75.8% of draftable player-seasons are USA-born and the long tail is
+ * single men — Scotland, Spain, Indonesia and Portugal have one player each in
+ * the whole dataset — so a per-country badge would make an all-Curaçao club a
+ * different order of problem from an all-USA one for a reason that is about
+ * supply rather than about the player. Simulated over the real card pool, five
+ * is the only rung that lands. Measured over 6,000 bot seasons: three is
+ * 55.40%, four is 19.80%, five is 3.70%, six is 0.35%. Four is a coin that
+ * comes up one game in five; six never comes up. Same reasoning that picked
+ * AGE_COUNT.
+ *
+ * Both rates are measured under BLIND play — a draw that maximises WAR and
+ * knows nothing about where anyone was born — which is the only honest
+ * population for this badge, because no player can see a country either. That
+ * is what settles 5 over 4: a threshold nobody can steer toward has to land as
+ * a surprise rather than as a coin that comes up one game in six. */
+const COUNTRY_COUNT = 5;
 const NO_WEAK_LINK_WAR = 4.0; // the WAR ladder's own green→blue boundary
 const SKIPPER_WINS = 105;
 const ROSTER_SLOTS = 8;
@@ -219,6 +334,76 @@ const FRANCHISE_SHARE = 0.5;
 /** What a 🏠 Homegrown dollar has to buy for the discount to be a play rather
  * than a click — the WAR ladder's top tier. */
 const HOMEGROWN_WAR = 8.0;
+
+/* ---- the three shape badges, and the ceiling they all run into ----
+ *
+ * The club is C / IF / IF / OF / FLEX / SP / SP / RP (types.ts SLOT_TYPES) and
+ * eligibility.ts fills the RP seat only from `pos === "RP"`. Over the 35,720
+ * card player-seasons that produces one hard fact every shape badge has to be
+ * written around: NO relief season in the set reaches 8.0 WAR. The best is
+ * Mark Eichhorn, TOR 1986, at 7.2; the next two are Mariano Rivera (NYY 1996)
+ * and Jonathan Papelbon (BOS 2006), both at exactly 5.0. Catcher is the second
+ * choke point — exactly one catcher season in the set reaches 8.0, Mike Piazza
+ * LAD 1997 at 8.7.
+ *
+ * So "every seat at 8.0" is not rare, it is IMPOSSIBLE, and the arithmetic
+ * ceiling on simultaneous 8.0 seats is 7 of 8 — and 6 of 8 unless the club
+ * holds that one Piazza card. Both numbers are pinned in badges-supply, which
+ * is where the reason this set has no ALL-GOLD badge lives. 🌟 counts stars
+ * instead, which is the reachable version of the same idea. */
+
+/** The WAR ladder's top rung, and how many seats have to reach it. 8.0 is the
+ * same gold boundary 🌱 asks a Homegrown dollar to buy.
+ *
+ * Five is reachable and barely: over 8,000 bot seasons that maximise WAR at
+ * every pick, the club held five gold seats 0.84% of the time and six 0.05%.
+ * Four would be 6.86% — one game in fifteen, `uncommon`, and more common than
+ * 🏅 ALL-STAR ROSTER, which is not what a badge for stacking stars should
+ * feel like. Three would be 27%.
+ *
+ * The measured ceiling is six, against an arithmetic ceiling of seven: RP
+ * never (0.00% of clubs), catcher almost never (1.46%, and only ever the one
+ * Piazza card), and the other six seats between 22% and 37% each. */
+const GOLD_WAR = 8.0;
+const GOLD_SEATS = 5;
+
+/** Stars and scrubs: the payroll strategy the bankroll mechanic rewards,
+ * named. Two seats on the WAR ladder's star rung or above, three at or under
+ * the low rung's floor — a club that spent everything on the top of the order
+ * and let the rest ride. */
+const TOP_HEAVY_STAR_WAR = 6.0; // the WAR ladder's violet→gold boundary
+const TOP_HEAVY_STARS = 2;
+const TOP_HEAVY_SCRUB_WAR = 1.0;
+const TOP_HEAVY_SCRUBS = 3;
+
+/** ⚖️ is a gap AND a floor, and the floor is not decoration. A bare
+ * best-to-worst gap is a trophy for eight mediocre men — the shape a club
+ * lands on when nothing good ever showed up on the reel — so the floor is what
+ * turns "uniformly mediocre" into "deep and even": every seat useful, no seat
+ * carrying the club.
+ *
+ * The relief seat is the reason the gap sits as wide as 4.0, and it is worth
+ * spelling out because 4.0 looks generous next to 🧱's 4.0 floor. Only 0.30%
+ * of relief seasons in the set reach 4.0 WAR at all and none reaches 8.0, so
+ * the RP seat is the low seat on most clubs by construction. Measured over
+ * 8,000 seasons the MEDIAN full club's best-to-worst gap is 7.40, and the
+ * median gap inside the 🧱 population — every seat already at 4.0 — is still
+ * 5.10. A gap of 4.0 is therefore genuinely tight rather than lenient: it
+ * fires on 1.38% of clubs. Tightening it to 3.0 would drop that to 0.09%, and
+ * to 2.5 to 0.01% — a badge nobody ever sees.
+ *
+ * The floor is deliberately BELOW 🧱's 4.0. At 4.0 this would be 🧱 plus a
+ * ceiling, a reward for NOT signing a star, which is the objection that has to
+ * be answered rather than repeated. At 3.0 it is a different claim, and it is
+ * not a free rider on 🧱 either: only 17.7% of 🧱-shaped clubs clear a 4.0
+ * gap, so the two badges disagree about five clubs in six.
+ *
+ * ⚖️ and ⛰️ are structurally exclusive and need no resolver to be: ⛰️ wants a
+ * seat at 6.0+ and a seat at 1.0−, i.e. a gap of at least 5.0, where ⚖️ wants
+ * a gap of at most 4.0. Both therefore stay on `roster`, the stacking axis,
+ * the way the toolbox trio does — the exclusivity is in the world. */
+const BALANCED_GAP = 4.0;
+const BALANCED_FLOOR = 3.0;
 
 /** The seasons the Commissioner's report found the trash can running. 2019 was
  * alleged and never substantiated, so it is not here — the badge names a
@@ -294,6 +479,108 @@ export const REPLACEMENTS: ReadonlySet<string> = new Set([
   "trubych01", // Chris Truby
   "walkeja01", // Jamie Walker
 ]);
+
+/** Men Major League Baseball publicly suspended under the Joint Drug
+ * Prevention and Treatment Program. The line is an ANNOUNCED PENALTY, never an
+ * accusation: the Mitchell Report named far more people and adjudicated none
+ * of them, and a grand-jury leak is not a finding — the same standard that
+ * keeps the 2019 Astros off 🗑️.
+ *
+ * Seven of these men (Rodriguez, Braun, Cruz, Peralta, Everth Cabrera, Ruiz,
+ * Tejada) are also Biogenesis names, which is not why they are here. They are
+ * here because an announced penalty followed, with a number of games attached
+ * to it. Appearing in the clinic's documents earns nothing; the suspension
+ * does.
+ *
+ * Every entry resolves to an MLB announcement with a game count against it.
+ * The comments carry the year and the length so the claim is checkable in the
+ * diff rather than only in a browser tab.
+ *
+ * Keyed on the player alone, not the season. A suspension is a fact about the
+ * person that every one of his cards carries, and the suspended season itself
+ * is usually not draftable anyway: Tatís served all of 2022 and Canó all of
+ * 2021, so neither year survived the card build.
+ *
+ * Two name collisions were checked and are NOT the men here — the Pedro Borbón
+ * Jr. trap the 🚧 list records. `braunry01` is the 2007 Royals pitcher, one
+ * card only; the Brewers outfielder is `braunry02` (MIL 2007–2020). `cruzne01`
+ * is the 1997–2002 pitcher; the slugger is `cruzne02` (TEX 2007–SDP 2023).
+ * Both traps are pinned in badges-supply.
+ *
+ * Jenrry Mejía is here rather than on 🎲: his 2016 permanent ban was a third
+ * positive test, and it was conditionally lifted in 2018.
+ *
+ * `romerj.01` is the one id in this file with a non-alphanumeric character. A
+ * period is legal in a Baseball-Reference id and legal in a Set key; it is
+ * called out because it looks like a typo and is not. */
+export const SUSPENDED: ReadonlySet<string> = new Set([
+  "braunry02", // Ryan Braun, 2013 — 65 games
+  "byrdma01", // Marlon Byrd, 2012 — 50 games; 2016 — 162 games
+  "cabreev01", // Everth Cabrera, 2013 — 65 games
+  "cabreme01", // Melky Cabrera, 2012 — 50 games
+  "canoro01", // Robinson Canó, 2018 — 80 games; 2020 — 162 games
+  "castiwe01", // Welington Castillo, 2018 — 80 games
+  "colabch01", // Chris Colabello, 2016 — 80 games
+  "colonba01", // Bartolo Colón, 2012 — 50 games
+  "cruzne02", // Nelson Cruz, 2013 — 50 games
+  "galvifr01", // Freddy Galvis, 2012 — 50 games
+  "gordode01", // Dee Strange-Gordon, 2016 — 80 games
+  "grandya01", // Yasmani Grandal, 2012 — 50 games
+  "martest01", // Starling Marte, 2017 — 80 games
+  "mejiaje01", // Jenrry Mejía, 2015 — 80 then 162 games; 2016 — permanent
+  "motagu01", // Guillermo Mota, 2006 — 50 games; 2012 — 100 games
+  "palmera01", // Rafael Palmeiro, 2005 — 10 days
+  "peraljh01", // Jhonny Peralta, 2013 — 65 games
+  "polanjo01", // Jorge Polanco, 2018 — 80 games
+  "ramirma02", // Manny Ramirez, 2009 — 50 games; 2011 — 100 games
+  "rodrial01", // Alex Rodriguez, 2014 — 162 games
+  "romerj.01", // J.C. Romero, 2009 — 50 games
+  "ruizca01", // Carlos Ruiz, announced 2012 — 25 games, served 2013
+  "sanchal03", // Alex Sánchez, 2005 — 10 days, the first man under the policy
+  "santaer01", // Ervin Santana, 2015 — 80 games
+  "tatisfe02", // Fernando Tatís Jr., 2022 — 80 games
+  "tejadmi01", // Miguel Tejada, 2013 — 105 games
+  "volqued01", // Edinson Vólquez, 2010 — 50 games
+]);
+
+/** The men this game's window can put in a uniform who are on the record for
+ * betting on baseball, or charged with rigging it.
+ *
+ * Three different legal facts sit in one list, which is why the copy names
+ * NONE of them:
+ *
+ *  - Pete Rose — the 1989 investigation concluded he bet on the Reds while
+ *    managing them, and he accepted the ban. That is a finding.
+ *  - Tucupita Marcano — permanently banned by MLB in 2024 for 387 baseball
+ *    bets, the first active player banned for life for gambling in a century.
+ *    That is a finding too.
+ *  - Emmanuel Clase and Luis L. Ortiz — federally indicted in November 2025
+ *    over rigged pitches, both pleaded not guilty, both on non-disciplinary
+ *    paid leave since July 2025. As of this writing there is NO verdict and no
+ *    MLB finding. That is a charge, not a finding.
+ *
+ * So the badge is worded as "under a betting cloud" and its `how` string
+ * spells the three statuses out. It deliberately does not say "banned",
+ * "caught", or "bet on baseball" — none of those is true of all four men, and
+ * the label and the share string both travel where the `how` string does not.
+ *
+ * The status copy has already gone stale once on this subject and would again:
+ * Manfred removed Rose from the permanently ineligible list in May 2025,
+ * holding that a ban ends at death. A badge reading "BANNED FROM BASEBALL"
+ * would have been wrong the day it shipped.
+ *
+ * Rose's skipper seat counts, the way the 2017–18 Astros' does — he was banned
+ * for what he did in that chair, not for anything he did at the plate. His
+ * five Reds seasons as primary manager are card-exact and pinned in
+ * badges-supply. */
+export const GAMBLERS: ReadonlySet<string> = new Set([
+  "rosepe01", // Pete Rose — CIN 1985, 1986
+  "marcatu01", // Tucupita Marcano — PIT 2022, 2023
+  "claseem01", // Emmanuel Clase — TEX 2019, CLE 2021–2025
+  "ortizlu03", // Luis L. Ortiz — PIT 2023, 2024, CLE 2025
+]);
+const ROSE_TEAM = "CIN";
+const ROSE_YEARS = [1985, 1986, 1987, 1988, 1989];
 
 /** The record book, as this game knows it. Every entry is the best mark in the
  * 1985–2025 window the cards cover — deliberately NOT the all-time record,
@@ -621,6 +908,14 @@ export const BADGES: BadgeDef[] = [
     rarity: "ironic",
     axis: "onfield",
     ironic: true,
+    // Keyed to the STAMPED record — the 0–162 the finale prints — not to the
+    // baseline. On the baseline this rung cannot fire at all: the worst season
+    // available at each of the eight seats sums to −26.5 WAR and the worst
+    // manager in the set is worth −16 wins, so the floor under a baseline is
+    // 50 − 26.5 − 16 = 7.5, comfortably above zero. Pinned in badges-supply.
+    // A season CAN stamp 0–162, because the stamp counts the luxury tax; that
+    // is what the badge names, and it is the record the player is looking at
+    // when they go looking for it.
     freq: 0,
     how: "An 0–162 season. Every game, lost.",
   },
@@ -707,6 +1002,7 @@ export const BADGES: BadgeDef[] = [
     how: "Drafted 7 or more of the players the dream team wanted.",
   },
 
+
   // ---- roster shape: these stack ----
   {
     key: "allstars",
@@ -727,23 +1023,148 @@ export const BADGES: BadgeDef[] = [
     freq: 3.79,
     how: "Rostered a season someone both pitched and hit in.",
   },
+  /* The three shape badges sit together because they are one question asked
+   * three ways — how the club's WAR is distributed across its eight seats.
+   * 🧱 says there is no soft seat, ⛰️ says two seats carry six, ⚖️ says every
+   * seat is close to every other. None of them can be an ALL-GOLD badge; see
+   * the ceiling note beside GOLD_WAR for why that badge cannot exist. */
   {
+    // The key is `noweak` and the label says NO SCRUBS, which is normal here
+    // (`dayjob`, `pocket`, `crossed` all read one way and store another) and
+    // is deliberate: the key is the storage contract. history.ts records badge
+    // KEYS, and badgeCase() counts by key, so renaming it would orphan every
+    // 🧱 anyone has ever earned. The emoji stays for the same reason — a glyph
+    // is how a player recognises a pill they already own — and it still fits:
+    // solid all the way through, no soft brick anywhere.
     key: "noweak",
     emoji: "🧱",
-    label: "NO WEAK LINKS",
+    label: "NO SCRUBS",
     rarity: "rare",
-    axis: "roster",
     freq: 3.04,
+    axis: "roster",
     how: "Every player on the roster posted 4.0 WAR or better.",
   },
   {
-    key: "cooperstown",
-    emoji: "🏛️",
-    label: "COOPERSTOWN CLASS",
+    key: "topheavy",
+    emoji: "⛰️",
+    label: "STARS AND SCRUBS",
     rarity: "rare",
     axis: "roster",
+    // Null on purpose, and it will stay null. Every bot arm maximises WAR, and
+    // this badge asks a club to waste three seats — so a measured rate here
+    // records how often a greedy policy ACCIDENTALLY builds stars-and-scrubs,
+    // not how hard the badge is for a player who sets out to do it. That is
+    // the same reason 🌱 / 🧗 / 🧰 carry no number: the measurement would
+    // describe the arm rather than the game.
+    freq: null,
+    how: "Two players at 6.0 WAR or better, and three at 1.0 or under.",
+  },
+  {
+    key: "balanced",
+    emoji: "⚖️",
+    label: "NO DROP-OFF",
+    rarity: "rare",
+    axis: "roster",
+    freq: null,
+    how: "Every seat at 3.0 WAR or better, and no more than 4.0 WAR between your best player and your worst.",
+  },
+  {
+    key: "gold",
+    emoji: "🌟",
+    label: "MURDERERS' ROW",
+    rarity: "ultra",
+    axis: "roster",
+    // Null for the ⛰️ reason inverted: this one the bot is BETTER at than a
+    // player, because stacking WAR is exactly what every arm already does. A
+    // measured rate here is an upper bound on a human's, not an estimate of
+    // it. The number study 12 recorded is in the report rather than in this
+    // field, because `freq` documents itself as the rate in the reference
+    // population and quoting a greedy solver's rate as the player's would be
+    // the fabricated measurement that field forbids.
+    freq: null,
+    how: "Five players at 8.0 WAR or better in one club.",
+  },
+  /* The name COOPERSTOWN CLASS moves to the badge that means it literally, and
+   * the award-points badge it moves off keeps its KEY.
+   *
+   * That split is deliberate and it is the only migration that does not lie to
+   * somebody. history.ts stores badge KEYS and badgeCase() counts by key, so a
+   * key is a claim about what a player has already earned: everyone holding
+   * `cooperstown` collected thirty award points, and that is still exactly
+   * what the badge under that key asks for. Moving the KEY to the Hall of Fame
+   * badge would hand every one of them a badge they never earned. Moving only
+   * the LABEL is a re-skin of a pill they own — the same trade the 🧱 rename
+   * makes — and the emoji has to follow the label, because a pill reading
+   * "🏛️ HARDWARE COLLECTION" is incoherent.
+   *
+   * The name is 🕸️ EMPTY TROPHY CASE's positive counterpart, because that is
+   * what the badge is: 🕸️ fires at zero award points and this one at thirty,
+   * one idea pointed in two directions. The pair does NOT share a tier the way
+   * 🧓/🍼 do, and cannot: `ironic` is a tier and a rendering mode at once — an
+   * anti-trophy sits outside the progress fraction and wears an anonymised
+   * locked slot — so the two ends of this idea are `ironic` and `rare` by
+   * necessity. They share a subject, not a band.
+   *
+   * 🎖️ rather than 🥇 or 🏅: 🥇 collides with the medal on the MVP award pill
+   * and 🏅 is ALL-STAR ROSTER's, and both are round medals that read alike at
+   * pill size. "Hardware" is what a clubhouse calls a trophy. */
+  {
+    key: "cooperstown",
+    emoji: "🎖️",
+    label: "HARDWARE STORE",
+    rarity: "rare",
+    axis: "roster",
+    // Unchanged: same trigger, same threshold, same measured rate. Only the
+    // name and the glyph moved.
     freq: 2.05,
     how: "Collected 30 or more award points across the club.",
+  },
+  /* The Hall, literally. Membership is read off the cards rather than
+   * inferred: a player carries `hof` when Lahman has him inducted with
+   * `category = "Player"`, and a card carries `managerHof` when its skipper is
+   * inducted with `category = "Manager"`. The skipper counts because a manager
+   * is a member of that club the same way a player is — the same reading that
+   * puts the 2017 Astros' manager on 🗑️ — and because the strict category
+   * split is what keeps the chair honest: Frank Robinson is in the Hall as a
+   * player and managed for sixteen years, and he is not a Hall of Fame manager.
+   *
+   * Two properties of this badge are era-locked and neither is a bug:
+   *
+   * 1. Induction needs retirement plus a five-year wait, so NO player-season
+   *    from 2020 or later can ever carry the flag — 0 of 6,077. The rate
+   *    decays 5.48% for 1985–94 to 0.33% for 2016–19 to zero, so the badge
+   *    quietly rewards drafting old and gets harder every year the dataset
+   *    grows a season on the front.
+   * 2. The set is not closed. Membership changes every January, so this is the
+   *    one badge in the file whose difficulty drifts with a data regen rather
+   *    than staying put. badges-supply pins the counts, so the drift shows up
+   *    as a failing assertion rather than as a badge that silently got easier.
+   *
+   * Both are accepted rather than mitigated. */
+  {
+    key: "hall",
+    emoji: "🏛️",
+    label: "COOPERSTOWN CLASS",
+    rarity: "uncommon",
+    axis: "roster",
+    freq: null,
+    how: "Four Hall of Famers in one organisation — players and the skipper both count.",
+  },
+  {
+    // `secret` for a reason that is unusual in this table: nothing in the app
+    // shows a player's birth country. Not the market rows, not the roster
+    // rail, not the finale. So this is not a badge a player can aim at even in
+    // principle — the fact is invisible until it is already collected — and a
+    // named locked slot reading "🌎 THE WORLD TOUR" would advertise a target
+    // the UI gives no way to hunt. That is the exact case `secret` exists for.
+    key: "worldtour",
+    secret: true,
+    emoji: "🌎",
+    label: "THE WORLD TOUR",
+    rarity: "rare",
+    axis: "roster",
+    freq: null,
+    how: "A full club born in five different countries.",
   },
   {
     key: "rings",
@@ -868,6 +1289,37 @@ export const BADGES: BadgeDef[] = [
     freq: 6.47,
     how: "Spent half your payroll or more on one player.",
   },
+  /* Drafting against an unknown payroll — the one nerve play Clean House sets
+   * up. The bank does not tell you your cap until you hire an owner, so every
+   * signing made before that is a bet, and the box shows the pre-owner spend
+   * in caution orange for exactly that reason.
+   *
+   * The badge asks for the whole club, not merely a late owner. "Owner hired
+   * last in the spin log" is the easy version and it is wrong twice over: it
+   * fires for a club with five empty seats that happened to take an owner on
+   * its final spin, and it misses a club that drafted all eight blind and then
+   * bought a ballpark. The ballpark and the skipper are not part of the
+   * gamble — the ballpark multiplies a cap you already know and the skipper
+   * costs nothing against payroll — so neither belongs in the condition.
+   *
+   * It rides `roster` rather than `payroll`, which is an exclusive axis: this
+   * is a fact about the ORDER a club was built in, and it is supposed to stack
+   * with whatever the payroll finally came to. 💵 SPENT EVERY DIME beside it
+   * is the best possible version of the story. */
+  {
+    key: "flyingblind",
+    emoji: "🕶️",
+    label: "FLYING BLIND",
+    rarity: "rare",
+    axis: "roster",
+    // Likely null permanently, for the 🧗 / 🧰 reason: every bot arm carries
+    // its own front-office policy, and when to take the owner IS that policy.
+    // A measured rate would describe the arm's patience rather than the
+    // badge's difficulty. Study 11 measures it anyway; if the arms disagree
+    // wildly with each other, that is the evidence the number is about them.
+    freq: null,
+    how: "Filled all eight roster seats before hiring an owner, and still came in over 60% of a payroll you could not see, without busting it.",
+  },
   /* The toolbox axis: how much of the game's own surface a season used. All
    * three ride `roster`, which stacks, because the exclusivity is in the world
    * rather than in the resolver — all six spent and none spent cannot both be
@@ -922,6 +1374,30 @@ export const BADGES: BadgeDef[] = [
     ironic: true,
     freq: 0,
     how: "Not one player made an All-Star team.",
+  },
+  {
+    // The one badge in the table `earnedBadges` never pushes. It is written
+    // straight into the history row by the quit path, because there is no
+    // finale on that path to earn anything at — see the engine spec in the
+    // round-2 badge notes. badges.test.ts scrapes pushed keys and asserts each
+    // resolves to a definition; it does not assert the reverse, so a
+    // defined-but-never-pushed badge is legal. This comment is here so the
+    // next reader does not go looking for the trigger.
+    key: "packedin",
+    emoji: "🧳",
+    label: "PACKED IT IN",
+    rarity: "ironic",
+    // Nearly decorative: no resolver ever sees this key, because nothing
+    // pushes it. `roster` is the least wrong of six bad fits — study 11's
+    // per-axis table will file it there and it is not a roster fact. If a
+    // seventh axis is ever added for app-level events, this and ✳️ / 🤝 are
+    // its three members.
+    axis: "roster",
+    ironic: true,
+    // No bot arm quits — every harness game runs to the finale — so there is
+    // no population to measure this against.
+    freq: null,
+    how: "Walked out on a season in progress.",
   },
 
   // ---- era: seasons with an asterisk, whatever the reason ----
@@ -994,6 +1470,89 @@ export const BADGES: BadgeDef[] = [
     axis: "era",
     freq: null,
     how: "Signed McGwire or Sosa in 1998, or Bonds in 2001 — the home run chase.",
+  },
+  {
+    // `secret` is not optional here. A named locked slot reading "💊 FAILED
+    // THE TEST" is a shopping list of who to go sign, which is a repugnant
+    // thing to hand a player about twenty-seven living men. Anonymised, it is
+    // a fact you stumble into.
+    key: "suspended",
+    secret: true,
+    emoji: "💊",
+    label: "FAILED THE TEST",
+    rarity: "uncommon",
+    axis: "era",
+    // Measured, and much higher than it looks like it should be: 18.5% of
+    // reference games, which puts it beside ✊ PICKET LINE (18.90) and
+    // 🦠 SOCIAL DISTANCING (18.51) rather than beside 🚧 CROSSED THE LINE
+    // (0.74), whose trigger shape it copies. The cause is exposure rather than
+    // list size — these are stars with long careers, so the 27 men are 2.14%
+    // of top-5-WAR seats against 0.96% of all player-seasons, and a WAR-led
+    // draft finds them at more than double their population share.
+    freq: 18.47,
+    how: "Signed a player Major League Baseball suspended under its drug programme.",
+  },
+  {
+    key: "gambling",
+    secret: true,
+    emoji: "🎲",
+    label: "UNDER A CLOUD",
+    rarity: "ultra",
+    axis: "era",
+    // Eleven of the 1,188 cards can trip it, and the manager path carries most
+    // of that: two of the four men have four draftable player-seasons between
+    // them, against Rose's five seasons in the Reds dugout.
+    freq: 0.9,
+    // The one string in the set that has to carry three different legal
+    // statuses without flattening them, so it spends its length on saying
+    // which is which. Rose was found to have bet and accepted a ban; Marcano
+    // was banned; the two Guardians pitchers are charged and have pleaded not
+    // guilty. "Under a cloud" is the only phrase true of all four, and the
+    // label goes into the share string where this sentence does not.
+    how: "Signed someone under a betting cloud: Pete Rose, banned in 1989 for betting on his own club; Tucupita Marcano, banned in 2024; or Emmanuel Clase and Luis Ortiz, charged in 2025 over rigged pitches and awaiting trial.",
+  },
+  /* The two seed badges. Both are jokes about provenance rather than facts
+   * about baseball, and they are a matched pair pointed in opposite
+   * directions: ✳️ is what you did to yourself, 🤝 is what someone did for
+   * you. They ride `era` because that is where the set already keeps "this
+   * season has an asterisk on it, whatever the reason". */
+  {
+    key: "asterisk",
+    // No `secret: true`. It would be redundant — BadgePill and TrophyModal's
+    // anonymous predicate both treat `ironic` OR `secret` as sufficient to
+    // withhold the name, and no shipped badge carries both.
+    emoji: "✳️",
+    label: "THE ASTERISK",
+    rarity: "ironic",
+    axis: "era",
+    ironic: true,
+    // No bot arm replays a seed — every harness game gets a fresh one from
+    // makeSeeds — so there is no population to measure this against.
+    freq: null,
+    // "The same seed", never "the same game": engine.svelte.ts picks cards by
+    // indexing into the live card list, so a data regen that changes the card
+    // count remaps every seed to a different sequence. The seed is the only
+    // thing that is true about a replay unconditionally and forever.
+    how: "Finished a season on a seed you had already played.",
+  },
+  {
+    // Deliberately NOT ironic, unlike its twin. Replaying your own seed is a
+    // joke at your expense; playing a code a friend sent you is the one thing
+    // in this game two people can do together, and it belongs in the progress
+    // fraction as something to chase.
+    //
+    // Yes, it is self-farmable by typing six characters you invented — there
+    // is no server to ask whose seed it was. That is accepted rather than
+    // defended: the badge costs nothing to earn dishonestly and nothing is
+    // ranked on it.
+    key: "wordofmouth",
+    emoji: "🤝",
+    label: "WORD OF MOUTH",
+    rarity: "rare",
+    axis: "era",
+    // Unmeasurable for the ✳️ reason: no bot arm types a seed in.
+    freq: null,
+    how: "Played a seed someone gave you — a code you typed in and had never seen before.",
   },
 
   /* …and the shape of the years themselves, rather than any one of them. The
@@ -1069,11 +1628,36 @@ export function earnedBadges(f: BadgeFacts): string[] {
   const roster = f.roster;
   const hasAS = (p: BadgeRosterEntry) => p.awards.includes("AS");
 
+  // The two halves of the on-field ladder read two different records, and the
+  // split is the point. The top reads the BASELINE — what the club is worth
+  // before awards, rings and the payroll bonus — because those modifiers add
+  // twenty wins to a stamp routinely and 💯 would be automatic on them. The
+  // floor reads the STAMP, the record the finale actually prints, because an
+  // anti-trophy has to name something the player can see: a season that scores
+  // −16 points stamps 0–162 and must earn 👔, whatever the club underneath it
+  // was theoretically worth.
+  //
+  // All three floor rungs move together. They are one ladder — nothing won,
+  // then a record low, then a hundred losses — and supersession only means
+  // anything while the rungs are measured in the same units. Driving 👔 off
+  // the stamp and 📉 off the baseline would leave "👔 supersedes 📉" true of
+  // no number in particular.
+  //
+  // Exclusivity survives untouched: this is still one if/else chain, so at
+  // most one on-field badge comes out of it however the two records disagree.
+  const floor = f.stamp ?? {
+    wins: f.baselineWins,
+    losses: f.baselineLosses,
+  };
   const field = onFieldBadge(f.baselineWins);
   if (field) out.push(field);
-  else if (f.baselineWins === 0) out.push("dayjob");
-  else if (f.baselineWins <= WORST_WINS) out.push("worst");
-  else if (f.baselineLosses >= 100) out.push("skull");
+  // At or below zero, not exactly zero. The stamp clamps at zero so the two
+  // forms agree today, but the rung is written not to depend on a clamp in
+  // another module staying in place — and `scoring.displayRecord`, which feeds
+  // the fallback, clamps only its upper end.
+  else if (floor.wins <= 0) out.push("dayjob");
+  else if (floor.wins <= WORST_WINS) out.push("worst");
+  else if (floor.losses >= 100) out.push("skull");
 
   if (f.total >= GOAL_POINTS) out.push("perfect");
 
@@ -1097,7 +1681,49 @@ export function earnedBadges(f: BadgeFacts): string[] {
   if (roster.some((p) => p.pos.includes("/"))) out.push("twoway");
   if (full && roster.every((p) => p.war >= NO_WEAK_LINK_WAR))
     out.push("noweak");
+  // The three shape badges all want `full`, for the reason 🏅 and 🧱 do: a
+  // club with five empty seats and three cheap men would otherwise earn a
+  // badge whose copy claims a whole roster. ⚖️ needs it twice over — a gap
+  // taken over two filled seats is trivially small.
+  if (
+    full &&
+    roster.filter((p) => p.war >= TOP_HEAVY_STAR_WAR).length >=
+      TOP_HEAVY_STARS &&
+    roster.filter((p) => p.war <= TOP_HEAVY_SCRUB_WAR).length >=
+      TOP_HEAVY_SCRUBS
+  )
+    out.push("topheavy");
+  if (full) {
+    const wars = roster.map((p) => p.war);
+    const low = Math.min(...wars);
+    if (low >= BALANCED_FLOOR && Math.max(...wars) - low <= BALANCED_GAP)
+      out.push("balanced");
+    if (wars.filter((w) => w >= GOLD_WAR).length >= GOLD_SEATS)
+      out.push("gold");
+  }
   if (f.awardPoints >= COOPERSTOWN_PTS) out.push("cooperstown");
+  // The skipper's chair is one of the four seats, and it is counted the same
+  // way a player is. `=== true` rather than a truthiness test because both
+  // fields are optional: a club restored from a save written before they
+  // existed must count as no Hall of Famers rather than as an unknown.
+  if (
+    roster.filter((p) => p.hof === true).length +
+      (f.managerHof === true ? 1 : 0) >=
+    HALL_COUNT
+  )
+    out.push("hall");
+  // The type predicate is load-bearing: a bare `!== undefined` filter does not
+  // narrow, and would leave a Set<string | undefined> whose size counts the
+  // missing countries as one more country.
+  if (
+    full &&
+    new Set(
+      roster
+        .map((p) => p.country)
+        .filter((c): c is string => c !== undefined && c !== ""),
+    ).size >= COUNTRY_COUNT
+  )
+    out.push("worldtour");
   if (f.rings >= RING_BEARERS) out.push("rings");
   if (f.managerMoty && f.baselineWins > SKIPPER_WINS) out.push("skipper");
   // Pete Rose is the only person in the dataset who managed and played the same
@@ -1140,6 +1766,18 @@ export function earnedBadges(f: BadgeFacts): string[] {
     roster.some((p) => p.costPaid / f.spendM >= FRANCHISE_SHARE)
   )
     out.push("franchiseplayer");
+  // `full` is required here as well as in the engine's flag, because the flag
+  // answers "was the roster full WHEN the owner was hired" and this badge's
+  // copy claims a finished club — a 🔁 Trade Deadline release afterwards could
+  // leave a seat empty at the finale.
+  if (
+    f.ownerLast === true &&
+    full &&
+    f.budgetM > 0 &&
+    f.spendM <= f.budgetM &&
+    f.spendM > f.budgetM * CHEAP_PCT
+  )
+    out.push("flyingblind");
   if (roster.some((p) => p.hero && p.war >= HOMEGROWN_WAR))
     out.push("homegrown");
   // The result gate is what keeps 🧗 honest: ungated, "spent no powerups"
@@ -1168,6 +1806,24 @@ export function earnedBadges(f: BadgeFacts): string[] {
   if (roster.some((p) => p.year === 1994 && !REPLACEMENTS.has(p.id)))
     out.push("strike");
   if (roster.some((p) => REPLACEMENTS.has(p.id))) out.push("crossed");
+  if (roster.some((p) => SUSPENDED.has(p.id))) out.push("suspended");
+  // Rose's five Reds seasons in the dugout are the half of 🎲 that makes it
+  // reachable at all — two of the four men have four draftable player-seasons
+  // between them. The window is a bare team-and-year pair with his name only
+  // in the comment, so badges-supply pins the `manager` field of those five
+  // cards; that is the assertion that would otherwise break silently.
+  if (
+    roster.some((p) => GAMBLERS.has(p.id)) ||
+    (f.managerTeam === ROSE_TEAM &&
+      f.managerYear !== null &&
+      ROSE_YEARS.includes(f.managerYear))
+  )
+    out.push("gambling");
+  // Both seed facts default to false, so a fact set assembled before the
+  // fields existed — a save restored from an older version, a forged fixture —
+  // earns neither rather than earning one by accident.
+  if (f.replayedSeed === true) out.push("asterisk");
+  if (f.sharedSeed === true) out.push("wordofmouth");
   if (roster.some(isRecord)) out.push("recordbook");
   if (roster.some(isChase)) out.push("chase");
   if (roster.some((p) => p.year === 2020)) out.push("covid");

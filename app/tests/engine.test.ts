@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eligibleTypes } from "../src/lib/eligibility";
+import { recordFromTotal } from "../src/lib/format";
+import { GAMES, MARINERS_WINS } from "../src/lib/scoring";
 import {
   Game,
   HOMEGROWN_PRICE_M,
@@ -1624,5 +1626,100 @@ describe("Manager of the Year", () => {
       moty: true,
     });
     expect(g.finale!.managerHit).toBe(true); // hired him → a scouting hit
+  });
+});
+
+describe("the dream-club ceiling", () => {
+  const POS_IF = { c: 0, if: 100, of: 0, dh: 0 };
+  const POS_OF = { c: 0, if: 0, of: 100, dh: 0 };
+  const POS_C = { c: 100, if: 0, of: 0, dh: 0 };
+  const NO_POS = { c: 0, if: 0, of: 0, dh: 0 };
+
+  /** Six spun cards, each stacked with a star at every position. One pick per
+   * card means the dream club can still only be six deep (plus the ✌️ Double
+   * Play second pick), but every one of those picks beats the 3-WAR fillers the
+   * roster below settles for. */
+  function spinSixStackedCards(): void {
+    for (let i = 0; i < 6; i++) {
+      fetchCards[`CE${i}_2010`] = card(
+        [
+          player({ id: `c${i}`, pos: "C", posG: POS_C, war: 9, cost: 20 }),
+          player({ id: `if${i}`, pos: "SS", posG: POS_IF, war: 9, cost: 20 }),
+          player({ id: `of${i}`, pos: "CF", posG: POS_OF, war: 9, cost: 20 }),
+          player({ id: `sp${i}`, pos: "SP", posG: NO_POS, gs: 30, war: 9, cost: 20 }),
+          player({ id: `rp${i}`, pos: "RP", posG: NO_POS, relIP: 60, war: 9, cost: 20 }),
+        ],
+        {
+          team: `CE${i}`,
+          franchise: `CE${i}`,
+          year: 2010,
+          name: `Ceiling ${i}`,
+          manager: "Skip Ceiling",
+          wins: 100,
+          losses: 62,
+          budget: 60 + 10 * i,
+          stadiumMult: 1,
+        },
+      );
+    }
+  }
+
+  async function finishedGame(): Promise<Game> {
+    spinSixStackedCards();
+    const g = landedGame(fetchCards.CE0_2010);
+    g.seen = [0, 1, 2, 3, 4, 5].map((i) => ({ team: `CE${i}`, year: 2010 }));
+    fillSlots(g); // eight 3-WAR fillers at $10M — a club the cards easily beat
+    g.owner = { name: "x", budget: 100, franchise: "CE0", year: 2010, teamName: "Ceiling 0" };
+    g.stadium = { park: "y", mult: 1, franchise: "CE0", year: 2010 };
+    g.powerups.tradeDeadline = "spent";
+    g.hireManager();
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    return g;
+  }
+
+  it("prints a ceiling at or above the total the player actually scored", async () => {
+    const f = (await finishedGame()).finale!;
+    expect(f.bestPossibleTotal).not.toBeNull();
+    expect(f.bestPossibleTotal!).toBeGreaterThan(f.parts.total);
+    expect(f.playedTheCeiling).toBe(false);
+  });
+
+  it("resolves the ceiling's record through the same ladder as the stamp", async () => {
+    const f = (await finishedGame()).finale!;
+    expect(f.bestPossibleRecord).toEqual(
+      recordFromTotal(f.bestPossibleTotal!, GAMES, MARINERS_WINS),
+    );
+    expect(f.bestPossibleRecord!.wins + f.bestPossibleRecord!.losses).toBe(GAMES);
+  });
+
+  it("solves the front office too — the dream club has an owner and a ballpark", async () => {
+    const f = (await finishedGame()).finale!;
+    expect(f.best!.owner).not.toBeNull();
+    expect(f.best!.park).not.toBeNull();
+    expect(f.best!.budget).toBeCloseTo(f.best!.owner!.budget * f.best!.park!.mult, 6);
+    // The payroll bonus is in the objective, so the dream club spends most of
+    // the bankroll it chose rather than banking a WAR-max club on a fat cap.
+    expect(f.best!.spend! / f.best!.budget!).toBeGreaterThan(0.5);
+  });
+
+  it("has no ceiling to print when the spun cards cannot be reloaded", async () => {
+    const g = landedGame(
+      card([player({ pos: "SP", gs: 30, posG: NO_POS, war: 5 })], {
+        team: "GONE",
+        franchise: "GONE",
+        year: 1999,
+      }),
+    );
+    g.seen = [{ team: "GONE", year: 1999 }]; // never registered with fetch
+    fillSlots(g);
+    g.owner = { name: "x", budget: 100, franchise: "GONE", year: 1999, teamName: "Gone" };
+    g.stadium = { park: "y", mult: 1, franchise: "GONE", year: 1999 };
+    g.powerups.tradeDeadline = "spent";
+    g.hireManager();
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    const f = g.finale!;
+    expect(f.best).toBeNull();
+    expect(f.bestPossibleTotal).toBeNull();
+    expect(f.bestPossibleRecord).toBeNull();
   });
 });

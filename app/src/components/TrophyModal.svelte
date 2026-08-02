@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { BADGES, BADGE_BY_KEY, RARITY_ORDER, type BadgeDef, type Rarity } from "../lib/badges";
-  import { badgeCase } from "../lib/settings";
+  import { BADGES, RARITY_ORDER, type BadgeDef, type Rarity } from "../lib/badges";
+  import { badgeCase, takeOpenedBadgeCue } from "../lib/settings";
   import BadgePill from "./BadgePill.svelte";
+  import BadgeSlot from "./BadgeSlot.svelte";
   import Sheet from "./Sheet.svelte";
 
   /** The lifetime trophy case, as a modal. The board is the whole set — earned
@@ -17,10 +18,21 @@
   const trophies = badgeCase();
   const earnedCount = new Map(trophies.tiles.map((t) => [t.key, t.count]));
 
+  /** The badges earned since the case was last opened — the same NEW chip the
+   * finale spends, on the same pill, so the news the glowing trophy promised
+   * is actually findable once the player is inside.
+   *
+   * Taken ONCE, here, at mount. The trophy button clears the cue on the tap
+   * that opens this sheet, so reading storage now would find it already empty;
+   * `takeOpenedBadgeCue` hands over what that clear removed. Taken rather than
+   * read, so closing and reopening shows a clean board. */
+  const freshKeys = new Set(takeOpenedBadgeCue());
+
   interface CaseSlot {
     def: BadgeDef;
     count: number;
     locked: boolean;
+    fresh: boolean;
   }
 
   function slots(rarity: Rarity): CaseSlot[] {
@@ -36,12 +48,25 @@
     // COLLECTIBLE and never from what is on screen.
     const locked = band.filter((b) => !earnedCount.has(b.key));
     const anonymous = (b: BadgeDef) => b.secret === true || b.ironic === true;
+    // Within the earned run, the NEW ones lead — the same order `bragRow` puts
+    // the finale's pills in, and for the same reason: a flagged badge is the
+    // one the player opened the case to find, so it should not be somewhere in
+    // the middle of a band of twelve.
+    const earned = band
+      .filter((b) => earnedCount.has(b.key))
+      .map((b) => ({
+        def: b,
+        count: earnedCount.get(b.key)!,
+        locked: false,
+        fresh: freshKeys.has(b.key),
+      }))
+      .sort((a, b) => Number(b.fresh) - Number(a.fresh));
     return [
-      ...band
-        .filter((b) => earnedCount.has(b.key))
-        .map((b) => ({ def: b, count: earnedCount.get(b.key)!, locked: false })),
-      ...locked.filter((b) => !anonymous(b)).map((b) => ({ def: b, count: 1, locked: true })),
-      ...locked.filter(anonymous).map((b) => ({ def: b, count: 1, locked: true })),
+      ...earned,
+      ...locked
+        .filter((b) => !anonymous(b))
+        .map((b) => ({ def: b, count: 1, locked: true, fresh: false })),
+      ...locked.filter(anonymous).map((b) => ({ def: b, count: 1, locked: true, fresh: false })),
     ];
   }
 
@@ -59,10 +84,9 @@
   /** The one opened badge, by key. Only an EARNED pill is a button, so only an
    * earned badge can ever land here — a locked slot has nothing to open, and
    * revealing its trigger would pre-spend the surprise the silhouette exists to
-   * protect. One at a time: the detail is a single node under the band that
-   * holds the open pill, so nothing is rendered for any badge but that one. */
+   * protect. One at a time: BadgeSlot renders the reveal only for the badge
+   * whose key this holds, so nothing is rendered for any of the others. */
   let opened = $state<string | null>(null);
-  const shown = $derived(opened === null ? null : (BADGE_BY_KEY[opened] ?? null));
 
   function toggle(key: string) {
     opened = opened === key ? null : key;
@@ -85,32 +109,26 @@
       <!-- No tabindex: the band wraps rather than scrolls, so every pill is on
            screen and reachable by tabbing the buttons themselves. The
            scrollable-region pattern WCAG 2.1.1 asks for only applies to a
-           container that hides content, and this one no longer does. -->
+           container that hides content, and this one no longer does.
+
+           BadgeSlot emits the button and, when open, the reveal — both as
+           children of this row, which is how the trigger lands on its own line
+           directly under the pill that was tapped. -->
       <div class="bandrow" role="group" aria-label="{s.rarity} badges">
         {#each s.items as slot (slot.def.key)}
           {#if slot.locked}
             <BadgePill badge={slot.def} locked />
           {:else}
-            <!-- The pill itself comes from BadgePill and is not interactive, so
-                 the button is a bare wrapper: no box of its own, the pill's
-                 geometry unchanged, and the hit target exactly the pill. -->
-            <button
-              class="slot"
-              aria-expanded={opened === slot.def.key}
-              aria-controls={opened === slot.def.key ? "badge-how" : undefined}
-              onclick={() => toggle(slot.def.key)}
-            >
-              <BadgePill badge={slot.def} count={slot.count} />
-            </button>
+            <BadgeSlot
+              badge={slot.def}
+              count={slot.count}
+              fresh={slot.fresh}
+              open={opened === slot.def.key}
+              ontoggle={() => toggle(slot.def.key)}
+            />
           {/if}
         {/each}
       </div>
-      {#if shown && shown.rarity === s.rarity}
-        <!-- The reveal sits under the band holding the open pill: it reads at
-             the tap, wraps to the full sheet width rather than a pill's column,
-             and leaves the row above it exactly where the thumb left it. -->
-        <p class="how" id="badge-how">{shown.how}</p>
-      {/if}
     </div>
   {/each}
 
@@ -167,34 +185,11 @@
     flex-wrap: wrap;
     justify-content: center;
     gap: 6px;
-  }
-  /* A bare wrapper: the pill keeps its own shape, the button contributes none. */
-  .slot {
-    display: block;
-    padding: 0;
-    border: 0;
-    background: none;
-    font: inherit;
-    color: inherit;
-    cursor: pointer;
-    border-radius: 999px;
-  }
-  .slot:focus-visible {
-    outline: 3px solid var(--blue);
-    outline-offset: 2px;
-  }
-  /* The trigger, in the player's own words. Dashed cardstock so it reads as a
-     note pinned under the band rather than another pill. */
-  .how {
-    margin: 5px 0 0;
-    border: 2px dashed var(--gray-ink);
-    border-radius: 9px;
-    background: var(--card);
-    color: var(--ink);
-    font-size: 11.5px;
-    font-weight: 700;
-    line-height: 1.4;
-    padding: 7px 10px;
+    /* BadgeSlot's contract: the row is the containing block for an opened
+       badge's panel, which is what fences the panel inside the sheet. The
+       sheet scrolls in y, so a panel that reached past this box would earn the
+       sheet a horizontal scrollbar as well. */
+    position: relative;
   }
   .cancel {
     width: 100%;
