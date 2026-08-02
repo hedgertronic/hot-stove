@@ -81,6 +81,16 @@ export interface Signed {
    * copied onto the signing rather than looked up at the finale because a
    * ⭐ Prime Time signing comes from a card that never enters `seen`. */
   age?: number;
+  /** Birth country as the cards spell it ("Dominican Republic", "Curaçao"),
+   * feeding 🌎 THE WORLD TOUR and the lifetime passport. Carried on the
+   * signing for the same reason `age` is: a ⭐ Prime Time signing comes from a
+   * card that never enters `seen`, so there is nothing to look it up on later.
+   * Optional so a save written before the field restores as-is — a missing
+   * country counts as NO country, never as an unknown one. */
+  bc?: string;
+  /** In the Hall of Fame, elected as a player. Career-level, so it rides every
+   * season of his. Optional on the same terms as `bc`. */
+  hof?: boolean;
 }
 
 export interface OwnerPick {
@@ -110,6 +120,11 @@ export interface ManagerPick {
   /** Won the BBWAA Manager of the Year that season (+2 trophy-case points).
    * Optional so pre-MotY saves restore as-is (absent reads as false). */
   moty?: boolean;
+  /** In the Hall of Fame on a MANAGER's plaque — a skipper elected as a player
+   * (Frank Robinson, Paul Molitor) does not carry it. The chair is one of the
+   * seats 🏛️ counts, so it is stored here rather than re-derived at the finale.
+   * Optional on the same terms as `moty`. */
+  hof?: boolean;
 }
 
 /** The dream club's skipper, solved jointly with its roster — the manager
@@ -228,7 +243,7 @@ const SAVE_VERSION = 6;
 const FINALE_KEY = "hotstove.finale";
 const FINALE_OPEN_KEY = "hotstove.finale.open";
 /** v1 = the first stored finale. Bump whenever the archive stops being
- * renderable by the finale screen; an unrecognised version reads as no stored
+ * renderable by the finale screen; an unrecognized version reads as no stored
  * finale, exactly like a corrupt one. */
 const FINALE_VERSION = 1;
 
@@ -328,6 +343,16 @@ export class Game {
   card = $state<Card | null>(null);
   slots = $state<(Signed | null)[]>(Array(SLOT_TYPES.length).fill(null));
   owner = $state<OwnerPick | null>(null);
+  /** The roster was already full when the owner was hired — the whole club
+   * drafted without knowing the payroll, which is 🤝 FLYING BLIND.
+   *
+   * A moment rather than a fact about the finished club, so it can only be
+   * recorded as it happens: by the finale a full roster and a hired owner look
+   * the same whichever order they arrived in. Only `hireOwner` writes it,
+   * because that is the only path that hires a FIRST owner — the Trade
+   * Deadline swap requires the seat to be taken already, and a club that had a
+   * budget all along was never flying blind however late it changed owners. */
+  ownerHiredLast = $state(false);
   stadium = $state<StadiumPick | null>(null);
   manager = $state<ManagerPick | null>(null);
   powerups = $state<Record<PowerupKey, PowerupState>>({
@@ -358,6 +383,13 @@ export class Game {
   /** The pending card's fetch failed (connection dropped mid-spin) — the
    * banner offers a retry instead of leaving the reel spinning forever. */
   loadFailed = $state(false);
+  /** This game resumed onto a spin that a ✌️ Double Play had half-used, and
+   * `restore` forfeited the pick that never happened — so the spin is over
+   * before the player has touched anything. The banner reads this to hold the
+   * card for a beat and say what happened; a committed pick sets it never, and
+   * rolls on with no pause at all. Deliberately NOT serialized: it describes
+   * one boot, not the run. */
+  resumedForfeit = $state(false);
 
   private pendingCard: Promise<Card> | null = null;
   private pendingEntry: IndexEntry | null = null;
@@ -607,6 +639,8 @@ export class Game {
 
   private beginSpin(entry: IndexEntry, kind: SpinKind): void {
     this.phase = "spinning";
+    // The reel is leaving; whatever the resume notice had to say has been said.
+    this.resumedForfeit = false;
     this.spinKind = kind;
     this.spinCount += 1;
     this.pendingEntry = entry;
@@ -848,6 +882,7 @@ export class Game {
       ws: idx?.ws === true,
       pen: idx?.pen === true,
       moty: entry.moty === true,
+      hof: entry.hof === true,
     };
     this.powerups.prime = "spent";
     this.primeSpecial = null;
@@ -898,6 +933,8 @@ export class Game {
       hero: discounted,
       prorated: c.prorated,
       age: p.age,
+      bc: p.bc,
+      hof: p.hof,
     };
   }
 
@@ -997,6 +1034,10 @@ export class Game {
     )
       return;
     const c = this.card;
+    // Read BEFORE the choice is consumed: this hire can itself be the pick
+    // that ends the game, and the question is what the roster looked like
+    // walking in.
+    this.ownerHiredLast = this.rosterFull;
     this.owner = {
       name: this.ownerName,
       budget: c.budget,
@@ -1046,6 +1087,7 @@ export class Game {
       ws: c.ws,
       pen: c.pen,
       moty: c.managerMoty === true,
+      hof: c.managerHof === true,
     };
     this.consumeChoice({ kind: "manager" });
   }
@@ -1126,6 +1168,7 @@ export class Game {
         ws: c.ws,
         pen: c.pen,
         moty: c.managerMoty === true,
+        hof: c.managerHof === true,
       };
     }
     this.powerups.tradeDeadline = "spent";
@@ -1240,9 +1283,17 @@ export class Game {
         .map((c) => [`${c.team}|${c.year}`, `${c.lg}/${c.div}`]),
     );
     const powerupStates = Object.values(this.powerups);
+    // The record the finale actually stamps, which is a different ladder from
+    // the baseline above: `wins` is expected wins alone, and this is the total
+    // after awards, rings, the payroll bonus and the luxury tax. The on-field
+    // rungs are gated on both — the baseline names the rung, the stamp decides
+    // whether it held — so this has to be built from the same call
+    // `Finale.svelte` renders from or the badge and the screen can disagree.
+    const stamp = recordFromTotal(parts.total, GAMES, MARINERS_WINS);
     const badges = earnedBadges({
       baselineWins: wins,
       baselineLosses: losses,
+      stamp: { wins: stamp.wins, losses: stamp.losses },
       total: parts.total,
       spendM: this.spend,
       budgetM: this.effectiveBudget,
@@ -1260,7 +1311,11 @@ export class Game {
         costPaid: p.costPaid,
         hero: p.hero,
         age: p.age,
+        country: p.bc,
+        hof: p.hof,
       })),
+      managerHof: this.manager?.hof === true,
+      ownerLast: this.ownerHiredLast,
       managerTeam: this.manager?.team ?? null,
       managerYear: this.manager?.year ?? null,
       managerName: this.manager?.name ?? null,
@@ -1369,6 +1424,16 @@ export class Game {
       // Keys, never labels — the trophy case unions these across every game
       // ever played, so a copy edit must not orphan an earned badge.
       badges: this.finale.badges,
+      // Distinct, so the row says which countries the club held rather than how
+      // many men came from each — the passport counts one visit per season per
+      // country. Sorted so two identical clubs write identical rows.
+      countries: [
+        ...new Set(
+          this.slots
+            .map((p) => p?.bc)
+            .filter((c): c is string => typeof c === "string" && c !== ""),
+        ),
+      ].sort(),
     });
   }
 
@@ -1392,6 +1457,7 @@ export class Game {
             : null,
           slots: this.slots,
           owner: this.owner,
+          ownerHiredLast: this.ownerHiredLast,
           stadium: this.stadium,
           manager: this.manager,
           powerups: this.powerups,
@@ -1495,6 +1561,10 @@ export class Game {
       // ignored; a restored complete club simply finishes on its next endSpin)
       game.slots = s.slots;
       game.owner = s.owner;
+      // Absent on a save written before the field, which reads as "not flying
+      // blind" — the conservative answer, and the same way every other
+      // optional fact here fails: a badge is withheld, never invented.
+      game.ownerHiredLast = s.ownerHiredLast === true;
       game.stadium = s.stadium;
       game.manager = s.manager;
       game.powerups = s.powerups;
@@ -1523,7 +1593,19 @@ export class Game {
           // committing a choice or disarming the pill. Restoring to "landed,
           // nothing left, no armed pill" satisfies neither, so the club sits
           // on a card it can never leave.
-          if (game.choicesLeft === 0 && game.choicesUsed > 0) game.endSpin();
+          //
+          // Ending it here is the one spin end no tap asked for, so it is the
+          // one the banner has to explain: `resumedForfeit` tells it to hold
+          // the card the pick was spent on instead of rolling straight off it.
+          // Set after `endSpin`, and only if the run continues — a club that
+          // completed on that pick goes to the finale, which has no reel to
+          // hold and nothing to explain. (`complete` rather than the resulting
+          // phase: `endSpin` hands a finished club to the async `finishGame`,
+          // so "preSpin" is not yet false when this line runs.)
+          if (game.choicesLeft === 0 && game.choicesUsed > 0) {
+            game.endSpin();
+            if (!game.complete) game.resumedForfeit = true;
+          }
         }
       } else {
         game.phase = "preSpin";

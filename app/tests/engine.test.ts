@@ -1288,6 +1288,69 @@ describe("finale", () => {
     expect(f.wins + f.losses).toBe(162);
   });
 
+  /** The on-field ladder is gated on BOTH records, and this is the half that
+   * only an end-to-end finale can prove.
+   *
+   * `onFieldBadge` takes the stamp as a second argument and vetoes a rung the
+   * stamp does not hold — that much is covered against the function directly.
+   * What that unit test cannot see is whether the ENGINE ever hands it a stamp.
+   * `stampWins` defaults to `baselineWins`, so a call site that omits the fact
+   * type-checks, runs, and satisfies the gate by construction on every club
+   * ever built: the veto is dead and every direct test of it still passes.
+   *
+   * So the assertion here is deliberately made through `finishGame` rather than
+   * against `earnedBadges`: a club worth 108 on the field that taxes itself to
+   * an 89–73 stamp must not keep 💯, and the only way to be sure is to let the
+   * engine assemble the facts itself. */
+  function taxedClub(costPaid: number): Game {
+    const g = landedGame(
+      card([
+        player({
+          pos: "SP",
+          gs: 30,
+          posG: { c: 0, if: 0, of: 0, dh: 0 },
+          war: 5.5,
+          cost: costPaid,
+        }),
+      ]),
+    );
+    for (let i = 0; i < 8; i++) {
+      if (i === 5) continue;
+      g.slots[i] = filler(i, { war: 5.5, costPaid });
+    }
+    hiredManager(g); // 116–46 → +14.0 wins, and one pennant point
+    g.owner = { name: "x", budget: 100, franchise: "CHC", year: 2016, teamName: "Cubs" };
+    g.stadium = { park: "y", mult: 1, franchise: "CHC", year: 2016 }; // cap = $100M
+    g.powerups.tradeDeadline = "spent";
+    g.signPlayer(g.card!.players[0]);
+    return g;
+  }
+
+  it("keeps the rung when the stamp holds what the baseline earned", async () => {
+    const g = taxedClub(10); // $80M of a $100M cap: under, so a payroll BONUS
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    const f = g.finale!;
+    expect(f.wins).toBe(108); // 50 + 44 WAR + 14 manager — the '86 Mets' rung
+    expect(Math.round(f.parts.total)).toBeGreaterThanOrEqual(108);
+    expect(f.badges).toContain("mets");
+  });
+
+  it("vetoes the rung when the luxury tax drops the stamp under it", async () => {
+    const g = taxedClub(15); // $120M of a $100M cap: $20M over, 20 points of tax
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    const f = g.finale!;
+    // The same club on the field as the test above — the bill is the only
+    // difference, and an 89–73 stamp has not matched the '86 Mets.
+    expect(f.wins).toBe(108);
+    expect(f.parts.luxuryTax).toBeCloseTo(20, 5);
+    expect(Math.round(f.parts.total)).toBe(89);
+    expect(f.badges).not.toContain("mets");
+    // A vetoed rung earns NOTHING rather than cascading to a lower one, or the
+    // tax would hand a taxed-out club a consolation 💯 and turn the penalty
+    // back into a prize.
+    expect(f.badges).not.toContain("hundred");
+  });
+
   /** First-time badges are a question about the history log as it stood BEFORE
    * this game joined it. finishGame reads the log and then appends to it, and
    * the two must stay in that order: swap them and every badge reads as
@@ -1363,6 +1426,113 @@ describe("finale", () => {
     const second = finishedClub();
     await vi.waitFor(() => expect(second.phase).toBe("finale"));
     expect(second.finale!.newBadges).toEqual([held]);
+  });
+});
+
+/** Facts the badge layer reads off a finished club that the ENGINE has to put
+ * there. Each of these is optional on the way in and fails SAFE when missing —
+ * an absent country counts as no country, an absent `hof` as not inducted — so
+ * a call site that never supplies them earns nothing, silently, forever. The
+ * badges simply never fire and no test of `earnedBadges` can tell, because
+ * those hand the facts in directly.
+ *
+ * So these run end to end: build a club whose players carry the data, and
+ * assert the badge comes out the far side. */
+describe("facts the finale collects off the roster", () => {
+  const COUNTRIES = [
+    "USA",
+    "Dominican Republic",
+    "Venezuela",
+    "Japan",
+    "Cuba",
+    "Canada",
+    "Mexico",
+  ];
+
+  it("counts birth countries and Hall of Famers, and logs the countries", async () => {
+    store.clear();
+    const g = landedGame(
+      card([
+        player({
+          pos: "SP",
+          gs: 30,
+          posG: { c: 0, if: 0, of: 0, dh: 0 },
+          bc: "Curaçao",
+          hof: true,
+        }),
+      ]),
+    );
+    let n = 0;
+    for (let i = 0; i < 8; i++) {
+      if (i === 5) continue; // the seat the card's pitcher signs into
+      // Three inducted players; the skipper below is the fourth seat 🏛️ counts.
+      g.slots[i] = filler(i, { bc: COUNTRIES[n++], hof: i < 3 });
+    }
+    hiredManager(g);
+    g.manager!.hof = true;
+    g.owner = { name: "x", budget: 100, franchise: "CHC", year: 2016, teamName: "Cubs" };
+    g.stadium = { park: "y", mult: 1, franchise: "CHC", year: 2016 };
+    g.powerups.tradeDeadline = "spent";
+    // The signed player's country and plaque have to survive `makeSigned` —
+    // the fillers are placed into slots directly and would not prove that.
+    g.signPlayer(g.card!.players[0]);
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+
+    expect(g.slots[5]!.bc).toBe("Curaçao");
+    expect(g.slots[5]!.hof).toBe(true);
+    // 3 inducted players + the skipper = the four 🏛️ asks for.
+    expect(g.finale!.badges).toContain("hall");
+    // 8 distinct countries, well past the five 🌎 asks for.
+    expect(g.finale!.badges).toContain("worldtour");
+
+    const [row] = JSON.parse(store.get("hotstove.history")!);
+    expect(row.countries).toEqual([...COUNTRIES, "Curaçao"].sort());
+  });
+
+  /** A pitcher for the SP seat at index 5, so a signing can be the pick that
+   * completes the club. */
+  const arm = () =>
+    player({ pos: "SP", gs: 30, posG: { c: 0, if: 0, of: 0, dh: 0 } });
+
+  it("earns 🤝 only when the owner is hired after the roster is full", async () => {
+    store.clear();
+    const g = landedGame(card([arm()]));
+    // A complete roster, a ballpark and a skipper, and no owner: the whole club
+    // drafted without ever knowing the payroll.
+    for (let i = 0; i < 8; i++) g.slots[i] = filler(i, { costPaid: 12 });
+    g.stadium = { park: "y", mult: 1, franchise: "CHC", year: 2016 };
+    hiredManager(g);
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    g.powerups.tradeDeadline = "spent";
+    expect(g.rosterFull).toBe(true);
+    g.hireOwner(); // $96M against the card's $136.3M — under, and not pocketed
+    expect(g.ownerHiredLast).toBe(true);
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    expect(g.finale!.badges).toContain("flyingblind");
+  });
+
+  it("does not earn 🤝 when the owner was hired along the way", async () => {
+    store.clear();
+    const g = landedGame(card([arm()]));
+    // One seat still open when the owner signs, so the last pick knew the
+    // budget — the same finished club, assembled in a different order.
+    for (let i = 0; i < 8; i++) {
+      if (i === 5) continue;
+      g.slots[i] = filler(i, { costPaid: 12 });
+    }
+    g.stadium = { park: "y", mult: 1, franchise: "CHC", year: 2016 };
+    hiredManager(g);
+    expect(g.rosterFull).toBe(false);
+    g.hireOwner();
+    expect(g.ownerHiredLast).toBe(false);
+
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    g.powerups.tradeDeadline = "spent";
+    g.signPlayer(g.card!.players[0]);
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    expect(g.finale!.badges).not.toContain("flyingblind");
   });
 });
 

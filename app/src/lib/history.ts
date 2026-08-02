@@ -9,14 +9,31 @@
 
 const HISTORY_KEY = "hotstove.history";
 
-/** One finished game. Every field past `date`/`total`/`record`/`spins` is
- * optional because rows written by earlier builds are never migrated — they
- * are read with the fields they happen to carry. */
+/** One logged game. Every field past `date` is optional because rows written
+ * by earlier builds are never migrated — they are read with the fields they
+ * happen to carry.
+ *
+ * Two kinds of row live here, and the score is what tells them apart:
+ *
+ * - A FINISHED game carries `total`, `record` and `spins`. It feeds the record
+ *   book, the trophy case and the passport.
+ * - A QUIT carries a `date` and a `badges` list, and nothing else. There is no
+ *   score to write: quitting clears the save and goes straight home without
+ *   ever reaching a finale, so no result was ever resolved.
+ *
+ * An UNSCORED row is therefore invisible to everything that measures play —
+ * `bestFor` skips any row whose `total` is not a number, so the record book's
+ * G never counts a quit and no best column can see one — and visible only to
+ * the two surfaces that union `badges` and `countries` across the log. That is
+ * the whole mechanism behind 🧳 PACKED IT IN: a trophy for a thing that
+ * produces no season. */
 export interface HistoryEntry {
   date: string;
-  total: number;
-  record: string;
-  spins: number;
+  /** Absent on an unscored row (a quit). Its absence IS the marker: every
+   * reader that measures play already guards on it being a number. */
+  total?: number;
+  record?: string;
+  spins?: number;
   seed?: number;
   difficulty?: string;
   bank?: string;
@@ -26,6 +43,15 @@ export interface HistoryEntry {
   /** Badge KEYS earned by that game — never labels, so a copy edit cannot
    * orphan an earned badge. Absent on rows written before badges existed. */
   badges?: string[];
+  /** The distinct birth countries that season's club was made of, as the cards
+   * spell them ("Dominican Republic", "Curaçao"). The passport in settings.ts
+   * is the lifetime union of these, the way the trophy case is the lifetime
+   * union of `badges` — one durable log, no second key to drift from it.
+   *
+   * Absent on every row written before the field existed, and on any row whose
+   * club carried no country at all. Both read as "this season contributed no
+   * stamps", which is the conservative answer. */
+  countries?: string[];
 }
 
 /** Every row ever written, oldest first. A corrupt or absent store reads as
