@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** The meter label row is a legend for the bar above it: the figure that has
  * gone out wears the fill's orange, the figure still available wears its
- * green. Both colours ride an inner `.amt` span, because the words SPENT and
+ * green. Both colors ride an inner `.pamt` span, because the words SPENT and
  * LEFT are constants and only the numbers are the signal.
  *
  * The contract these tests hold is that the green figure and the orange
@@ -13,6 +13,12 @@
  * transitions: hiring an owner turns the unknown into a real figure, and
  * spending past the payroll swaps that figure for the warning. Only a reactive
  * update can prove either.
+ *
+ * Mounted through `BankBox` on purpose, though the row itself is drawn by the
+ * `PayrollBox` it delegates to. Going in the front door is what makes this a
+ * test of the board's payroll box rather than of a component in isolation: it
+ * proves the adapter hands down the props that produce these states, which is
+ * the half of the seam a direct PayrollBox mount would skip.
  */
 import { describe, expect, it } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
@@ -39,13 +45,13 @@ function mountBox(game: Game): { target: HTMLElement; comp: Record<string, unkno
 
 /** The two halves of the meter label row, left to right. */
 function labels(target: HTMLElement): HTMLElement[] {
-  return [...target.querySelectorAll<HTMLElement>(".meter-lbl > span")];
+  return [...target.querySelectorAll<HTMLElement>(".paylbl > span")];
 }
 
 /** The figure inside a label half, or null where the half carries no number
- * the row is willing to colour — which is exactly the unknown-payroll case. */
+ * the row is willing to color — which is exactly the unknown-payroll case. */
 function amount(el: HTMLElement): string | null {
-  return el.querySelector(".amt")?.textContent ?? null;
+  return el.querySelector(".pamt")?.textContent ?? null;
 }
 
 function spendGame(config: GameConfig, costPaid: number): Game {
@@ -56,13 +62,13 @@ function spendGame(config: GameConfig, costPaid: number): Game {
 }
 
 describe("the payroll label row", () => {
-  it("colours the spent figure from spin one, owner or no owner", () => {
+  it("colors the spent figure from spin one, owner or no owner", () => {
     const game = spendGame(CLASSIC, 34);
     const { target, comp } = mountBox(game);
 
     const [spent] = labels(target);
     expect(spent.textContent).toBe("SPENT $34M");
-    // The label is a constant, so the colour lands on the number alone.
+    // The label is a constant, so the color lands on the number alone.
     expect(amount(spent)).toBe("$34M");
 
     game.owner = { ...OWNER };
@@ -73,13 +79,13 @@ describe("the payroll label row", () => {
     target.remove();
   });
 
-  it("leaves the unknown uncoloured until an owner supplies the denominator", () => {
+  it("leaves the unknown uncolored until an owner supplies the denominator", () => {
     const game = spendGame(CLASSIC, 34);
     const { target, comp } = mountBox(game);
 
     const [, left] = labels(target);
     expect(left.textContent).toBe("$??? LEFT");
-    // Nothing to colour: there is no figure, and italic alone marks the unknown.
+    // Nothing to color: there is no figure, and italic alone marks the unknown.
     expect(amount(left)).toBe(null);
     expect(left.classList.contains("nocap")).toBe(true);
 
