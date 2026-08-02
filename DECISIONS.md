@@ -1089,3 +1089,145 @@ consumes `tiles` as a lookup map and a length check, and re-derives display
 order itself from `BADGES`. The sort was kept anyway: the function returns an
 array, an array implies an order, and returning map-insertion order would
 silently bite whatever renders `tiles` directly next. It is pinned by a test.
+
+## Round 21 — the dark hooks, one payroll box, and a bar that was tiling itself (2026-08-02)
+
+### The stamp gate was built, documented, tested, and inert
+
+`onFieldBadge(baselineWins, stampWins = baselineWins)` vetoes a rung the final
+record does not hold — the rule asked for in as many words: 105 baseline taxed
+down to 81–81 does not keep 💯. The function was correct and had tests. The
+engine never passed `stamp`, so the default made `stampWins === baselineWins`
+on every club ever built and the veto could not fire.
+
+Nothing caught it because nothing could. The unit tests hand `stamp` in
+directly, so they prove the function honors a fact it is given, never that
+anything gives it one. The call site type-checked, ran, and passed — a default
+parameter turned a safety gate into dead code.
+
+The shape is the lesson. `hof` and `country` are optional too, but they fail
+SAFE: absent means no badge. `stampWins` failed OPEN — absent meant the gate
+always passed. **An optional fact with a permissive default is a silent
+feature-off switch.** The regression test runs through `finishGame`, not
+`earnedBadges`, because the gap was between "the function is right" and "the
+function is called right," and only an end-to-end finale sees that gap.
+
+### Four more facts the engine collected but never handed over
+
+`bc`/`hof` on signings, `managerHof`, `ownerLast`, and `countries` on the
+history row were all specced and none were wired. 🏛️ 🌎 🕶️ and the passport
+panel measured 0.00% and rendered nothing — not because they were wrong, but
+because the data stopped one layer short. Study 11 with the hooks live:
+
+    🏛️ hall        0.00% → 6.30%
+    🌎 worldtour   0.00% → 3.85%
+    🕶️ flyingblind 0.00% → 0.10%
+
+🤝 `wordofmouth` and ✳️ `asterisk` still measure 0.00% and that is correct: both
+are seed-provenance badges a bot cannot earn, since nobody hands a bot a code.
+
+`ownerHiredLast` is the one that is bookkeeping rather than plumbing. "The
+roster was full WHEN the owner was hired" is a moment, not a property of the
+finished club — by the finale the two orders look identical — so it is recorded
+as it happens and saved. Only `hireOwner` writes it: the Trade Deadline swap
+requires the seat to be taken already, and a club that had a budget all along
+was never flying blind however late it changed owners.
+
+**The passport cannot be backfilled.** History rows record badges and a record,
+never a roster, so there is no way to recover which countries an already-played
+season held. The panel appears after the next finished game and counts from
+there.
+
+### One payroll box, finally
+
+`PayrollBox` was extracted last round and `BankBox` kept a full parallel copy of
+its markup and CSS — the exact drift `PayrollBox`'s own docstring warns about,
+and two files agreeing only by hand. `BankBox` is now a thin adapter: it turns a
+`Game` into plain props and draws nothing. The engine dependency stays up there
+because `PayrollBox` renders clubs no `Game` exists for — the solver's dream
+roster, and a finale restored from storage.
+
+`tests/bank-headline.dom.test.ts` still mounts `BankBox` rather than the
+component that now draws the row. That is deliberate: going in the front door
+proves the adapter passes the props that produce each state, which a direct
+`PayrollBox` mount would skip.
+
+### The loading bar was rasterizing itself into squares
+
+The unknown-payroll hatch carried `background-size: 28.3px 100%`, sized to one
+period of its own diagonal. Sizing a repeating gradient down to one period makes
+the browser render a single tile to a bitmap and repeat it, and 28.3px is not a
+whole number of device pixels — so every tile boundary landed a seam, and a
+diagonal cut by regular vertical seams reads as blocks. Rendered side by side,
+the stripe widths are visibly uneven.
+
+Unsized, the gradient paints once across the whole bar and stays continuous. The
+period moves to the animation, where it belongs: at -45° a horizontal shift of
+`d` moves the pattern `d·cos45°` along the gradient axis, so one 20px period
+costs `20/cos45° = 28.284px` of travel, and sliding exactly that maps the pattern
+onto itself. It was duplicated in both payroll boxes; the merge above meant
+fixing it once.
+
+### Copy
+
+American English throughout: `programme`→`program` in 💊's `how` line, plus a
+mechanical sweep of ~60 comment lines and one local identifier. Slang stays —
+"scrubs", "blank check", "the hard way" are the voice.
+
+💎 THE FRANCHISE PLAYER said "half your payroll" while dividing by SPEND, so a
+$40M man on an $80M club fired it under a $200M cap. The copy moved to match the
+code rather than the reverse: a threshold change on the eve of a deploy is a
+balance decision, and this was a wording bug. 🚜 and 🤏 keep "payroll" because
+they really do divide by the budget.
+
+✊ PICKET LINE's `!REPLACEMENTS.has(id)` guard was reported as a copy mismatch and
+is not one: no replacement player has a 1994 card season, so the filter is
+unreachable today. It stays — ✊ and 🚧 make opposite claims about the same year
+and a corpus change must not award both — and now says so in a comment.
+
+### Deferred from this round
+
+**11. The history row stores two different ladders.** `record` is written from
+the BASELINE (`displayRecord(expectedWins)`) while `total` on the same row
+resolves through `recordFromTotal` to the STAMP the finale printed. Seeding a
+row with `record: "112-50"` renders `131–31` in the record book, because the
+book reads `total`. Harmless today only because `bestFor().bestRecord` — the one
+consumer of the parsed `record` — has no caller outside tests. Either drop
+`bestRecord`, or write the stamp into `record` and accept that old rows carry
+the other ladder. Not touched before a deploy because nothing user-facing reads
+it.
+
+**12. Badge tiers drifted, and now there is clean data to re-tier from.** Study
+11 (n=2000/arm, hooks live) disagrees with the shipped table on 14 badges. The
+loudest are not the borderline ones: 📖 `recordbook` is `ultra` and measures
+8.85%; 🧗 `hardway` and 👬 `brothers` are `rare` and measure 0.00%; ⛰️ `topheavy`
+is `rare` at 0.05%. `redsox`/`astros` are the borderline pair from last round and
+should move with the rest, not alone. Deliberately not re-tuned in the same pass
+that changed what the numbers measure.
+
+**13. 💎's denominator is still a real question.** Copy now matches code, but
+"half of everything you spent" and "half your payroll" are different games, and
+the second is the one the other two payroll badges play. Worth picking one.
+
+**14. Six tinting calls left open.** The PLAY button is quieter under the retint
+(orange-2 + ink rather than saturated orange + white); a replacement-level rail
+seat now has a LIGHTER frame (2.49:1) than an empty dashed one (14.09:1), which
+inverts the hierarchy; the ceiling record renders untinted gray on purpose so it
+cannot read as a second scoreboard; 🧗 THE HARD WAY is gated at 100 baseline
+wins, the only zero-powerups badge; the help cue moved `--yellow`→`--gold-8` and
+reads stronger; the passport derives from history rather than owning a key.
+
+**15. `PILL_CAP` is still four.** Badges per season now average 3.0 and the set
+is 58. Same note as round 20, now with a number.
+
+**16. Two "dead" fields that are not dead, and one comment that was.** A review
+flagged `spinLog` and `BestRoster.underBudgetTotal` as computed-but-unread. Both
+claims came from grepping `src/` alone: `spinLog` is asserted in
+`engine.test.ts`, and `underBudgetTotal` feeds `dreamUnderCap` in the bot
+harness. Neither has a UI consumer, which is the real observation — they are
+forward-declared, not dead. Left in place. The same review was right about
+`app.css`'s duplication note, which claimed a confirm-pill copy PrimePicker does
+not have and missed a `.badges` copy it does; the note now says what is true.
+`.pos`, `.cost` and `.badges` should move to `app.css` as one set.
+
+Items 7–10 from round 20 are untouched and still stand.
