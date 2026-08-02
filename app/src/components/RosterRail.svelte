@@ -43,13 +43,27 @@
     return `${s.year} ${s.team}`;
   }
 
-  /** Tier band class for a filled seat, or "" when the mode hides WAR. Gated
-   * on `showWar` — the very flag that gates the numeral — because a color
-   * that encodes the WAR bucket leaks the talent read just as surely as the
-   * digits do, and Eye Test's whole premise is that it can't be read. */
+  /** Tier class for a filled seat, or "" when the mode hides WAR. Gated on
+   * `showWar` — the very flag that gates the numeral — because a color that
+   * encodes the WAR bucket leaks the talent read just as surely as the digits
+   * do, and Eye Test's whole premise is that it can't be read. */
   function tierClass(s: { war: number } | null): string {
     return s && game.showWar ? `war-${warTier(s.war)}` : "";
   }
+
+  /** The skipper's net-win contribution rides the SAME six-rung ladder as a
+   * player's WAR, which is what the share string has always printed — the
+   * manager cell is 🟥⬜🟩🟦🟪🟨, the player circles' own hues. The app used to
+   * draw him in flat green regardless, so a 116-win skipper and a .500 one
+   * were the same color on screen while the string called one of them elite.
+   * Gated on `showWar`, not `!scout`: same value today, but one flag now
+   * governs every tier signal in the rail. The `war-` prefix is deliberate —
+   * tests/rail-tiers.test.ts asserts Eye Test emits no `war-` token at all,
+   * and a private `mgw-*` prefix would walk out from under that. */
+  const mgrWins = $derived(
+    game.manager ? (game.manager.wins - game.manager.losses) * MANAGER_PER_NET_WIN : 0,
+  );
+  const mgrTier = $derived(game.manager && game.showWar ? `war-${warTier(mgrWins)}` : "");
 </script>
 
 <div class="railwrap disp" class:pinned={!!pickPlayer} bind:clientHeight={railH}>
@@ -58,13 +72,11 @@
     <!-- The manager's seat anchors the left edge, spanning both rows — one
          club, nine chairs, same visual language throughout. -->
     {#if game.manager}
-      <div class="mgr filled">
+      <div class="mgr filled {mgrTier}">
         <b>MGR</b>
         <span>{lastName(game.manager.name)}</span>
         <i>{game.manager.year} {game.manager.team}</i>
-        {#if !game.scout}<em class="rwar mgw"
-            >{signed((game.manager.wins - game.manager.losses) * MANAGER_PER_NET_WIN)} W</em
-          >{/if}
+        {#if game.showWar}<em class="rwar mgw {warTier(mgrWins)}">{signed(mgrWins)} W</em>{/if}
       </div>
     {:else}
       <div class="mgr empty"><b>MGR</b></div>
@@ -176,31 +188,51 @@
   .rwar {
     display: none;
   }
-  /* Phone tier band: with the numeral gone, each filled seat wears its WAR
-     bucket as a color band along its bottom edge. An inset band rather than a
-     background wash because the release picker needs the seat to say
-     "tappable" (amber) and "5.2-WAR guy" at the same time, and a wash can only
-     say one; inset also means it rides inside the ink border and costs no
-     layout — it's a band, not a drop shadow. Redundant by design: the numeral
-     itself returns at width and the name identifies the pick, so no decision
-     rests on hue alone. */
-  .cell.war-neg {
-    box-shadow: inset 0 -4px 0 var(--war-neg);
+  /* The seat wears its WAR bucket on its BORDER — the channel the tinting rule
+     opens up, and the one that costs nothing here. Three things had to hold at
+     once and this is the only arrangement that gets all three:
+
+       * The FILL stays free. A seat's fill is its state: card-white at rest,
+         amber when the release picker has armed it. A tinted fill takes that
+         away — an armed 5.2-WAR seat can then say "tappable" or "5.2-WAR guy"
+         but not both, which was the original objection to a wash and is still
+         true. The border says the tier, the fill says the state, and neither
+         has to give anything up.
+       * The DASH survives. Dashed still means armed-or-empty at every hue,
+         because the dash and the color are different properties of the same
+         line: a tappable elite seat is a dashed gold rectangle, an empty seat
+         is a dashed ink one.
+       * ONE IDEA AT BOTH WIDTHS. The bottom band this replaces only existed on
+         the phone, where the numeral doesn't fit, and stood down at ≥760px
+         where the numeral takes over — so the phone said "tier" with a band
+         and the desktop said it with a number. The border is present at both
+         widths, and at ≥760px the numeral joins it in the same hue.
+
+     Everything below the border is unchanged: the name identifies the pick and
+     the numeral returns at width, so no decision rests on hue alone. */
+  .cell.war-neg,
+  .mgr.war-neg {
+    border-color: var(--war-neg);
   }
-  .cell.war-low {
-    box-shadow: inset 0 -4px 0 var(--war-low);
+  .cell.war-low,
+  .mgr.war-low {
+    border-color: var(--war-low);
   }
-  .cell.war-mid {
-    box-shadow: inset 0 -4px 0 var(--war-mid);
+  .cell.war-mid,
+  .mgr.war-mid {
+    border-color: var(--war-mid);
   }
-  .cell.war-high {
-    box-shadow: inset 0 -4px 0 var(--war-high);
+  .cell.war-high,
+  .mgr.war-high {
+    border-color: var(--war-high);
   }
-  .cell.war-star {
-    box-shadow: inset 0 -4px 0 var(--war-star);
+  .cell.war-star,
+  .mgr.war-star {
+    border-color: var(--war-star);
   }
-  .cell.war-elite {
-    box-shadow: inset 0 -4px 0 var(--war-elite);
+  .cell.war-elite,
+  .mgr.war-elite {
+    border-color: var(--war-elite);
   }
   .cell b {
     display: block;
@@ -299,7 +331,13 @@
     text-overflow: ellipsis;
     max-height: 100%;
   }
-  /* The hired manager is pink, matching the finale's MGR row. */
+  /* The hired manager is pink, matching the finale's MGR row — and the pink
+     STAYS. Dropping it for a tier fill would buy nothing and cost the seat its
+     identity: it would become a ninth chair that happens to say MGR, and you
+     would have to read the label to find your skipper. The fill says WHO,
+     which is the fill's job here as on every other seat; the border says HOW
+     GOOD, on the very same ladder the eight chairs beside it use. The two
+     never collide because one is a wash and one is a line. */
   .mgr.filled {
     background: var(--pink);
   }
@@ -374,17 +412,9 @@
       color: var(--gray-ink);
       width: 34px;
     }
-    /* The number itself carries the tier here, so the band stands down. The
-       full class list is repeated because a media query adds no specificity —
-       a bare `.cell` would lose to `.cell.war-high` at every width. */
-    .cell.war-neg,
-    .cell.war-low,
-    .cell.war-mid,
-    .cell.war-high,
-    .cell.war-star,
-    .cell.war-elite {
-      box-shadow: none;
-    }
+    /* Nothing stands down here any more. The tier border is the same idea at
+       both widths; the numeral joins it, in the same hue, because there is
+       room for it. */
     .rwar {
       display: block;
       margin-left: auto;
@@ -397,7 +427,7 @@
       color: var(--war-neg);
     }
     .rwar.low {
-      color: var(--gray-ink);
+      color: var(--war-low);
     }
     .rwar.mid {
       color: var(--war-mid);
@@ -411,9 +441,11 @@
     .rwar.elite {
       color: var(--war-elite);
     }
-    /* Manager net wins aren't a WAR tier — plain green, like the finale. */
-    .rwar.mgw {
-      color: var(--green);
-    }
+    /* There is no .rwar.mgw rule, and its absence is load-bearing. The manager
+       used to be pinned to flat --green here, which has the same specificity
+       as .rwar.elite and sits later in the file, so it would silently win and
+       the tiering above would do nothing. The `mgw` class stays on the element
+       as a hook for a future manager-only rule; the rule itself is gone.
+       (Note --war-mid IS --green, so a .500 skipper renders exactly as before.) */
   }
 </style>

@@ -27,7 +27,7 @@
     color: var(--orange);
   }
   .beta {
-    border: 1.5px solid var(--ink);
+    border: 1.5px solid var(--gold-8);
     border-radius: 999px;
     background: var(--yellow);
     font-size: 7.5px;

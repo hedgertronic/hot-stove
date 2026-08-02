@@ -1,150 +1,149 @@
 === Study 11: badge fire rates, rebuilt on-field ladder ===
-Population: bot play through the real engine. reference = Clean House bank + all six powerups, n=3000. Context arms n=2000.
-Wall clock: 379.2s for 7000 games.
+Population: bot play through the real engine. reference = Clean House bank + all six powerups, n=2000. Context arms n=2000.
+Wall clock: 295.1s for 6000 games.
 
 --- 1. Per-badge fire rate (% of games) ---
-badge          axis     current     ref n=3000  base n=2000    bc n=2000 recommend  flag
-👑 crown       onfield  legend            1.37         0.00         2.75 ultra      BORDERLINE CHANGE legend→ultra
-🔱 mariners    onfield  ultra             0.63         0.00         1.10 ultra      
-🗽 yankees     onfield  ultra             1.20         0.00         3.65 ultra      BORDERLINE
-🍎 mets        onfield  rare              3.60         0.20         6.10 rare       
-🚀 astros      onfield  rare              5.47         0.35         6.55 uncommon   BORDERLINE CHANGE rare→uncommon
-🐻 cubs        onfield  uncommon          5.87         0.75         5.60 uncommon   
-🧦 redsox      onfield  uncommon          4.27         3.90         2.45 rare       CHANGE uncommon→rare
-💯 hundred     onfield  common           48.90         6.95        57.55 common     
+badge          axis     current     ref n=2000  base n=2000    bc n=2000 recommend  flag
+👑 crown       onfield  legendary         1.45         0.00         2.75 ultra      BORDERLINE CHANGE legendary→ultra
+🔱 mariners    onfield  ultra             0.65         0.00         1.10 ultra      
+🗽 yankees     onfield  ultra             1.35         0.00         3.65 ultra      BORDERLINE
+🍎 mets        onfield  rare              4.20         0.20         6.10 rare       
+🚀 astros      onfield  rare              5.05         0.35         6.55 uncommon   BORDERLINE CHANGE rare→uncommon
+🐻 cubs        onfield  uncommon          5.95         0.75         5.60 uncommon   
+🧦 redsox      onfield  uncommon          4.35         3.90         2.45 rare       CHANGE uncommon→rare
+💯 hundred     onfield  common           48.60         6.90        57.55 common     
 👔 dayjob      onfield  ironic            0.00         0.00         0.00 ironic     
 📉 worst       onfield  ironic            0.00         0.00         0.00 ironic     
-💀 skull       onfield  ironic            0.00         0.00         0.00 ironic     
-🏆 perfect     goal     legend            1.07         0.00         2.70 ultra      BORDERLINE CHANGE legend→ultra
+💀 skull       onfield  ironic            0.00         0.15         0.00 ironic     
+🏆 perfect     goal     legendary         0.85         0.00         2.75 ultra      CHANGE legendary→ultra
 💸 farm        payroll  ironic            0.40         1.10         0.10 ironic     
-💵 dime        payroll  uncommon          5.20         9.45         2.35 uncommon   BORDERLINE
-🧮 pinch       payroll  rare              2.27         0.45         8.75 rare       
+💵 dime        payroll  uncommon          4.95         9.45         2.35 rare       BORDERLINE CHANGE uncommon→rare
+🧮 pinch       payroll  rare              2.00         0.45         8.75 rare       BORDERLINE
 🧾 pocket      payroll  ironic            0.00         0.15         0.00 ironic     
-🔮 crystal     scout    rare              8.77         1.60        25.65 uncommon   CHANGE rare→uncommon
-🏅 allstars    roster   uncommon          5.80         0.45        11.35 uncommon   
-🃏 twoway      roster   rare              3.57         1.20         6.45 rare       
-🧱 noweak      roster   rare              2.50         0.15         5.45 rare       
-⛰️ topheavy    roster   rare              0.07         0.35         0.00 ultra      CHANGE rare→ultra
-⚖️ balanced    roster   rare              0.07         0.20         0.15 ultra      CHANGE rare→ultra
-🌟 gold        roster   ultra             7.43         0.10        13.25 uncommon   CHANGE ultra→uncommon
-🥈 cooperstown roster   rare              1.83         0.00         4.95 rare       BORDERLINE
-🏛️ hall       roster   rare              0.00         0.00         0.00 ultra      CHANGE rare→ultra
-💍 rings       roster   ultra             1.43         0.15         3.85 ultra      BORDERLINE
+🔮 crystal     scout    uncommon          8.50         1.60        25.40 uncommon   
+🏅 allstars    roster   uncommon          5.85         0.45        11.35 uncommon   
+🃏 twoway      roster   rare              3.15         1.20         6.45 rare       
+🧼 noweak      roster   rare              2.55         0.15         5.45 rare       
+⛰️ topheavy    roster   rare              0.05         0.35         0.00 ultra      CHANGE rare→ultra
+⚖️ balanced    roster   rare              0.95         1.50         0.95 ultra      CHANGE rare→ultra
+🌟 gold        roster   ultra             0.85         0.05         2.60 ultra      
+🎖️ cooperstown roster   rare              1.75         0.00         4.95 rare       BORDERLINE
+🏛️ hall       roster   uncommon          6.30         0.85         9.70 uncommon   
+🌎 worldtour   roster   rare              3.85         4.65         3.30 rare       
+💍 rings       roster   ultra             1.25         0.15         3.85 ultra      BORDERLINE
 👬 brothers    roster   rare              0.00         0.00         0.00 ultra      CHANGE rare→ultra
-👨‍👦 fatherson roster   ultra             0.03         0.05         0.05 ultra      
+👨‍👦 fatherson roster   ultra             0.00         0.05         0.05 ultra      
 👨‍👨‍👦 threebrothers roster   ultra             0.00         0.00         0.00 ultra      
-📋 playermanager roster   ultra             0.07         0.00         0.10 ultra      
-🧢 skipper     roster   uncommon          9.90         0.50        14.75 uncommon   
-🧓 oldheads    roster   ultra             0.93         0.90         1.30 ultra      
-🍼 youngguns   roster   ultra             1.63         2.70         0.90 rare       BORDERLINE CHANGE ultra→rare
-🗺️ division   roster   rare              4.00         2.90         6.00 rare       
-⛲ homefield    roster   rare              3.10         0.65         0.00 rare       
-🏭 companytown roster   rare              1.67         0.95         0.00 rare       BORDERLINE
-💎 franchiseplayer roster   uncommon          6.57        10.15         1.70 uncommon   
-🌱 homegrown   roster   uncommon         14.97         0.00        19.95 uncommon   
+📋 playermanager roster   ultra             0.10         0.00         0.10 ultra      
+🧢 skipper     roster   uncommon         10.75         0.50        14.75 uncommon   
+🧓 oldheads    roster   ultra             0.80         0.90         1.30 ultra      
+🍼 youngguns   roster   ultra             1.70         2.70         0.90 rare       BORDERLINE CHANGE ultra→rare
+🗺️ division   roster   rare              3.95         2.90         6.00 rare       
+⛲ homefield    roster   rare              3.30         0.65         0.00 rare       
+🏭 companytown roster   rare              1.50         0.95         0.00 rare       BORDERLINE
+💎 franchiseplayer roster   uncommon          6.40        10.15         1.70 uncommon   
+🕶️ flyingblind roster   rare              0.10         0.60         0.00 ultra      CHANGE rare→ultra
+🌱 homegrown   roster   uncommon         14.35         0.00        19.95 uncommon   
 🧗 hardway     roster   rare              0.00         8.25         0.00 ultra      CHANGE rare→ultra
-🧰 toolbox     roster   common           58.83         0.00        44.15 common     
+🧰 toolbox     roster   common           60.15         0.00        44.15 common     
 🕸️ nohardware roster   ironic            0.00         0.05         0.00 ironic     
 🏖️ noallstars roster   ironic            0.00         0.35         0.00 ironic     
 🧳 packedin    roster   ironic            0.00         0.00         0.00 ironic     
-✊ strike       era      uncommon         18.90        16.60        19.30 uncommon   
-🦠 covid       era      uncommon         19.67        19.30        15.80 uncommon   
-🗑️ signstealing era      rare              4.07         2.10         5.30 rare       
-🏦 deferred    era      rare              1.10         1.05         2.60 ultra      BORDERLINE CHANGE rare→ultra
-🚧 crossed     era      ultra             0.90         1.70         0.65 ultra      
-📖 recordbook  era      ultra             8.83         2.10        12.05 uncommon   CHANGE ultra→uncommon
-💥 chase       era      rare              1.63         1.05         1.90 rare       BORDERLINE
-💊 suspended   era      uncommon         18.47        14.30        18.85 uncommon   
+✊ strike       era      uncommon         18.60        16.60        19.30 uncommon   
+🦠 covid       era      uncommon         20.05        19.30        15.80 uncommon   
+🗑️ signstealing era      rare              4.10         2.10         5.30 rare       
+🏦 deferred    era      rare              0.85         1.05         2.60 ultra      CHANGE rare→ultra
+🚧 crossed     era      ultra             0.85         1.70         0.65 ultra      
+📖 recordbook  era      ultra             8.85         2.10        12.05 uncommon   CHANGE ultra→uncommon
+💥 chase       era      rare              1.80         1.05         1.90 rare       BORDERLINE
+💊 suspended   era      uncommon         18.20        14.30        18.85 uncommon   
 🎲 gambling    era      ultra             0.90         0.95         0.80 ultra      
 ✳️ asterisk    era      ironic            0.00         0.00         0.00 ironic     
 🤝 wordofmouth era      rare              0.00         0.00         0.00 ultra      CHANGE rare→ultra
-📆 decade      era      uncommon          9.60         7.25        11.75 uncommon   
-🕰️ fortyyears era      rare              3.03         2.80         3.55 rare       
+📆 decade      era      uncommon          9.40         7.25        11.75 uncommon   
+🕰️ fortyyears era      rare              3.05         2.80         3.55 rare       
 
 --- 2. Tier disagreements vs the frozen badges.ts ---
-👑 crown        current=legend   measured=1.37%  →  ultra  (borderline)
-🚀 astros       current=rare     measured=5.47%  →  uncommon  (borderline)
-🧦 redsox       current=uncommon measured=4.27%  →  rare
-🏆 perfect      current=legend   measured=1.07%  →  ultra  (borderline)
-🔮 crystal      current=rare     measured=8.77%  →  uncommon
-⛰️ topheavy     current=rare     measured=0.07%  →  ultra
-⚖️ balanced     current=rare     measured=0.07%  →  ultra
-🌟 gold         current=ultra    measured=7.43%  →  uncommon
-🏛️ hall         current=rare     measured=0.00%  →  ultra
+👑 crown        current=legendary measured=1.45%  →  ultra  (borderline)
+🚀 astros       current=rare     measured=5.05%  →  uncommon  (borderline)
+🧦 redsox       current=uncommon measured=4.35%  →  rare
+🏆 perfect      current=legendary measured=0.85%  →  ultra
+💵 dime         current=uncommon measured=4.95%  →  rare  (borderline)
+⛰️ topheavy     current=rare     measured=0.05%  →  ultra
+⚖️ balanced     current=rare     measured=0.95%  →  ultra
 👬 brothers     current=rare     measured=0.00%  →  ultra
-🍼 youngguns    current=ultra    measured=1.63%  →  rare  (borderline)
+🍼 youngguns    current=ultra    measured=1.70%  →  rare  (borderline)
+🕶️ flyingblind  current=rare     measured=0.10%  →  ultra
 🧗 hardway      current=rare     measured=0.00%  →  ultra
-🏦 deferred     current=rare     measured=1.10%  →  ultra  (borderline)
-📖 recordbook   current=ultra    measured=8.83%  →  uncommon
+🏦 deferred     current=rare     measured=0.85%  →  ultra
+📖 recordbook   current=ultra    measured=8.85%  →  uncommon
 🤝 wordofmouth  current=rare     measured=0.00%  →  ultra
 
 --- 3. On-field axis: exactly one of these fires, or nothing ---
 rung              reference     baseline        Blank
-crown                  1.37         0.00         2.75
-mariners               0.63         0.00         1.10
-yankees                1.20         0.00         3.65
-mets                   3.60         0.20         6.10
-astros                 5.47         0.35         6.55
-cubs                   5.87         0.75         5.60
-redsox                 4.27         3.90         2.45
-hundred               48.90         6.95        57.55
+crown                  1.45         0.00         2.75
+mariners               0.65         0.00         1.10
+yankees                1.35         0.00         3.65
+mets                   4.20         0.20         6.10
+astros                 5.05         0.35         6.55
+cubs                   5.95         0.75         5.60
+redsox                 4.35         3.90         2.45
+hundred               48.60         6.90        57.55
 dayjob                 0.00         0.00         0.00
 worst                  0.00         0.00         0.00
-skull                  0.00         0.00         0.00
-NOTHING               28.70        87.85        14.25
+skull                  0.00         0.15         0.00
+NOTHING               28.40        87.75        14.25
 
-  (column order: reference (Clean House + all powerups, n=3000) | baseline (Clean House, no powerups, n=2000) | Blank Check (+ all powerups, n=2000))
+  (column order: reference (Clean House + all powerups, n=2000) | baseline (Clean House, no powerups, n=2000) | Blank Check (+ all powerups, n=2000))
 
 --- 4. Baseline-win histogram (finale displayRecord wins) ---
 wins                 ref %    base %      bc %   earns
 63-79                 0.00      6.75      0.00   — nothing
-80-89                 2.90     37.50      1.05   — nothing
-90-94                 9.50     28.30      3.30   — nothing
-95                    3.40      5.30      1.85   — nothing
-96                    3.10      4.80      1.70   — nothing
-97                    4.20      3.30      2.70   — nothing
-98                    4.27      3.90      2.45   🏅 redsox
-99                    5.60      1.90      3.65   — nothing
-100                   5.27      1.85      4.50   💯 hundred
-101                   6.03      2.05      4.55   💯 hundred
-102                   6.00      1.15      6.65   💯 hundred
-103                   5.87      0.75      5.60   🏅 cubs
-104                   6.57      0.80      5.45   💯 hundred
-105                   5.87      0.45      6.95   💯 hundred
-106                   5.47      0.35      6.55   🏅 astros
-107                   5.13      0.30      6.90   💯 hundred
-108                   3.60      0.20      6.10   🏅 mets
-109                   3.73      0.15      4.45   💯 hundred
-110                   3.43      0.05      4.95   💯 hundred
-111                   2.17      0.05      4.60   💯 hundred
-112                   1.47      0.00      3.00   💯 hundred
-113                   2.07      0.05      4.05   💯 hundred
-114                   1.20      0.00      3.65   🏅 yankees
-115                   1.17      0.05      1.50   💯 hundred
-116                   0.63      0.00      1.10   🏅 mariners
-117                   0.33      0.00      1.00   👑 crown
-118                   0.53      0.00      0.65   👑 crown
-119                   0.17      0.00      0.40   👑 crown
-120                   0.13      0.00      0.30   👑 crown
->120                  0.20      0.00      0.40   👑 crown
+80-89                 3.00     37.50      1.05   — nothing
+90-94                 9.05     28.30      3.30   — nothing
+95                    3.35      5.30      1.85   — nothing
+96                    2.65      4.80      1.70   — nothing
+97                    4.50      3.30      2.70   — nothing
+98                    4.35      3.90      2.45   🏅 redsox
+99                    5.85      1.90      3.65   — nothing
+100                   5.60      1.85      4.50   💯 hundred
+101                   5.75      2.05      4.55   💯 hundred
+102                   6.05      1.15      6.65   💯 hundred
+103                   5.95      0.75      5.60   🏅 cubs
+104                   6.85      0.80      5.45   💯 hundred
+105                   5.65      0.45      6.95   💯 hundred
+106                   5.05      0.35      6.55   🏅 astros
+107                   5.35      0.30      6.90   💯 hundred
+108                   4.20      0.20      6.10   🏅 mets
+109                   3.25      0.15      4.45   💯 hundred
+110                   3.65      0.05      4.95   💯 hundred
+111                   2.15      0.05      4.60   💯 hundred
+112                   1.45      0.00      3.00   💯 hundred
+113                   1.75      0.05      4.05   💯 hundred
+114                   1.35      0.00      3.65   🏅 yankees
+115                   1.10      0.05      1.50   💯 hundred
+116                   0.65      0.00      1.10   🏅 mariners
+117                   0.45      0.00      1.00   👑 crown
+118                   0.55      0.00      0.65   👑 crown
+119                   0.15      0.00      0.40   👑 crown
+120                   0.20      0.00      0.30   👑 crown
+>120                  0.10      0.00      0.40   👑 crown
 
 --- 5. 👑 tail by exact total (reference arm) — how much mass 117+ takes ---
-  117    0.33%  (10)
-  118    0.53%  (16)
-  119    0.17%  (5)
-  120    0.13%  (4)
-  121    0.10%  (3)
-  122    0.03%  (1)
-  123    0.03%  (1)
-  124    0.03%  (1)
+  117    0.45%  (9)
+  118    0.55%  (11)
+  119    0.15%  (3)
+  120    0.20%  (4)
+  121    0.05%  (1)
+  124    0.05%  (1)
 
 --- 6. Dead zones (reference arm) ---
-  Nothing at all (no rung, no 💯, no 💀): 28.70%
-  …of which the live shoulder 95-99, one to five wins short of 💯: 16.30%
-      95 wins: 3.40%
-      96 wins: 3.10%
-      97 wins: 4.20%
-      99 wins: 5.60%
-  Generic 💯 only, no named rung (100-116 off a rung): 48.90%
-      the empty 109-113 band specifically: 12.87%
+  Nothing at all (no rung, no 💯, no 💀): 28.40%
+  …of which the live shoulder 95-99, one to five wins short of 💯: 16.35%
+      95 wins: 3.35%
+      96 wins: 2.65%
+      97 wins: 4.50%
+      99 wins: 5.85%
+  Generic 💯 only, no named rung (100-116 off a rung): 48.60%
+      the empty 109-113 band specifically: 12.25%
   (98 is the lowest named rung; 💀 needs ≤62 wins, i.e. 100 losses.)

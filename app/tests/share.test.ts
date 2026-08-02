@@ -523,18 +523,18 @@ describe("line width budget", () => {
   const MAX_LEN = lineFive(BADGES.map((b) => b.key)) + SEED_LEN;
 
   it("pins the worst case the triggers allow", () => {
-    // 32 badges — 4 group representatives + 28 stackers — over a 6-character
+    // 43 badges — 4 group representatives + 39 stackers — over a 6-character
     // record. The number is asserted so that a badge added without thought
     // shows up as a failing width rather than a silently longer share line.
-    expect(MAXIMAL).toHaveLength(32);
-    expect(SHIPPED_MAX_LEN).toBe(50);
+    expect(MAXIMAL).toHaveLength(43);
+    expect(SHIPPED_MAX_LEN).toBe(66);
     // total 104.3 gives the six-character record; 400 would clamp to "162–0".
     const s = shareText({ ...BASE, total: 104.3, badges: MAXIMAL });
     expect(codePoints(s.split("\n")[4])).toBe(SHIPPED_MAX_LEN);
   });
 
   it("keeps every line inside the absolute budget at worst case", () => {
-    expect(MAX_LEN).toBe(75);
+    expect(MAX_LEN).toBe(91);
     const s = shareText({
       ...BASE,
       total: 104.3,

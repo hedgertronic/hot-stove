@@ -39,18 +39,22 @@
   title={locked ? undefined : badge.label}
 >
   {#if locked && (badge.ironic || badge.secret)}
-    <!-- A discovery and an anti-trophy both show their glyph and withhold their
-         name: enough of a hint to be worth wondering about, not enough to
-         become an errand. The anti-trophies stay in the brick band and out of
-         the progress fraction, which is what keeps a 💀 reading as a hazard
-         sign rather than a target. -->
+    <!-- The anonymous silhouette: glyph kept, name withheld — enough of a hint
+         to be worth wondering about, not enough to become an errand. Which
+         badges get it is data, not tier: `secret` marks the ones whose name
+         would spend something (a discovery, an exact target, the peak of the
+         ladder), and every anti-trophy is anonymous because a named 💀 reads
+         as a thing to go do. The anti-trophies also stay in the brick band and
+         out of the progress fraction, which is the rest of what keeps a 💀
+         reading as a hazard sign rather than a target. -->
     <span class="ico">{badge.emoji}</span><span aria-hidden="true">? ? ?</span><span class="sr"
       >An undiscovered badge</span
     >
   {:else if locked}
-    <!-- Glyph and name, never the `how`. A name is direction — "MATCHED THE
-         2016 CUBS" sends you to look up what they did — while the trigger
-         behind it stays the reward for earning the badge. -->
+    <!-- Glyph and name, never the `how`. A name is direction — "COOPERSTOWN
+         CLASS" tells you there is a roster of the greats to go build — while
+         the trigger behind it stays the reward for earning the badge. That is
+         the default, and the branch above is the exception to it. -->
     <span class="ico">{badge.emoji}</span><span class="name">{badge.label}</span><span class="sr"
       >Not yet earned</span
     >
@@ -65,7 +69,8 @@
 </span>
 
 <style>
-  /* One pale wash on an ink border, five rungs deep plus the inverted legend.
+  /* One pale wash on an ink border, five rungs deep plus the inverted
+     LEGENDARY rung.
      The game runs two color registers and rarity lives entirely in this one:
      WAR tiers are the saturated solid chips (--war-*), brag pills are washes.
      A rare pill and an elite WAR chip can sit inches apart without either
@@ -77,7 +82,7 @@
 
      Flex, so the spacing between the chip, the glyph and the label is one
      structural `gap` rather than a mix of margins and rendered markup spaces,
-     and so `align-items` centres the parts for real instead of nudging them
+     and so `align-items` centers the parts for real instead of nudging them
      with `vertical-align`. */
   .brag {
     display: inline-flex;
@@ -92,16 +97,20 @@
     padding: 3px 12px;
     white-space: nowrap;
   }
-  /* When a pill opens with the NEW chip, its left inset matches the chip's own
-     top and bottom inset — the chip sits in an even well of paper rather than
-     being pushed off the left edge. The pill's height leaves 5.03px above and
-     below a chip this tall, so 5px here puts all three within a hundredth of a
-     pixel of each other.
+  /* When a pill opens with the NEW chip, the chip sits in an even well of paper
+     rather than being pushed off the left edge — and "even" here is optical,
+     not arithmetic. The pill's height leaves ~7px of paper above and below a
+     chip this tall; 6px of padding against the 2px border puts 8px to its left,
+     and that unequal pair is what reads as equal. A solid ink shape with a hard
+     edge and no side bearing needs a little more clearance than a
+     geometrically identical gap, the same reason optically centered type sits
+     off the mathematical center. Matching the numbers exactly was tried and
+     read as tight.
      The RIGHT side keeps the label's 12px, and that asymmetry is the point: the
-     chip is a solid ink shape with no side bearing, the label is type that
-     carries its own. Matching the two numbers would not match the two gaps. */
+     chip is a solid mass, the label is type that carries its own side bearing.
+     Matching those two numbers would not match the two gaps either. */
   .brag.withnew {
-    padding-left: 5px;
+    padding-left: 6px;
   }
   .animate {
     animation: thunk-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -111,21 +120,31 @@
     background: var(--gray-bg);
     border-color: var(--gray-ink);
   }
+  /* Each rung wears its own hue's line rung, so the whole ladder now reads as
+     one system: common's gray hairline stops being an oddity and LEGENDARY's gold
+     ring stops being an exception — both are just their family's dark rung. */
   .brag.uncommon {
     background: var(--sky);
+    border-color: var(--blue-8);
   }
   .brag.rare {
     background: var(--rare-violet);
+    border-color: var(--violet-8);
   }
   /* Gold, and nothing else. The fill alone separates ultra from the washes
      below it — an inset ink ring on top only read as a heavier border. */
   .brag.ultra {
     background: var(--yellow);
+    border-color: var(--gold-8);
   }
-  /* Inverted from the entire ladder — ink fill, gold text, gold ring. Legend
-     is not a deeper wash than ultra; it is the negative of one, which is what
-     makes it read as "off the top" rather than "one more step up". */
-  .brag.legend {
+  /* Inverted from the entire ladder — ink fill, gold text, gold ring.
+     LEGENDARY is not a deeper wash than ultra; it is the negative of one, which
+     is what makes it read as "off the top" rather than "one more step up".
+     Its ring is the LIGHT gold, not the dark one every other pill now takes,
+     and that is the inversion doing its work: an ink fill has no rung 2, so the
+     pill borrows the wash rung for its line instead of the line rung for its
+     fill. Give it --gold-8 and LEGENDARY goes quiet against its own fill. */
+  .brag.legendary {
     background: var(--ink);
     color: var(--yellow);
     border-color: var(--yellow);
@@ -147,6 +166,15 @@
     border-style: dashed;
     color: var(--muted);
   }
+  /* The one inverted pill keeps its own type color while locked. Every other
+     rung fades muted type on a pale wash and stays legible; LEGENDARY fades it
+     on an ink fill, where muted is close enough to the fill to erase the pill's
+     contents rather than quiet them. No new color here — it is the tier's own
+     token, held rather than overridden, the same fix the NEW chip needs for the
+     same reason. */
+  .brag.legendary.locked {
+    color: var(--yellow);
+  }
   /* First-ever earn. A filled chip rather than a glow or a ring: the pill
      already spends its border and its fill on rarity, and both are load-
      bearing — a gold ring around a new RARE would read as an ULTRA. An inset
@@ -167,9 +195,9 @@
     line-height: 1.2;
     padding: 1px 5px;
   }
-  /* Legend is the one inverted pill — an ink chip on an ink fill is invisible,
-     so the chip inverts with it. */
-  .brag.legend .fresh {
+  /* LEGENDARY is the one inverted pill — an ink chip on an ink fill is
+     invisible, so the chip inverts with it. */
+  .brag.legendary .fresh {
     background: var(--yellow);
     color: var(--ink);
   }

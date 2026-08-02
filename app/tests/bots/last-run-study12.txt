@@ -4,14 +4,16 @@
 achieved  mean 111.9   ceiling mean 138.2   gap mean 26.3 (median 25.2, max 78.5)
 ceiling ≥162  0.65%   ≥155 3.65%   achieved ≥162 0.00%
 clamped to the club played  0.35%   (shortfall mean 3.0, max 6.2)
-solve ms  median 24.5  p95 27.5  p99 28.8  max 111.1
+solve ms  median 26.4  p95 28.8  p99 30.5  max 44.1
 payroll   dream fill median 96.0%   over the cap 0.10% (median $6.3M, max $6.3M, worth 2.45 pts vs the best legal club)
+dream club seats the ⭐ Prime Time off-reel season  0.00%  (pool loose by one item; can only bind when ≤9 cards were spun: 0.10% of games)
 ⭐ hits   mean 3.13   ≥7 (🔮 CRYSTAL BALL) 1.60%   ≥5 17.70%   dream seats mean 8.99
 
 --- powerups ---
 achieved  mean 136.8   ceiling mean 154.4   gap mean 17.6 (median 17.3, max 69.5)
 ceiling ≥162  21.85%   ≥155 47.45%   achieved ≥162 0.85%
 clamped to the club played  3.20%   (shortfall mean 5.8, max 18.1)
-solve ms  median 40.2  p95 47.2  p99 54.6  max 84.3
+solve ms  median 39.7  p95 47.0  p99 59.8  max 237.9
 payroll   dream fill median 96.2%   over the cap 0.50% (median $2.6M, max $11.3M, worth 2.14 pts vs the best legal club)
-⭐ hits   mean 4.60   ≥7 (🔮 CRYSTAL BALL) 8.50%   ≥5 53.50%   dream seats mean 8.98
+dream club seats the ⭐ Prime Time off-reel season  85.10%  (pool loose by one item; can only bind when ≤9 cards were spun: 0.05% of games)
+⭐ hits   mean 4.60   ≥7 (🔮 CRYSTAL BALL) 8.50%   ≥5 53.45%   dream seats mean 8.98

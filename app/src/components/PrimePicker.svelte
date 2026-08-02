@@ -168,8 +168,8 @@
   }
   /* Same faded-tier idiom as the market's dead rows: identity goes
      monochrome, the WAR chip and price keep a washed but recognizable hue. */
-  .srow:disabled .pos,
-  .srow:disabled .mid {
+  .srow:disabled > .pos,
+  .srow:disabled > .mid {
     filter: grayscale(1);
   }
   .srow:disabled .warchip,
@@ -207,8 +207,11 @@
   /* Season label and hardware share a line when they fit; the pills wrap to a
      second line when they don't. The label never shrinks to make room for
      pills — same rule as the market rows, where the pills are the scannable
-     signal and the name holds its size. */
-  .mid {
+     signal and the name holds its size.
+     Scoped to the row's own child: `mid` is also the WAR ladder's middle rung,
+     and a bare `.mid` here reached into the row's mid-tier chip and made it a
+     flex container with this rule's gap and no min-width. */
+  .srow > .mid {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -239,44 +242,8 @@
     gap: 7px;
     flex: none;
   }
-  .warchip {
-    display: inline-block;
-    min-width: 42px;
-    text-align: center;
-    border: 2px solid var(--ink);
-    border-radius: 9px;
-    font-weight: 800;
-    font-size: 13.5px;
-    line-height: 1.65;
-    padding: 0 5px;
-    color: var(--card);
-  }
-  .warchip.neg {
-    background: var(--war-neg);
-  }
-  .warchip.low {
-    background: var(--war-low);
-  }
-  .warchip.mid {
-    background: var(--war-mid);
-  }
-  .warchip.high {
-    background: var(--war-high);
-  }
-  .warchip.star {
-    background: var(--war-star);
-  }
-  /* White text on gold — user's call; the gold is deepened to carry it. */
-  .warchip.elite {
-    background: var(--war-elite);
-  }
-  .warchip .unit {
-    font-size: 9px;
-    letter-spacing: 0.05em;
-    opacity: 0.85;
-    margin-left: 2.5px;
-    vertical-align: 1px;
-  }
+  /* The WAR chip is one ladder in app.css — this sheet used to carry a second
+     copy of it, which is how two markets drift apart. */
   /* Structural right-alignment and tint tiers, same as the market rows'
      price column. */
   .cost {

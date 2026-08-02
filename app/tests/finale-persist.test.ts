@@ -214,7 +214,15 @@ describe("restoring on boot", () => {
     expect(back.finale!.badges).toEqual(g.finale!.badges);
     expect(back.finale!.newBadges).toEqual(g.finale!.newBadges);
     expect(back.finale!.best).toEqual(g.finale!.best);
+    // THE CEILING, named field by field rather than left to the deep compare:
+    // it is the newest part of FinaleResult, and a record that quietly dropped
+    // it would restore a finale whose "you could have gone X–Y" line is simply
+    // gone, with nothing on screen to say why.
+    expect(back.finale!.bestPossibleTotal).toBe(g.finale!.bestPossibleTotal);
     expect(back.finale!.bestPossibleRecord).toEqual(g.finale!.bestPossibleRecord);
+    expect(back.finale!.playedTheCeiling).toBe(g.finale!.playedTheCeiling);
+    expect(back.finale!.bestManager).toEqual(g.finale!.bestManager);
+    expect(back.finale!.scoutHits).toBe(g.finale!.scoutHits);
   });
 
   it("never logs the game a second time", async () => {
@@ -286,13 +294,65 @@ describe("leaving the finale", () => {
   });
 });
 
+/** The home screen's LAST GAME button renders disabled exactly when
+ * `loadStoredFinale()` is null, so what this file already covers about the
+ * archive's lifetime IS the button's enabled/disabled contract. The attribute
+ * itself is asserted in home-under.dom.test.ts; these are the three situations
+ * that drive it.
+ *
+ * The quit case is the load-bearing one. Quitting takes `hotstove.current` and
+ * nothing else — but every route into a game runs `clearStoredFinale()` first
+ * (App.startGame, whether from PLAY, PLAY A SEED, or the finale's Replay), and
+ * `new Game(...)` is reachable from nowhere else in the app. So a game there is
+ * anything to quit is a game with no archive standing behind it, and the button
+ * is correctly dead afterwards. If that invariant ever breaks, quitting would
+ * strand the player on a way back into some OLDER game's finale. */
+describe("what LAST GAME has to go back to", () => {
+  it("nothing, for a player who has never finished a game", () => {
+    expect(loadStoredFinale()).toBeNull();
+  });
+
+  it("the game just finished, the moment it finishes", async () => {
+    const g = await playToFinale();
+    expect(loadStoredFinale()!.finale).toEqual(g.finale);
+    // And still, after the player leaves the finale for the home screen.
+    releaseFinale(); // goHome()
+    expect(loadStoredFinale()).not.toBeNull();
+  });
+
+  it("nothing, after the last game was quit", async () => {
+    // A finished game first, so the assertion cannot pass merely because the
+    // store was empty all along: this proves the quit path leaves NO archive,
+    // not even a stale one from before.
+    await playToFinale();
+    releaseFinale(); // goHome() off the finale
+    expect(loadStoredFinale()).not.toBeNull();
+
+    clearStoredFinale(); // startGame(): the new game retires the old finale
+    const g = new Game(meta, index, owners, 5, {
+      difficulty: "standard",
+      bank: "moneyball",
+    });
+    g.phase = "landed";
+    g.save();
+    expect(store.has(SAVE_KEY)).toBe(true);
+
+    Game.clearSave(); // tapQuit(), second tap
+    releaseFinale(); // goHome()
+
+    expect(store.has(SAVE_KEY)).toBe(false);
+    expect(loadStoredFinale()).toBeNull();
+    expect(store.has(FINALE_KEY)).toBe(false);
+  });
+});
+
 describe("unreadable records", () => {
   it("reads corrupt JSON as no stored finale", () => {
     store.set(FINALE_KEY, "{not json at all");
     expect(loadStoredFinale()).toBeNull();
   });
 
-  it("reads an unrecognised version as no stored finale", async () => {
+  it("reads an unrecognized version as no stored finale", async () => {
     await playToFinale();
     const rec = JSON.parse(store.get(FINALE_KEY)!);
     store.set(FINALE_KEY, JSON.stringify({ ...rec, v: 99 }));

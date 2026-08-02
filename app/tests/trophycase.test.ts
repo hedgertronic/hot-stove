@@ -13,10 +13,12 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { render } from "svelte/server";
+import BadgePill from "../src/components/BadgePill.svelte";
 import BadgeSlot from "../src/components/BadgeSlot.svelte";
 import Home from "../src/components/Home.svelte";
 import TrophyModal from "../src/components/TrophyModal.svelte";
-import { BADGES, BADGE_BY_KEY, COLLECTIBLE } from "../src/lib/badges";
+import { BADGES, BADGE_BY_KEY, COLLECTIBLE, RARITY_ORDER } from "../src/lib/badges";
+import type { BadgeDef } from "../src/lib/badges";
 import { badgeCase, clearBadgeCue, loadCues, noteNewBadges } from "../src/lib/settings";
 import type { GameConfig } from "../src/lib/engine.svelte";
 
@@ -49,6 +51,18 @@ function modal(): string {
   return render(TrophyModal, { props: { onclose: () => {} } }).body;
 }
 
+/** Two NAMED collectible badges from one rarity band, in table order — the pair
+ * the band-local assertions need. Derived rather than written out, because
+ * which tier a badge sits in and whether it is `secret` are both data that move
+ * under this file; a hard-coded pair turns a re-tiering into a false failure. */
+function bandPair(): [BadgeDef, BadgeDef] {
+  for (const r of RARITY_ORDER) {
+    const band = BADGES.filter((b) => b.rarity === r && !b.ironic && !b.secret);
+    if (band.length >= 2) return [band[0], band[1]];
+  }
+  throw new Error("no rarity band holds two named collectible badges");
+}
+
 /** Keys → counts, for assertions that do not care about order. */
 function counts(): Record<string, number> {
   return Object.fromEntries(badgeCase().tiles.map((t) => [t.key, t.count]));
@@ -60,8 +74,8 @@ describe("badgeCase", () => {
   it("pins the collectible denominator to the badge table", () => {
     // The summary line prints this denominator; it lives in badges.ts, and a
     // table edit must move the fraction here rather than silently anywhere.
-    expect(COLLECTIBLE.length).toBe(40);
-    expect(BADGES.length).toBe(47);
+    expect(COLLECTIBLE.length).toBe(49);
+    expect(BADGES.length).toBe(58);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 
@@ -124,14 +138,15 @@ describe("badgeCase", () => {
   });
 
   it("orders rarest first with anti-trophies last", () => {
-    seed(game(["hundred", "skull", "crystal", "crown", "cubs"]));
-    expect(badgeCase().tiles.map((t) => t.key)).toEqual([
-      "crown", // ultra
-      "crystal", // rare
-      "cubs", // uncommon
-      "hundred", // common
-      "skull", // ironic
-    ]);
+    // One badge per tier, read off the table rather than named: the assertion
+    // is about the ORDER of the ladder, and which tier any given badge is filed
+    // under is data that moves independently of it. Seeded backwards, so a
+    // reader that simply preserved history order would fail.
+    const perTier = RARITY_ORDER.map((r) => BADGES.find((b) => b.rarity === r));
+    expect(perTier.every((b) => b != null)).toBe(true);
+    const keys = (perTier as BadgeDef[]).map((b) => b.key);
+    seed(game([...keys].reverse()));
+    expect(badgeCase().tiles.map((t) => t.key)).toEqual(keys);
   });
 });
 
@@ -204,11 +219,14 @@ describe("the trophy case sheet", () => {
     seed();
     const body = modal();
     // A performance badge names the thing to go do — that is the direction the
-    // case owes the player.
-    expect(body).toContain("MATCHED THE 2016 CUBS");
-    expect(body).toContain("PERFECT SEASON");
-    // A secret is a fact about one season or person. Naming it would turn
-    // discovery into an errand: "go look up Bonilla".
+    // case owes the player. Both examples are badges whose whole point is the
+    // direction: pick ones the table has no reason to mark `secret`, since a
+    // named example that later goes anonymous turns this into a false failure.
+    expect(body).toContain("COOPERSTOWN CLASS");
+    expect(body).toContain("RING BEARERS");
+    // A secret's NAME is part of the reward — a fact about one season or
+    // person, an exact rung you could farm, or the peak of the ladder itself.
+    // Naming any of them turns a discovery into an errand.
     expect(body).not.toContain("DEFERRED MONEY");
     expect(body).not.toContain("PICKET LINE");
     expect(body).not.toContain("PLAYER-MANAGER");
@@ -244,7 +262,10 @@ describe("the trophy case sheet", () => {
   it("heads each rarity band with its tier word, so rarity is not color alone", () => {
     seed(game(["crown", "mariners", "crystal"]));
     const body = modal();
-    for (const tier of ["legend", "ultra", "rare", "uncommon", "common"]) {
+    // Every tier the ladder declares, not a copy of the list: the case builds
+    // its bands from RARITY_ORDER, so a tier renamed or inserted there has to
+    // show up here without this line being touched.
+    for (const tier of RARITY_ORDER) {
       expect(body).toContain(`>${tier.toUpperCase()}<`);
     }
   });
@@ -264,22 +285,27 @@ describe("the trophy case sheet", () => {
   });
 
   it("files an earned badge and a locked one in the same rarity band", () => {
-    // CRYSTAL BALL is rare and earned; COOPERSTOWN CLASS is rare and locked.
-    // Both must fall between the RARE heading and the UNCOMMON one, earned
-    // ahead of locked.
-    seed(game(["crystal"]));
+    // Two badges of one tier, one earned and one not. Both must fall between
+    // that tier's heading and the next one, earned ahead of locked.
+    const [earned] = bandPair();
+    const tier = RARITY_ORDER.indexOf(earned.rarity);
+    expect(tier).toBeGreaterThan(-1);
+    expect(tier).toBeLessThan(RARITY_ORDER.length - 1);
+    const head = `>${earned.rarity.toUpperCase()}<`;
+    const nextHead = `>${RARITY_ORDER[tier + 1].toUpperCase()}<`;
+    seed(game([earned.key]));
     const body = modal();
-    const rare = body.indexOf(">RARE<");
-    const uncommon = body.indexOf(">UNCOMMON<");
-    const crystal = body.indexOf("CRYSTAL BALL");
-    expect(rare).toBeGreaterThan(-1);
-    expect(crystal).toBeGreaterThan(rare);
-    expect(crystal).toBeLessThan(uncommon);
+    const band = body.indexOf(head);
+    const next = body.indexOf(nextHead);
+    const at = body.indexOf(earned.label);
+    expect(band).toBeGreaterThan(-1);
+    expect(at).toBeGreaterThan(band);
+    expect(at).toBeLessThan(next);
     // The band's first locked slot sits after the earned pill, still above
     // the next heading.
-    const firstLocked = body.indexOf("Not yet earned", rare);
-    expect(firstLocked).toBeGreaterThan(crystal);
-    expect(firstLocked).toBeLessThan(uncommon);
+    const firstLocked = body.indexOf("Not yet earned", band);
+    expect(firstLocked).toBeGreaterThan(at);
+    expect(firstLocked).toBeLessThan(next);
   });
 
   it("marks a repeat with a count and leaves a single earn unmarked", () => {
@@ -366,6 +392,69 @@ describe("the trophy case sheet", () => {
     });
   });
 
+  /* The silhouette itself, asserted on BadgePill rather than through the sheet,
+   * because the question is the component's contract and not this table's
+   * current contents.
+   *
+   * Which locked badges go anonymous is DATA — `secret` — and never a rarity
+   * test. Rarity cannot express it: the exact-match rungs that must stay
+   * nameless span three different tiers, so the moment a tier appears in this
+   * branch the rule is wrong. These render a forged legendary badge both ways
+   * to pin that, because legendary is where the temptation to special-case
+   * lives — it is the top rung and the one inverted pill. */
+  describe("the locked silhouette", () => {
+    // The top rung by position, not by name, so the rename of the tier itself
+    // cannot turn this into a test of nothing.
+    const TOP = BADGES.find((b) => b.rarity === RARITY_ORDER[0]);
+
+    function pill(badge: BadgeDef, locked: boolean): string {
+      return render(BadgePill, { props: { badge, locked } }).body;
+    }
+
+    it("withholds the name of any locked secret, top rung included", () => {
+      expect(TOP).toBeTruthy();
+      const badge = { ...(TOP as BadgeDef), secret: true };
+      const body = pill(badge, true);
+      // The one anonymous form the app has, not a second one: same glyph kept,
+      // same withheld name, same screen-reader string as every other secret.
+      expect(body).toContain(badge.emoji);
+      expect(body).toContain("? ? ?");
+      expect(body).not.toContain(badge.label);
+      expect(body).toContain("An undiscovered badge");
+      expect(body).not.toContain("Not yet earned");
+    });
+
+    it("keeps the tier on the pill while the identity goes", () => {
+      // The rarity token IS the class, which is what carries the inverted
+      // legendary treatment onto an anonymous pill. Read off the badge so the
+      // assertion survives the tier being renamed.
+      const badge = { ...(TOP as BadgeDef), secret: true };
+      const cls = pill(badge, true).match(/class="([^"]*brag[^"]*)"/)?.[1] ?? "";
+      expect(cls.split(/\s+/)).toContain(badge.rarity);
+      expect(cls.split(/\s+/)).toContain("locked");
+    });
+
+    it("names a locked badge that is not secret, whatever its tier", () => {
+      // The proof the branch is keyed on data: the same top-rung badge without
+      // the flag is named like any other locked slot. Forged both ways rather
+      // than taken from the table, so which badges the table marks today
+      // decides neither half of the pair.
+      const badge = { ...(TOP as BadgeDef), secret: false };
+      const body = pill(badge, true);
+      expect(body).toContain(badge.label);
+      expect(body).toContain("Not yet earned");
+      expect(body).not.toContain("? ? ?");
+    });
+
+    it("leaves an EARNED badge alone, flag or no flag", () => {
+      const badge = { ...(TOP as BadgeDef), secret: true };
+      const body = pill(badge, false);
+      expect(body).toContain(badge.label);
+      expect(body).toContain(badge.emoji);
+      expect(body).not.toContain("? ? ?");
+    });
+  });
+
   /* The NEW flags inside the case, and the handover that makes them possible.
    *
    * The trophy button clears the cue on the tap that OPENS this sheet, so by
@@ -375,21 +464,23 @@ describe("the trophy case sheet", () => {
    * that rendered before clearing would pass against a broken implementation. */
   describe("new badges inside the case", () => {
     it("flags the badges that were pending when the case was opened", () => {
-      seed(game(["crystal", "twoway", "hundred"]));
-      noteNewBadges(["crystal", "hundred"]);
+      // Both from ONE band, so the ordering assertion is about the flag and not
+      // about which tier either badge is filed under. The flagged one is the
+      // SECOND in table order, so nothing but the flag can put it first.
+      const [first, second] = bandPair();
+      seed(game([first.key, second.key, "hundred"]));
+      noteNewBadges([second.key, "hundred"]);
       // The button's half of the sequence.
       clearBadgeCue();
       expect(loadCues().pendingBadges).toEqual([]);
 
       const body = modal();
-      // Two flags, on the two badges that were pending.
+      // Two flags, on the two badges that were pending — and not on the third.
       expect((body.match(/>NEW</g) ?? []).length).toBe(2);
-      const crystal = body.indexOf("CRYSTAL BALL");
-      const twoway = body.indexOf("THE TWO-WAY GUY");
       const firstNew = body.indexOf(">NEW<");
       expect(firstNew).toBeGreaterThan(-1);
-      // The flagged rare leads its band, ahead of the unflagged one.
-      expect(crystal).toBeLessThan(twoway);
+      // The flagged badge leads its band, ahead of the unflagged one.
+      expect(body.indexOf(second.label)).toBeLessThan(body.indexOf(first.label));
     });
 
     it("shows a clean board on the next open", () => {

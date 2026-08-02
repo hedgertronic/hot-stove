@@ -53,12 +53,14 @@
  * ⭐ Prime Time reached, which enters the pool as an extra card rather than
  * being charged the spin it really cost.
  *
- * That last clause is a known, measured generosity: a real Prime spends the
- * landed card's choice and buys elsewhere, so the club ends level on picks,
- * while here the landed card keeps its pick and the off-reel season adds one.
- * It can only raise the ceiling, never lower it, and the off-reel card is
- * barred from the front office and from the Double Play so the extra stays a
- * single seat.
+ * Counting that last clause exactly: a real Prime spends a landed card's
+ * choice and buys elsewhere, so a game that spun N cards had N + 1 choices
+ * (the Double Play is the +1) no matter how they were used. The pool here can
+ * yield N + 2 items — one per spun card, one doubled, one off-reel — so it is
+ * one item loose, and that slack can only bind when N + 1 is short of the 11
+ * seats a club fills, i.e. when the reel showed 9 cards or fewer. Study 12
+ * measures how often that happens. Off-reel cards are barred from the front
+ * office and from the Double Play, so the slack can never exceed one seat.
  *
  * Not modeled, deliberately: 🏠 Homegrown's discount (it only ever lowers
  * payroll, and under the bonus that is a cost, not a saving), 🔁 Trade Deadline

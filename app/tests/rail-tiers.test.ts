@@ -109,6 +109,38 @@ describe("roster rail WAR tier bands", () => {
     expect(std).toContain("5.2");
     expect(sct).not.toContain("5.2");
   });
+
+  // The seats above hire nobody, so they cannot cover the manager's gate: with
+  // no manager the tier is "" whatever the mode says. The skipper rides the
+  // same six-rung ladder as the players — Piniella's 2001 (116–46 → +14.0 W)
+  // is the elite rung, which the share string has always printed as 🟨 — so it
+  // needs the same two assertions the seats get, on its own fixture.
+  const mgrElite = (g: Game) => {
+    g.card = mkCard();
+    g.manager = {
+      name: "Lou Piniella",
+      wins: 116,
+      losses: 46,
+      year: 2001,
+      team: "SEA",
+      teamName: "Seattle Mariners",
+      ws: false,
+      pen: true,
+    };
+  };
+
+  it("Box Score tiers the manager's seat and his +W on the players' ladder", () => {
+    const { std } = pair(RosterRail, mgrElite, railProps);
+    expect(std).toContain("war-elite");
+    expect(std).toContain("+14.0 W");
+  });
+
+  it("Eye Test hides the manager's tier and his +W — both would leak the read", () => {
+    const { sct } = pair(RosterRail, mgrElite, railProps);
+    expect(sct).toContain("Piniella"); // the seat renders; only the tier is gone
+    expect(sct).not.toContain("war-");
+    expect(sct).not.toContain("+14.0 W");
+  });
 });
 
 describe("Trade Deadline release hint", () => {

@@ -5,7 +5,7 @@
  * The storage layer is asserted separately in cues.test.ts. What only a
  * mounted component can show is the other half — that a finale's `newBadges`
  * prop reaches storage, that opening a sheet writes the flag before the sheet
- * is even closed, and that the cue is never carried by colour alone.
+ * is even closed, and that the cue is never carried by color alone.
  *
  * The lit state is probed through `aria-label` and the `.cue` class rather
  * than through computed style: jsdom does not run the animation, and the class
@@ -52,7 +52,7 @@ describe("the help cue", () => {
   it("lights on a first-ever visit and says so in the label", () => {
     const ui = open();
     expect(ui.help.classList.contains("cue")).toBe(true);
-    // Not colour alone: the label changes with the state.
+    // Not color alone: the label changes with the state.
     expect(ui.help.getAttribute("aria-label")).toBe("How to play — start here");
     ui.close();
   });

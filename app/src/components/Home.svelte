@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import {
     loadStoredFinale,
     type Bank,
@@ -19,7 +20,7 @@
     config: GameConfig;
     onplay: (c: GameConfig, seed?: number) => void;
     /** Reopen the last finished game's finale (only ever called when one is
-     * stored — the control is absent otherwise). */
+     * stored — the control is present always, but disabled otherwise). */
     onlast: () => void;
   } = $props();
 
@@ -53,20 +54,28 @@
 
   // The way back into the last finished game's finale. Read once: the home
   // screen is rebuilt every time it is shown, and nothing writes the archive
-  // while it is on screen. Its record comes off the total through the SAME
-  // ladder the finale stamp and the book above use, so the row can never
-  // disagree with the screen it opens.
+  // while it is on screen. A finished game unmounts this screen on the way to
+  // the finale and mounts a fresh one on the way back, so the read is current
+  // without any reactivity of its own.
   //
-  // GLOBAL, unlike the book above it: it is the last game played, whatever
-  // mode that game was. The row says LAST, the book says BEST.
+  // GLOBAL, unlike the record book below: it is the last game played, whatever
+  // mode that game was played in. The button says LAST, the book says BEST.
+  //
+  // Null in exactly two situations, and the button is disabled in both: nobody
+  // has ever finished a game here, and the last game was quit. Quitting takes
+  // `hotstove.current` and nothing else, but every route into a game clears the
+  // archive first — so a game there is anything to quit is a game with no
+  // archive behind it.
   const lastFinale = loadStoredFinale();
-  const lastRec = lastFinale === null ? null : recordFromTotal(lastFinale.finale.parts.total);
 
   // PLAY A SEED: a shared code replays that game's exact card sequence
   // under whatever mode combo is selected above.
   let seedOpen = $state(false);
   let seedInput = $state("");
   let seedBad = $state(false);
+  /** The button the field replaced, so cancelling can hand focus back to it
+   * rather than dropping the keyboard user on the body. */
+  let seedBtn = $state<HTMLButtonElement | null>(null);
 
   function playSeed() {
     const seed = parseSeedCode(seedInput);
@@ -76,6 +85,17 @@
       return;
     }
     onplay({ difficulty, bank }, seed);
+  }
+
+  /** Close the field and forget what was typed: reopening starts clean, and a
+   * half-typed code never returns to shake at someone who has moved on. */
+  async function cancelSeed() {
+    seedOpen = false;
+    seedInput = "";
+    seedBad = false;
+    // The button only exists again once the swap has rendered.
+    await tick();
+    seedBtn?.focus();
   }
 </script>
 
@@ -152,25 +172,61 @@
 
   <button class="btn hot playbtn" onclick={() => onplay({ difficulty, bank })}> PLAY 🔥 </button>
 
-  {#if seedOpen}
-    <div class="seedrow" class:bad={seedBad}>
-      <span class="seedhash">#</span>
-      <input
-        class="seedin"
-        type="text"
-        maxlength="8"
-        placeholder="KF12OY"
-        autocapitalize="characters"
-        autocomplete="off"
-        spellcheck="false"
-        bind:value={seedInput}
-        onkeydown={(e) => e.key === "Enter" && playSeed()}
-      />
-      <button class="seedgo" onclick={playSeed}>GO</button>
-    </div>
-  {:else}
-    <button class="seedlink" onclick={() => (seedOpen = true)}>PLAY A SEED #</button>
-  {/if}
+  <!-- The two secondaries, side by side under PLAY: back into the last
+       finished game, and into a shared seed. Equal halves on the finale's own
+       action-row proportions (48px tall, 13px display caps) — the one
+       equal-width button row this codebase already has.
+    -->
+  <div class="under">
+    <!-- Always both halves, whatever storage holds. With nothing to go back to
+         the button is genuinely disabled rather than gone: a control that
+         appears and disappears directly under the primary action moves PLAY A
+         SEED across the screen between visits and shifts the thumb target of
+         the row above, which costs more than a dimmed label does. -->
+    <button class="btn ubtn" disabled={lastFinale === null} onclick={onlast}
+      >LAST GAME <span class="bic">🧾</span></button
+    >
+    <!-- PLAY A SEED swaps ITS OWN half for the field rather than the row: the
+         cell keeps its height, so the button beside it never moves under the
+         thumb mid-tap. -->
+    {#if seedOpen}
+      <div class="seedrow" class:bad={seedBad}>
+        <!-- The way back out, standing in the # slot rather than as a fourth
+             child beside GO: the row's leading slot either introduces the code
+             or dismisses it, which keeps the field's width within a few px of
+             what it had. ✕ is the app's one dismissal glyph (the header's quit
+             pill), and the swap is why the row can grow a cancel without
+             growing. -->
+        <button class="seedx" onclick={cancelSeed} aria-label="Cancel seed entry">✕</button>
+        <!-- svelte-ignore a11y_autofocus -->
+        <input
+          class="seedin"
+          type="text"
+          maxlength="8"
+          placeholder="KF12OY"
+          autocapitalize="characters"
+          autocomplete="off"
+          spellcheck="false"
+          autofocus
+          bind:value={seedInput}
+          onkeydown={(e) => {
+            if (e.key === "Enter") playSeed();
+            // Scoped to the focused field, never to the window: the badge
+            // panel catches Escape in the capture phase and Sheet closes on a
+            // bubbling one, and both live inside a modal that takes focus off
+            // this input the moment it opens. A handler that only fires while
+            // the caret is here cannot reach either.
+            else if (e.key === "Escape") cancelSeed();
+          }}
+        />
+        <button class="seedgo" onclick={playSeed}>GO</button>
+      </div>
+    {:else}
+      <button class="btn ubtn" bind:this={seedBtn} onclick={() => (seedOpen = true)}
+        >PLAY A SEED <span class="shash">#</span></button
+      >
+    {/if}
+  </div>
 
   <!-- The record book is a one-line card for the punched combo — the punched
        rows above name WHICH combo, so the card carries no label of its own.
@@ -196,23 +252,6 @@
     </div>
   </div>
 
-  <!-- The way back into the last finished game. It lives under the book
-       because this is the screen's zone for games already played — NOT beside
-       PLAY A SEED, which expands in place into a text input and starts a new
-       game; a sibling of that control would jump every time the seed row
-       opened, and would promise a fresh game rather than a finished one.
-       Absent, never disabled, when no game has been finished: the book's "—"
-       is an empty value, this is a control with nowhere to go. -->
-  {#if lastRec}
-    <button class="row lastfin" onclick={onlast}>
-      <span class="ric">🧾</span>
-      <span class="rname">LAST FINALE</span>
-      <span class="rmeta">
-        <span class="pill cash">{lastRec.wins}–{lastRec.losses}</span>
-        <span class="chev" aria-hidden="true">›</span>
-      </span>
-    </button>
-  {/if}
 
 </div>
 
@@ -270,9 +309,11 @@
   }
   .row.on.mb {
     background: var(--green-wash);
+    border-color: var(--green-8);
   }
   .row.on.bc {
     background: var(--yellow);
+    border-color: var(--gold-8);
   }
   /* The scorecard punch box: blank on unpunched rows, a stroked cross on the
      choice. The mark is SVG, sized and centered by the grid — no font metrics. */
@@ -329,6 +370,13 @@
     padding: 2px 7px;
     white-space: nowrap;
   }
+  /* These two keep their saturated club fills and their clubs' own type, which
+     is the rule stopping at an edge case rather than an oversight: OAK green on
+     OAK gold and NYY navy on white ARE the identity, and thinning either to a
+     rung-2 wash with ink type would leave two 8.5px chips that no longer look
+     like the A's or the Yankees. The ink line stays for the same reason it
+     stays on the SIGN pill — a saturated fill this dark has no rung 2 to drop
+     to, so there is no pair to make. */
   .chip.oak {
     border: 2px solid var(--ink);
     background: #003831;
@@ -413,6 +461,15 @@
       font-size: 7.5px;
       padding: 1.5px 5px;
     }
+    /* Two labels across ~150px halves: the pair stays on one line. */
+    .ubtn {
+      font-size: 12px;
+      gap: 4px;
+      padding: 7px 4px;
+    }
+    .bic {
+      font-size: 15px;
+    }
   }
   .playbtn {
     width: 100%;
@@ -421,26 +478,60 @@
     font-size: 17px;
     letter-spacing: 0.02em;
   }
-  /* Same quiet mono voice as the finale's GAME #XXXX chip it pairs with. */
-  .seedlink {
-    display: block;
-    margin: 12px auto 0;
-    background: none;
-    border: 0;
+  /* The two secondaries under PLAY, on the finale action row's proportions.
+     Both halves are the same fixed height, the seed field included, so opening
+     the field cannot move the button beside it. */
+  .under {
+    display: grid;
+    /* minmax(0,·), not 1fr: an auto floor lets the seed field's content widen
+       its own track and steal width from the button beside it, which is the
+       same jump under the thumb, sideways. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 9px;
+    margin-top: 9px;
+  }
+  .under > * {
+    min-height: 48px;
+  }
+  .ubtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 7px 8px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  /* Nothing finished yet, or the last game was quit: the button stays in the
+     row and goes flat. Same language as an unavailable powerup pill on the
+     board — one opacity on the whole control, no dashes and no hue change
+     (dashed means unearned, which is a badge's word, not a dead control's).
+     0.65 rather than the pill's 0.55: ink over the page ground fades to
+     3.76:1 at 0.55, and a 13px bold cap is below the large-text threshold,
+     so it needs 4.5:1. 0.65 lands at 5.11:1. */
+  .ubtn:disabled {
+    opacity: 0.65;
+    cursor: default;
+  }
+  .ubtn:disabled:active {
+    transform: none;
+  }
+  .bic {
+    font-size: 17px;
+    line-height: 1;
+  }
+  /* The seed button's # carries the same quiet mono voice as the finale's
+     GAME #XXXX chip, which is where a code is copied from. */
+  .shash {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
+    font-size: 12px;
     color: var(--muted);
-    cursor: pointer;
-    padding: 4px 8px;
   }
   .seedrow {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    margin-top: 10px;
   }
   .seedrow.bad {
     animation: seedshake 0.45s;
@@ -459,13 +550,39 @@
       transform: translateX(4px);
     }
   }
-  .seedhash {
+  /* A bare glyph, not a bordered pill like GO: it stands where the 9px # stood
+     and a boxed button would cost the field ~28px of the ~150px half at 320px,
+     which is width the placeholder cannot spare. The tap target is grown by an
+     invisible extension instead — PowerupRow's trick, so the box stays small
+     while the thumb target does not. */
+  .seedx {
+    position: relative;
+    flex: none;
+    border: none;
+    background: none;
+    padding: 0 2px;
+    font-family: inherit;
     font-weight: 800;
     font-size: 13px;
+    line-height: 1;
     color: var(--muted);
+    cursor: pointer;
   }
+  .seedx::after {
+    content: "";
+    position: absolute;
+    inset: -13px -6px;
+  }
+  .seedx:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  /* Fluid inside its half-cell: at 320px the pair is ~150px wide each, and a
+     fixed field width would push GO out of the row. */
   .seedin {
-    width: 110px;
+    flex: 1;
+    min-width: 0;
     border: 2px dashed var(--gray-ink);
     border-radius: 9px;
     background: var(--card);
@@ -493,6 +610,21 @@
     font-size: 11px;
     padding: 5px 12px;
     cursor: pointer;
+  }
+  /* Narrowest phones: the field's half is ~141px, and a full six-character
+     code at the base tracking scrolls inside it — a code you cannot read back
+     is a code you cannot check before tapping GO. Tighter tracking and a
+     slimmer GO hand the field ~20px, which fits all six. (After the base
+     rules, not inside the earlier narrow block: equal specificity, source
+     order decides.) */
+  @media (max-width: 359px) {
+    .seedin {
+      letter-spacing: 0.05em;
+      padding: 5px 4px;
+    }
+    .seedgo {
+      padding: 5px 9px;
+    }
   }
   /* The separator carries the section's 8px bottom padding, like the others. */
   .bestsep {
@@ -567,24 +699,6 @@
     /* Brighter than --war-elite, matching the finale stamp: at heavy stamp
        weight the token's #c98a08 reads brown; true gold needs the chroma. */
     color: #e0a010;
-  }
-  /* The way back into the last finale: the punch list's row shape, minus the
-     punch. It is navigation, not a fourth option — no punch box, no
-     aria-pressed, and a chevron where the mode rows carry their meta — so it
-     reads as filled cardstock you can walk through rather than a seat you
-     could take. */
-  .lastfin {
-    width: 100%;
-    margin-top: 8px;
-    border-style: solid;
-    background: var(--card);
-    color: var(--ink);
-  }
-  .chev {
-    font-size: 15px;
-    font-weight: 800;
-    line-height: 1;
-    color: var(--muted);
   }
   /* The exact points, quiet and tabular under the record — the finale's
      .tpts voice sized down to the miniature. */

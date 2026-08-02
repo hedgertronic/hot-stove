@@ -29,7 +29,7 @@
         <button
           class="teambtn"
           disabled={t.team === game.card?.team}
-          style:background={accentFor(colors, t.franchise)}
+          style:--accent={accentFor(colors, t.franchise)}
           title={t.name}
           onclick={() => pick(t.team)}
         >
@@ -68,11 +68,17 @@
   .grid:last-of-type {
     margin-bottom: 12px;
   }
+  /* Each tile is a club color, so it wears the pair — the accent thinned into
+     the cardstock for the fill, the accent itself for the line. Same derivation
+     as the spun year pill in SpinBanner, for the same reason: the hue arrives
+     at runtime from colors.json, so the rungs are computed rather than looked
+     up. The codes go ink; a rung-2 fill never carries white type. */
   .teambtn {
-    border: 2px solid var(--ink);
+    --accent: var(--ink);
+    border: 2px solid var(--accent);
     border-radius: 9px;
-    background: var(--card);
-    color: var(--card);
+    background: color-mix(in srgb, var(--accent) 18%, var(--card));
+    color: var(--ink);
     font-family: inherit;
     font-weight: 800;
     font-size: 13px;

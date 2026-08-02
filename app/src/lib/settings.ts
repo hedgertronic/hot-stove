@@ -8,9 +8,14 @@ import {
   type Difficulty,
   type GameConfig,
 } from "./engine.svelte";
-import { loadHistory } from "./history";
+import { appendHistory, earnedBadgeKeys, loadHistory } from "./history";
 
 const SETTINGS_KEY = "hotstove.settings";
+/** 🧳 PACKED IT IN's key, spelled once. Nothing in `earnedBadges` pushes it —
+ * see `recordQuit` below — so the badge table is the only other place it
+ * appears, and badgeCase drops any key the table no longer owns. A test
+ * asserts the two still agree. */
+const PACKED_IN = "packedin";
 /** v2 = the two-rung ladder. "scout" is a colliding name: pre-v2 it meant the
  * stats mode (now folded into standard); v2+ it means the old eyetest. The
  * version stamp is what disambiguates a stored "scout". */
@@ -82,7 +87,7 @@ function noCues(): CueState {
  * Deliberately a log of things that happened AFTER this key existed, never a
  * diff against `hotstove.history`: a player who already owns thirty badges
  * must not be told on their next load that all thirty are new. An absent key,
- * a corrupt value, and an unrecognised version all read the same unlit way, so
+ * a corrupt value, and an unrecognized version all read the same unlit way, so
  * the only path to a lit trophy is a finale this build actually watched.
  *
  * Storage-guarded like everything else in here: both cues are decoration over
@@ -157,10 +162,48 @@ export function markHelpSeen(): CueState {
   return saveCues({ ...loadCues(), helpSeen: true });
 }
 
-/** Nobody has ever finished a game here. Mid-first-game counts as first-ever
- * on purpose: the player still has not been shown the rules. */
+/** Nobody has ever FINISHED a game here. Mid-first-game counts as first-ever
+ * on purpose: the player still has not been shown the rules.
+ *
+ * Unscored rows are skipped for exactly that reason. A player who quit their
+ * first game has a row in the log and still has not seen a result — putting
+ * the help cue out on their next visit would be the cue answering "have you
+ * pressed PLAY" when it is asking "do you know how this works". */
 export function firstEverPlay(): boolean {
-  return loadHistory().length === 0;
+  return loadHistory().every((e) => typeof e?.total !== "number");
+}
+
+/** 🧳 PACKED IT IN: the player quit a game in progress.
+ *
+ * The one badge no resolver can ever push. Badges are computed inside
+ * `finishGame` from the season the game produced, and a quit produces no
+ * season — it drops the save and goes home without a finale. So it is written
+ * straight into the log instead, as an UNSCORED row (see `HistoryEntry`): a
+ * `date`, the key, and nothing the record book could count.
+ *
+ * The trophy cue is lit on a first-ever quit for the same reason a finale's
+ * first-ever badge lights it — the case has news, and the news is a tile the
+ * player has never seen. `earnedBadgeKeys()` is read BEFORE the append, the
+ * same order `finishGame` uses, because afterwards the key is in the log and
+ * nothing can read as new.
+ *
+ * Repeats are counted, not deduped: the case shows 🧳 ×4 after four quits, the
+ * way it shows any badge ×4 after four games that earned it. An anti-trophy is
+ * a citation rather than a target, so the tally reads as the joke it is — and
+ * it never moves `N OF M`, which counts from COLLECTIBLE and excludes ironic
+ * badges outright.
+ *
+ * Called on the CONFIRMED quit only, and never from the finale's ✕ — a
+ * finished game has nothing left to abandon. */
+export function recordQuit(): void {
+  const first = !earnedBadgeKeys().has(PACKED_IN);
+  // No `v`: that stamp only disambiguates a row's stored difficulty, and an
+  // unscored row carries none.
+  appendHistory({
+    date: new Date().toISOString().slice(0, 10),
+    badges: [PACKED_IN],
+  });
+  if (first) noteNewBadges([PACKED_IN]);
 }
 
 /** Best score, best record, and game count for one mode combo. Legacy entries
@@ -258,4 +301,75 @@ export function badgeCase(): {
     earned: tiles.filter((t) => !BADGE_BY_KEY[t.key].ironic).length,
     total: COLLECTIBLE.length,
   };
+}
+
+/* ---------- the passport ---------- */
+
+/** One country the player has been to: where, when they first went, and how
+ * many clubs since have carried someone born there. */
+export interface PassportStamp {
+  /** Birth country as the cards spell it — "Dominican Republic", "Curaçao". */
+  country: string;
+  /** The `date` of the first game whose club held a player born there, or an
+   * empty string on a row that carries no parseable date. Display only. */
+  first: string;
+  /** Games, not players. A club with three Venezuelans is one visit, the same
+   * way a history row naming a badge three times is one earn. */
+  visits: number;
+}
+
+/** The lifetime passport: every birth country the player has ever fielded, in
+ * order of discovery, most recent first.
+ *
+ * A SOUVENIR, never a checklist, and that is a design constraint rather than a
+ * presentation choice. Nothing anywhere in the game shows a player's birth
+ * country — not the market rows, not the roster rail, not the finale — so a
+ * country is something a club turns out to have contained, never something a
+ * player can go looking for. The dataset makes that worse rather than better:
+ * of the 39 countries in it, 23 have five or fewer draftable men and 15 have
+ * exactly one. A panel that showed the 39 and grayed out the 27 you have not
+ * met would be inviting a hunt the interface gives no tools for.
+ *
+ * So this returns only what has been FOUND. There is no total, no denominator,
+ * and no entry for a country never fielded — a caller has nothing to render an
+ * empty slot from. TrophyModal hides the panel outright until the first stamp
+ * lands, which is also what keeps it out of the case's `N OF M` fraction:
+ * that number is counted from COLLECTIBLE, and no country is a badge.
+ *
+ * 🌎 THE WORLD TOUR is the badge and stays one. It asks for five countries in
+ * ONE club, which is a season; this is every country across every season,
+ * which is a career. The two never show the same thing.
+ *
+ * GLOBAL across difficulty and bank, and derived from `hotstove.history`
+ * rather than a key of its own — both for the reasons `badgeCase()` gives. A
+ * second key can drift from the log, and a player who cleared their history
+ * would be startled to find their passport had survived it. Deriving also
+ * makes the discovery ORDER and the first-seen DATE free, which is what lets
+ * this render as stamps rather than as a list of names.
+ *
+ * Rows are read with the same suspicion the rest of this file reads storage
+ * with: an absent field, a non-array, a non-string member and an empty string
+ * all contribute nothing, and a corrupt store resolves to an empty passport
+ * through `loadHistory()`. */
+export function passport(): PassportStamp[] {
+  const stamps = new Map<string, PassportStamp>();
+  for (const e of loadHistory()) {
+    if (!Array.isArray(e?.countries)) continue;
+    const date = typeof e.date === "string" ? e.date : "";
+    // One visit per GAME per country, so a club with three men from one
+    // country — or a row that names it three times — still counts once.
+    const seen = new Set<string>();
+    for (const raw of e.countries) {
+      if (typeof raw !== "string") continue;
+      const country = raw.trim();
+      if (country === "" || seen.has(country)) continue;
+      seen.add(country);
+      const stamp = stamps.get(country);
+      if (stamp) stamp.visits += 1;
+      else stamps.set(country, { country, first: date, visits: 1 });
+    }
+  }
+  // `loadHistory` is oldest first, so insertion order IS discovery order.
+  // Reversed, because the newest stamp is the one worth looking at.
+  return [...stamps.values()].reverse();
 }

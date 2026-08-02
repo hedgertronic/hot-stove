@@ -15,7 +15,7 @@ paired (same seeds) powerups vs baseline: mean 25.2 pts, improved 98%, hurt 2%
 
 powerup usage (powerups bot) and paired delta when used:
   seasonTicket   used  98% | mean paired delta when used  25.4 (when unused 16.8)
-  relocate       used  97% | mean paired delta when used  25.6 (when unused 13.8)
+  relocate       used  97% | mean paired delta when used  25.6 (when unused 13.7)
   doublePlay     used  97% | mean paired delta when used  25.2 (when unused 26.4)
   tradeDeadline  used  72% | mean paired delta when used  25.3 (when unused 25.1)
   prime          used 100% | mean paired delta when used  25.2

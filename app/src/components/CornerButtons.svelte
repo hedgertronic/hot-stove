@@ -19,7 +19,7 @@
    * writes to one storage key cannot.
    *
    * Rendered as a bare pair with no wrapper, so each host keeps the
-   * positioning context it already had — the HUD is a centred flex row where
+   * positioning context it already had — the HUD is a centered flex row where
    * the pills take their vertical position from `align-items`, the home screen
    * is a block that pins them to its top edge (`home`).
    *
@@ -119,7 +119,7 @@
     width: 28px;
     text-align: center;
     cursor: pointer;
-    /* Fixed height and centring so all three corner pills share one box: the
+    /* Fixed height and centering so all three corner pills share one box: the
        ? and ✕ are 10px text glyphs and the trophy is a 13px drawing, and
        letting content set the height made the trophy the odd one out. */
     height: 22px;
@@ -128,7 +128,7 @@
     align-items: center;
     justify-content: center;
   }
-  /* The HUD is a centred flex row and hands the pills their vertical position;
+  /* The HUD is a centered flex row and hands the pills their vertical position;
      the home screen is a plain block, so there they pin to its top edge. */
   .help.home {
     top: 0;
@@ -142,7 +142,7 @@
     right: auto;
   }
   /* Line art rather than an emoji: the ?/✕ pills are 10px text glyphs, and a
-     colour emoji dropped into that geometry sits low and reads as a sticker on
+     color emoji dropped into that geometry sits low and reads as a sticker on
      a control. Stroked ink matches the punch mark the home rows already use. */
   .tico {
     width: 13px;
@@ -161,8 +161,8 @@
      rather than blurred, in two layers that carry the same message:
 
      1. The pill fills with attention gold and its type goes to ink — the same
-        flat state change the ✕ makes when armed, and the only colour in the
-        corner zone. Gold is the app's award colour (badge pills, the WAR
+        flat state change the ✕ makes when armed, and the only color in the
+        corner zone. Gold is the app's award color (badge pills, the WAR
         ladder's top rung) and is otherwise unused up here; green, pink and
         brick are all spoken for elsewhere, and blue is the focus ring.
      2. A solid gold ring sits just off the pill's edge — a stroked line, the
@@ -173,13 +173,14 @@
      exactly the geometry of a dark one and the header never reflows. */
   .help.cue {
     background: var(--yellow);
+    border-color: var(--gold-8);
     color: var(--ink);
   }
   .help.cue::after {
     content: "";
     position: absolute;
     inset: -4px;
-    border: 2px solid var(--yellow);
+    border: 2px solid var(--gold-8);
     border-radius: 999px;
     pointer-events: none;
     animation: cuering 1.1s ease-in-out infinite alternate;

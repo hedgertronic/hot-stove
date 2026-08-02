@@ -36,7 +36,7 @@ interface CardPlayerRow {
   posG?: { c?: number; if?: number; of?: number };
   /** In the Hall of Fame as a player. */
   hof?: boolean;
-  /** Birth country, as the pipeline normalises it. */
+  /** Birth country, as the pipeline normalizes it. */
   bc?: string;
 }
 interface CardRow {
@@ -532,13 +532,13 @@ describe("the birth-country supply", () => {
     expect(singletons).toBeGreaterThan(10);
   });
 
-  /** The historical spellings the pipeline normalises. Lahman records a
+  /** The historical spellings the pipeline normalizes. Lahman records a
    * country as of BIRTH, so the raw table carries both "West Germany" and
    * "Germany" and would let one club earn two countries off two Germans. */
-  it("carries no un-normalised historical country names", () => {
+  it("carries no un-normalized historical country names", () => {
     const names = new Set(countries);
     for (const stale of ["West Germany", "British Honduras", "South Vietnam"]) {
-      expect(names.has(stale), `${stale} should be normalised away`).toBe(false);
+      expect(names.has(stale), `${stale} should be normalized away`).toBe(false);
     }
   });
 });

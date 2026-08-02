@@ -137,7 +137,7 @@
     align-items: center;
     gap: 9px;
     background: var(--pink);
-    border: 2.5px solid var(--ink);
+    border: 2.5px solid var(--red-8);
     border-radius: 11px;
     padding: 6px 10px;
     cursor: pointer;
@@ -156,6 +156,7 @@
      tier to whisper here — a manager season is a record, not a WAR chip. */
   .srow:disabled {
     background: var(--gray-bg);
+    border-color: var(--gray-ink);
     color: var(--gray-ink);
     cursor: default;
     filter: grayscale(1);

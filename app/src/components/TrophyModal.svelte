@@ -1,6 +1,6 @@
 <script lang="ts">
   import { BADGES, RARITY_ORDER, type BadgeDef, type Rarity } from "../lib/badges";
-  import { badgeCase, takeOpenedBadgeCue } from "../lib/settings";
+  import { badgeCase, passport, takeOpenedBadgeCue } from "../lib/settings";
   import BadgePill from "./BadgePill.svelte";
   import BadgeSlot from "./BadgeSlot.svelte";
   import Sheet from "./Sheet.svelte";
@@ -81,6 +81,25 @@
   const sections = RARITY_ORDER.map((rarity) => ({ rarity, items: slots(rarity) }))
     .filter((s) => s.items.length > 0);
 
+  /** The passport: every birth country this player has ever fielded, newest
+   * first. Read once at mount for the same reason the case is.
+   *
+   * It is a souvenir panel, not a band, and it is deliberately not built like
+   * one. It holds no locked slots, no total and no fraction — nothing in the
+   * game shows a birth country, so a grid of 39 with 27 grayed out would be
+   * pointing a player at a hunt they have no way to run. What is here is what
+   * they have already been to.
+   *
+   * Empty is not rendered at all. A "PASSPORT · 0 COUNTRIES" heading over an
+   * empty box is the checklist wearing a different hat; a panel that simply
+   * appears the first time a country lands is the happy accident it is
+   * supposed to be.
+   *
+   * It sits outside the progress fraction by construction rather than by a
+   * filter: that number is `trophies.earned` of `trophies.total`, both counted
+   * from the badge table, and a country is not a badge. */
+  const stamps = passport();
+
   /** The one opened badge, by key. Only an EARNED pill is a button, so only an
    * earned badge can ever land here — a locked slot has nothing to open, and
    * revealing its trigger would pre-spend the surprise the silhouette exists to
@@ -132,6 +151,33 @@
     </div>
   {/each}
 
+  {#if stamps.length > 0}
+    <!-- Its own panel, below the ladder: the bands answer "what have I
+         collected", this answers "where have I been". The heading counts what
+         is there and stops — no "of 39", because a denominator would turn a
+         souvenir into an errand. -->
+    <div class="band">
+      <div class="psep">
+        PASSPORT · {stamps.length}
+        {stamps.length === 1 ? "COUNTRY" : "COUNTRIES"}
+      </div>
+      <div class="stamps" role="list" aria-label="Countries visited">
+        {#each stamps as s (s.country)}
+          <!-- Square-ish and hairline-bordered on purpose: a 999px pill on
+               this sheet means "badge", and a country is not one. -->
+          <span
+            class="stamp"
+            role="listitem"
+            title={s.first ? `First fielded ${s.first}` : undefined}
+          >
+            {s.country}{#if s.visits > 1}<span class="visits">×{s.visits}</span
+              >{/if}
+          </span>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
   <button class="btn cancel" onclick={onclose}>CLOSE</button>
 </Sheet>
 
@@ -174,10 +220,10 @@
   .band + .band {
     margin-top: 6px;
   }
-  /* The band wraps and centres; the sheet is the only thing that scrolls, and
+  /* The band wraps and centers; the sheet is the only thing that scrolls, and
      only in y. Nothing is ever off-screen, so there is no affordance to teach —
      a horizontal scroller hid pills behind an edge that, on macOS, has an
-     invisible overlay scrollbar until you already know to drag. Centred because
+     invisible overlay scrollbar until you already know to drag. Centered because
      the bands are ragged by nature: a rarity holds anywhere from one pill to a
      dozen, and a ragged right edge reads as a list that ran out. */
   .bandrow {
@@ -190,6 +236,38 @@
        sheet scrolls in y, so a panel that reached past this box would earn the
        sheet a horizontal scrollbar as well. */
     position: relative;
+  }
+  /* The passport wraps and centers like a band, so the two panels share one
+     rhythm down the sheet and the passport does not read as a different
+     screen bolted on. */
+  .stamps {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  /* A stamp, not a pill. The badge pills on this sheet are 999px capsules with
+     an ink border and a rarity wash; a country wears a small radius, a gray
+     hairline and paper — the same quiet register `.brag.common` uses for the
+     floor of the ladder, one step below the ink every collectible gets. It is
+     not a rarity, so it must not borrow a rarity's fill. */
+  .stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 2px solid var(--gray-ink);
+    border-radius: 4px;
+    background: var(--card);
+    color: var(--muted-2);
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
+  .visits {
+    opacity: 0.7;
   }
   .cancel {
     width: 100%;

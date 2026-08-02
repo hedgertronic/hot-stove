@@ -1,5 +1,40 @@
 /* Hot Stove design tokens — extracted from design/cardstock-v2.html.
-   Flat cardstock: ink borders + color washes do all structure. NO drop shadows. */
+   Flat cardstock: ink borders + color washes do all structure. NO drop shadows.
+
+   ---------- THE TINTING RULE ----------
+
+   A colored surface wears its own hue twice:
+
+       fill = the hue at Open Color rung 2, border = the SAME hue at rung 8.
+
+   Read the pairs out of :root; never write a hex into a component. A rung-2
+   fill always carries --ink type, never white.
+
+   WHAT STAYS INK. The rule governs surfaces whose color means something —
+   a WAR rung, a rarity, a category, a team. Ink is not a hue and does not
+   enter the system, so it keeps three jobs:
+
+     * STRUCTURE — a plain card (a market row, the bank box, a ledger row, a
+       button, a picker tile) is white paper on an ink line. Ink on the ground
+       is 14.09:1 and every tinted border is 2.2–6.2:1, so ink is the only
+       thing left holding the page's structure; softening it too would leave
+       nothing hard on the page. This is the cardstock look and it is not
+       negotiable by the tinting rule.
+     * ARMED / TAPPABLE — dashed. The DASH is the state channel and the HUE is
+       the value channel, and they ride the same border without colliding: a
+       tappable elite seat is a dashed gold line, a tappable empty seat is a
+       dashed ink one. Amber stays the armed fill for the same reason — it is a
+       state, not a hue with a rung.
+     * COMMITTED — a solid ink fill (the SIGN pill, the pitcher tag). An ink
+       fill has no rung 2, so a pill built on one inverts instead: --brag.legend
+       is ink under a light gold ring, which is why legend still reads as "off
+       the top of the ladder" rather than as one more gold pill.
+
+   THREE FILLS ARE HELD OFF THE RULE, each at its token: --brick-wash, the
+   warm gray pair, and --gold-8. One more is held in place: the payroll meter's
+   fill stays saturated --green, because green-2 against the white track is
+   1.26:1 and a bar that can't be seen is not a bar. The meter's BORDER carries
+   the tinting instead, and turns orange when the payroll does. */
 
 /* Bundled rounded display face: ui-rounded is Safari-only (Chrome would fall
    back to Hiragino Maru Gothic), so every browser gets the same Nunito file. */
@@ -17,34 +52,102 @@
   --ink: #24221c;
   --muted: #6b6759;
   --muted-2: #5c5648;
-  --green: #2f9e44;
+  /* ---------- the hue pairs ----------
+     Every colored surface in the game is ONE hue at TWO rungs of Open Color:
+
+         fill   = the hue at rung 2      (the wash register)
+         border = the SAME hue at rung 8 (the line register)
+
+     That is not a new palette. The app was already Open Color — --pink IS
+     red-2, --sky IS blue-2, --green IS green-8, --orange IS orange-8 — so the
+     pairs below only name the rungs it already shipped and fill in the halves
+     it was missing. Every rule downstream reads a pair, never a hex, so the
+     system is one edit wide.
+
+     Text on a rung-2 fill is always --ink: the worst pair is violet-2 at
+     9.52:1, the best gold-2 at 13.41:1.
+
+     Two rungs sit off the published scale on purpose, each noted at its token.
+     Everything else is verbatim Open Color. */
+  --red-2: #ffc9c9;
+  --red-8: #e03131;
+  --green-2: #b2f2bb;
+  /* The meter rung. A bar is the one surface where rung 2 cannot be the fill
+     (see .meter in BankBox), so the payroll fill takes the middle of the ramp:
+     light enough to sit visibly inside its rung-8 outline, dark enough to still
+     be a quantity against the white track. */
+  --green-5: #51cf66;
+  --green-8: #2f9e44;
+  --blue-2: #a5d8ff;
+  --blue-8: #1971c2;
+  --violet-2: #d0bfff;
+  --violet-8: #6741d9;
+  --gold-2: #ffec99;
+  /* OFF-SCALE, deliberately. Gold's true rung 8 is #f08c00, which is 2.20:1 on
+     the ground — the faintest line the app could draw — and at 2px it reads
+     orange, colliding with the armed/over-the-line vocabulary. #c98a08 is the
+     gold the app already shipped as --war-elite; it measures 2.61:1 and still
+     reads gold. Gold is the one hue whose line rung is a judgement call, so it
+     is made once, here, and every gold ring in the game reads it. */
+  --gold-8: #c98a08;
+  --orange-2: #ffd8a8;
+  /* The over-payroll hatch's two tones — the same middle-of-the-ramp choice the
+     green meter rung makes, so the alarm state stays the same kind of object as
+     the calm one. */
+  --orange-5: #ff922b;
+  --orange-6: #fd7e14;
+  --orange-8: #e8590c;
+  /* OFF-SCALE, deliberately. Open Color's grays are cool; the cardstock ground
+     is warm, so the app carries its own warm pair — and it is already exactly
+     what the rule asks for, a fill plus the same family darker. Left alone. */
+  --gray-bg: #e8e2d2;
+  --gray-ink: #a09a88;
+
+  /* Legacy names, kept because a hundred rules read them, now pointing at the
+     pair they always were. */
+  --green: var(--green-8);
+  --sky: var(--blue-2);
+  --pink: var(--red-2);
+  --orange: var(--orange-8);
   --green-wash: #d3f0d8;
   --green-deep: #1e7c31;
   --blue: #3b5bdb;
   --yellow: #ffd43b;
-  --sky: #a5d8ff;
-  --pink: #ffc9c9;
   --lilac: #e6e0f5;
   /* The rare rung of the badge palette — the violet wash between sky and gold,
      a shade deeper than --lilac so a rare pill and an award pill never read as
-     the same chip. */
+     the same chip. Held here rather than pushed to --violet-2: at rung 2 it
+     lands on top of --lilac's own ring hue and the two pills merge. */
   --rare-violet: #dcd3f0;
-  --orange: #e8590c;
   --orange-deep: #d04e08;
-  --gray-bg: #e8e2d2;
-  --gray-ink: #a09a88;
-  /* WAR ladder follows the universal rarity ramp — gray → green → blue →
-     violet → gold — with rust-red below gray for negative WAR. */
-  --war-neg: #b3705f;
-  /* The pale-wash echo of --war-neg, for the anti-trophy pill. Solid, not
-     dashed: dashed is how a LOCKED badge reads, and an anti-trophy is earned. */
+
+  /* ---------- the WAR ladder ----------
+     Six hues, each at both rungs. --war-* is the LINE register — chip borders,
+     seat borders, tier numerals, record stamps — and --war-*-fill is the same
+     hue's wash. The ladder is the rule's clearest case: a chip is a rung-2 fill
+     inside a rung-8 ring, and the numeral beside it is that ring's color.
+
+     The `low` rung is the warm gray pair. It used to be two different hexes
+     depending on channel (#b5afa0 as a chip fill, --gray-ink as a numeral),
+     which was an accident, not a decision; one pair now serves both. */
+  --war-neg: var(--red-8);
+  --war-neg-fill: var(--red-2);
+  --war-low: var(--gray-ink);
+  --war-low-fill: var(--gray-bg);
+  --war-mid: var(--green-8);
+  --war-mid-fill: var(--green-2);
+  --war-high: var(--blue-8);
+  --war-high-fill: var(--blue-2);
+  --war-star: var(--violet-8);
+  --war-star-fill: var(--violet-2);
+  --war-elite: var(--gold-8);
+  --war-elite-fill: var(--gold-2);
+  /* The anti-trophy pill's fill: a warm, desaturated brick rather than red-2.
+     Held off the rule on purpose — at red-2 it becomes the exact fill of the
+     ROY and MOY pills it sits beside on the finale's badge row, and the
+     anti-trophy stops reading as a citation. The red-8 ring carries the
+     negative register; the fill only has to stay out of the way. */
   --brick-wash: #f2ded7;
-  --war-low: #b5afa0;
-  --war-mid: #2f9e44;
-  --war-high: #3b7dd1;
-  --war-star: #7b5cc4;
-  /* Deep enough that white chip text reads (~3:1); still unmistakably gold. */
-  --war-elite: #c98a08;
   --amber: #fff4d6;
   --dash: #d5cdb6;
   --disp: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
@@ -105,9 +208,67 @@ button {
   outline: 3px solid var(--blue);
   outline-offset: 2px;
 }
+/* Armed / hot: the app's one error-and-urgency hue, on the pair like everything
+   else. The ink text is the tinting rule's other half — a rung-2 fill never
+   carries white type. */
 .btn.hot {
-  background: var(--orange);
-  color: var(--card);
+  background: var(--orange-2);
+  border-color: var(--orange-8);
+  color: var(--ink);
+}
+
+/* ---------- the WAR chip ----------
+   One ladder, one home. PlayerList and PrimePicker each used to carry a
+   private copy of these six rules, so every ladder edit had to land twice or
+   the two markets drifted. The chip is the tinting rule at its plainest: the
+   hue's wash inside the hue's line, with ink type on top.
+   (PlayerList and PrimePicker still hold byte-identical private copies of
+   .pos, .cost and .badges — the same drift risk, left alone as out of scope
+   here, and worth moving as one set rather than one at a time. The confirm
+   pill is NOT among them: it lives in PlayerList only, because PrimePicker
+   has no confirm step — a tapped season calls applyPrime directly.) */
+.warchip {
+  display: inline-block;
+  min-width: 42px;
+  text-align: center;
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  font-weight: 800;
+  font-size: 13.5px;
+  line-height: 1.65;
+  padding: 0 5px;
+  color: var(--ink);
+}
+.warchip .unit {
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+  margin-left: 2.5px;
+  vertical-align: 1px;
+}
+.warchip.neg {
+  background: var(--war-neg-fill);
+  border-color: var(--war-neg);
+}
+.warchip.low {
+  background: var(--war-low-fill);
+  border-color: var(--war-low);
+}
+.warchip.mid {
+  background: var(--war-mid-fill);
+  border-color: var(--war-mid);
+}
+.warchip.high {
+  background: var(--war-high-fill);
+  border-color: var(--war-high);
+}
+.warchip.star {
+  background: var(--war-star-fill);
+  border-color: var(--war-star);
+}
+.warchip.elite {
+  background: var(--war-elite-fill);
+  border-color: var(--war-elite);
 }
 
 /* Dashed section separator (FRONT OFFICE / PLAYERS) */

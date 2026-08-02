@@ -198,7 +198,15 @@
      line when they don't (narrow phones). The name never shrinks to make room
      for pills — a name longer than the whole row still ellipsizes via the
      nameline's max-width. */
-  .mid {
+  /* Scoped to the row's own child, not to `.mid` anywhere: the WAR ladder's
+     middle rung is ALSO called `mid`, so a bare `.mid` selector reached into
+     the row's mid-tier WAR chip and turned it into a wrapping flex container.
+     That is where the green chip's extra gap came from — the chip's number and
+     its WAR label became flex items and picked up this rule's 6px column gap on
+     top of the label's own 2.5px margin, and `min-width: 0` canceled the
+     chip's 42px floor, so only the green chip was 6px wide and 6px gappy. The
+     collision is a name collision; the child combinator is the fix for it. */
+  .prow > .mid {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -239,46 +247,9 @@
     flex: none;
     min-height: 26.3px;
   }
-  /* WAR is the decision number — biggest thing on the right. The tiny unit
-     label answers "4.2 what?" without competing with the number. */
-  .warchip {
-    display: inline-block;
-    min-width: 42px;
-    text-align: center;
-    border: 2px solid var(--ink);
-    border-radius: 9px;
-    font-weight: 800;
-    font-size: 13.5px;
-    line-height: 1.65;
-    padding: 0 5px;
-    color: var(--card);
-  }
-  .warchip .unit {
-    font-size: 9px;
-    letter-spacing: 0.05em;
-    opacity: 0.85;
-    margin-left: 2.5px;
-    vertical-align: 1px;
-  }
-  .warchip.neg {
-    background: var(--war-neg);
-  }
-  .warchip.low {
-    background: var(--war-low);
-  }
-  .warchip.mid {
-    background: var(--war-mid);
-  }
-  .warchip.high {
-    background: var(--war-high);
-  }
-  .warchip.star {
-    background: var(--war-star);
-  }
-  /* White text on gold — user's call; the gold is deepened to carry it. */
-  .warchip.elite {
-    background: var(--war-elite);
-  }
+  /* WAR is the decision number — biggest thing on the right. The chip itself
+     lives in app.css, because PrimePicker draws the same ladder and two copies
+     of six rules drift. */
   /* Structural right-alignment (flex, not text-align) so every engine agrees,
      and a box wide enough for "$20.5M"-class prices — the WAR chips form a
      straight column because the price column never grows. */
@@ -307,8 +278,8 @@
      hue — faded by the row's opacity and a mild desaturation — so a gold you
      can't reach still reads gold ("need Trade Deadline for him"). Modes that
      hide a chip render nothing here, so nothing new leaks. */
-  .prow.dead .pos,
-  .prow.dead .mid {
+  .prow.dead > .pos,
+  .prow.dead > .mid {
     filter: grayscale(1);
   }
   .prow.dead .warchip,
@@ -348,10 +319,12 @@
     white-space: nowrap;
   }
   /* Pending pick: the next tap belongs to the rail, not this row — the pill
-     goes orange (the rail hint's color) and points up at it. */
+     goes orange (the rail hint's color) and points up at it. On the pair, so
+     the one ink pill on the row is the one that is still tappable. */
   .confirm.hint {
-    background: var(--orange);
-    border-color: var(--ink);
+    background: var(--orange-2);
+    border-color: var(--orange-8);
+    color: var(--ink);
   }
   .more {
     text-align: center;

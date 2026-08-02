@@ -3,7 +3,8 @@
  * components under extreme inputs without replaying actual games. */
 import { BADGE_BY_KEY, earnedBadges, type BadgeDef } from "../lib/badges";
 import { Game, type GameConfig, type ManagerPick, type Signed } from "../lib/engine.svelte";
-import { displayRecord, score } from "../lib/scoring";
+import { recordFromTotal } from "../lib/format";
+import { GAMES, MARINERS_WINS, displayRecord, score } from "../lib/scoring";
 import type { BestManager, FinaleResult } from "../lib/engine.svelte";
 import type { BestPick, BestRoster } from "../lib/bestroster";
 import type { Card, CardPlayer, GameIndex, Meta, Owners } from "../lib/types";
@@ -320,6 +321,50 @@ function bestPickOf(s: Signed): BestPick {
   };
 }
 
+/** How a fixture asks for the ceiling fields.
+ *
+ * `solved` is the SOLVER's own unclamped total, expressed as a function of the
+ * total the forged club actually scored — everything else is derived from it
+ * exactly the way the engine derives it, so a fixture can never print a ceiling
+ * that disagrees with its own stamp. Returning less than the player's total is
+ * the real case where the search lost to a line it does not model. */
+interface CeilingSpec {
+  solved: (playerTotal: number) => number;
+}
+
+/** The two front offices, one per list, chosen so the pair proves two things.
+ *
+ * The owner card is the SAME on both sides: the club the player hired is the
+ * club the solver would have hired. Neither seat is scoutable, so that
+ * coincidence must earn no ⭐ and no tint — the fixture is how that stays true.
+ *
+ * The ballparks differ, and the dream club's carries a real 27-character name,
+ * which is what proves the row ellipsizes on a phone instead of widening the
+ * list. Both franchises resolve to a real name in stubOwners. */
+const HIRED_OWNER = {
+  name: "Hiroshi Yamauchi",
+  budget: 92.1,
+  franchise: "SEA",
+  year: 2001,
+  teamName: "Seattle Mariners",
+};
+const BOUGHT_PARK = { park: "Safeco Field", mult: 1.05, franchise: "SEA", year: 2001 };
+const DREAM_OWNER = {
+  team: "SEA",
+  year: 2001,
+  teamName: "Seattle Mariners",
+  franchise: "SEA",
+  budget: 92.1,
+};
+const DREAM_PARK = {
+  team: "OAK",
+  year: 2002,
+  teamName: "Oakland Athletics",
+  franchise: "OAK",
+  park: "Network Associates Coliseum",
+  mult: 0.86,
+};
+
 /** A finale-phase Game built from hand-picked slots and score inputs. The
  * ledger, squads, and dream team all render from this forged FinaleResult. */
 function forgeFinale(opts: {
@@ -330,9 +375,24 @@ function forgeFinale(opts: {
   /** The hired skipper. Piniella's +14 wins is the house default; a fixture
    * aiming at a specific win total hires someone else to move the baseline. */
   manager?: ManagerPick;
+  /** Omitted → the ceiling fields stay absent, which is a finale restored from
+   * a save written before they existed. Every fixture below this one predates
+   * them and keeps that path covered. */
+  ceiling?: CeilingSpec;
+  /** The classic bank hires an owner and buys a ballpark — both lists then
+   * carry the two front-office rows. A fixed cap (Moneyball / Blank Check) sets
+   * payroll directly and has neither seat, so neither list grows the rows.
+   * Omitted → no front office anywhere, which is what every fixture written
+   * before these rows existed shows. */
+  frontOffice?: boolean;
+  config?: GameConfig;
 }): Game {
-  return forgeGame(CLASSIC, (g) => {
+  return forgeGame(opts.config ?? CLASSIC, (g) => {
     opts.slots.forEach((s, i) => (g.slots[i] = s));
+    if (opts.frontOffice) {
+      g.owner = { ...HIRED_OWNER };
+      g.stadium = { ...BOUGHT_PARK };
+    }
     g.manager = opts.manager ?? { name: "Lou Piniella", wins: 116, losses: 46, year: 2001, team: "SEA", teamName: "Seattle Mariners", ws: false, pen: true };
     g.spinCount = 12;
 
@@ -428,6 +488,32 @@ function forgeFinale(opts: {
       managerHit,
       scoutHits,
     };
+    // The ceiling, derived here the way engine.svelte.ts derives it and not one
+    // step differently: the club actually built is the search's incumbent, so
+    // the printed ceiling is floored at the player's own total, and the record
+    // comes out of the same recordFromTotal the stamp uses. A fixture that hand
+    // -set these could show a record its own points contradict.
+    if (opts.frontOffice) {
+      best.owner = { ...DREAM_OWNER };
+      best.park = { ...DREAM_PARK };
+    }
+    if (opts.ceiling) {
+      // The dream club's payroll, and what it spends of it. A solver maximizing
+      // SCORE fills its cap — the measured shape is a dream club at ~96% of
+      // payroll against a player at 78–91%, which is the whole reason the two
+      // blocks sit side by side: it is what explains a dream club carrying LESS
+      // WAR than the one the player built.
+      best.budget = opts.frontOffice
+        ? Number((DREAM_OWNER.budget * DREAM_PARK.mult).toFixed(1))
+        : opts.budget;
+      best.spend = Number((best.budget * 0.966).toFixed(1));
+      const solved = Number(opts.ceiling.solved(parts.total).toFixed(1));
+      best.total = solved;
+      const bestPossibleTotal = Math.max(solved, parts.total);
+      finale.bestPossibleTotal = bestPossibleTotal;
+      finale.bestPossibleRecord = recordFromTotal(bestPossibleTotal, GAMES, MARINERS_WINS);
+      finale.playedTheCeiling = bestPossibleTotal <= parts.total;
+    }
     g.finale = finale;
     g.phase = "finale";
   });
@@ -477,7 +563,7 @@ export function finaleOver(): Game {
  * baseline past 117 wins, so 👑 supersedes every named rung, but the luxury
  * tax on the $128M payroll keeps the total short of 162. Four pills exactly —
  * 👑 💸 🏅 🏛️ — which is the row at its cap, one of each register: the
- * inverted legend, dashed ironic, sky, and violet. */
+ * inverted legendary, dashed ironic, sky, and violet. */
 export function finaleMariners(): Game {
   const slots = [
     mkSigned({ name: "Iván Rodríguez", pos: "C", war: 6.4, costPaid: 12, year: 1999, team: "TEX", teamName: "Texas Rangers", awards: ["MVP", "GG", "AS"] }),
@@ -498,7 +584,7 @@ export function finaleMariners(): Game {
  * exact number. Five badges qualify (👑 🏆 🔮 🧱 ✊, the last from Frank
  * Thomas's 1994) — the four-pill cap drops ✊ from the tail, which is the
  * proof the wall can't happen. It is also the only row that opens with two
- * legends side by side: 👑 and 🏆 are the whole tier. */
+ * legendaries side by side: 👑 and 🏆 are the whole tier. */
 export function finalePerfect(): Game {
   const slots = [
     mkSigned({ name: "Mike Piazza", pos: "C", war: 8.7, costPaid: 11, year: 1997, team: "LAD", teamName: "Los Angeles Dodgers", awards: ["MVP2", "SS", "AS"] }),
@@ -633,11 +719,108 @@ export function finaleDayjob(): Game {
   });
 }
 
-/** The rarity ladder as bare pills, rarest first, plus one locked slot.
+// ---------- ceiling fixtures ----------
+
+/* One club, six ceilings.
+ *
+ * The ceiling block and the two lists' front-office rows are the state under
+ * review, so everything else is held still: the same 2015 Cubs roster, the same
+ * skipper, the same payroll, the same single scout hit, the same hired owner and
+ * ballpark. Anything that moves between these fixtures is the ceiling.
+ *
+ * The roster is deliberately quiet — no rings, no pennants, three award pills —
+ * because a stacked pedigree or a full brag row would pull the eye off the block
+ * being judged. Every other finale fixture above carries the loud states.
+ *
+ * All six sit ABOVE the ceiling in the file only by convention; the fixtures
+ * that predate them (every one above) keep the old-record path covered, where
+ * the three fields are absent entirely and the finale renders no ceiling at all. */
+const ceilSlots = (): Signed[] => {
+  const cub = (name: string, pos: string, war: number, costPaid: number, awards: string[] = []) =>
+    mkSigned({ name, pos, war, costPaid, awards, year: 2015, team: "CHC", teamName: "Chicago Cubs", franchise: "CHC" });
+  return [
+    cub("Miguel Montero", "C", 1.6, 9),
+    cub("Anthony Rizzo", "1B", 5.9, 15, ["AS"]),
+    cub("Addison Russell", "SS", 1.9, 4),
+    cub("Dexter Fowler", "CF", 2.3, 8),
+    cub("Kris Bryant", "3B", 6.1, 12, ["ROY"]),
+    cub("Jake Arrieta", "SP", 8.3, 18, ["CY", "AS"]),
+    cub("Jon Lester", "SP", 3.4, 17),
+    cub("Héctor Rondón", "RP", 1.4, 5),
+  ];
+};
+
+function ceilingGame(ceiling: CeilingSpec, frontOffice = true, config?: GameConfig): Game {
+  return forgeFinale({
+    slots: ceilSlots(),
+    spend: 88,
+    budget: 96.7,
+    scoutSweep: false,
+    manager: { name: "Joe Maddon", wins: 97, losses: 65, year: 2015, team: "CHC", teamName: "Chicago Cubs", ws: false, pen: false },
+    ceiling,
+    frontOffice,
+    config,
+  });
+}
+
+/** The ordinary ceiling: a club the cards could have made that scores well
+ * clear of the one built. +21.6 is a shade above the measured gap (bot runs
+ * average a 154.4 ceiling against a 136.8 achieved), so this is the state most
+ * finales land in. Both lists carry their front office, and the OWNER row is
+ * the same card on both sides — the coincidence that must earn no cue. */
+export function finaleCeilingAbove(): Game {
+  return ceilingGame({ solved: (t) => t + 21.6 });
+}
+
+/** The ceiling IS the club built, and the solver's own answer agrees: the block
+ * prints a record and a points total identical to the stamp's, which is the
+ * whole message. Nothing is said about it. */
+export function finaleCeilingMet(): Game {
+  return ceilingGame({ solved: (t) => t });
+}
+
+/** The one finale that needs a word. The search's own club scores 3.1 BELOW the
+ * one the player built — it lost to a line it does not model (✌️ Double Play
+ * taking two picks off one card, or the reel repeating a card), measured at
+ * 3.2% of full-powerup games. The ceiling is floored at the player's total, so
+ * printing it would claim a score this roster does not have; the label
+ * "BEST CLUB WE FOUND" stands in and no number is printed. */
+export function finaleCeilingMatched(): Game {
+  return ceilingGame({ solved: (t) => t - 3.1 });
+}
+
+/** The near-miss that fires most often: 21.85% of full-powerup games reach a
+ * ≥162 ceiling and 0.85% cash it. The record caps at 162–0 and the points line
+ * keeps the number that earned it. Still no commentary — the gap between this
+ * and the stamp is the player's to read. */
+export function finaleCeilingPerfect(): Game {
+  return ceilingGame({ solved: () => 168.4 });
+}
+
+/** The rounding edge: a ceiling genuinely above the player's total that lands
+ * on the SAME record once rounded, so the block prints a record identical to
+ * the stamp's. Nothing contradicts — the points line beneath carries the whole
+ * difference, which is exactly the job it does under the stamp too. */
+export function finaleCeilingSameRecord(): Game {
+  return ceilingGame({ solved: (t) => Math.round(t) + 0.4 });
+}
+
+/** Moneyball: payroll is a constant, so there is no owner to hire and no
+ * ballpark to buy — on EITHER side. The ceiling still prints; neither list
+ * grows a front-office row, empty or otherwise. Test-only; "two rows absent"
+ * has no visual state a lab screenshot could judge. */
+export function finaleCeilingFixedBank(): Game {
+  return ceilingGame({ solved: (t) => t + 12 }, false, {
+    difficulty: "standard",
+    bank: "moneyball",
+  });
+}
+
+/** The rarity ladder as bare pills, rarest first, plus the locked slots.
  *
  * Every other finale fixture shows pills in the company of a season, which is
  * how a player meets them — but no single season can hold all six tiers (the
- * row caps at four, and legend and common are mutually exclusive on the
+ * row caps at four, and legendary and common are mutually exclusive on the
  * on-field axis). This list exists so the ramp can be read top to bottom in one
  * glance, and so the locked silhouette — a trophy-case state that never appears
  * at a finale at all — is reviewable without a save file. */
@@ -647,7 +830,7 @@ export const PILL_LADDER: {
   note: string;
   fresh?: boolean;
 }[] = [
-  { badge: BADGE_BY_KEY.crown, locked: false, note: "legend — ink fill, gold text, gold ring" },
+  { badge: BADGE_BY_KEY.crown, locked: false, note: "legendary — ink fill, gold text, gold ring" },
   { badge: BADGE_BY_KEY.mariners, locked: false, note: "ultra — gold wash, no inner ring" },
   { badge: BADGE_BY_KEY.crystal, locked: false, note: "rare — violet wash" },
   { badge: BADGE_BY_KEY.allstars, locked: false, note: "uncommon — sky wash" },
@@ -659,16 +842,27 @@ export const PILL_LADDER: {
     locked: true,
     note: "locked secret — glyph kept, name withheld: a hint, not an errand",
   },
+  // The anonymous silhouette on the one INVERTED pill, which is the pairing
+  // that needs looking at: every other locked slot fades a pale wash, this one
+  // fades an ink fill with gold type on it, and "? ? ?" has to survive that.
+  // Forged rather than taken from the table — the badge is `secret` here so the
+  // state is reviewable from the component's own contract, whatever the table
+  // currently marks.
+  {
+    badge: { ...BADGE_BY_KEY.crown, secret: true },
+    locked: true,
+    note: "locked legendary — the anonymous form against the inverted pill",
+  },
   // The finale-only state, once per rarity. The chip's own geometry is the
   // reason it needs the full ramp rather than one sample: it is a solid mass
   // sitting inside the pill's left padding, so how snug it looks is a judgement
-  // against every fill behind it — and on legend it inverts to gold, or it
+  // against every fill behind it — and on legendary it inverts to gold, or it
   // would vanish into the ink.
   {
     badge: BADGE_BY_KEY.crown,
     locked: false,
     fresh: true,
-    note: "NEW on legend — the chip inverts to gold, or it would vanish",
+    note: "NEW on legendary — the chip inverts to gold, or it would vanish",
   },
   {
     badge: BADGE_BY_KEY.mariners,

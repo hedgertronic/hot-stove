@@ -160,6 +160,7 @@
     border: 2.5px solid var(--ink);
     border-radius: 11px;
     background: var(--yellow);
+    border-color: var(--gold-8);
     padding: 6px 10px;
     cursor: pointer;
     transition: transform 0.08s;
@@ -218,12 +219,17 @@
   }
   .srow.stad {
     background: var(--sky);
+    border-color: var(--blue-8);
   }
   .srow.skip {
     background: var(--pink);
+    border-color: var(--red-8);
   }
+  /* Already gone: the warm gray pair, matching the market's dead rows, which
+     is the same "you can't have this" state one section down the page. */
   .srow.taken {
     background: var(--gray-bg);
+    border-color: var(--gray-ink);
     color: var(--gray-ink);
     cursor: default;
     filter: grayscale(1);
@@ -241,7 +247,7 @@
   .srow.swap,
   .srow.prime {
     background: var(--amber);
-    border-style: dashed;
+    border: 2.5px dashed var(--ink);
     color: var(--ink);
     filter: none;
   }

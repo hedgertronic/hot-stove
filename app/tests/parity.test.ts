@@ -14,7 +14,7 @@ import RosterRail from "../src/components/RosterRail.svelte";
 import SpecialRows from "../src/components/SpecialRows.svelte";
 import TeamPicker from "../src/components/TeamPicker.svelte";
 import YearPicker from "../src/components/YearPicker.svelte";
-import { finaleUnder, forgeGame, mkCard, mkPlayer, mkSigned, stubMeta, stubOwners } from "../src/lab/fixtures";
+import { finaleCeilingAbove, finaleUnder, forgeGame, mkCard, mkPlayer, mkSigned, stubMeta, stubOwners } from "../src/lab/fixtures";
 import { Game, SLOT_TYPES, type GameConfig } from "../src/lib/engine.svelte";
 import type { Card, GameIndex } from "../src/lib/types";
 
@@ -344,6 +344,27 @@ describe("Finale parity", () => {
     expect(a).toContain("💍");
     expect(a).toContain("🏠");
     expect(a).toContain("PTS");
+  });
+
+  it("the ceiling and the dream front office are identical in both modes too", () => {
+    // finaleUnder above predates the ceiling fields, so it cannot cover this
+    // markup at all. The ceiling is a record, a points total, an owner's name,
+    // a payroll and a ballpark multiplier — every one of them a quantity Eye
+    // Test hides DURING a game, and every one of them revealed at the finale
+    // like the rest. The claim is the same one the case above makes: the finale
+    // has no mode.
+    const std = finaleCeilingAbove();
+    const sct = finaleCeilingAbove();
+    sct.config.difficulty = "scout";
+    const props = (g: Game) => ({ game: g, onreplay: () => {}, onmodes: () => {} });
+    const a = ssr(Finale, props(std));
+    expect(ssr(Finale, props(sct))).toBe(a);
+    const rec = std.finale!.bestPossibleRecord!;
+    expect(a).toContain(`${rec.wins}–${rec.losses}`);
+    expect(a).toContain(`${std.finale!.bestPossibleTotal!.toFixed(1)} PTS`);
+    expect(a).toContain("Hiroshi Yamauchi");
+    expect(a).toContain("Network Associates Coliseum");
+    expect(a).toContain("SPENT");
   });
 });
 

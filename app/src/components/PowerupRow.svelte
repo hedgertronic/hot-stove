@@ -165,8 +165,9 @@
     cursor: default;
   }
   .pp.armed {
-    background: var(--orange);
-    color: var(--card);
+    background: var(--orange-2);
+    border-color: var(--orange-8);
+    color: var(--ink);
   }
   /* The six ready labels need ~393px at the base type size — just over a
      390px phone's 362px content box. One modest type tier, keyed to the

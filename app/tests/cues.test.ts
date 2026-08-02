@@ -72,7 +72,7 @@ describe("loadCues", () => {
     expect(loadCues()).toEqual({ pendingBadges: [], helpSeen: false });
   });
 
-  it("reads unlit from an unrecognised version", () => {
+  it("reads unlit from an unrecognized version", () => {
     // Forward and backward: a record this build cannot vouch for is discarded
     // rather than guessed at, and discarding always errs toward dark.
     store.set(

@@ -1,17 +1,31 @@
 <script lang="ts">
   import { bragRow } from "../lib/badges";
+  import { ownerFor } from "../lib/data";
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
   import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, warTier } from "../lib/format";
   import { GAMES, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
   import { shareText as shareResult } from "../lib/share";
   import AwardPill from "./AwardPill.svelte";
   import BadgeSlot from "./BadgeSlot.svelte";
+  import PayrollBox, { FIXED_CAP_CLUB } from "./PayrollBox.svelte";
 
   let {
     game,
     onreplay,
     onmodes,
-  }: { game: Game; onreplay: () => void; onmodes: () => void } = $props();
+    resolved = false,
+  }: {
+    game: Game;
+    onreplay: () => void;
+    onmodes: () => void;
+    /** This finale has already been watched — it was restored from storage, not
+     * just earned. The reveal is a payoff for the game that produced it; a
+     * reload is not that game, and re-dealing the ledger and re-firing the
+     * confetti every refresh turns the payoff into a toll. Renders the settled
+     * state directly, down the same branch prefers-reduced-motion already
+     * takes. */
+    resolved?: boolean;
+  } = $props();
 
   const fin = $derived(game.finale!);
 
@@ -165,9 +179,16 @@
 
   /* Three beats: rows deal out on a steady cadence, a held pause before the
    * total stamp lands (with its count-up and confetti), then the brag pills
-   * thunk in once the number has settled. */
+   * thunk in once the number has settled.
+   *
+   * Two states skip all three and render the finished screen: a player who has
+   * asked for reduced motion, and a finale restored from storage, which has
+   * already been watched once. Both want the same thing — every row shown, the
+   * stamp up, the counters at their final values, the brag pills visible, and
+   * no confetti — so both take one branch, and it returns before a single timer
+   * is created, which is why there is nothing to clean up. */
   $effect(() => {
-    if (reduced) {
+    if (reduced || resolved) {
       dispWins = fin.parts.expectedWins;
       shownRows = rows.length;
       totalShown = true;
@@ -320,7 +341,106 @@
   });
   const starred = (s: { id: string; year: number; team: string }) =>
     starKeys.has(`${s.id}:${s.year}:${s.team}`);
+
+  /* ---- THE CEILING: what the dream club would have gone.
+   *
+   * Read, never recomputed. `bestPossibleRecord` came out of the same
+   * lib/format.recordFromTotal the stamp above is built from, so the two
+   * records sit on one ladder by construction rather than by two call sites
+   * agreeing. Both fields are optional: a finale restored from a save written
+   * before the ceiling existed has no answer, and "no ceiling known" renders
+   * nothing at all rather than a hole. */
+  const ceilRec = $derived(fin.bestPossibleRecord ?? null);
+  const ceilTotal = $derived(fin.bestPossibleTotal ?? null);
+  /** The solver's own UNCLAMPED total. `bestPossibleTotal` is floored at the
+   * club the player actually built, so the two differ exactly when the search
+   * lost to a line it does not model (✌️ Double Play taking two picks off one
+   * card, or the reel landing on the same card twice) — and in that case the
+   * dream club listed below genuinely scores less than the ceiling. Absent on
+   * old saves and on fixtures that predate the field. */
+  const solved = $derived(fin.best?.total ?? null);
+  /** When the printed ceiling would be a number the club below it does not
+   * score. `playedTheCeiling` covers two situations: the search confirming the
+   * club the player built, and the search losing to a line it does not model —
+   * and only in the second does the dream club on screen score LESS than the
+   * ceiling floored at the player's total. With no solved total to check, the
+   * two are indistinguishable, so the same suppression applies. Compared at the
+   * tenth the finale renders. */
+  const ceilUnsound = $derived(
+    fin.playedTheCeiling === true && (solved == null || fin.parts.total - solved > 0.05),
+  );
+
+  /** The front office a club ran, or null under a fixed cap — where payroll is
+   * a constant and there is no owner to hire or ballpark to buy. */
+  interface FrontOffice {
+    owner: string;
+    ownerBudget: number;
+    park: string;
+    mult: number;
+  }
+  /** The player's, when there is one. Read off game.owner / game.stadium, both
+   * of which StoredFinale archives, so a restored finale renders the same. */
+  const myFront = $derived.by((): FrontOffice | null =>
+    game.owner && game.stadium
+      ? {
+          owner: game.owner.name,
+          ownerBudget: game.owner.budget,
+          park: game.stadium.park,
+          mult: game.stadium.mult,
+        }
+      : null,
+  );
+  /** The dream club's. The solver stores card coordinates and never the
+   * owner's name (it does not load owners.json), so the name resolves here off
+   * the same table the draft screen reads. */
+  const dreamFront = $derived.by((): FrontOffice | null => {
+    const o = fin.best?.owner;
+    const p = fin.best?.park;
+    return o && p
+      ? {
+          owner: ownerFor(game.owners, o.franchise, o.year),
+          ownerBudget: o.budget,
+          park: p.park,
+          mult: p.mult,
+        }
+      : null;
+  });
 </script>
+
+<!-- Each club's front office, as the payroll it bought rather than as two more
+     roster rows. Owner and ballpark produce no WAR, and a list of WAR-bearing
+     rows is the one place they must not sit: the eye reads a row in that list
+     as a contributor. What they actually do is set a number — owner budget ×
+     ballpark multiplier = payroll — which is exactly the object the player has
+     been reading all game, so it is exactly the component that renders it.
+     PayrollBox takes plain values rather than a Game, which is what lets the
+     solver's club — a club no Game exists for — render through the same code.
+
+     `pending` stays false in both: a finished club with no front office on
+     record has nothing still coming, so it shows its payroll and no TBD names.
+
+     No cue in either copy. Neither seat is scoutable, so a player whose owner
+     happens to be the dream owner has found nothing. -->
+{#snippet payroll(front: FrontOffice | null, budget: number, spend: number)}
+  <!-- Under a fixed cap nobody was hired, so the hires line carries the owner
+       of the club the mode borrows its payroll from — the same line the bank
+       box shows all game, which is what keeps the box one height across every
+       mode. The club is PayrollBox's constant so both surfaces name the same
+       one; only the lookup happens here. -->
+  {@const fixedClub = FIXED_CAP_CLUB[game.config.bank]}
+  <div class="paywrap">
+    <PayrollBox
+      bank={game.config.bank}
+      {budget}
+      {spend}
+      ownerName={front?.owner ??
+        (fixedClub ? ownerFor(game.owners, fixedClub.team, fixedClub.year) : null)}
+      ownerBudget={front?.ownerBudget ?? null}
+      parkName={front?.park ?? null}
+      parkMult={front?.mult ?? null}
+    />
+  </div>
+{/snippet}
 
 <!-- Phone: the two halves are plain stacked divs, same order as ever. Wide
      (≥760px): the score story (ledger, badges, actions, seed) sits beside the
@@ -385,7 +505,7 @@
            entrance; the row supplies the left-to-right stagger below. -->
       <BadgeSlot
         badge={b.def}
-        animate
+        animate={!resolved}
         fresh={b.fresh}
         open={openBrag === b.def.key}
         ontoggle={() => (openBrag = openBrag === b.def.key ? null : b.def.key)}
@@ -451,11 +571,35 @@
       <span class="qwar">{signed(fin.parts.managerWins)} W</span>
     </div>
   {/if}
+  <!-- The payroll this club ran, closing the list. A footer, not a header: the
+       seats are what the player came to see, and the front office is the
+       envelope they were bought inside. fin.spend and fin.budget are required
+       fields, so this renders on a finale of any age. -->
+  {@render payroll(myFront, fin.budget, fin.spend)}
 </div>
 
 {#if fin.best}
   <div class="squad disp">
     <div class="psep">⭐ THE DREAM TEAM</div>
+    <!-- What this club would have gone: the stamp's own two lines — record
+         over exact points — at a fraction of its type size, directly under the
+         header so it captions the roster it belongs to. No words: the player's
+         record is a few inches up the same screen and the subtraction is
+         theirs to do. Without it the dream club has no total at all, and a
+         solver that trades WAR for payroll bonus looks broken rather than
+         clever.
+         The one exception is a ceiling the club below does not actually
+         score — there the number would be the lie, so the label replaces it. -->
+    {#if ceilTotal != null && ceilRec}
+      <div class="ceil">
+        {#if ceilUnsound}
+          <span class="ctag">BEST CLUB WE FOUND</span>
+        {:else}
+          <span class="crec">{ceilRec.wins}–{ceilRec.losses}</span>
+          <span class="cpts">{ceilTotal.toFixed(1)} PTS</span>
+        {/if}
+      </div>
+    {/if}
     {#each fin.best.picks as pick, i}
       {@const mine =
         pick != null &&
@@ -499,6 +643,16 @@
         </span>
         <span class="qwar">{signed(fin.bestManager.netWins * MANAGER_PER_NET_WIN)} W</span>
       </div>
+    {/if}
+    <!-- The payroll the dream club would have run, in the same place and the
+         same shape YOUR SQUAD's sits in above — so the two clubs' front offices
+         compare straight across, which is the only reason to show the solved
+         one at all. A club spending 96% of its cap against one spending 78% is
+         the answer to "why is the dream team's WAR lower than mine".
+         Both figures are optional: absent on a finale restored from a save that
+         predates them, and the block simply doesn't render. -->
+    {#if fin.best.budget != null && fin.best.spend != null}
+      {@render payroll(dreamFront, fin.best.budget, fin.best.spend)}
     {/if}
   </div>
 {/if}
@@ -625,22 +779,27 @@
     line-height: 1.5;
     letter-spacing: 0.1em;
   }
-  /* Miniature of the BankBox meter — same colors/hatch, inline row-scaled. */
+  /* Miniature of the BankBox meter — same colors/hatch, same rule: the fill is
+     a quantity and holds its saturated green, and the TRACK's border carries
+     the state, turning orange the moment the payroll goes over. */
   .minimeter {
     display: block;
     width: 96px;
     flex: none;
     height: 8px;
-    border: 1.5px solid var(--ink);
+    border: 1.5px solid var(--green-8);
     border-radius: 999px;
     background: var(--card);
     overflow: hidden;
+  }
+  .minimeter.mover {
+    border-color: var(--orange-8);
   }
   .minifill {
     display: block;
     height: 100%;
     background: var(--green);
-    border-right: 1.5px solid var(--ink);
+    border-right: 1.5px solid var(--green-deep);
   }
   .minifill.mzero {
     border-right: 0;
@@ -868,7 +1027,7 @@
     color: var(--war-star);
   }
   .qwar.low {
-    color: var(--gray-ink);
+    color: var(--war-low);
   }
   .qwar.neg {
     color: var(--war-neg);
@@ -878,6 +1037,7 @@
   }
   .skiprow {
     background: var(--pink);
+    border-color: var(--red-8);
   }
   .skiprow .qwar {
     color: var(--ink);
@@ -886,8 +1046,49 @@
      matching squad row carries the ⭐ — one cue per list, no repetition. */
   .qrow.dreamhit {
     background: var(--green-wash);
+    border-color: var(--green-8);
   }
   .qname.empty {
     color: var(--gray-ink);
+  }
+  /* The payroll block's own spacing. PayrollBox carries no outer margin — it
+     sits in a sticky HUD column in one surface and closes a roster list in the
+     other, and those want different air. Here it is the foot of a list. */
+  .paywrap {
+    margin: 2px 0 4px;
+  }
+  /* THE CEILING, captioning the dream team: the stamp's own two lines — record
+     over exact points — at a fraction of its type size, so the two read as the
+     same object at two ranks and nobody mistakes the counterpoint for the
+     headline. Deliberately untinted: the tier palette is the stamp's, and a
+     second colored record at size would be a second scoreboard. */
+  .ceil {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 0 10px;
+    text-align: center;
+  }
+  /* Stands in for the record on the one finale where the number would not be
+     true of the club listed beneath it. */
+  .ctag {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  .crec {
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1.15;
+    color: var(--muted-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .cpts {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
   }
 </style>

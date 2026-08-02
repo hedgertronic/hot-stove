@@ -42,9 +42,11 @@
    * `aria-controls` at one id. */
   const howId = $props.id();
 
-  /** Pill edge to panel edge. The arrow spends 9 of it, so what is left is the
-   * standoff between the pill and the arrow's tip — at 9 the tip touched the
-   * pill and the join read as pinched. */
+  /** Pill edge to panel edge. The arrow is 9 tall but sits against the panel's
+   * PADDING box, so 2 of those 9 fall inside the border and only 7 stick out —
+   * which leaves a 7px standoff between the pill and the arrow's tip. At 9 the
+   * standoff was 2 and the join read as pinched. Measured at 7.00px in both
+   * orientations. */
   const GAP = 14;
   /** How close the arrow may get to a corner before the radius eats it. */
   const NOTCH_INSET = 14;
@@ -90,13 +92,13 @@
     const pw = panelEl.offsetWidth;
     const ph = panelEl.offsetHeight;
 
-    // The pill's centre in the row's own coordinates — the point the arrow has
+    // The pill's center in the row's own coordinates — the point the arrow has
     // to land on.
-    const centre = btnR.left + btnR.width / 2 - rowR.left;
-    // Centre the panel under it, then shove it back inside the row. A pill hard
+    const center = btnR.left + btnR.width / 2 - rowR.left;
+    // Center the panel under it, then shove it back inside the row. A pill hard
     // against either margin gets a panel flush with that margin and an arrow
     // that slides along the panel's edge to keep pointing at the pill.
-    const left = clamp(centre - pw / 2, 0, Math.max(0, rowR.width - pw));
+    const left = clamp(center - pw / 2, 0, Math.max(0, rowR.width - pw));
 
     const boxR = scrollBox(btnEl)?.getBoundingClientRect();
     const viewTop = Math.max(0, boxR?.top ?? 0);
@@ -110,7 +112,7 @@
     place = {
       left,
       top: above ? btnR.top - rowR.top - ph - GAP : btnR.bottom - rowR.top + GAP,
-      notch: clamp(centre - left, NOTCH_INSET, Math.max(NOTCH_INSET, pw - NOTCH_INSET)),
+      notch: clamp(center - left, NOTCH_INSET, Math.max(NOTCH_INSET, pw - NOTCH_INSET)),
       above,
     };
   }
@@ -230,9 +232,9 @@
     font-weight: 700;
     line-height: 1.4;
     padding: 8px 11px;
-    /* Centred, and it survives the whole table because the box is sized to its
+    /* Centered, and it survives the whole table because the box is sized to its
        own text: anything up to the 280px cap gets a one-line panel with nothing
-       to centre, and anything past it fills every line but the last, so the two
+       to center, and anything past it fills every line but the last, so the two
        ragged edges stay short. Measured across the shortest trigger (19 chars,
        one line) and the longest (216 chars, six lines).
        `text-wrap: balance` was tried here and removed: with a `max-content` box
@@ -251,11 +253,11 @@
      work: the square's fill cuts the panel's border on a diagonal while its
      ink edges stop half-way through that border, which leaves a visible step
      on both sides of the arrow. It is the shape the owner called awkward.)
-     The offsets are tuned by eye at 20× rather than derived — the geometry of a
-     zero-size box with asymmetric borders is not worth a closed form, and the
-     shape is verified in the lab's own gallery.
+     The inner triangle's offset is derived, not tuned: see the rule below for
+     the one line of trigonometry that ties it to the border weight it has to
+     match. The shape is reviewable in the lab's own gallery.
      `--notch` is the measured distance from the panel's left edge to the pill's
-     centre, so the arrow keeps pointing at the pill even when the panel has
+     center, so the arrow keeps pointing at the pill even when the panel has
      been shoved sideways to stay inside the row. */
   .notch,
   .notch::after {
@@ -274,7 +276,18 @@
   .notch::after {
     content: "";
     left: -7px;
-    bottom: -10px;
+    /* 9px of triangle plus the 3.26px offset that makes the visible ink match
+       the panel's 2px border. A vertical offset is NOT the outline's
+       thickness: the slanted edge runs (-7, 9), so its normal is (9, 7)/√130
+       and a shift of d projects onto it as t = d·7/√130 = 0.614·d. The 1px
+       offset this started with painted a 0.61px hairline against a 2px box,
+       which is what read as a thin, tacked-on arrow.
+       Inverted for the offset a given weight needs: d = t / 0.614, so 2px
+       wants 3.26. In general, for a half-width w and a height h,
+       t = d·w/√(w²+h²) — equivalently d = t/cos α with α = atan(h/w) — so the
+       offset is a function of the arrow's proportions and must be recomputed
+       with them: a 16×8 arrow needs a different number for the same weight. */
+    bottom: -12.26px;
     border-bottom: 9px solid var(--card);
   }
   /* Flipped above the pill: the same pair, mirrored onto the underside. */
@@ -286,7 +299,8 @@
   }
   .how.above .notch::after {
     bottom: auto;
-    top: -10px;
+    /* Mirrored, same derivation as the downward arrow above. */
+    top: -12.26px;
     border-bottom: 0;
     border-top: 9px solid var(--card);
   }

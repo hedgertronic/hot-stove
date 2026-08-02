@@ -22,7 +22,7 @@
     type GameConfig,
   } from "./lib/engine.svelte";
   import { BANKS, DIFFICULTIES } from "./lib/modes";
-  import { loadSettings, saveSettings } from "./lib/settings";
+  import { loadSettings, recordQuit, saveSettings } from "./lib/settings";
   import type { Colors, GameIndex, Meta, Owners } from "./lib/types";
 
   let screen = $state<"home" | "game">("home");
@@ -68,6 +68,11 @@
         if (saved) {
           game = saved;
           screen = "game";
+          // A live game outranks a finale, and starting one already retired the
+          // stored finale — so a claim surviving alongside a save is stale by
+          // construction (two tabs racing is the only way to write one). Drop
+          // it rather than leave it to strand a later boot.
+          releaseFinale();
         } else {
           // No game in flight: the finale is the other place a reload can be
           // standing. Starting a game retires the stored finale, so the two
@@ -143,13 +148,20 @@
     e.stopPropagation();
     // On the finale there's nothing to abandon — the engine already cleared
     // the save, and the archived finale outlives this tap (the home screen
-    // walks back into it) — so ✕ goes straight home, no QUIT? confirm.
+    // walks back into it) — so ✕ goes straight home, no QUIT? confirm. It is
+    // also why 🧳 cannot be earned from here: the game is already over.
     if (game?.phase === "finale") {
       goHome();
       return;
     }
     clearTimeout(quitTimer);
     if (quitArmed) {
+      // The second tap is the quit, so this is where 🧳 PACKED IT IN is
+      // earned — before the save goes, and never on the arming tap or on a
+      // confirm the player let lapse. It is the one badge no resolver pushes:
+      // badges are read off a finished season and this path produces none, so
+      // it is written straight into the log as an unscored row.
+      recordQuit();
       Game.clearSave();
       goHome();
       return;
@@ -217,7 +229,10 @@
   </header>
 
   {#if game.phase === "finale" && game.finale}
-    <Finale {game} onreplay={newGame} onmodes={goHome} />
+    <!-- A finale reopened from storage is already resolved: the reveal is the
+         payoff for a game you just finished, not something to sit through on
+         every reload. -->
+    <Finale {game} resolved={restoredFinale} onreplay={newGame} onmodes={goHome} />
   {:else}
     <!-- Phone: the three wrappers are plain stacked divs, same order as ever.
          Wide (≥760px): the club (rail + bank) holds a sticky left column while
@@ -301,7 +316,7 @@
     width: 28px;
     text-align: center;
     cursor: pointer;
-    /* Fixed height and centring so all three corner pills share one box: the
+    /* Fixed height and centering so all three corner pills share one box: the
        ? and ✕ are text glyphs and the trophy is a 13px drawing, and letting
        content set the height made the trophy the odd one out. */
     height: 22px;
@@ -312,9 +327,9 @@
   }
   /* Armed, the pill carries a word ("QUIT?") — it may outgrow the twin width. */
   .quit.armed {
-    background: var(--orange);
-    color: var(--card);
-    border-color: var(--ink);
+    background: var(--orange-2);
+    color: var(--ink);
+    border-color: var(--orange-8);
     width: auto;
     padding: 0 8px;
   }

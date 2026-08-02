@@ -7,6 +7,7 @@
   import BankBox from "../components/BankBox.svelte";
   import Finale from "../components/Finale.svelte";
   import PlayerList from "../components/PlayerList.svelte";
+  import PayrollBox, { FIXED_CAP_CLUB } from "../components/PayrollBox.svelte";
   import PowerupRow from "../components/PowerupRow.svelte";
   import RosterRail from "../components/RosterRail.svelte";
   import SpecialPrimePicker from "../components/SpecialPrimePicker.svelte";
@@ -14,6 +15,11 @@
     PILL_LADDER,
     bankGames,
     finaleBad,
+    finaleCeilingAbove,
+    finaleCeilingMatched,
+    finaleCeilingMet,
+    finaleCeilingPerfect,
+    finaleCeilingSameRecord,
     finaleCentury,
     finaleDayjob,
     finaleMariners,
@@ -50,6 +56,11 @@
   const finPocketed = finalePocketed();
   const finCentury = finaleCentury();
   const finDayjob = finaleDayjob();
+  const finCeilAbove = finaleCeilingAbove();
+  const finCeilSame = finaleCeilingSameRecord();
+  const finCeilPerfect = finaleCeilingPerfect();
+  const finCeilMet = finaleCeilingMet();
+  const finCeilMatched = finaleCeilingMatched();
 
   // One confirm per market section; preset so the SIGN pill is visible on load.
   let confirmMarket = $state<string | null>("p:salty");
@@ -62,7 +73,7 @@
   /* The explanation panel. Two rows, because the interesting failure is
      geometric: the panel floats, so what has to be checked is where it lands
      and whether it stays inside its row. The first row is preset open on a
-     middle pill (the ordinary case, arrow centred). The second is a dense row
+     middle pill (the ordinary case, arrow centered). The second is a dense row
      whose pills reach both margins, which is where the clamp does its work —
      tap the leftmost and rightmost pills and the panel should stop at the
      margin while the arrow slides along its edge to keep pointing. */
@@ -76,6 +87,73 @@
   let labEdge = $state<string | null>(null);
 
   const noop = () => {};
+
+  /* Every state PayrollBox renders, as bare props. The in-game bank box is
+     scheduled to move onto this component, and these are the states it needs:
+     if one of them cannot be expressed here the extraction has failed, so the
+     gallery is the proof rather than the doc comment. Owner names are the real
+     ones the game resolves; the fixed-cap clubs come from the component's own
+     constant so both surfaces name the same club. */
+  const YAMAUCHI = "Hiroshi Yamauchi";
+  const PAYROLL_STATES = [
+    {
+      note: "Classic, nothing hired — both chips ghosted, both names TBD, no denominator: drifting hatch and $??? LEFT",
+      props: { bank: "classic" as const, budget: 40, spend: 0, capKnown: false, pending: true },
+    },
+    {
+      note: "Classic, $34M signed before an owner — the spent figure is the box's only real number",
+      props: { bank: "classic" as const, budget: 40, spend: 34, capKnown: false, pending: true },
+    },
+    {
+      note: "Classic, owner hired but no ballpark yet — one ghost, one real, payroll still unknown",
+      props: {
+        bank: "classic" as const, budget: 92.1, spend: 12, capKnown: true, pending: true,
+        ownerName: YAMAUCHI, ownerBudget: 92.1,
+      },
+    },
+    {
+      note: "Classic, both hired, ~39% spent — the full × = math",
+      props: {
+        bank: "classic" as const, budget: 96.7, spend: 38,
+        ownerName: YAMAUCHI, ownerBudget: 92.1, parkName: "Safeco Field", parkMult: 1.05,
+      },
+    },
+    {
+      note: "Classic, $0 spent — the fill's own right border would paint a sliver, so it goes too",
+      props: {
+        bank: "classic" as const, budget: 96.7, spend: 0,
+        ownerName: YAMAUCHI, ownerBudget: 92.1, parkName: "Safeco Field", parkMult: 1.05,
+      },
+    },
+    {
+      note: "Classic, $14.3M OVER PAYROLL — hatch, orange line, and the overrun REPLACING the green figure",
+      props: {
+        bank: "classic" as const, budget: 96.7, spend: 111,
+        ownerName: YAMAUCHI, ownerBudget: 92.1, parkName: "Safeco Field", parkMult: 1.05,
+      },
+    },
+    {
+      note: "Moneyball — payroll set outright, no seats; the solo hires line names the club the mode borrows",
+      props: {
+        bank: "moneyball" as const, budget: 60, spend: 41,
+        ownerName: "Stephen Schott & Ken Hofmann", // FIXED_CAP_CLUB.moneyball → OAK 2002
+      },
+    },
+    {
+      note: "Blank Check — same box, the other constant",
+      props: {
+        bank: "blankcheck" as const, budget: 200, spend: 120,
+        ownerName: "George Steinbrenner", // FIXED_CAP_CLUB.blankcheck → NYY 2005
+      },
+    },
+    {
+      note: "Classic, finished, no front office on record (a finale older than these fields): the payroll alone, and no TBD names — nothing is still coming",
+      props: { bank: "classic" as const, budget: 96.7, spend: 95 },
+    },
+  ];
+  // Named so the constant is exercised rather than decorative: a rename there
+  // must reach this gallery.
+  const FIXED_CLUBS = `${FIXED_CAP_CLUB.moneyball?.team} ${FIXED_CAP_CLUB.moneyball?.year} · ${FIXED_CAP_CLUB.blankcheck?.team} ${FIXED_CAP_CLUB.blankcheck?.year}`;
 </script>
 
 <div class="lab">
@@ -138,6 +216,19 @@
   <div class="cap">Blank Check (fixed cap)</div>
   <BankBox game={banks.blankcheck} />
 
+  <div class="psep">PAYROLL BOX · EVERY STATE</div>
+  <div class="cap">
+    The shared component the finale renders for BOTH clubs, driven directly by
+    props rather than through a Game — every state the in-game bank box needs,
+    so switching that box onto this one is a demonstrated move rather than a
+    promised one. Compare each row against the PAYROLL BOX gallery above it:
+    they must be the same object. Fixed-cap clubs: {FIXED_CLUBS}.
+  </div>
+  {#each PAYROLL_STATES as s (s.note)}
+    <div class="cap">{s.note}</div>
+    <div class="paycase"><PayrollBox {...s.props} /></div>
+  {/each}
+
   <div class="psep">POWERUPS</div>
   <div class="cap">All ready (pre-choice)</div>
   <PowerupRow game={pups.ready} onSeasonTicket={noop} onRelocate={noop} />
@@ -157,11 +248,12 @@
     Every rarity tier in one column, rarest first, through the shared
     BadgePill — the same component the finale row and the home trophy case
     both render. No season can show all six at once (the pill row caps at
-    four, and legend and common are mutually exclusive on the on-field axis),
-    so this is the only place the ramp is reviewable end to end. The last four
-    rows are states no single surface shows together: two locked silhouettes
-    (named, then secret) that only the trophy case renders, and the two NEW
-    flags that only a finale renders.
+    four, and legendary and common are mutually exclusive on the on-field
+    axis), so this is the only place the ramp is reviewable end to end. Below
+    the ramp are states no single surface shows together: three locked
+    silhouettes (named, then anonymous, then anonymous on the inverted
+    legendary pill) that only the trophy case renders, and the six NEW flags
+    that only a finale renders.
   </div>
   <div class="ladder">
     {#each PILL_LADDER as row, i (i)}
@@ -233,7 +325,7 @@
   <div class="cap">
     Bought superteam past 117 wins → 👑 supersedes every named rung, but the
     luxury tax holds the total short of 162 — no 🏆 · THE PILL ROW AT ITS
-    4-PILL CAP, one of each register: 👑 legend (ink fill, gold text) · 💸
+    4-PILL CAP, one of each register: 👑 legendary (ink fill, gold text) · 💸
     ironic dashed · 🏅 uncommon sky · 🏛️ rare violet
   </div>
   <div class="fincase" id="fin-mariners">
@@ -244,8 +336,8 @@
   <div class="cap">
     Total ≥ 162 → record caps at 162–0, exact points line beneath · FIVE
     badges qualify (👑 🏆 🔮 🧱 ✊) and the four-pill cap drops ✊ from the
-    tail — the two legends leading two rares, the row's loudest legal state
-    and the only place both legend pills appear together
+    tail — the two legendaries leading two rares, the row's loudest legal
+    state and the only place both legendary pills appear together
   </div>
   <div class="fincase" id="fin-perfect">
     <Finale game={finPerfect} onreplay={noop} onmodes={noop} />
@@ -302,6 +394,70 @@
   <div class="fincase" id="fin-pocketed">
     <Finale game={finPocketed} onreplay={noop} onmodes={noop} />
   </div>
+
+  <!-- One club, five ceilings. Same 2015 Cubs roster, same skipper, same
+       payroll, same hired front office, same single scout hit in every one — so
+       the only thing that moves between these five is the ceiling block under
+       ⭐ THE DREAM TEAM. Every finale ABOVE this point carries no ceiling fields
+       and no front office, which is the old-record path: the payroll block
+       renders its payroll and meter alone, and no ceiling at all. -->
+  <div class="psep">FINALE · CEILING ABOVE</div>
+  <div class="cap">
+    The ordinary case — a club the cards could have made scoring ~21.6 clear of
+    the one built. Record + exact points under the header, muted and a fraction
+    of the stamp's size, and nothing said about them · each list closes with its
+    own PAYROLL BLOCK in the bank box's vocabulary (owner × ballpark = payroll,
+    meter, SPENT/LEFT) — the dream club at 96.6% of a smaller cap against yours
+    at 91%, which is what explains a dream club carrying less WAR · the OWNER is
+    the same card on both sides and earns no cue, because neither seat is
+    scoutable (the ⭐ denominator stays 9)
+  </div>
+  <div class="fincase" id="fin-ceil-above">
+    <Finale game={finCeilAbove} onreplay={noop} onmodes={noop} />
+  </div>
+
+  <div class="psep">FINALE · CEILING ABOVE, SAME RECORD</div>
+  <div class="cap">
+    The rounding edge: a ceiling genuinely higher that rounds to the SAME W–L as
+    the stamp. Nothing contradicts — the points line carries the whole
+    difference, the same job it does under the stamp
+  </div>
+  <div class="fincase" id="fin-ceil-same">
+    <Finale game={finCeilSame} onreplay={noop} onmodes={noop} />
+  </div>
+
+  <div class="psep">FINALE · 162–0 CEILING</div>
+  <div class="cap">
+    A ≥162 ceiling against a club that missed it — 21.85% of full-powerup games
+    reach this and 0.85% cash it, so this is a common screen · the record caps
+    at 162–0 and the points line keeps the number that earned it · still no
+    commentary: the gap between 162–0 and the stamp is the player's to read
+  </div>
+  <div class="fincase" id="fin-ceil-perfect">
+    <Finale game={finCeilPerfect} onreplay={noop} onmodes={noop} />
+  </div>
+
+  <div class="psep">FINALE · PLAYED THE CEILING</div>
+  <div class="cap">
+    The search found nothing better AND its own club scores exactly what the
+    player's did, so the ceiling prints normally — and prints the stamp's own
+    record and points. Two identical numbers IS the message
+  </div>
+  <div class="fincase" id="fin-ceil-met">
+    <Finale game={finCeilMet} onreplay={noop} onmodes={noop} />
+  </div>
+
+  <div class="psep">FINALE · BEST CLUB WE FOUND</div>
+  <div class="cap">
+    The only finale that needs a word (3.2% of full-powerup games): the solver's
+    own club scores 3.1 BELOW the one built — it lost to a line it does not
+    model. The roster listed below really is worse, so printing the ceiling
+    would claim a score it does not have; the label stands in and no number is
+    printed
+  </div>
+  <div class="fincase" id="fin-ceil-matched">
+    <Finale game={finCeilMatched} onreplay={noop} onmodes={noop} />
+  </div>
 </div>
 
 <style>
@@ -331,6 +487,11 @@
     text-align: center;
   }
   .railcase {
+    margin-bottom: 10px;
+  }
+  /* PayrollBox carries no outer margin — spacing is the caller's — so the
+     gallery supplies its own. */
+  .paycase {
     margin-bottom: 10px;
   }
   /* One rung per line, pills left-aligned on a shared edge so the tiers stack

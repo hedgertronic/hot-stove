@@ -61,6 +61,7 @@ describe("study 12: the dream-club ceiling", () => {
       const overGain: number[] = [];
       const fill: number[] = [];
       let offReel = 0;
+      let tightPool = 0;
       const hits: number[] = [];
       const seats: number[] = [];
       let violations = 0;
@@ -79,6 +80,10 @@ describe("study 12: the dream-club ceiling", () => {
           if (r.dreamUnderCap !== null) overGain.push((r.solverTotal ?? 0) - r.dreamUnderCap);
         }
         if (r.dreamUsesOffReel) offReel += 1;
+        // The off-reel season is one loose item in the pool; it can only inflate
+        // the ceiling when the spun cards alone cannot fill the club — 9 or
+        // fewer distinct cards against 11 seats.
+        if (r.seenCount <= 9) tightPool += 1;
         hits.push(r.scout);
         seats.push(r.dreamSeats);
       }
@@ -112,7 +117,7 @@ describe("study 12: the dream-club ceiling", () => {
       );
       L.push(
         `dream club seats the ⭐ Prime Time off-reel season  ${pct(offReel, N)}  ` +
-          `(the one place the pool is generous: it is an extra card, not a spent spin)`,
+          `(pool loose by one item; can only bind when ≤9 cards were spun: ${pct(tightPool, N)} of games)`,
       );
       L.push(
         `⭐ hits   mean ${fmt(mean(hits), 2)}   ≥7 (🔮 CRYSTAL BALL) ${pct(hits.filter((h) => h >= 7).length, N)}   ` +

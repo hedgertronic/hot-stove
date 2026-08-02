@@ -32,14 +32,47 @@
     }
   }
 
-  // The stove never idles: a fresh game spins immediately, and every completed
-  // pick rolls the next card after a beat (long enough to feel the landing).
+  // The stove never idles: a committed pick rolls the next card immediately.
+  // There is no beat between the two. The reel that follows is itself two
+  // seconds of transition, so a pause in front of it added no sense of the
+  // pick landing — it only delayed the reel, which reads as buffering.
+  // Still deferred by a turn of the event loop rather than called straight:
+  // spin() writes the very phase this effect reads, and writing it inside the
+  // effect's own run is a self-triggering loop.
+  //
+  // One spin end is not a committed pick: resuming onto a half-used ✌️ Double
+  // Play forfeits the pick that never happened and ends the spin during boot
+  // (see Game.resumedForfeit). At zero delay that card is gone on the first
+  // frame — the player who armed Double Play, took one pick and came back sees
+  // only a reel to somewhere else, which is exactly "Double Play didn't work".
+  // That end gets the beat, with the notice below on screen to spend it on;
+  // the pick the player DID commit still rolls with no pause at all.
+  const RESUME_HOLD = 1600;
   $effect(() => {
     if (game.phase !== "preSpin") return;
-    const delay = game.spinCount === 0 ? 0 : 500;
-    const t = setTimeout(() => game.spin(), delay);
+    const t = setTimeout(() => game.spin(), game.resumedForfeit ? RESUME_HOLD : 0);
     return () => clearTimeout(t);
   });
+
+  // The flicker chain reschedules itself — each tick books the next — so it
+  // outlives the run that started it unless the handles are collected.
+  // Quitting mid-reel unmounts this banner with a tick still booked, and that
+  // tick reads `game.phase` off a game the app has already let go; the chain's
+  // own phase guard cannot cover that, because the read IS the guard.
+  //
+  // Cancelling belongs to the component's life, NOT to the reel effect's
+  // teardown. That effect re-runs on its own during a spin — the first tick
+  // writes `display`, which swaps the idle banner for the real one and rebinds
+  // the two elements `pulse` reads — and a teardown there would cancel the
+  // authoritative land timer on the game's very first spin, freezing the reel
+  // forever. The effect below reads nothing, so it runs once and its teardown
+  // is the unmount.
+  let reelTimers: ReturnType<typeof setTimeout>[] = [];
+  function cancelReel() {
+    for (const t of reelTimers) clearTimeout(t);
+    reelTimers = [];
+  }
+  $effect(() => cancelReel);
 
   // The banner itself is the reel: cosmetic flicker from a throwaway RNG so the
   // game stream stays untouched, decelerating ticks, overshoot thunk on landing.
@@ -75,14 +108,18 @@
     let delay = 50;
     let total = 320;
     for (let d = delay; d < 320; d *= 1.16) total += d;
-    setTimeout(() => void land(), total);
+    // Each reel owns the handles it opens (see reelTimers). A reel can only
+    // start with `running` false — the previous card has landed — so anything
+    // still booked from it is a throttled tick with nothing left to say.
+    cancelReel();
+    reelTimers.push(setTimeout(() => void land(), total));
     const step = () => {
       if (game.phase !== "spinning") return;
       const e = cosmetic.pick(pool);
       display = { yr: String(e.year), tm: e.name, color: accentFor(colors, e.franchise) };
       pulse(delay, "full");
       delay *= 1.16;
-      if (delay < 320) setTimeout(step, delay);
+      if (delay < 320) reelTimers.push(setTimeout(step, delay));
     };
     step();
   });
@@ -98,7 +135,9 @@
 <div class="banner disp" class:landed={landedAnim} class:stale={game.phase === "preSpin" && !!game.card}>
   {#if cardView}
     <div class="bline">
-      <span class="yr" bind:this={yrEl} style:background={cardView.color}>{cardView.yr}</span>
+      <!-- The club's accent goes in as a variable, not as a background: the
+           pill derives BOTH its rungs from it (see .yr). -->
+      <span class="yr" bind:this={yrEl} style:--accent={cardView.color}>{cardView.yr}</span>
     </div>
     <div class="bline team">
       <div class="tname" bind:this={tmEl} style:color={cardView.color}>{cardView.tm}</div>
@@ -125,6 +164,15 @@
     <div class="coldmsg">🥶 COLD STOVE — nothing left to take here</div>
     <button class="btn spinbtn disp" onclick={() => game.coldRespin()}>SPIN AGAIN — FREE</button>
   </div>
+{:else if game.resumedForfeit}
+  <!-- The other two notices offer a button because the player has a decision
+       left; this one has none — the spin is already over and the reel is on a
+       timer — so it is a line of copy and nothing else. It names the powerup
+       and says it came back, because a refunded ✌️ that vanishes without a
+       word is indistinguishable from a broken one. -->
+  <div class="cold disp">
+    <div class="coldmsg">✌️ DOUBLE PLAY REFUNDED — the reload took pick two</div>
+  </div>
 {/if}
 <!-- Mid-Double-Play (one pick down, one live) has no separate finish button:
      tapping the armed ✌️ pill is the one exit, refunding the powerup — the
@@ -138,10 +186,14 @@
   .banner.landed {
     animation: thunk 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-  .banner.stale {
-    opacity: 0.45;
-    filter: grayscale(0.6);
-  }
+  /* No rule for `.stale`, deliberately. The half-second between a committed
+     pick and the next roll used to drain the banner — grayscale and half
+     opacity — and it read as a fault rather than a beat: a card going gray is
+     what an UNAVAILABLE card does everywhere else in the game, so the one
+     thing still on screen looked broken at the exact moment the pick landed.
+     The market, the powerups and the front-office rows have already left by
+     then, which says "that spin is over" without the banner saying it twice.
+     The class stays on the element as a hook for that state. */
   @keyframes thunk {
     0% {
       transform: scale(1.08) rotate(-1deg);
@@ -159,18 +211,46 @@
   .bline.team {
     margin-top: 5px;
   }
+  /* The spun year is a club color, so it takes the pair like everything else —
+     except that its hue arrives at runtime from colors.json and can't be looked
+     up in :root. The two rungs are derived from it instead: the fill is the
+     accent thinned into the cardstock, the border is the accent at full
+     strength. Every one of the 30 franchise accents is already a dark,
+     saturated color (3.30:1 on the ground at the lightest, 11.91:1 at the
+     darkest), which is exactly what a rung-8 line has to be — so the accent
+     itself IS the line and only the wash has to be computed.
+     --blue is the fallback for a pill that renders before an accent arrives. */
+  /* Centered by the box, not by the line box — the same fix AwardPill needed.
+     Symmetric padding does not center a glyph: it centers the LINE BOX, and
+     the line box is the font's full ascent-plus-descent while lining figures
+     use none of the descent. Measured in the app with the bundled Nunito, the
+     digits sat 7.47px from the top and 8.63px from the bottom of a 25.55px
+     pill. Flex centering alone does not fix that (it centers the same line box),
+     so the height is pinned, the line-height is explicit, and a top-only 1.16px
+     nudge — twice the 0.58px error, since padding-top moves the ink by half —
+     puts the digits at 8.055px from both edges.
+     25.55px is exactly the height the pill already occupied (2+2 border, 2+2
+     padding, 13 × 1.35 line), and it is pinned because the banner's two lines
+     have a fixed rhythm and the reel animates this element. */
   .yr {
-    display: inline-block;
-    background: var(--blue);
-    color: var(--card);
-    border: 2px solid var(--ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 25.55px;
+    line-height: 1;
+    --accent: var(--blue);
+    background: color-mix(in srgb, var(--accent) 18%, var(--card));
+    border: 2px solid var(--accent);
+    color: var(--ink);
     border-radius: 999px;
-    padding: 2px 14px;
+    padding: 1.16px 14px 0;
     font-weight: 800;
     font-size: 13px;
-    line-height: 1.35;
   }
+  /* Nothing spun yet: the warm gray pair, which is already a fill and its own
+     darker line. */
   .yr.idle {
+    --accent: var(--gray-ink);
     background: var(--gray-bg);
     color: var(--gray-ink);
   }

@@ -155,16 +155,16 @@ describe("the badge table itself", () => {
   /** Six tiers, and the top one holds exactly the two badges that mean "you
    * maxed out an axis". Anything that enumerates rarities — the trophy case's
    * section order, the lab's ladder, the pill styles — is reading this set, so
-   * a seventh tier or a third legend is a change that has to be made on
+   * a seventh tier or a third legendary is a change that has to be made on
    * purpose. */
   it("orders the ladder rarest-first with the anti-trophies last", () => {
     // RARITY_ORDER is the one ordering: the trophy case stacks its bands in
     // it, badgeCase() sorts its tiles by it, and the Rarity type is derived
     // from it. It used to be written out separately in each place, and one
-    // copy was missing "legend" — which sorted the rarest badges in the game
-    // to the BOTTOM of the home case, in shipped code.
+    // copy was missing the top tier — which sorted the rarest badges in the
+    // game to the BOTTOM of the home case, in shipped code.
     expect([...RARITY_ORDER]).toEqual([
-      "legend",
+      "legendary",
       "ultra",
       "rare",
       "uncommon",
@@ -172,29 +172,29 @@ describe("the badge table itself", () => {
       "ironic",
     ]);
     // Every tier a badge actually wears has a place in the order — a tier
-    // missing from it sorts to -1, i.e. ahead of legend.
+    // missing from it sorts to -1, i.e. ahead of legendary.
     for (const b of BADGES) expect(RARITY_ORDER).toContain(b.rarity);
     expect(RARITY_ORDER.at(-1)).toBe("ironic");
   });
 
-  it("keeps the ladder six tiers deep, with legend holding the two maxima", () => {
+  it("keeps the ladder six tiers deep, with legendary holding the two maxima", () => {
     const tiers = new Set(BADGES.map((b) => b.rarity));
     expect([...tiers].sort()).toEqual([
       "common",
       "ironic",
-      "legend",
+      "legendary",
       "rare",
       "ultra",
       "uncommon",
     ]);
     expect(
-      BADGES.filter((b) => b.rarity === "legend").map((b) => b.key),
+      BADGES.filter((b) => b.rarity === "legendary").map((b) => b.key),
     ).toEqual(["crown", "perfect"]);
   });
 
   /** The claim badges.ts makes when it sends 🧓/🍼 to `ultra` rather than
    * `rare`: the two bands do not overlap, so the pair sits under the rare
-   * floor rather than half a band below every other rare. `legend` is exempt
+   * floor rather than half a band below every other rare. `legendary` is exempt
    * by design — it means "you maxed out an axis", not "this was rare" — and
    * measured-only, so a `freq: null` rung is not evidence either way.
    *
@@ -388,28 +388,56 @@ describe("the floor of the ladder", () => {
       expect(stamped(63)).toEqual([]);
     });
 
-    /** The top of the ladder deliberately does NOT move. Awards, rings and the
-     * payroll bonus add twenty wins to a stamp routinely, so a stamp-keyed 💯
-     * would be near-automatic — the reason the file gives for keying the
-     * champion rungs to the baseline in the first place. */
-    it("leaves the champion rungs on the baseline", () => {
+    /** Which rung a season is playing for is still the baseline's call, and
+     * that half does not move: awards, rings and the payroll bonus add twenty
+     * wins to a stamp routinely, so a stamp-PICKED 💯 would be near-automatic.
+     * The stamp only ever vetoes. */
+    it("still picks the rung off the baseline", () => {
       // A club worth 81 baseline wins that scored 140 points is not a
-      // hundred-win club, however the stamp reads.
+      // hundred-win club, however generous the stamp reads.
       expect(stamped(140, 81)).toEqual([]);
-      // …and a genuine 103-win club is 🐻 whatever it scored.
+      // …and a genuine 103-win club whose stamp held is 🐻.
       expect(stamped(120, 103)).toEqual(["cubs"]);
     });
 
-    /** The one case where the two records point opposite ways at once: a real
-     * club that taxed itself under water. The top of the ladder wins, because
-     * it is checked first — one badge, not two, which is what the exclusive
-     * axis requires. It is worth pinning rather than discovering. */
-    it("gives a taxed-out champion its rung and not the floor", () => {
-      expect(stamped(0, 103)).toEqual(["cubs"]);
+    /** The second gate. The rung is picked by the baseline and kept on the
+     * stamp: the result has to survive the luxury-tax bill. Overspending is
+     * not forbidden, it is just no longer free of the badge. */
+    it("takes the rung away when the final record does not hold up", () => {
+      // The owner's own case: 105 on the field, taxed to 81–81 on the screen.
+      // No 💯 — and no consolation rung either, because 81 is not a rung.
+      expect(stamped(81, 105)).toEqual([]);
+      // The same club untaxed keeps it.
+      expect(stamped(105, 105)).toEqual(["hundred"]);
+      // Exact on the baseline, a FLOOR on the stamp: piling award points on
+      // top of a matched rung has not un-matched it.
+      expect(stamped(103, 103)).toEqual(["cubs"]);
+      expect(stamped(140, 103)).toEqual(["cubs"]);
+      // …and taxing below it has.
+      expect(stamped(102, 103)).toEqual([]);
+      // A vetoed rung does not drop to a lower one. See onFieldBadge: a
+      // consolation 💯 for a taxed-out 116-win club turns the tax penalty back
+      // into a prize and makes "matched the Mariners" a thing you can half-do.
+      expect(stamped(104, 116)).toEqual([]);
+      // 👑 is gated the same way at both ends.
+      expect(stamped(117, 117)).toEqual(["crown"]);
+      expect(stamped(116, 117)).toEqual([]);
+    });
+
+    /** A club whose baseline earns a rung and whose stamp lands in the floor
+     * bands now reads the floor rung it actually posted. Only reachable
+     * because the rung above it can be vetoed — before the second gate this
+     * club kept 🐻 over a 0–162 stamp. */
+    it("hands a taxed-out champion the floor rung its stamp names", () => {
+      expect(stamped(0, 103)).toEqual(["dayjob"]);
+      expect(stamped(30, 103)).toEqual(["worst"]);
+      expect(stamped(55, 103)).toEqual(["skull"]);
+      // Between the floor bands and the rung it lost, it earns nothing at all.
+      expect(stamped(90, 103)).toEqual([]);
     });
 
     it("falls back to the baseline pair when no stamp is supplied", () => {
-      // Which is the behaviour that shipped before the field existed, so an
+      // Which is the behavior that shipped before the field existed, so an
       // engine that has not adopted it yet keeps working.
       expect(
         only(earnedBadges(f({ baselineWins: 50, baselineLosses: 112 })), ONFIELD),
@@ -472,7 +500,7 @@ describe("the named rungs match exactly", () => {
     expect(at(98)).toBe("redsox");
     expect(at(97)).toBeNull();
     expect(at(99)).toBeNull();
-    // 100 belongs to the century, not to its neighbour.
+    // 100 belongs to the century, not to its neighbor.
     expect(at(100)).toBe("hundred");
     for (const w of [97, 99, 100]) {
       expect(
@@ -972,7 +1000,7 @@ describe("roster shape", () => {
 
     it("refuses a club that simply spent nothing", () => {
       // 60% of the cap is 🧾 POCKETED THE DIFFERENCE's own line, reused so the
-      // two badges are exact complements rather than near-neighbours.
+      // two badges are exact complements rather than near-neighbors.
       expect(blind({ spendM: 60.1 })).toContain("flyingblind");
       expect(blind({ spendM: 60 })).not.toContain("flyingblind");
       expect(blind({ spendM: 20 })).not.toContain("flyingblind");
@@ -1225,7 +1253,7 @@ describe("the era badges", () => {
     expect(got).toContain("covid");
   });
 
-  /** The scandal badge names a finding, not a rumour: the Commissioner's
+  /** The scandal badge names a finding, not a rumor: the Commissioner's
    * report covers 2017 and 2018 only. 2019 was alleged and never
    * substantiated, and the badge must not quietly widen to it. */
   it("takes the banging scheme from a 2017 or 2018 Astro", () => {
@@ -1631,5 +1659,124 @@ describe("the family badges", () => {
     }
     const seen = new Set(BROTHERS.map((p) => [...p].sort().join()));
     expect(seen.size).toBe(BROTHERS.length);
+  });
+});
+
+/** The anonymous half of the on-field ladder, and the copy that keeps its two
+ * records apart. Both are data claims about the table rather than trigger
+ * behavior, which is why they sit here and not in trophycase.test.ts: the
+ * rendering of a silhouette is pinned there, the decision about WHICH badges
+ * get one is pinned here. */
+describe("the silhouetted peaks and rungs", () => {
+  /** Every badge whose locked slot withholds its name. BadgePill branches on
+   * `locked && (ironic || secret)`, so `secret` is the only lever, and setting
+   * it is the whole mechanism — no tier is consulted. */
+  const anonymous = (key: string) =>
+    BADGE_BY_KEY[key].secret === true || BADGE_BY_KEY[key].ironic === true;
+
+  it("withholds both peaks", () => {
+    // 👑 and 🏆 are the two ends the ladder exists to deliver. Naming them on
+    // a case nobody has filled spends the surprise before it is earned.
+    for (const key of ["crown", "perfect"]) {
+      expect(BADGE_BY_KEY[key].secret).toBe(true);
+      expect(anonymous(key)).toBe(true);
+    }
+  });
+
+  it("withholds every exact-match rung", () => {
+    // Named, an exact rung is a farmable target — "go win exactly 103". The
+    // list is read off MATCHED rather than written out, so a rung added to the
+    // ladder cannot ship named by omission.
+    const rungs = Object.values(MATCHED);
+    expect(rungs).toHaveLength(6);
+    for (const key of rungs) {
+      expect(BADGE_BY_KEY[key].secret).toBe(true);
+      expect(anonymous(key)).toBe(true);
+    }
+  });
+
+  it("keeps 💯 named, so the axis still has a direction", () => {
+    // The one rung a player can aim at, and the reason the rest can be
+    // secret: a fresh case still says "a hundred wins is a thing".
+    expect(BADGE_BY_KEY.hundred.secret).toBeUndefined();
+    expect(anonymous("hundred")).toBe(false);
+  });
+
+  it("leaves the anti-trophies anonymous without marking them secret", () => {
+    // `ironic` already withholds the name. Marking these `secret` as well
+    // would be redundant, and no shipped badge carries both flags.
+    for (const b of BADGES) expect(b.secret === true && b.ironic === true).toBe(false);
+    for (const key of ["dayjob", "worst", "skull"]) expect(anonymous(key)).toBe(true);
+  });
+});
+
+/** The on-field axis reads two different records, so every string on it names
+ * the one it means. The measure words are the finale's own: the ledger's first
+ * row is labelled "Baseline wins", and the giant W–L is the record it stamps. */
+describe("the how copy names its measure", () => {
+  const how = (key: string) => BADGE_BY_KEY[key].how;
+
+  it("makes the on-field rungs name BOTH records", () => {
+    // Every rung is picked by the baseline and kept on the stamp, so the copy
+    // says so rather than hedging about which number the badge means.
+    for (const key of ["crown", ...Object.values(MATCHED), "hundred"]) {
+      expect(how(key).toLowerCase()).toContain("baseline wins");
+      expect(how(key).toLowerCase()).toContain("final record");
+    }
+  });
+
+  it("sends every baseline-keyed badge to 'baseline wins'", () => {
+    // Read off MATCHED for the rungs, so a new rung cannot ship unlabelled.
+    const baselineKeyed = [
+      "crown",
+      ...Object.values(MATCHED),
+      "hundred",
+      "pinch",
+      "skipper",
+      "hardway",
+      "pocket",
+    ];
+    for (const key of baselineKeyed) {
+      expect(how(key).toLowerCase()).toContain("baseline wins");
+      // …and never claims the stamp, which is the confusion being fixed.
+      expect(how(key).toLowerCase()).not.toContain("stamp");
+    }
+  });
+
+  it("sends every floor rung to the stamped record", () => {
+    // 👔 / 📉 / 💀 read f.stamp, the record the finale prints. An anti-trophy
+    // has to name something the player can see.
+    for (const key of ["dayjob", "worst", "skull"]) {
+      expect(how(key).toLowerCase()).toContain("the finale stamps");
+      expect(how(key).toLowerCase()).not.toContain("baseline");
+    }
+  });
+
+  it("keeps 🎲's label a category and its trigger copy exact", () => {
+    // The label is shorthand and travels into the share string; the `how` is
+    // where the four men's actual statuses live, and it must not flatten a
+    // charge into a finding.
+    expect(BADGE_BY_KEY.gambling.label).toBe("BET ON BASEBALL");
+    const s = BADGE_BY_KEY.gambling.how;
+    expect(s).toContain("Pete Rose was banned in 1989");
+    expect(s).toContain("Tucupita Marcano was banned in 2024");
+    expect(s).toContain("charged in 2025");
+    expect(s).toContain("pleaded not guilty");
+    expect(s).toContain("February 2026");
+    expect(s).toContain("paid leave since July 2025");
+    expect(s).toContain("no finding against either");
+    // Nothing in it may read as a verdict on the two open cases.
+    expect(s).not.toMatch(/Clase[^.]*(caught|convicted|banned)/);
+  });
+
+  it("gives NO SCRUBS the soap, at one code point", () => {
+    // The glyph tracks the label. One code point, so the share string's emoji
+    // run costs exactly what it did — share.test.ts derives its ceiling from
+    // this table and is not edited for a glyph swap.
+    expect(BADGE_BY_KEY.noweak.emoji).toBe("\u{1F9FC}");
+    expect([...BADGE_BY_KEY.noweak.emoji]).toHaveLength(1);
+    // And it collides with nothing else in the set.
+    const glyphs = BADGES.map((b) => b.emoji);
+    expect(new Set(glyphs).size).toBe(glyphs.length);
   });
 });

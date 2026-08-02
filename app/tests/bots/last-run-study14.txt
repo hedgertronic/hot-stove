@@ -1,0 +1,57 @@
+=== Study 14: the stamped-record gate on the on-field rungs ===
+Clean House bank + all six powerups. Wall clock 256.8s for 3000 games.
+Gate: rung picked at 100/exact/117+ baseline wins,
+kept only if the stamped record clears the same mark.
+
+--- reference arm — cap treated as a hard gate (n=1500) ---
+
+rung         ungated  gated   lost
+crown         1.40%  1.40%  0.00%
+redsox        4.27%  4.27%  0.00%
+cubs          5.53%  5.53%  0.00%
+astros        5.00%  5.00%  0.00%
+mets          4.33%  4.33%  0.00%
+yankees       1.47%  1.47%  0.00%
+mariners      0.80%  0.80%  0.00%
+hundred      49.00% 49.00%  0.00%
+
+any rung, ungated                        71.80%
+cleared the baseline, failed the stamp    0.00%
+  … as a share of rung-winning seasons    0.00%
+
+💸 MORTGAGED THE FARM ($15M+ over)         0.40%
+a rung AND 💸, ungated                     0.20%
+  … as a share of rung-winning seasons    0.28%
+a rung AND 💸, gated                       0.20%
+any overrun at all (> $0 past the cap)    6.67%
+  … and won a rung, ungated               4.60%
+  … and won a rung, gated                 4.60%
+
+--- overspend arm — crosses the cap when the WAR pays for it (n=1500) ---
+
+rung         ungated  gated   lost
+crown         1.47%  1.47%  0.00%
+redsox        3.60%  3.53%  0.07%
+cubs          5.73%  5.73%  0.00%
+astros        4.73%  4.73%  0.00%
+mets          4.27%  4.20%  0.07%
+yankees       1.20%  1.20%  0.00%
+mariners      0.67%  0.67%  0.00%
+hundred      48.47% 48.40%  0.07%
+
+any rung, ungated                        70.13%
+cleared the baseline, failed the stamp    0.20%
+  … as a share of rung-winning seasons    0.29%
+
+💸 MORTGAGED THE FARM ($15M+ over)         1.00%
+a rung AND 💸, ungated                     0.33%
+  … as a share of rung-winning seasons    0.48%
+a rung AND 💸, gated                       0.20%
+any overrun at all (> $0 past the cap)   10.53%
+  … and won a rung, ungated               7.20%
+  … and won a rung, gated                 7.00%
+
+Reading: 'lost' is the rung's own fall. 'cleared the baseline, failed
+the stamp' is the whole size of the change. The 💸 lines are the
+overrun question — how often a rung is currently won on a busted
+payroll, and what the gate leaves of it.
