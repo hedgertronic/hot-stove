@@ -1257,25 +1257,45 @@ shortened into an assertion of guilt. Simpler copy is worth less than that.
 
 ### An empty seat is not a club anybody was allowed to build
 
-The solver's DP ranked terminal states by value alone. On the over-cap branch
-λ = −1, so an item is worth `base − cost` and a $20M starter worth one win
-scores −19: strictly better to leave the rotation a man light. `repair()` said
-so out loud, in a comment — "an empty seat beats a seat that costs points" —
-which is true of a knapsack and false of this game, where there is no passing
-and a club must be complete to finish.
+The finale's yardstick was printing clubs with an open seat — a starting
+rotation a man light — and the game does not allow one. There is no passing
+and a club must be complete to finish, so a dream team a seat short is
+measuring a season nobody was permitted to play.
 
-`SEATS` ranks terminal states by seats filled first and value second, and the
-refill scan now takes the LEAST BAD alternative rather than none. A thin pool
-still yields the fullest club it can, which is why this is a preference rather
-than a filter.
+The first place anyone looks is wrong, and the wrongness is worth recording.
+`Dp.solve` picked its terminal state by value alone, and on the over-cap
+branch λ = −1, so an item is worth `base − cost` and a $20M starter worth one
+win scores −19. `repair()` said the same thing out loud in a comment: "an
+empty seat beats a seat that costs points." Both are true of a knapsack and
+false of this game, both were fixed, and over 150 games per arm the fix
+changed **nothing** — byte-identical output.
 
-**It is a guard, and it is not the bug the player reported.** Measured over
-150 games per bot arm, with and without the change, the output is byte
-identical — 4.00% of all-powerup games produce a dream club under nine seats
-either way. So the reported empty starting-pitcher seat has another cause, and
-the study that would have caught this one is `study15-dreamfill`. Recording
-the negative result matters more than the fix: the next reader would otherwise
-assume the reported symptom was addressed.
+The actual defect was one layer out. EVERY comparison downstream of the solve
+ranked clubs by finale total alone: `pick()`, the pass-1 shortlist sort, the
+pass-2 and pass-3 promotions, the winner loop, and `branchAndBound`. Under
+this objective an incomplete club usually scores HIGHER, because the seat it
+skipped is the one that would have pushed payroll past the cap. So complete
+clubs were found and then discarded, one comparison at a time.
+
+Seed 898010623 holds both halves in series. `repair()` vacated a seat because
+the conflicting card had no legal alternative left, and the 8-seat club it
+produced then beat the whole field: 134.50 against the best complete club's
+130.70, with branch-and-bound explicitly logging a 9-seat leaf at 112.20 and
+keeping its 8-seat incumbent. The winner spent 205.9 of a 207.6 cap — it was
+never over. It skipped the ninth seat precisely because taking it would have
+crossed.
+
+One ordering fixes it: `better(a, b)` on (seats filled, total), seats
+dominating, applied at all six sites. Nine seats in 100% of games, against 11
+short games in a 600-game sweep before. **The scarcity split is zero.** Not one
+of those 11 was a thin pool, and the engine proves it without any eligibility
+re-derivation — it will not let a game finish with an open seat, so every one
+of those seeds is its own witness that its pool seats nine. The correction
+costs the ceiling 0.2 points.
+
+`SEATS` stays anyway, with a comment that no longer claims to be the fix: a
+λ = −1 probe ranked on value alone answers "sign nobody", and that is a wasted
+probe whatever the ordering above it does.
 
 ### The hatch was still sweeping a seam
 
@@ -1385,3 +1405,37 @@ It also closes Round 20's open question about capping the badge run. With a
 line to itself the run needs no cap: the ceiling is 67 code points for a
 maximal real season and 83 for the paranoid every-badge case, against a record
 line that tops out at 17.
+
+### Ring chasing counts the Classic
+
+A World Baseball Classic winner is worth two pedigree points for that season
+and the runner-up one, on the same axis as an October ring, because it is the
+same claim: this man won something that year.
+
+The join is the whole job, and its shape is the finding. Wikipedia gives names
+and the game keys on Baseball-Reference ids, so 299 roster entries resolve to
+176 ids and 127 draftable player-seasons on 67 of the 1,188 cards. The low
+overall rate is CORRECT rather than a shortfall — Japan's 2006, 2009 and 2023
+winners were almost entirely NPB, Korea 2009 was KBO and Cuba 2006 was the
+Cuban league, so those men have no MLB season for a medal to attach to. The
+meaningful denominator is "medalists who also have a card that year", and on
+the three MLB-heavy rosters it is 30 of 32, 30 of 30 and 18 of 27.
+
+Unresolved entries keep a null id in `data/wbc.json` rather than being dropped.
+They are the record of what was checked.
+
+Stacking with October is intended. Bregman, Clippard and Gregerson each hold a
+2017 gold medal and a Houston ring, which is +5, and that is a true thing
+about their year.
+
+The axis is uneven across the five tournaments, and that is also true rather
+than broken. Measured on best-medal-per-card — the unit that matters, because
+you draft one man per card — 2017 is worth 1.37 against 2006's 0.13, roughly
+10x, not the 22x the raw point totals suggest. In points on a 100–130 season a
+2017 card runs about 1.4 ahead of a 2016 one, inside the WAR variance between
+any two neighbors. 2023 inverts the usual pattern: its points are almost all
+SILVER, because the champion was NPB and the runner-up was Team USA.
+
+The forecast was an order of magnitude high. The Python playtest moves the
+mean score 54.5 → 54.6 and 86.3 → 86.4, about +0.2%, against a predicted
+1–3%. Roughly 6% of drafts sign a medalist and 16% are offered one.
