@@ -96,16 +96,30 @@ function modal(): string {
   return render(TrophyModal, { props: { onclose: () => {} } }).body;
 }
 
-/** Only the passport panel of the case, bounded at both ends, so an assertion
+/** Only the passport section of the case, bounded at both ends, so an assertion
  * about the souvenir cannot pass or fail on the badge ladder above it or on the
  * sheet's own CLOSE button below it. An unbounded slice is how a panel
- * assertion quietly becomes a whole-sheet assertion. */
+ * assertion quietly becomes a whole-sheet assertion.
+ *
+ * The passport is the last band on the sheet rather than a tab of its own, so
+ * the front edge is its heading and the back edge is the CLOSE button. */
 function panel(): string {
   const body = modal();
-  const at = body.indexOf('id="panel-passport"');
+  const at = body.indexOf('<div class="psep">PASSPORT</div>');
   if (at < 0) return "";
   const end = body.indexOf('class="btn cancel', at);
   return body.slice(at, end < 0 ? undefined : end);
+}
+
+/** Only the STAMPS a career has actually collected — the passport section with
+ * the grayed-out slots for every unvisited country stripped out. Almost every
+ * assertion here is about what a player has, and the board is thirty-odd flags
+ * of what they do not. */
+function found(): string {
+  return panel()
+    .split('<span class="stamp')
+    .filter((chunk, i) => i === 0 || !chunk.startsWith(" locked"))
+    .join('<span class="stamp');
 }
 
 /** The finale of a club whose men were born where these say, one country per
@@ -128,7 +142,7 @@ function finale(...countries: (string | undefined)[]): string {
  * assertions about the passport. */
 function finaleStamps(...countries: (string | undefined)[]): string {
   const body = finale(...countries);
-  const at = body.indexOf('aria-label="Countries this club came from"');
+  const at = body.indexOf('aria-label="Countries fielded"');
   if (at < 0) return "";
   const end = body.indexOf("</div>", at);
   return body.slice(at, end < 0 ? undefined : end);
@@ -558,40 +572,61 @@ describe("the player count", () => {
 /* ---------- the trophy-case panel ---------- */
 
 describe("the passport panel", () => {
-  it("does not exist until the first country lands", () => {
-    // A "PASSPORT · 0 COUNTRIES" heading over an empty box is the checklist
-    // wearing a different hat. The panel simply appears the first time a
-    // country is fielded, which is the happy accident it is meant to be — and
-    // so does its tab, so a case with no countries looks exactly like the case
-    // that shipped before there was a passport.
+  it("shows the whole board even on a case with nothing found", () => {
+    // The reversal, pinned: the panel used to appear only once a country
+    // landed, so a new player saw no passport at all. It is a permanent section
+    // of the sheet now, and an untravelled one is thirty-nine grayed slots.
     seed({ v: 2, date: "2026-01-01", total: 120, record: "95-67", spins: 3, badges: ["hundred"] });
-    const body = modal();
-    expect(body).not.toContain("PASSPORT");
-    expect(body).not.toContain('role="tablist"');
-  });
-
-  it("appears with a bare count once a country has been fielded", () => {
-    seed(game(["Japan", "Cuba"]));
-    const body = modal();
-    expect(body).toContain("PASSPORT");
-    expect(body).toContain('role="tablist"');
     const p = panel();
-    expect(p).toContain("2");
-    expect(p).toContain("COUNTRIES");
-    expect(p).toContain("Japan");
-    expect(p).toContain("Cuba");
+    expect(p).toContain("PASSPORT");
+    expect(found()).not.toContain('role="listitem"');
+    expect((p.match(/role="listitem"/g) ?? []).length).toBe(Object.keys(COUNTRIES).length);
   });
 
-  it("says COUNTRY, singular, on the first stamp", () => {
+  it("sits on the same page as the badges, with no tabs between them", () => {
+    // One sheet, two bands, badges first. A tab hid the passport from everyone
+    // who did not press it, which is worse than a scroll.
+    seed(game(["Japan"]));
+    const body = modal();
+    expect(body).not.toContain('role="tablist"');
+    expect(body).not.toContain('role="tabpanel"');
+    expect(body.indexOf("LEGENDARY")).toBeLessThan(body.indexOf("PASSPORT"));
+  });
+
+  it("fills in a country that has been fielded and leaves the rest gray", () => {
+    seed(game(["Japan", "Cuba"]));
+    const p = panel();
+    expect(stampClass(p, "Japan")).toEqual(["uncommon"]);
+    expect(stampClass(p, "Cuba")).toEqual(["uncommon"]);
+    // Everything else on the board is a slot, and says so in words too.
+    expect(stampClass(p, "Venezuela")).toEqual(["locked"]);
+    expect(p).toContain("Never fielded.");
+    const total = Object.keys(COUNTRIES).length;
+    expect((p.match(/role="listitem"/g) ?? []).length).toBe(total);
+    expect((p.match(/stamp locked/g) ?? []).length).toBe(total - 2);
+  });
+
+  it("leads with what has been collected", () => {
+    // A board that opened on thirty-seven gray slots would bury the two stamps
+    // the sheet is actually for.
+    seed(game(["Lithuania"]));
+    const p = panel();
+    expect(p.indexOf("Lithuania")).toBeLessThan(p.indexOf("USA"));
+  });
+
+  it("runs the unvisited half commonest first", () => {
+    // The honest order for a thing nobody chases: the countries a few more
+    // seasons will turn up on their own sit at the top, and 🇱🇹 at the bottom.
     seed(game(["Japan"]));
     const p = panel();
-    expect(p).toContain("COUNTRY");
-    expect(p).not.toContain("COUNTRIES");
+    expect(p.indexOf(">USA<")).toBeLessThan(p.indexOf(">Cuba<"));
+    expect(p.indexOf(">Cuba<")).toBeLessThan(p.indexOf(">Panama<"));
+    expect(p.indexOf(">Panama<")).toBeLessThan(p.indexOf(">Lithuania<"));
   });
 
   it("flies the flag beside the name", () => {
     seed(game(["Japan", "Curaçao", "England"]));
-    const p = panel();
+    const p = found();
     expect(p).toContain("🇯🇵");
     expect(p).toContain("🇨🇼");
     expect(p).toContain("🏴󠁧󠁢󠁥󠁮󠁧󠁿");
@@ -605,53 +640,36 @@ describe("the passport panel", () => {
     expect(stampClass(p, "Panama")).toEqual(["rare"]);
     expect(stampClass(p, "Guam")).toEqual(["ultra"]);
     // The one country the table cannot measure wears nothing — no tier, and no
-    // defaulted `common` standing in for one.
+    // defaulted `common` standing in for one. It has no locked slot either,
+    // since the board is built from the table and the table has never heard
+    // of it.
     expect(stampClass(p, "Atlantis")).toEqual([]);
   });
 
-  it("opens on the trophies, with the passport rendered and hidden", () => {
-    // Both panels live in the markup and the inactive one carries `hidden` —
-    // the tabpanel pattern, and what lets an SSR string see a panel it has no
-    // click to reach. The badges are what the case is for, so they lead.
-    seed(game(["Japan"]));
-    const body = modal();
-    expect(body).toContain('id="panel-trophies" role="tabpanel" aria-labelledby="tab-trophies"');
-    expect(body).not.toMatch(/id="panel-trophies"[^>]*hidden/);
-    expect(body).toMatch(/id="panel-passport"[^>]*hidden/);
-    expect(body).toContain('aria-selected="true" aria-controls="panel-trophies"');
-  });
-
-  it("names no denominator, so it cannot read as a checklist", () => {
-    // The dataset holds 39 countries and the panel must never say so — a
-    // total is an invitation to complete a set the UI gives no tools for. The
-    // badge fraction is a denominator too, which is why the header drops it on
-    // the passport tab rather than hanging "12 OF 58" over a row of stamps.
+  it("names no denominator anywhere on the sheet", () => {
+    // Not over the stamps and not over the badges. The board shows what is left
+    // by drawing it; a fraction beside it would turn a collection into an
+    // errand, which is the one thing a souvenir must not become.
     seed(game(["Japan", "Cuba"]));
-    const p = panel();
-    expect(p).not.toContain("2 OF");
-    expect(p).not.toContain("OF 39");
-    expect(p).not.toMatch(/PASSPORT[^<]*OF/);
-    expect(p).not.toContain(`OF ${COLLECTIBLE.length}`);
+    const body = modal();
+    expect(body).toContain("TROPHY CASE");
+    // A fraction, specifically — 🤝 WORD OF MOUTH is a badge label and has
+    // every right to those two letters.
+    expect(body).not.toMatch(/\d+ OF \d+/);
+    expect(body).not.toContain(`OF ${COLLECTIBLE.length}`);
+    expect(body).not.toContain("COUNTRIES");
   });
 
-  it("renders only what has been found — no empty slot for anything else", () => {
-    // The whole shape of the panel: one element per stamp, full stop.
+  it("borrows none of the locked-badge vocabulary for a locked country", () => {
+    // A slot is a country nobody has been to, not a badge nobody has earned:
+    // it keeps its flag and its name, because there is no surprise to protect.
     seed(game(["Japan"]));
     const p = panel();
-    expect((p.match(/role="listitem"/g) ?? []).length).toBe(1);
-    // And it borrows none of the locked-badge vocabulary.
     expect(p).not.toContain("Not yet earned");
     expect(p).not.toContain("An undiscovered badge");
     expect(p).not.toContain("? ? ?");
-  });
-
-  it("cannot move the trophy case's progress fraction", () => {
-    // The fraction is counted from COLLECTIBLE. A country is not a badge, so
-    // eight of them leave it exactly where an empty case does.
-    seed(game(["USA", "Cuba", "Japan", "Mexico", "Canada", "Aruba", "Panama", "Peru"], "2026-01-01"));
-    expect(modal()).toContain(`1 OF ${COLLECTIBLE.length}`);
-    store.clear();
-    expect(modal()).toContain(`0 OF ${COLLECTIBLE.length}`);
+    expect(p).toContain(">Lithuania<");
+    expect(p).toContain("🇱🇹");
   });
 
   it("prints the unique-player count, at one as readily as at four", () => {
@@ -662,16 +680,18 @@ describe("the passport panel", () => {
     seed(
       rostered({ Japan: ["ohtansh01"], Cuba: ["puigya01", "abreujo02"] }, "2026-01-01"),
     );
-    const p = panel();
+    const p = found();
     expect(p).toContain("×1");
     expect(p).toContain("×2");
   });
 
   it("shows no number rather than a zero when nothing was counted", () => {
     // A silent zero would read as a bug: a country nobody is counted for is a
-    // gap in the log, not a club with nobody in it. The title says which.
+    // gap in the log, not a club with nobody in it. The title says which. The
+    // locked half of the board carries no number either, which is why this
+    // reads the found stamps alone.
     seed(game(["Japan"], "2026-01-01"), game(["Japan"], "2026-02-01"));
-    const p = panel();
+    const p = found();
     expect(p).not.toContain("×");
     expect(p).toContain("First fielded 2026-01-01. 2 seasons, none carrying a roster.");
   });
@@ -702,19 +722,32 @@ describe("the passport panel", () => {
 /* ---------- the finale ---------- */
 
 describe("the finale's passport", () => {
-  it("does not appear for a club whose men carry no country", () => {
+  it("does not appear for a player whose log holds no country", () => {
     // Every save written before the field existed, and every finale restored
     // from one.
     expect(finale()).not.toContain("PASSPORT");
   });
 
-  it("names the countries the club turned out to hold, once each", () => {
-    expect(finale("Japan", "USA", "Japan", "Venezuela")).toContain("PASSPORT");
+  it("shows the whole career, not just tonight's club", () => {
+    // The change: the panel is the passport, so a country from an earlier
+    // season is on it even though nobody on tonight's roster came from there.
+    // That is what makes a new stamp legible against something.
+    seed(game(["Mexico"], "2026-01-01"));
     const stamps = finaleStamps("Japan", "USA", "Japan", "Venezuela");
     expect(stamps).toContain("🇯🇵");
     expect(stamps).toContain("🇺🇸");
     expect(stamps).toContain("🇻🇪");
+    expect(stamps).toContain("🇲🇽");
     expect((stamps.match(/>Japan</g) ?? []).length).toBe(1);
+  });
+
+  it("draws no empty slots — the board belongs to the trophy case", () => {
+    // The grayed half is context for a collection being browsed. A finale is a
+    // scoreboard, and thirty-seven gray flags under one is noise.
+    seed(game(["Japan"], "2026-01-01"));
+    const stamps = finaleStamps("Japan");
+    expect(stamps).not.toContain("stamp locked");
+    expect(stamps).not.toContain("Never fielded.");
   });
 
   it("flags a country never fielded before, and only that one", () => {
@@ -734,8 +767,20 @@ describe("the finale's passport", () => {
     expect(finaleStamps("Japan")).not.toContain(">NEW<");
   });
 
-  it("carries no player count — that number is a career, this is one club", () => {
-    seed(rostered({ Japan: ["ohtansh01"] }, "2026-01-01"));
-    expect(finaleStamps("Japan")).not.toContain("×");
+  it("never flags a one-visit country tonight's club did not hold", () => {
+    // Both halves of the test are load-bearing: reading visits alone would
+    // flag a country from a game the player finished last week.
+    seed(game(["Mexico"], "2026-01-01"));
+    const stamps = finaleStamps("Japan");
+    expect(stamps).toContain("🇲🇽");
+    expect((stamps.match(/>NEW</g) ?? []).length).toBe(1);
+    expect(stamps.indexOf("Japan")).toBeLessThan(stamps.indexOf("Mexico"));
+  });
+
+  it("carries the career's player count, the same number the case prints", () => {
+    // This IS the passport now, so it counts what the passport counts. The two
+    // surfaces run one builder, so a figure here cannot disagree with the case.
+    seed(rostered({ Japan: ["ohtansh01", "suzukii01"] }, "2026-01-01"));
+    expect(finaleStamps("Japan")).toContain("×2");
   });
 });

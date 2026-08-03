@@ -6,7 +6,12 @@ import { track } from "../lib/analytics";
   import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, warTier } from "../lib/format";
   import { GAMES, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
   import { shareText as shareResult } from "../lib/share";
-  import { countryDef, passport, type PassportItem } from "../lib/settings";
+  import {
+    countryDef,
+    passport,
+    passportItems,
+    type PassportItem,
+  } from "../lib/settings";
   import AwardPill from "./AwardPill.svelte";
   import BadgeSlot from "./BadgeSlot.svelte";
   import Passport from "./Passport.svelte";
@@ -252,15 +257,15 @@ import { track } from "../lib/analytics";
    * `?? []` and the BADGE_BY_KEY filter cover a finale restored from storage
    * that predates the badge field, and a key retired from the set after a save
    * was written — either way the row renders empty instead of throwing. */
-  /* Four pills, not three: a season now averages ~1.5 badges and the two era
-   * badges fire ~19% each, so three overflowed often enough to be noticed.
-   * The cut takes from the tail of `earnedBadges`' order (roster, then era);
-   * the share string keeps every one, because emoji cost nothing there.
+  /* Every badge earned, no cut. The row used to hold four and drop the rest to
+   * save pixels, which meant a club that earned six was shown a club that
+   * earned four — and a badge cut for space reads exactly like a badge not
+   * earned. The row wraps, the sheet scrolls, and the share string was already
+   * uncapped, so the pill row was the one surface understating the result.
    *
    * `?? []` on both arguments covers a finale restored from a save older than
    * either field: an empty row, and no flags, rather than a throw. */
-  const PILL_CAP = 4;
-  const brags = $derived(bragRow(fin.badges ?? [], fin.newBadges ?? [], PILL_CAP));
+  const brags = $derived(bragRow(fin.badges ?? [], fin.newBadges ?? []));
 
   /** The one open badge in the row, by key — the same one-at-a-time reveal the
    * trophy case runs, through the same BadgeSlot. A badge earned here explains
@@ -390,13 +395,31 @@ import { track } from "../lib/analytics";
    * same claim about the same kind of object and a second vocabulary for
    * "this one is new" would be one to learn for nothing.
    *
-   * NEW is read out of the lifetime passport rather than handed over by the
-   * engine, which means it is true the moment this component renders instead of
-   * waiting on a field the engine does not write yet. `recordHistory` runs
-   * before the finale is shown, so this game is already in the log: a country
-   * with ONE visit is a country this club is the only record of, which is
-   * exactly "never fielded before". A restored finale reads the same, since the
-   * row is still there and still the only one.
+   * THE WHOLE PASSPORT, not this club's slice of it. The panel used to list the
+   * countries on the roster and nothing else, which is the narrower and worse
+   * object: it told a player what they already had in front of them, and hid
+   * the thing the moment is actually about — that tonight's club added a stamp
+   * to a collection. Showing the career and flagging what tonight put in it
+   * makes the new one legible AGAINST something, and gives a club that added
+   * nothing new a souvenir anyway.
+   *
+   * It carries the numbers for the same reason: this is the passport, so it
+   * counts what the passport counts — unique players per country across every
+   * game. `passportItems` is the trophy case's own builder, so the two panels
+   * cannot disagree about a single figure on a single stamp. No grayed slots
+   * here, though: the empty half of the board is context for a collection being
+   * browsed, and this is a scoreboard.
+   *
+   * Which countries are new is read out of the lifetime passport rather than
+   * handed over by the engine, which means it is true the moment this component
+   * renders instead of waiting on a field the engine does not write.
+   * `recordHistory` runs before the finale is shown, so this game is already in
+   * the log: a country on tonight's roster with ONE visit is a country this
+   * club is the only record of, which is exactly "never fielded before". A
+   * restored finale reads the same, since the row is still there and still the
+   * only one. Note that both halves are required — a one-visit country NOT on
+   * tonight's roster is impossible, but reading visits alone would flag it if
+   * it ever became possible.
    *
    * It fails toward celebrating rather than withholding, twice. A history row
    * that never landed — a full or disabled localStorage — leaves the country
@@ -405,33 +428,40 @@ import { track } from "../lib/analytics";
    * so a country first met back then reads as new the next time it appears.
    * Neither is recoverable: the log holds no roster and never has. Both name a
    * real country the club really held, which is the whole content of the
-   * panel — only the chip can be generous.
-   *
-   * No numbers here. The count on a passport stamp is unique players across a
-   * career, and this is one club on one night. */
+   * chip — only the chip can be generous. */
   const clubCountries = $derived.by((): PassportItem[] => {
-    const visits = new Map(passport().map((s) => [s.country, s.visits]));
-    const items: PassportItem[] = [];
-    const seen = new Set<string>();
+    const tonight = new Set<string>();
     for (const s of game.slots) {
       const raw = s?.bc;
-      if (typeof raw !== "string") continue;
-      const country = raw.trim();
-      if (country === "" || seen.has(country)) continue;
-      seen.add(country);
-      const def = countryDef(country);
-      items.push({
-        country,
-        flag: def?.flag ?? "",
-        rarity: def?.rarity ?? null,
-        count: null,
-        fresh: (visits.get(country) ?? 1) <= 1,
-        title: null,
-      });
+      if (typeof raw === "string" && raw.trim() !== "") tonight.add(raw.trim());
     }
+    const visits = new Map(passport().map((s) => [s.country, s.visits]));
+    const fresh = new Set(
+      [...tonight].filter((c) => (visits.get(c) ?? 1) <= 1),
+    );
+    const items = passportItems(fresh);
+    // A country tonight's club held that the lifetime passport has no row for
+    // at all — the storage failure above. It still gets a stamp, because the
+    // panel's subject is where these men came from and the log's silence is not
+    // the player's problem.
+    const known = new Set(items.map((i) => i.country));
+    const orphans: PassportItem[] = [...tonight]
+      .filter((c) => !known.has(c))
+      .map((c) => {
+        const def = countryDef(c);
+        return {
+          country: c,
+          flag: def?.flag ?? "",
+          rarity: def?.rarity ?? null,
+          count: null,
+          fresh: true,
+          locked: false,
+          title: null,
+        };
+      });
     // The new ones lead, the same order `bragRow` puts the badge pills in and
     // for the same reason: the flagged one is what the player is here to see.
-    return items.sort((a, b) => Number(b.fresh) - Number(a.fresh));
+    return [...orphans, ...items].sort((a, b) => Number(b.fresh) - Number(a.fresh));
   });
 
   /** The front office a club ran, or null under a fixed cap — where payroll is
@@ -567,18 +597,25 @@ import { track } from "../lib/analytics";
 
 {#if bragsShown && brags.length > 0}
   <div class="brags">
-    {#each brags as b (b.def.key)}
+    {#each brags as b, i (b.def.key)}
       <!-- The pill and the tap-to-explain are BadgeSlot's, shared with the home
            trophy case, so a badge looks and behaves the same the moment it is
            earned as it does in the case. `animate` asks for the thunk-in
-           entrance; the row supplies the left-to-right stagger below. -->
-      <BadgeSlot
-        badge={b.def}
-        animate={!resolved}
-        fresh={b.fresh}
-        open={openBrag === b.def.key}
-        ontoggle={() => (openBrag = openBrag === b.def.key ? null : b.def.key)}
-      />
+           entrance; this seat supplies the left-to-right stagger below.
+           `display: contents` (see .bragseat): the wrapper carries the index
+           and generates no box, so the button and the reveal panel BadgeSlot
+           emits stay direct flex children of .brags and the panel's containing
+           block is still .brags. A wrapper that generated a box would fence the
+           panel inside one pill's width. -->
+      <span class="bragseat" style="--i: {i}">
+        <BadgeSlot
+          badge={b.def}
+          animate={!resolved}
+          fresh={b.fresh}
+          open={openBrag === b.def.key}
+          ontoggle={() => (openBrag = openBrag === b.def.key ? null : b.def.key)}
+        />
+      </span>
     {/each}
   </div>
 {/if}
@@ -637,7 +674,10 @@ import { track } from "../lib/analytics";
             >{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
         >
       </span>
-      <span class="qwar">{signed(fin.parts.managerWins)} W</span>
+      <!-- The rung the row is already wearing, on the numeral that earned it.
+           This read plain green while the fill and the frame around it read
+           gold, which said two different things about one skipper. -->
+      <span class="qwar {warTier(fin.parts.managerWins)}">{signed(fin.parts.managerWins)} W</span>
     </div>
   {/if}
   <!-- The payroll this club ran, closing the list. A footer, not a header: the
@@ -648,15 +688,15 @@ import { track } from "../lib/analytics";
 </div>
 
 {#if clubCountries.length > 0}
-  <!-- Its own short block under the squad it describes, and not a column in the
-       roster rows: a birth country belongs to a man, but the thing being shown
-       is a property of the CLUB, and eight rows each carrying a flag would read
-       as eight facts instead of one. Nothing renders at all for a club whose
-       men carry no country — every save written before the field existed, and
-       every restored finale older than it. -->
+  <!-- Its own short block under the squad it belongs to, and not a column in
+       the roster rows: a birth country belongs to a man, but the thing being
+       shown is a property of the CAREER, and eight rows each carrying a flag
+       would read as eight facts instead of one. Nothing renders at all for a
+       player whose log holds no country — every save written before the field
+       existed, and every restored finale older than it. -->
   <div class="squad disp">
     <div class="psep">PASSPORT</div>
-    <Passport stamps={clubCountries} label="Countries this club came from" />
+    <Passport stamps={clubCountries} label="Countries fielded" />
   </div>
 {/if}
 
@@ -707,6 +747,7 @@ import { track } from "../lib/analytics";
       </div>
     {/each}
     {#if fin.bestManager}
+      {@const bestWins = fin.bestManager.netWins * MANAGER_PER_NET_WIN}
       <div class="qrow" class:dreamhit={fin.managerHit}>
         <span class="qpos">MGR</span>
         <span class="qmid">
@@ -723,7 +764,10 @@ import { track } from "../lib/analytics";
               >{:else if fin.bestManager.pen}<span class="emo">🚩</span>{/if}</span
           >
         </span>
-        <span class="qwar">{signed(fin.bestManager.netWins * MANAGER_PER_NET_WIN)} W</span>
+        <!-- Same rule for the dream club's skipper: the eight seats above it
+             carry their rung on the numeral, and this one had been the only
+             row in either list reading a hue it had not earned. -->
+        <span class="qwar {warTier(bestWins)}">{signed(bestWins)} W</span>
       </div>
     {/if}
     <!-- The payroll the dream club would have run, in the same place and the
@@ -777,25 +821,27 @@ import { track } from "../lib/analytics";
     margin-top: 12px;
     position: relative;
   }
-  /* The left-to-right deal. BadgePill's `animate` supplies the thunk; the
-     order the pills arrive in is the ROW's business, so the delay lives here,
-     one rule per seat up to PILL_CAP.
-     Two things the selector has to get right. It reaches THROUGH the button
-     BadgeSlot wraps each pill in, because the animation is on the pill and a
-     delay set on the wrapper would apply to nothing. And it counts buttons
-     rather than children, because opening a badge inserts its reveal into this
-     same row — an nth-child count would renumber every pill after the open one
-     and re-fire a delay on an animation that has already played.
+  /* The left-to-right deal. BadgePill's `animate` supplies the thunk; the order
+     the pills arrive in is the ROW's business, so the delay lives here.
+     Counted, not enumerated. This used to be one hand-written rule per seat,
+     which was serviceable while the row held at most four pills and is not now
+     that it holds every badge earned — a club with nine would have had six
+     pills arrive together. `--i` is the seat's index, set by the markup, and
+     one rule covers any count.
+     The seat generates no box (`display: contents`), so it changes nothing
+     about the row's layout or about where BadgeSlot's reveal panel is fenced;
+     it exists only to carry that index and to be the thing the delay is set on.
+     It reaches THROUGH the button to the pill, because the animation is on the
+     pill and a delay set on the button would apply to nothing.
+     The last seat lands at 0.12s × index, so nine pills finish in about a
+     second — the reveal is a deal, not a queue.
      No reduced-motion override is needed: BadgePill drops the animation
      entirely there, and a delay on nothing is nothing. */
-  .brags > :global(button:nth-of-type(2) .brag) {
-    animation-delay: 0.12s;
+  .bragseat {
+    display: contents;
   }
-  .brags > :global(button:nth-of-type(3) .brag) {
-    animation-delay: 0.24s;
-  }
-  .brags > :global(button:nth-of-type(4) .brag) {
-    animation-delay: 0.36s;
+  .bragseat > :global(button .brag) {
+    animation-delay: calc(var(--i) * 0.12s);
   }
   .ledger {
     display: grid;
@@ -1064,7 +1110,11 @@ import { track } from "../lib/analytics";
   .qstar {
     margin-right: 4px;
   }
-  /* Default (no tier class) is the manager "+W" rows: wins added, plain green. */
+  /* Every numeral in both lists carries a tier class, players and skippers
+     alike, so the bare `.qwar` color is a fallback nothing reaches — kept as
+     the one honest default for a value with no rung (Eye Test hides WAR, not
+     this row) rather than deleted and re-derived the next time a row is
+     added. */
   .qwar {
     margin-left: auto;
     font-weight: 800;

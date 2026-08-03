@@ -7,15 +7,15 @@
    * Exactly the reason BadgePill is one component rather than two.
    *
    * It draws stamps and nothing else. Which countries, in what order, with what
-   * numbers on them and whether any of them are new are all decided by the
-   * caller and arrive as `PassportItem`s: the case hands over a career, the
-   * finale hands over one club, and neither shape is this component's business.
+   * numbers on them, which are new and which are still empty slots are all
+   * decided by the caller and arrive as `PassportItem`s — `settings.ts` builds
+   * both lists, and neither shape is this component's business.
    *
-   * It also has no empty state, and that is load-bearing rather than lazy. The
-   * passport is a souvenir, never a checklist — nothing in the game shows a
-   * birth country before the season is over, so a slot for a country you have
-   * not met would be inviting a hunt with no tools for it. A caller with
-   * nothing to show renders no Passport at all. */
+   * A locked stamp is the same object with its ink drained: same size, same
+   * flag, same name, no number and no color. It has to stay the same size,
+   * because a board of thirty-nine is read as a field and a shrunken slot would
+   * make the collected ones look like a different kind of thing rather than the
+   * same thing filled in. */
   let { stamps, label }: { stamps: PassportItem[]; label: string } = $props();
 </script>
 
@@ -31,7 +31,7 @@
          between them is the flex `gap` below — BadgePill's rule, for
          BadgePill's reason. -->
     <span
-      class="stamp {s.rarity ?? ''}"
+      class="stamp {s.locked ? 'locked' : (s.rarity ?? '')}"
       role="listitem"
       title={s.title ?? undefined}
     >{#if s.fresh}<span class="new">NEW</span>{/if}{#if s.flag}<span
@@ -97,6 +97,26 @@
     background: var(--yellow);
     border-color: var(--gold-8);
     color: var(--ink);
+  }
+  /* Never been here. It keeps the paper base above — no tier fill, because the
+     tier is a fact about a stamp you HOLD — and loses the rest of its ink to a
+     dashed line and a faded flag.
+     Dashed is the app's own word for "not filled in yet": an empty roster seat
+     is dashed, an armed one is dashed, a locked badge slot is dashed. Reusing
+     it here costs nothing to learn.
+     The name stays at full strength and only the flag is desaturated, which is
+     what keeps a board of twenty-eight slots readable — grayscale on a two-
+     letter regional-indicator pair leaves a legible shape, and dropping the
+     text with it would leave a field of unlabeled gray rectangles. */
+  .stamp.locked {
+    border-style: dashed;
+    border-color: var(--dash);
+    background: transparent;
+    color: var(--gray-ink);
+  }
+  .stamp.locked .flag {
+    filter: grayscale(1);
+    opacity: 0.5;
   }
   /* The flag runs a little larger than the name it sits beside: an emoji set at
      the type size of small caps reads as a smudge, and the flag is the only

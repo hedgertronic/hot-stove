@@ -349,13 +349,18 @@ export interface CountryDef {
  * history row — no normalization anywhere in between. "Curaçao" is NFC in the
  * data (one U+00E7), and so is the key here.
  *
- * ---- The tiers decorate; they never invite ----
+ * ---- The tiers decorate; they still never invite ----
  *
  * A country is not collectible. Nothing in the game shows a birth country
- * before the finale, so a tier here is a fact about a stamp the player already
- * has, never a target — which is why this table is a lookup and never a list
- * the panel enumerates. `passport()` returns found stamps and reads their
- * decoration out of here; nothing ever walks these keys to render a slot.
+ * before the finale, and no move a player can make produces a Lithuanian — so a
+ * tier here is a fact about how unlikely a stamp was, never a target.
+ *
+ * `passportBoard()` DOES walk these keys, to draw the countries a career has
+ * not reached as grayed slots. That is a scale for the stamps beside them
+ * rather than a checklist: an unvisited slot names no player, suggests no
+ * action, and the ones a player will actually see next are the ones already at
+ * the top. The rule the panel still keeps is the one that matters — nothing
+ * here is ever shown DURING a game, where it could steer a signing.
  *
  * The bands are the badge ladder's own, one rung per order of magnitude of
  * club rate: 20%+ common, 5–20% uncommon, 1–5% rare, under 1% ultra. The split
@@ -597,10 +602,11 @@ export function passport(): PassportStamp[] {
 }
 
 /** One stamp as a surface draws it. Both the trophy case and the finale render
- * countries, and they render the same object for different reasons — a career's
- * worth of them in the case, one club's worth at the finale — so the shape they
- * hand `Passport.svelte` lives here, beside the table the decoration comes out
- * of. */
+ * countries, and they now render the SAME LIST — every country a career has
+ * fielded, with the same number on each — so the shape they hand
+ * `Passport.svelte` lives here, beside the table the decoration comes out of,
+ * and so does the function that builds it. Two surfaces hand-assembling the
+ * same stamp is exactly how the two drifted apart before. */
 export interface PassportItem {
   country: string;
   /** Empty for a country the table does not know; the stamp then shows its
@@ -616,7 +622,103 @@ export interface PassportItem {
   /** First time this country has ever been fielded. Finale only: in the case
    * every stamp is already found, so the flag would mark all of them. */
   fresh: boolean;
+  /** Never been fielded at all — a slot rather than a stamp. The board in the
+   * trophy case shows every country there is, so an unvisited one is drawn
+   * grayed out with its flag and its name and no number. */
+  locked: boolean;
   /** Hover/assistive detail. Null draws no title attribute at all. */
   title: string | null;
+}
+
+/** What one stamp says on hover, and to a screen reader.
+ *
+ * It spells out the two numbers the stamp itself cannot: which of the games
+ * behind a country actually named the people in it, and how many seasons those
+ * were. A stamp with `counted === 0` says so in words rather than showing a
+ * zero — a country nobody is counted for is a gap in the log, not a club with
+ * nobody in it. */
+export function stampTitle(s: PassportStamp): string {
+  const when = s.first ? `First fielded ${s.first}. ` : "";
+  const seasons = `${s.visits} ${s.visits === 1 ? "season" : "seasons"}`;
+  if (s.counted === 0) return `${when}${seasons}, none carrying a roster.`;
+  const players = `${s.players} ${s.players === 1 ? "player" : "players"}`;
+  if (s.counted === s.visits) return `${when}${players} across ${seasons}.`;
+  return `${when}${players} across ${s.counted} of ${seasons}.`;
+}
+
+/** The stamps a career has actually collected, as the panel draws them.
+ *
+ * The number on a stamp is unique PLAYERS, so a man rostered in four seasons
+ * counts once and two different Venezuelans count twice — and it is shown at
+ * one as readily as at four, which breaks the badge pills' "only mark above
+ * one" convention on purpose. A blank has to mean exactly one thing here, and
+ * the thing it means is "no season on record named anybody".
+ *
+ * `fresh` names the countries this game was the first to field. The caller
+ * supplies them because only the caller knows whether a game just ended; the
+ * case passes nothing and flags nothing, since in the case every stamp is
+ * already found.
+ *
+ * New ones lead, the same order `bragRow` puts the finale's badge pills in and
+ * for the same reason: the flagged one is what the player is here to see. The
+ * rest keep `passport()`'s newest-first order. */
+export function passportItems(
+  fresh: ReadonlySet<string> = new Set<string>(),
+): PassportItem[] {
+  return passport()
+    .map((s) => ({
+      country: s.country,
+      flag: s.flag,
+      rarity: s.rarity,
+      count: s.counted > 0 ? s.players : null,
+      fresh: fresh.has(s.country),
+      locked: false,
+      title: stampTitle(s),
+    }))
+    .sort((a, b) => Number(b.fresh) - Number(a.fresh));
+}
+
+/** The whole board: every country there is, collected ones first.
+ *
+ * ---- This reverses a rule, on purpose ----
+ *
+ * The panel used to show found stamps and nothing else, on the reasoning that
+ * a country is not collectible — nothing in the game shows a birth country
+ * before the finale, so a grid of grayed-out slots would point a player at a
+ * hunt they have no way to run.
+ *
+ * That reasoning was about INVITATION and it held; what it got wrong is what
+ * the empty slots are for. A player who has fielded eleven countries has no way
+ * to know whether that is most of them or a tenth of them, and a souvenir with
+ * no scale is a souvenir you cannot tell a story about. The slots answer that
+ * and still invite nothing: they are unsorted by anything actionable, they name
+ * no player, and there is no move that produces a Lithuanian. Landing one
+ * remains an accident — the board just tells you how unlikely the accident was.
+ *
+ * The unvisited half runs commonest first, which is the honest order for a
+ * thing nobody chases: the countries near the top are the ones a few more
+ * seasons will turn up on their own, and 🇱🇹 sits at the bottom where it
+ * belongs. Sorting them by name would imply the list is for looking things up
+ * in, which it is not.
+ *
+ * A country the table does not know cannot appear as a slot — there is nothing
+ * to draw — but it still appears as a STAMP once fielded, on plain paper. The
+ * board is `COUNTRIES` plus whatever the log turned up. */
+export function passportBoard(): PassportItem[] {
+  const found = passportItems();
+  const seen = new Set(found.map((i) => i.country));
+  const locked = Object.entries(COUNTRIES)
+    .filter(([country]) => !seen.has(country))
+    .sort((a, b) => b[1].freq - a[1].freq)
+    .map(([country, def]) => ({
+      country,
+      flag: def.flag,
+      rarity: def.rarity,
+      count: null,
+      fresh: false,
+      locked: true,
+      title: "Never fielded.",
+    }));
+  return [...found, ...locked];
 }
 
