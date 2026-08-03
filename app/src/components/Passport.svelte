@@ -31,12 +31,14 @@
          between them is the flex `gap` below — BadgePill's rule, for
          BadgePill's reason. -->
     <span
-      class="stamp {s.locked ? 'locked' : (s.rarity ?? '')}"
+      class="stamp {s.rarity ?? ''}"
+      class:locked={s.locked}
       role="listitem"
-      title={s.title ?? undefined}
+      aria-label="{s.country}{s.count !== null ? `, ${s.count}` : ''}{s.title ? `. ${s.title}` : ''}"
+      title={s.title ? `${s.country} — ${s.title}` : s.country}
     >{#if s.fresh}<span class="new">NEW</span>{/if}{#if s.flag}<span
           class="flag">{s.flag}</span
-        >{/if}<span class="name">{s.country}</span>{#if s.count !== null}<span
+        >{:else}<span class="name">{s.country}</span>{/if}{#if s.count !== null}<span
           class="count">×{s.count}</span
         >{/if}</span
     >
@@ -51,9 +53,16 @@
     gap: 6px;
   }
   /* A stamp, not a pill. The badge pills are 999px capsules; a country wears a
-     small radius and a smaller type size, because a country is not a badge and
-     the two are read inches apart. The SHAPE is what carries that distinction,
-     which is what frees the fill to carry something else. */
+     small radius, because a country is not a badge and the two are read inches
+     apart. The SHAPE is what carries that distinction, which is what frees the
+     fill to carry something else.
+     THE FLAG IS THE STAMP. The country's name is not printed — a passport is
+     read by its marks, and thirty-nine spelled-out names is a list where a
+     field of flags is a collection. The name is not lost: it is the stamp's
+     accessible name and its tooltip, so a screen reader still reads "Dominican
+     Republic, 3" and a pointer still turns up the full detail. The one case
+     that still prints text is a country the flag table does not know, where
+     `flag` is empty and the name is the only mark there is. */
   .stamp {
     display: inline-flex;
     align-items: center;
@@ -66,7 +75,7 @@
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    padding: 3px 8px;
+    padding: 3px 7px;
     white-space: nowrap;
   }
   /* The four tier fills are BadgePill's own token pairs, rung for rung — the
@@ -98,25 +107,34 @@
     border-color: var(--gold-8);
     color: var(--ink);
   }
-  /* Never been here. It keeps the paper base above — no tier fill, because the
-     tier is a fact about a stamp you HOLD — and loses the rest of its ink to a
-     dashed line and a faded flag.
-     Dashed is the app's own word for "not filled in yet": an empty roster seat
-     is dashed, an armed one is dashed, a locked badge slot is dashed. Reusing
-     it here costs nothing to learn.
-     The name stays at full strength and only the flag is desaturated, which is
-     what keeps a board of twenty-eight slots readable — grayscale on a two-
-     letter regional-indicator pair leaves a legible shape, and dropping the
-     text with it would leave a field of unlabeled gray rectangles. */
+  /* Never been here. It KEEPS its tier fill — a country's rarity is a fact
+     about the country, true before anyone goes there, and showing it is what
+     turns the board from a checklist into a map: the gold squares are the hard
+     ones, visibly, from the first time the case is opened.
+     What it loses is the flag's color and the border's solidity. Dashed is the
+     app's own word for "not filled in yet" — an empty roster seat is dashed, an
+     armed one is dashed, a locked badge slot is dashed — so the earned/unearned
+     read costs nothing to learn and does not have to be carried by the fill.
+     Grayscale rather than faded: a two-letter regional-indicator pair at full
+     opacity in gray still reads as a specific flag, where 50% opacity on a
+     tinted ground turns it to mush. The count is simply absent, which is the
+     third tell and the plainest one. */
   .stamp.locked {
     border-style: dashed;
-    border-color: var(--dash);
-    background: transparent;
-    color: var(--gray-ink);
+    /* Held back so the COLLECTED stamps still lead the board.
+       Most of the table is `ultra` — the long tail of one-player countries is
+       the bulk of it — so a board drawn at full strength came out a wall of
+       gold in which an earned USA (common, warm gray) was the quietest thing
+       on screen. That inverts the whole point: the stamps you HAVE are the
+       souvenir and the slots are the context.
+       0.62 is the number that keeps every tier still legibly itself — violet
+       still reads violet at a glance — while putting the earned row clearly in
+       front. It is one value, and it is the dial to turn if the board wants to
+       be louder or quieter. */
+    opacity: 0.62;
   }
   .stamp.locked .flag {
     filter: grayscale(1);
-    opacity: 0.5;
   }
   /* The flag runs a little larger than the name it sits beside: an emoji set at
      the type size of small caps reads as a smudge, and the flag is the only

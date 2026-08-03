@@ -118,7 +118,7 @@ function panel(): string {
 function found(): string {
   return panel()
     .split('<span class="stamp')
-    .filter((chunk, i) => i === 0 || !chunk.startsWith(" locked"))
+    .filter((chunk, i) => i === 0 || !/^[^"]*\blocked\b/.test(chunk))
     .join('<span class="stamp');
 }
 
@@ -148,19 +148,37 @@ function finaleStamps(...countries: (string | undefined)[]): string {
   return body.slice(at, end < 0 ? undefined : end);
 }
 
+/** A stamp is found by its ACCESSIBLE NAME, not by its text. The board prints
+ * flags alone — a passport is read by its marks — so the country's name lives
+ * in `aria-label` and the tooltip, and that is the only place a test can look
+ * it up. Anchored on the delimiter that follows so "Japan" cannot match a
+ * country merely beginning with it. */
+function stampFor(markup: string, country: string): string {
+  const esc = country.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const chunk of markup.split('<span class="stamp').slice(1)) {
+    if (new RegExp(`aria-label="${esc}[,."]`).test(chunk)) return chunk;
+  }
+  throw new Error(`no stamp for ${country}`);
+}
+
 /** Whatever the stamp naming a country wears BESIDES `stamp` and its style
  * hash — the tier a reader actually sees, rather than the tier the reader
  * returned. An empty list is a stamp with no tier at all. */
 function stampClass(markup: string, country: string): string[] {
-  for (const chunk of markup.split('<span class="stamp').slice(1)) {
-    if (!chunk.includes(`>${country}<`)) continue;
-    return chunk
-      .slice(0, chunk.indexOf('"'))
-      .trim()
-      .split(/\s+/)
-      .filter((c) => c !== "" && !c.startsWith("svelte-"));
-  }
-  throw new Error(`no stamp for ${country}`);
+  const chunk = stampFor(markup, country);
+  return chunk
+    .slice(0, chunk.indexOf('"'))
+    .trim()
+    .split(/\s+/)
+    .filter((c) => c !== "" && !c.startsWith("svelte-"));
+}
+
+/** Where a country's stamp sits on the board, for the ordering tests. */
+function stampAt(markup: string, country: string): number {
+  const esc = country.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const i = markup.search(new RegExp(`aria-label="${esc}[,."]`));
+  if (i < 0) throw new Error(`no stamp for ${country}`);
+  return i;
 }
 
 /** Country names only, in the order the reader returns them. */
@@ -593,17 +611,47 @@ describe("the passport panel", () => {
     expect(body.indexOf("LEGENDARY")).toBeLessThan(body.indexOf("PASSPORT"));
   });
 
-  it("fills in a country that has been fielded and leaves the rest gray", () => {
+  it("fills in a country that has been fielded and leaves the rest a slot", () => {
     seed(game(["Japan", "Cuba"]));
     const p = panel();
     expect(stampClass(p, "Japan")).toEqual(["uncommon"]);
     expect(stampClass(p, "Cuba")).toEqual(["uncommon"]);
     // Everything else on the board is a slot, and says so in words too.
-    expect(stampClass(p, "Venezuela")).toEqual(["locked"]);
+    expect(stampClass(p, "Venezuela")).toEqual(["common", "locked"]);
     expect(p).toContain("Never fielded.");
     const total = Object.keys(COUNTRIES).length;
     expect((p.match(/role="listitem"/g) ?? []).length).toBe(total);
-    expect((p.match(/stamp locked/g) ?? []).length).toBe(total - 2);
+    expect((p.match(/ locked"/g) ?? []).length).toBe(total - 2);
+  });
+
+  it("keeps an unvisited country's tier, and marks it unvisited by its line", () => {
+    // A country's rarity is a fact about the COUNTRY — true before anyone goes
+    // there — so the board shows it from the first time the case is opened and
+    // the gold squares are visibly the hard ones. What an unvisited slot loses
+    // is the solid border and the count, never the tier.
+    seed(game(["Japan"]));
+    const p = panel();
+    expect(stampClass(p, "USA")).toEqual(["common", "locked"]);
+    expect(stampClass(p, "Panama")).toEqual(["rare", "locked"]);
+    expect(stampClass(p, "Guam")).toEqual(["ultra", "locked"]);
+    // …and the one it HAS been to wears the tier with no `locked` beside it.
+    expect(stampClass(p, "Japan")).toEqual(["uncommon"]);
+  });
+
+  it("names every country to assistive tech, printing none of them", () => {
+    // The flag IS the stamp — thirty-nine spelled-out names is a list where a
+    // field of flags is a collection — but a name that only exists as a glyph
+    // is a name a screen reader cannot read. So it moves to the accessible
+    // name and the tooltip rather than disappearing.
+    seed(rostered({ Japan: ["ohtansh01"] }, "2026-01-01"));
+    const p = panel();
+    for (const c of ["Japan", "USA", "Curaçao", "Lithuania"]) {
+      expect(p, `${c} has no accessible name`).toContain(`aria-label="${c}`);
+      expect(p, `${c} is printed as text`).not.toContain(`>${c}<`);
+    }
+    // The count rides along with it, so "Japan, 1" is what gets announced
+    // rather than a bare flag.
+    expect(stampFor(p, "Japan")).toContain('aria-label="Japan, 1');
   });
 
   it("leads with what has been collected", () => {
@@ -611,7 +659,7 @@ describe("the passport panel", () => {
     // the sheet is actually for.
     seed(game(["Lithuania"]));
     const p = panel();
-    expect(p.indexOf("Lithuania")).toBeLessThan(p.indexOf("USA"));
+    expect(stampAt(p, "Lithuania")).toBeLessThan(stampAt(p, "USA"));
   });
 
   it("runs the unvisited half commonest first", () => {
@@ -619,9 +667,9 @@ describe("the passport panel", () => {
     // seasons will turn up on their own sit at the top, and 🇱🇹 at the bottom.
     seed(game(["Japan"]));
     const p = panel();
-    expect(p.indexOf(">USA<")).toBeLessThan(p.indexOf(">Cuba<"));
-    expect(p.indexOf(">Cuba<")).toBeLessThan(p.indexOf(">Panama<"));
-    expect(p.indexOf(">Panama<")).toBeLessThan(p.indexOf(">Lithuania<"));
+    expect(stampAt(p, "USA")).toBeLessThan(stampAt(p, "Cuba"));
+    expect(stampAt(p, "Cuba")).toBeLessThan(stampAt(p, "Panama"));
+    expect(stampAt(p, "Panama")).toBeLessThan(stampAt(p, "Lithuania"));
   });
 
   it("flies the flag beside the name", () => {
@@ -662,13 +710,14 @@ describe("the passport panel", () => {
 
   it("borrows none of the locked-badge vocabulary for a locked country", () => {
     // A slot is a country nobody has been to, not a badge nobody has earned:
-    // it keeps its flag and its name, because there is no surprise to protect.
+    // it keeps its flag, its tier and its name, because there is no surprise
+    // to protect.
     seed(game(["Japan"]));
     const p = panel();
     expect(p).not.toContain("Not yet earned");
     expect(p).not.toContain("An undiscovered badge");
     expect(p).not.toContain("? ? ?");
-    expect(p).toContain(">Lithuania<");
+    expect(p).toContain('aria-label="Lithuania');
     expect(p).toContain("🇱🇹");
   });
 
@@ -696,26 +745,34 @@ describe("the passport panel", () => {
     expect(p).toContain("First fielded 2026-01-01. 2 seasons, none carrying a roster.");
   });
 
-  it("says out loud which seasons carry no count, and only when some do", () => {
-    // A tooltip alone would hide the gap on a phone, where nothing hovers.
+  it("carries no prose at all — the stamp explains itself", () => {
+    // The panel used to print a two-sentence note under the board saying what
+    // a number meant and which seasons had none. It is gone: a passport that
+    // needs a caption to be read is not a passport, and the same two facts are
+    // already on every stamp's own title, where they belong to the country
+    // being asked about rather than to the board.
     seed(game(["Japan"], "2024-01-01"), rostered({ Japan: ["ohtansh01"] }, "2026-01-01"));
     const p = panel();
-    expect(p).toContain("A number is how many different players you have fielded");
-    expect(p).toContain("Seasons that recorded no roster carry none.");
+    expect(p).not.toContain("A number is how many different players");
+    expect(p).not.toContain("Seasons that recorded no roster carry none.");
+    // …and the fact that note carried is still on the stamp.
     expect(p).toContain("First fielded 2024-01-01. 1 player across 1 of 2 seasons.");
   });
 
-  it("drops the note once every season is counted", () => {
+  it("keeps the whole title on the stamp, name first", () => {
+    // The tooltip leads with the country because the stamp no longer prints
+    // it: hovering a bare flag has to answer "which country" before it answers
+    // anything else.
     seed(rostered({ Japan: ["ohtansh01", "suzukii01"] }, "2026-01-01"));
     const p = panel();
-    expect(p).toContain("A number is how many different players you have fielded");
-    expect(p).not.toContain("Seasons that recorded no roster carry none.");
-    expect(p).toContain("First fielded 2026-01-01. 2 players across 1 season.");
+    expect(p).toContain(
+      'title="Japan — First fielded 2026-01-01. 2 players across 1 season."',
+    );
   });
 
-  it("says nothing about counts while there are none to explain", () => {
+  it("titles an unvisited slot with its country and nothing else to explain", () => {
     seed(game(["Japan"]));
-    expect(panel()).not.toContain("A number is how many different players");
+    expect(panel()).toContain('title="Lithuania — Never fielded."');
   });
 });
 
@@ -738,7 +795,7 @@ describe("the finale's passport", () => {
     expect(stamps).toContain("🇺🇸");
     expect(stamps).toContain("🇻🇪");
     expect(stamps).toContain("🇲🇽");
-    expect((stamps.match(/>Japan</g) ?? []).length).toBe(1);
+    expect((stamps.match(/aria-label="Japan[,."]/g) ?? []).length).toBe(1);
   });
 
   it("draws no empty slots — the board belongs to the trophy case", () => {

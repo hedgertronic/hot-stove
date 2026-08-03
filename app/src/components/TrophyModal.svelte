@@ -2,7 +2,6 @@
   import { BADGES, RARITY_ORDER, type BadgeDef, type Rarity } from "../lib/badges";
   import {
     badgeCase,
-    passport,
     passportBoard,
     takeOpenedBadgeCue,
     type PassportItem,
@@ -105,24 +104,6 @@
    * `passportBoard()` walks the whole country table; see the note on it for why
    * that stopped being a checklist objection. */
   const items: PassportItem[] = passportBoard();
-  /** A second read of the same log, deliberately. `passportBoard` hands back
-   * what the panel DRAWS, and the note below it needs one thing a drawn stamp
-   * does not carry: how many of a country's seasons recorded a roster at all.
-   * Widening PassportItem to carry a diagnostic onto every stamp costs more
-   * than parsing the log twice on a modal open. */
-  const stamps = passport();
-
-  /** The player count is not backfillable and the panel says so out loud.
-   *
-   * A history row records badges, countries and a record and has never recorded
-   * a roster, so a season played before the roster was logged cannot be made to
-   * give up its players. Those seasons keep their stamp and their date and
-   * carry no number. A tooltip alone would hide that on a phone, where nothing
-   * hovers, so the panel prints one muted line: the first sentence says what a
-   * number means, the second admits which seasons have none. Neither appears
-   * before there is a number on screen to explain. */
-  const anyCounted = items.some((i) => i.count !== null);
-  const anyMissing = stamps.some((s) => s.counted < s.visits);
 
   /** The one opened badge, by key. Only an EARNED pill is a button, so only an
    * earned badge can ever land here — a locked slot has nothing to open, and
@@ -178,21 +159,19 @@
         </div>
       </div>
     {/each}
-  </div>
 
-  <!-- The last band on the sheet: the ones above answer "what have I
-       collected", this answers "where have I been". Same .band, same .psep, no
-       count — the stamps are the answer and a total would only rank it. -->
-  <div class="band">
-    <div class="psep">PASSPORT</div>
-    <Passport stamps={items} label="Countries fielded" />
-    {#if anyCounted}
-      <p class="note">
-        A number is how many different players you have fielded from that
-        country.
-        {#if anyMissing}Seasons that recorded no roster carry none.{/if}
-      </p>
-    {/if}
+    <!-- The last band on the sheet, and a sibling of the rarity bands rather
+         than a block after them: the ones above answer "what have I
+         collected", this answers "where have I been", and `.band + .band`
+         gives it exactly the gap every other band gets. It sat outside this
+         wrapper for one round, which is why its header rode closer to the
+         stamps above it than any other separator on the sheet — the adjacent
+         sibling rule never reached it.
+         No count. The stamps are the answer and a total would only rank it. -->
+    <div class="band">
+      <div class="psep">PASSPORT</div>
+      <Passport stamps={items} label="Countries fielded" />
+    </div>
   </div>
 </Sheet>
 
@@ -228,16 +207,5 @@
        sheet scrolls in y, so a panel that reached past this box would earn the
        sheet a horizontal scrollbar as well. */
     position: relative;
-  }
-  /* The one line of prose on the sheet, and it is there to keep a blank stamp
-     from reading as a broken one. Centered under the stamps at the size the
-     rest of the sheet's small print runs. */
-  .note {
-    margin: 8px 0 0;
-    text-align: center;
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 1.45;
-    color: var(--muted);
   }
 </style>
