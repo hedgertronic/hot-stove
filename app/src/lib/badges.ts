@@ -69,9 +69,11 @@ import { GOAL_POINTS } from "./scoring";
  *    to a win total: 🧮, 🧢, 🧗 and 🧾 all read the baseline and all say so.
  */
 
-/** The collection ladder. `legendary` sits above `ultra` and holds the two badges
+/** The collection ladder. `legendary` sits above `ultra` and holds the badges
  * that say "you maxed out an axis" rather than "this was rare" — the frequency
- * gap between them and ultra is small, the statement is not. It is styled
+ * gap between them and ultra is small, the statement is not. Membership is the
+ * top of an axis and nothing else: 👑 is the top of the on-field ladder, 🏆 the
+ * top of the goal, 🌠 the top of scouting. It is styled
  * inverted from every other tier (ink fill, gold text) so it reads as beyond
  * the ladder rather than one more rung on it. */
 /** Rarest first, anti-trophies last — the one ordering of the ladder.
@@ -95,9 +97,17 @@ export const RARITY_ORDER = [
 export type Rarity = (typeof RARITY_ORDER)[number];
 
 /** Which slot a badge competes for. Within an exclusive axis exactly one badge
- * fires; `roster`, `era`, and `goal` stack freely. */
+ * fires; `roster`, `era`, `goal`, and `meta` stack freely.
+ *
+ * `meta` is the axis for badges that are about the APP rather than about a
+ * baseball season: quitting a run, replaying a seed, being handed a seed, and
+ * typing a code on a keyboard. Nothing on it reads the roster, the record or
+ * the payroll, and nothing on it can be earned by playing better. It exists so
+ * a per-axis tally files those four together instead of filing them under
+ * `roster` and `era`, where they were the only members that named no player,
+ * no season and no club. */
 export type BadgeAxis =
-  "onfield" | "goal" | "payroll" | "scout" | "roster" | "era";
+  "onfield" | "goal" | "payroll" | "scout" | "roster" | "era" | "meta";
 
 export interface BadgeDef {
   key: string;
@@ -221,6 +231,20 @@ export interface BadgeFacts {
   /** `ScoreParts.budgetBonus`; 💵 wants it near its 10-point ceiling. */
   budgetBonus: number;
   scoutHits: number;
+  /** The seats the dream club can actually fill — nine with a manager, fewer
+   * when the reel showed too few cards to put one pick in every chair
+   * (`bestroster.dreamSeats`, the same denominator the finale prints beside
+   * the stars).
+   *
+   * `scoutHits` alone cannot answer "did you match the dream team", only "how
+   * many did you match". A game that spun five cards has a five-seat dream
+   * club, and five hits against it is a full match of a club that was never a
+   * club — so 🌠 reads BOTH numbers and asks for nine of nine. The denominator
+   * is carried rather than assumed at nine for the same reason `powerups`
+   * carries its own total: a partial solve is a real state, and a badge that
+   * hard-codes the full one silently rewards the thin reel it was built to
+   * exclude. */
+  dreamSeats: number;
   /** Filled roster slots only — empty seats are simply absent, so a partial
    * club can never earn a "every player …" badge by vacancy. */
   roster: BadgeRosterEntry[];
@@ -237,6 +261,41 @@ export interface BadgeFacts {
    * happened to manage; the badge counts the chair, not the man. Nine
    * managers, on 125 of the 1,188 cards. Optional for the `age` reason. */
   managerHof?: boolean;
+  /** The hired skipper's (W − L) that season. 🪑 THE INTERIM asks whether the
+   * dugout the club settled for finished under .500, which is a fact about the
+   * chair rather than about the season's own record — the club's stamp already
+   * folds in eight roster seats and every modifier.
+   *
+   * Optional for the `age` reason, and it fails SAFE: absent reads as zero
+   * through the trigger's `?? 0`, and zero is not under .500, so a fact set
+   * assembled before the field existed withholds the badge rather than
+   * inventing it. */
+  managerNetWins?: number;
+  /** True when the skipper was hired with every OTHER seat already filled —
+   * the whole club built, the dugout left to the final spin.
+   *
+   * The exact counterpart of `ownerLast`, and it is a moment for the same
+   * reason: by the finale a full roster and a hired manager look identical
+   * whichever order they arrived in, so the engine records the answer at the
+   * moment it makes the hire. Both first-hire paths write it — the FRONT
+   * OFFICE row and ⭐ Prime Time's manager career sheet — while a 🔁 Trade
+   * Deadline swap does not, because that path requires the chair to be taken
+   * already and a club that had a skipper all along never left the dugout
+   * empty.
+   *
+   * "Every other seat" means the roster plus, in Clean House, the owner and
+   * the ballpark: the game ends the spin the club completes, so a hire made
+   * with everything else filled IS the hire made on the final spin.
+   *
+   * Optional for the `age` reason. */
+  managerLast?: boolean;
+  /** The Konami code was entered on a physical keyboard during this game.
+   *
+   * Optional for the `age` reason: a save written before the field existed
+   * restores as "not entered" rather than failing to type-check, which is also
+   * the honest answer — nobody typed it, because there was nothing to type it
+   * into. */
+  konami?: boolean;
   /** `Game.pedigree.rings`. */
   rings: number;
   /** `ScoreParts.awardPoints` — includes the manager's MotY points. */
@@ -311,6 +370,12 @@ const CHEAP_PCT = 0.6; // spend/cap at or under this is a pocketed payroll
 const PINCH_PCT = 0.5; // …and this cheap WITH a winning record is a skill brag
 const PINCH_WINS = 95;
 const CRYSTAL_HITS = 7; // dream-team picks found (of 8, or 9 with a manager)
+/** The whole club: eight roster seats plus the dugout. 🌠 THE DREAM TEAM asks
+ * for this number twice — the dream club has to HOLD nine seats and the player
+ * has to have matched all nine — so a reel too thin to fill the ninth chair
+ * takes the badge off the table rather than handing it over for a smaller
+ * match. See `BadgeFacts.dreamSeats`. */
+const DREAM_SEATS = 9;
 /* 🕶️ needs a result as well as the nerve, and CHEAP_PCT is the number that
  * supplies it. Above 60% of the cap the club has genuinely committed the
  * payroll it did not know it had; at or below it, signing eight cheap men and
@@ -687,6 +752,50 @@ function isChase(p: { id: string; year: number }): boolean {
   return CHASE_SEASONS[p.id]?.includes(p.year) === true;
 }
 
+/** Derek Jeter, and that is the whole trigger.
+ *
+ * Keyed on the PLAYER rather than on a season, unlike the two tables above,
+ * because the badge is not about a year he had — it is about the man being on
+ * the club. Every one of his eighteen draftable seasons is a Yankee season, so
+ * there is no club half to key on either.
+ *
+ * The supply is 18 of the 1,188 cards (1.52%), which is the largest one-man
+ * supply anything in this file names: 🎲 rides 14 cards, 🏦 six, 💥 three. On
+ * eight of those eighteen he is one of the card's five best seasons by WAR —
+ * the proxy 💊's note uses for "a WAR-led draft actually takes him" — against
+ * five of five for 🃏 THE TWO-WAY GUY, which measures 3.79%. So this fires
+ * meaningfully more often than any rare in the set, which is what puts it at
+ * `uncommon`; the other ten cards are seasons a player has to want him for. */
+export const CAPTAIN = "jeterde01";
+
+/** The men who ended a World Series with a hit, inside the 1985–2025 window.
+ * There are exactly three, and each one's season is his club's title year:
+ * Joe Carter's three-run shot off Mitch Williams, Édgar Rentería's single up
+ * the middle in the eleventh, and Luis Gonzalez's bloop over a drawn-in
+ * infield off Mariano Rivera.
+ *
+ * Keyed on the exact season the way 📖 and 💥 are, never on the player: Carter
+ * has fifteen draftable seasons and Rentería sixteen, and all but one of each
+ * is an ordinary year by this badge's standard. Ids are read off the cards
+ * rather than from memory, because `renteri01` is Rick Renteria (FLA 1993) and
+ * the man here is `renteed01` — the same collision shape as the Pedro Borbón
+ * Jr. trap on 🚧, and badges-supply pins both halves of it.
+ *
+ * Three of the 1,188 cards can trip it, the identical supply to 💥 THE CHASE —
+ * and it is strictly harder at that supply, which is why it sits a tier above.
+ * All three chase seasons are among their card's five best by WAR (6.5, 7.5,
+ * 11.9) and get signed by any draft that reads a number; the walk-off seasons
+ * are 7.9, 2.0 and 0.9, so two of the three are years nothing but the story
+ * would make you take. */
+export const WALK_OFF_SEASONS: Record<string, number[]> = {
+  cartejo01: [1993], // TOR — Carter, Game 6
+  renteed01: [1997], // FLA — Rentería, Game 7
+  gonzalu01: [2001], // ARI — Gonzalez, Game 7
+};
+function isWalkOff(p: { id: string; year: number }): boolean {
+  return WALK_OFF_SEASONS[p.id]?.includes(p.year) === true;
+}
+
 export const FATHER_SON: ReadonlyArray<readonly [string, string]> = [
   ["armasto01", "armasto02"], // Tony Armas / Tony Armas Jr.
   ["bannifl01", "bannibr01"], // Floyd Bannister / Brian Bannister
@@ -902,7 +1011,7 @@ export const BADGES: BadgeDef[] = [
     // is what the second gate exists to prevent, so the copy can say plainly
     // that both cleared 117 rather than hedging about which one counts. The
     // ledger already prints the arithmetic; this string does not repeat it.
-    how: "117 baseline wins or more, and a final record that held there — better than any club has ever finished.",
+    how: "117 baseline wins or more, and a final record that held there.",
   },
   /* All six named rungs are `secret`, for the reason `crown` is and one more
    * of their own: a rung matched EXACTLY is a farmable target the moment it is
@@ -918,7 +1027,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "ultra",
     axis: "onfield",
     freq: 0.63,
-    how: "Exactly 116 baseline wins and a final record no worse, tying the mark the 2001 Mariners still hold.",
+    how: "Exactly 116 baseline wins, and a final record no worse.",
   },
   {
     key: "yankees",
@@ -928,7 +1037,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "ultra",
     axis: "onfield",
     freq: 1.4,
-    how: "Exactly 114 baseline wins and a final record no worse, matching the 1998 Yankees.",
+    how: "Exactly 114 baseline wins, and a final record no worse.",
   },
   /* The champion rungs climb in rarity with the win total they name, which is
    * also what the measurement says: 4.29 / 4.92 / 4.99 / 5.95 percent, rarest
@@ -942,7 +1051,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "rare",
     axis: "onfield",
     freq: 4.29,
-    how: "Exactly 108 baseline wins and a final record no worse, matching the 1986 Mets.",
+    how: "Exactly 108 baseline wins, and a final record no worse.",
   },
   {
     key: "astros",
@@ -952,7 +1061,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "rare",
     axis: "onfield",
     freq: 4.92,
-    how: "Exactly 106 baseline wins and a final record no worse, matching the 2022 Astros.",
+    how: "Exactly 106 baseline wins, and a final record no worse.",
   },
   {
     key: "cubs",
@@ -962,7 +1071,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "uncommon",
     axis: "onfield",
     freq: 5.95,
-    how: "Exactly 103 baseline wins and a final record no worse, matching the 2016 Cubs.",
+    how: "Exactly 103 baseline wins, and a final record no worse.",
   },
   {
     key: "redsox",
@@ -972,7 +1081,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "uncommon",
     axis: "onfield",
     freq: 4.99,
-    how: "Exactly 98 baseline wins and a final record no worse, matching the 2004 Red Sox.",
+    how: "Exactly 98 baseline wins, and a final record no worse.",
   },
   {
     // The one rung on the axis that is NOT secret, and the reason the rest can
@@ -1007,7 +1116,7 @@ export const BADGES: BadgeDef[] = [
     // is what the badge names, and it is the record the player is looking at
     // when they go looking for it.
     freq: 0,
-    how: "An 0–162 season on the record the finale stamps. Every game, lost.",
+    how: "An 0–162 season on the record the finale stamps.",
   },
   {
     key: "worst",
@@ -1017,7 +1126,7 @@ export const BADGES: BadgeDef[] = [
     axis: "onfield",
     ironic: true,
     freq: 0,
-    how: "40 wins or fewer on the record the finale stamps — worse than any club has ever finished.",
+    how: "40 wins or fewer on the record the finale stamps.",
   },
   {
     key: "skull",
@@ -1065,7 +1174,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "uncommon",
     axis: "payroll",
     freq: 4.98,
-    how: "Spent all but a sliver of your payroll without going over it.",
+    how: "Spent all but a sliver of your payroll, without going over.",
   },
   {
     key: "pinch",
@@ -1087,7 +1196,42 @@ export const BADGES: BadgeDef[] = [
     how: "Left 40% of your payroll unspent and still finished under .500 on baseline wins.",
   },
 
-  // ---- scouting ----
+  // ---- scouting: exactly one fires, the exact match superseding the near miss ----
+  /* 🌠 sits on the `scout` axis rather than beside it, and the axis being
+   * exclusive is the whole design: nine of nine IS seven-or-more, so a bare
+   * second `if` would hand a perfect scouting game both pills and spend two of
+   * the finale's four slots saying one thing twice. The chain gives the top of
+   * the axis the slot and 🔮 keeps everything under it, exactly the way 👑
+   * supersedes a named rung.
+   *
+   * `legendary` for the reason 👑 and 🏆 are: it is the top of an axis, not a
+   * rare event on one. `secret` for the same reason again — the ladder's peaks
+   * are the surprise the case exists to deliver, and a locked slot reading
+   * "🌠 THE DREAM TEAM" spends it before anyone has played for it. It is also
+   * a fact about a club nobody can see until the finale, so naming it would
+   * advertise a target the draft screen gives no way to aim at.
+   *
+   * The exactness is load-bearing twice over. `scoutHits === 9` alone is a
+   * badge a five-card game could earn with five hits against a five-seat dream
+   * club, which is why `dreamSeats === 9` is asked first: the club has to have
+   * been a full club before matching it means anything. */
+  {
+    key: "dreamteam",
+    secret: true,
+    emoji: "🌠",
+    label: "THE DREAM TEAM",
+    rarity: "legendary",
+    axis: "scout",
+    // Null for the 🔮 population's own reason inverted. Study 10 measures the
+    // hit DISTRIBUTION under bot arms that maximize WAR at every pick, and 🔮
+    // at seven fires 9.60% there — but nine of nine is the tail of that
+    // distribution rather than a point on it, and a greedy solver's tail is an
+    // upper bound on a player's, not an estimate of it. The number belongs in
+    // a study report, not in a field that documents itself as the rate in the
+    // reference population.
+    freq: null,
+    how: "Matched the dream team's whole club, all nine seats.",
+  },
   /* The threshold stands at seven and the tier moves, rather than the other
    * way round. The badge means "you drafted what the optimizer wanted", and
    * that meaning has not changed — what changed is the optimizer. It now
@@ -1180,7 +1324,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "rare",
     axis: "roster",
     freq: null,
-    how: "Every seat at 3.0 WAR or better, and no more than 4.0 WAR between your best player and your worst.",
+    how: "Every seat at 3.0 WAR or better, and all within 4.0 WAR of each other.",
   },
   {
     key: "gold",
@@ -1262,7 +1406,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "uncommon",
     axis: "roster",
     freq: null,
-    how: "Four Hall of Famers, signed or hired — the skipper's chair counts as one.",
+    how: "Four Hall of Famers, counting the skipper.",
   },
   {
     // `secret` for a reason that is unusual in this table: nothing in the app
@@ -1317,7 +1461,7 @@ export const BADGES: BadgeDef[] = [
     axis: "roster",
     secret: true,
     freq: null,
-    how: "Signed three brothers from one family — the Molinas or the Pérezes.",
+    how: "Signed three brothers from one family.",
   },
   {
     key: "playermanager",
@@ -1341,6 +1485,39 @@ export const BADGES: BadgeDef[] = [
     freq: 9.91,
     how: "Hired a Manager of the Year and finished above 105 baseline wins.",
   },
+  /* 🧢's opposite number, and the dugout's version of the gamble 🕶️ names on
+   * the payroll. The club is built, every other seat is filled, and the last
+   * spin has to produce a skipper out of whatever card the reel deals — so
+   * this is the badge for finding out that the only chair left came with a
+   * losing record attached.
+   *
+   * It reads a MOMENT, not the finished club. `managerLast` is written when
+   * the hire happens, because by the finale a full club with a manager in it
+   * looks the same whichever order the seats filled — the identical problem
+   * `ownerLast` solves and the identical solution. The engine's note beside
+   * `managerHiredLast` carries which paths write it.
+   *
+   * `ironic` and not `secret`: an anti-trophy already wears an anonymized
+   * locked slot, and no badge in this file carries both flags — the
+   * anonymizing predicate treats either one as sufficient.
+   *
+   * The .500 line is the skipper's own (W − L), never the club's stamp. The
+   * stamp folds in eight roster seats, awards, rings and the payroll bonus, so
+   * a losing stamp is a verdict on the whole club; this badge is about the one
+   * chair the player ran out of spins to shop for. */
+  {
+    key: "interim",
+    emoji: "🪑",
+    label: "THE INTERIM",
+    rarity: "ironic",
+    axis: "roster",
+    ironic: true,
+    // Null for the 🕶️ reason: every bot arm carries its own front-office
+    // policy, and when to take the manager IS that policy — a measured rate
+    // would describe the arm's patience rather than the badge's difficulty.
+    freq: null,
+    how: "Left the dugout to the final spin and hired a losing manager.",
+  },
   /* The two ends of the age axis. They are ONE idea pointed in two
    * directions, so they share a tier and render identically — 0.95% and 1.73%
    * straddle the ultra/rare line on raw frequency, and splitting them would
@@ -1356,7 +1533,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "ultra",
     axis: "roster",
     freq: 0.95,
-    how: "Three players aged 35 or older — a clubhouse of veterans.",
+    how: "Three players aged 35 or older.",
   },
   {
     key: "youngguns",
@@ -1365,7 +1542,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "ultra",
     axis: "roster",
     freq: 1.73,
-    how: "Three players aged 23 or younger — a club built on kids.",
+    how: "Three players aged 23 or younger.",
   },
   {
     key: "division",
@@ -1436,7 +1613,34 @@ export const BADGES: BadgeDef[] = [
     // badge's difficulty. Study 11 measures it anyway; if the arms disagree
     // wildly with each other, that is the evidence the number is about them.
     freq: null,
-    how: "Filled all eight seats before hiring an owner, then committed over 60% of a payroll you could not see without busting it.",
+    how: "Filled all eight seats before hiring an owner, then spent over 60% of a payroll you could not see, without going over.",
+  },
+  /* 🕶️'s other ending, and the pair is exclusive BY CONSTRUCTION rather than
+   * by a resolver — the technique 🧾 POCKETED THE DIFFERENCE and 🕶️ already
+   * share, recorded beside CHEAP_PCT. Both badges ask for the same club (all
+   * eight seats filled before the owner was hired) and then split on one
+   * comparison against one number: 🕶️ wants `spend <= budget`, this wants
+   * `spend > budget`. There is no threshold to keep in sync and no ordering to
+   * get right, so the two can never co-fire and say opposite things about one
+   * payroll.
+   *
+   * The split is not a partition, and that is deliberate: a blind club that
+   * came in under 60% of its payroll earns neither, because timid is its own
+   * thing and 🧾 already names it. Between them 🕶️ and 🙈 cover nerve that
+   * paid and nerve that did not.
+   *
+   * `ironic` and not `secret`, for the reason beside 🪑. */
+  {
+    key: "blindbust",
+    emoji: "🙈",
+    label: "DIDN'T ASK THE PRICE",
+    rarity: "ironic",
+    axis: "roster",
+    ironic: true,
+    // Null for 🕶️'s reason — it is the same club, measured from the other
+    // side of the same line, and the arm's front-office policy sets both.
+    freq: null,
+    how: "Filled all eight seats before hiring an owner, then finished over the payroll he turned out to have.",
   },
   /* The toolbox axis: how much of the game's own surface a season used. All
    * three ride `roster`, which stacks, because the exclusivity is in the world
@@ -1493,30 +1697,6 @@ export const BADGES: BadgeDef[] = [
     freq: 0,
     how: "Not one player made an All-Star team.",
   },
-  {
-    // The one badge in the table `earnedBadges` never pushes. It is written
-    // straight into the history row by the quit path, because there is no
-    // finale on that path to earn anything at — see the engine spec in the
-    // round-2 badge notes. badges.test.ts scrapes pushed keys and asserts each
-    // resolves to a definition; it does not assert the reverse, so a
-    // defined-but-never-pushed badge is legal. This comment is here so the
-    // next reader does not go looking for the trigger.
-    key: "packedin",
-    emoji: "🧳",
-    label: "PACKED IT IN",
-    rarity: "ironic",
-    // Nearly decorative: no resolver ever sees this key, because nothing
-    // pushes it. `roster` is the least wrong of six bad fits — study 11's
-    // per-axis table will file it there and it is not a roster fact. If a
-    // seventh axis is ever added for app-level events, this and ✳️ / 🤝 are
-    // its three members.
-    axis: "roster",
-    ironic: true,
-    // No bot arm quits — every harness game runs to the finale — so there is
-    // no population to measure this against.
-    freq: null,
-    how: "Walked out on a season in progress.",
-  },
 
   // ---- era: seasons with an asterisk, whatever the reason ----
   {
@@ -1527,7 +1707,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "uncommon",
     axis: "era",
     freq: 19.14,
-    how: "Rostered a 1994 season — the year the strike killed the World Series.",
+    how: "Rostered a 1994 season.",
   },
   {
     key: "covid",
@@ -1537,7 +1717,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "uncommon",
     axis: "era",
     freq: 18.51,
-    how: "Rostered a 2020 season — the 60-game year played to empty parks.",
+    how: "Rostered a 2020 season.",
   },
   {
     key: "signstealing",
@@ -1567,7 +1747,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "ultra",
     axis: "era",
     freq: 0.74,
-    how: "Signed a 1995 replacement player — none of them was ever admitted to the union.",
+    how: "Signed a 1995 replacement player.",
   },
   {
     key: "recordbook",
@@ -1587,7 +1767,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "rare",
     axis: "era",
     freq: null,
-    how: "Signed McGwire or Sosa in 1998, or Bonds in 2001 — the home run chase.",
+    how: "Signed McGwire or Sosa in 1998, or Bonds in 2001.",
   },
   {
     // `secret` is not optional here. A named locked slot reading "💊 FAILED
@@ -1631,48 +1811,43 @@ export const BADGES: BadgeDef[] = [
     // guilt, whatever the label above it says.
     how: "Signed or hired one of the four men in this game's window on baseball's betting rules. Pete Rose was banned in 1989 for betting on his own club. Tucupita Marcano was banned in 2024. Emmanuel Clase and Luis Ortiz were charged in 2025 over rigged pitches: both pleaded not guilty, both re-entered those pleas in February 2026, both are awaiting trial and have been on non-disciplinary paid leave since July 2025, and Major League Baseball has made no finding against either.",
   },
-  /* The two seed badges. Both are jokes about provenance rather than facts
-   * about baseball, and they are a matched pair pointed in opposite
-   * directions: ✳️ is what you did to yourself, 🤝 is what someone did for
-   * you. They ride `era` because that is where the set already keeps "this
-   * season has an asterisk on it, whatever the reason". */
+  /* The two men whose seasons this game remembers for one swing rather than
+   * for a number. Both ride `era` with 📖 and 💥, which is the section for
+   * "who is on your roster, as history reads him" — the label on it says
+   * asterisk because that is where it started, and 📖 REWROTE THE RECORD BOOK
+   * has never been an asterisk either. */
   {
-    key: "asterisk",
-    // No `secret: true`. It would be redundant — BadgePill and TrophyModal's
-    // anonymous predicate both treat `ironic` OR `secret` as sufficient to
-    // withhold the name, and no shipped badge carries both.
-    emoji: "✳️",
-    label: "THE ASTERISK",
-    rarity: "ironic",
+    // `secret` because the doctrine's first case applies exactly: it is a fact
+    // about ONE person, and "2️⃣ RE2PECT" on a locked slot is nothing but an
+    // instruction to go sign Derek Jeter. Anonymized, it is the thing you
+    // stumble into by signing him for your own reasons.
+    key: "respect",
+    secret: true,
+    // The captain's number, in the one glyph shape nothing else in the set
+    // wears — no other badge is a keycap, so it cannot be confused with a
+    // medal, a star or a household object at pill size. It costs three code
+    // points on the share line (digit, variation selector, keycap), which is
+    // under 👨‍👨‍👦's five.
+    emoji: "2️⃣",
+    label: "RE2PECT",
+    rarity: "uncommon",
     axis: "era",
-    ironic: true,
-    // No bot arm replays a seed — every harness game gets a fresh one from
-    // makeSeeds — so there is no population to measure this against.
+    // Null: no study has run since the badge existed, and the tier is argued
+    // from the card supply instead — see the note beside CAPTAIN.
     freq: null,
-    // "The same seed", never "the same game": engine.svelte.ts picks cards by
-    // indexing into the live card list, so a data regen that changes the card
-    // count remaps every seed to a different sequence. The seed is the only
-    // thing that is true about a replay unconditionally and forever.
-    how: "Finished a season on a seed you had already played.",
+    how: "Signed Derek Jeter.",
   },
   {
-    // Deliberately NOT ironic, unlike its twin. Replaying your own seed is a
-    // joke at your expense; playing a code a friend sent you is the one thing
-    // in this game two people can do together, and it belongs in the progress
-    // fraction as something to chase.
-    //
-    // Yes, it is self-farmable by typing six characters you invented — there
-    // is no server to ask whose seed it was. That is accepted rather than
-    // defended: the badge costs nothing to earn dishonestly and nothing is
-    // ranked on it.
-    key: "wordofmouth",
-    emoji: "🤝",
-    label: "WORD OF MOUTH",
-    rarity: "rare",
+    key: "walkoff",
+    secret: true,
+    emoji: "🎆",
+    label: "THE WALK-OFF",
+    rarity: "ultra",
     axis: "era",
-    // Unmeasurable for the ✳️ reason: no bot arm types a seed in.
+    // Null for 💥 THE CHASE's reason: three exact seasons, no study since.
+    // The supply argument for the tier is beside WALK_OFF_SEASONS.
     freq: null,
-    how: "Played a seed someone else gave you.",
+    how: "Signed one of the three seasons that ended a World Series with a hit.",
   },
 
   /* …and the shape of the years themselves, rather than any one of them. The
@@ -1699,7 +1874,107 @@ export const BADGES: BadgeDef[] = [
     rarity: "rare",
     axis: "era",
     freq: 2.95,
-    how: "Rostered seasons forty years apart — the oldest and newest the game has.",
+    how: "Rostered seasons forty years apart.",
+  },
+
+  // ---- meta: what you did to the app, not to a club — these stack ----
+  /* Four badges that read no roster, no record and no payroll. Two are about
+   * where a seed came from, one is about leaving, one is about a keyboard.
+   * None of them can be earned by playing better, and none of them is
+   * measurable against a bot population: no arm quits, no arm types a seed,
+   * and no arm has hands. */
+  {
+    // The one badge in the table `earnedBadges` never pushes. It is written
+    // straight into the history row by the quit path, because there is no
+    // finale on that path to earn anything at — see the engine spec in the
+    // round-2 badge notes. badges.test.ts scrapes pushed keys and asserts each
+    // resolves to a definition; it does not assert the reverse, so a
+    // defined-but-never-pushed badge is legal. This comment is here so the
+    // next reader does not go looking for the trigger.
+    key: "packedin",
+    emoji: "🧳",
+    label: "PACKED IT IN",
+    rarity: "ironic",
+    axis: "meta",
+    ironic: true,
+    // No bot arm quits — every harness game runs to the finale — so there is
+    // no population to measure this against.
+    freq: null,
+    how: "Walked out on a season in progress.",
+  },
+  /* The two seed badges. Both are jokes about provenance rather than facts
+   * about baseball, and they are a matched pair pointed in opposite
+   * directions: ✳️ is what you did to yourself, 🤝 is what someone did for
+   * you. */
+  {
+    key: "asterisk",
+    // No `secret: true`. It would be redundant — BadgePill and TrophyModal's
+    // anonymous predicate both treat `ironic` OR `secret` as sufficient to
+    // withhold the name, and no shipped badge carries both.
+    emoji: "✳️",
+    label: "THE ASTERISK",
+    rarity: "ironic",
+    axis: "meta",
+    ironic: true,
+    // No bot arm replays a seed — every harness game gets a fresh one from
+    // makeSeeds — so there is no population to measure this against.
+    freq: null,
+    // "The same seed", never "the same game": engine.svelte.ts picks cards by
+    // indexing into the live card list, so a data regen that changes the card
+    // count remaps every seed to a different sequence. The seed is the only
+    // thing that is true about a replay unconditionally and forever.
+    how: "Finished a season on a seed you had already played.",
+  },
+  {
+    // Deliberately NOT ironic, unlike its twin. Replaying your own seed is a
+    // joke at your expense; playing a code a friend sent you is the one thing
+    // in this game two people can do together, and it belongs in the progress
+    // fraction as something to chase.
+    //
+    // Yes, it is self-farmable by typing six characters you invented — there
+    // is no server to ask whose seed it was. That is accepted rather than
+    // defended: the badge costs nothing to earn dishonestly and nothing is
+    // ranked on it.
+    key: "wordofmouth",
+    emoji: "🤝",
+    label: "WORD OF MOUTH",
+    rarity: "rare",
+    axis: "meta",
+    // Unmeasurable for the ✳️ reason: no bot arm types a seed in.
+    freq: null,
+    how: "Played a seed someone else gave you.",
+  },
+  /* The Konami code, and it does NOTHING. No extra spin, no free powerup, no
+   * cheaper players, no change to any number the finale prints — the badge is
+   * the entire effect, and that is deliberate: a code that altered play would
+   * make every score after it unshareable, and the game's one social artifact
+   * is a comparable result.
+   *
+   * `secret` for the doctrine's discovery case. The name is the reward here in
+   * the most literal way in the file — "🎮 CHEAT CODES" on a locked slot tells
+   * a player there is a code and invites them to guess it, which is the whole
+   * of the thing.
+   *
+   * `ultra` rather than `rare`, and the reason is the platform rather than the
+   * secret. This game is phone-first by every decision in its layout, and the
+   * sequence is ten keystrokes on a physical keyboard: the majority of players
+   * cannot enter it at all on the device they are holding. A badge whose gate
+   * is "own a keyboard and know a 1986 cheat code" sits with the ultras.
+   *
+   * The listener lives in App.svelte and the fact lives on the Game, saved
+   * with everything else — iOS Safari evicts background tabs, and a badge
+   * earned by a keystroke that a reload erased would be worse than no badge. */
+  {
+    key: "cheatcodes",
+    secret: true,
+    emoji: "🎮",
+    label: "CHEAT CODES",
+    rarity: "ultra",
+    axis: "meta",
+    // Unmeasurable for the ✳️ / 🤝 reason, one step further along: a bot arm
+    // drives the engine directly and never touches a keyboard at all.
+    freq: null,
+    how: "Entered the Konami code.",
   },
 ];
 
@@ -1837,7 +2112,13 @@ export function earnedBadges(f: BadgeFacts): string[] {
   )
     out.push("pocket");
 
-  if (f.scoutHits >= CRYSTAL_HITS) out.push("crystal");
+  // The scouting axis, resolved top down like the on-field one: a perfect
+  // match IS a seven-or-better match, so 🌠 takes the slot and 🔮 keeps the
+  // near misses. The nine-seat gate on the DREAM club is what stops a thin
+  // reel — five cards, five dream seats, five hits — from reading as perfect.
+  if (f.dreamSeats === DREAM_SEATS && f.scoutHits === DREAM_SEATS)
+    out.push("dreamteam");
+  else if (f.scoutHits >= CRYSTAL_HITS) out.push("crystal");
 
   const full = roster.length === ROSTER_SLOTS;
   // No 2020 season carries an All-Star nod — the game was never played — so a
@@ -1891,6 +2172,12 @@ export function earnedBadges(f: BadgeFacts): string[] {
     out.push("worldtour");
   if (f.rings >= RING_BEARERS) out.push("rings");
   if (f.managerMoty && f.baselineWins > SKIPPER_WINS) out.push("skipper");
+  // The dugout left to the last spin, and the chair that was still there when
+  // the player got to it. `managerLast` is the recorded moment; the net wins
+  // are the skipper's own, never the club's stamp. `?? 0` makes an absent
+  // record read as .500 exactly, which withholds the badge — the fail-safe
+  // direction for an optional fact.
+  if (f.managerLast === true && (f.managerNetWins ?? 0) < 0) out.push("interim");
   // Pete Rose is the only person in the dataset who managed and played the same
   // season (CIN 1985 and 1986), but the trigger deliberately does not name him:
   // it asks whether YOUR skipper is on YOUR roster, which is a decision made
@@ -1943,6 +2230,18 @@ export function earnedBadges(f: BadgeFacts): string[] {
     f.spendM > f.budgetM * CHEAP_PCT
   )
     out.push("flyingblind");
+  // 🕶️'s other ending. Same club, same `full` gate, same `budgetM > 0` guard,
+  // and the one comparison flipped — `spend > budget` where 🕶️ asks
+  // `spend <= budget` — so the two are complements on one line rather than two
+  // thresholds somebody has to keep in step. They are separate `if`s on a
+  // stacking axis and stay exclusive anyway, by construction.
+  if (
+    f.ownerLast === true &&
+    full &&
+    f.budgetM > 0 &&
+    f.spendM > f.budgetM
+  )
+    out.push("blindbust");
   if (roster.some((p) => p.hero && p.war >= HOMEGROWN_WAR))
     out.push("homegrown");
   // The result gate is what keeps 🧗 honest: ungated, "spent no powerups"
@@ -1993,8 +2292,13 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // earns neither rather than earning one by accident.
   if (f.replayedSeed === true) out.push("asterisk");
   if (f.sharedSeed === true) out.push("wordofmouth");
+  // Same default-false reading, same reason: a fact set assembled before the
+  // field existed reports no keyboard rather than a free badge.
+  if (f.konami === true) out.push("cheatcodes");
   if (roster.some(isRecord)) out.push("recordbook");
   if (roster.some(isChase)) out.push("chase");
+  if (roster.some(isWalkOff)) out.push("walkoff");
+  if (roster.some((p) => p.id === CAPTAIN)) out.push("respect");
   if (roster.some((p) => p.year === 2020)) out.push("covid");
   if (
     roster.some(isScandal) ||
