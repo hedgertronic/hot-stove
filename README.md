@@ -11,9 +11,11 @@ front office, manage your payroll, and chase 116 wins.
   (names and prices only — trust your memory).
 - **Three banks:** 💼 Owner's Box (hire an owner to set your payroll) ·
   ⚾ Moneyball ($51.5M) · 💸 Blank Check ($203.2M).
-- **Five once-per-game powerups:** 🎟️ Season Ticket, 🚚 Relocate,
-  ✌️ Double Play, 🔁 Trade Deadline, ⭐ Prime Time (browse a whole career —
-  or a manager's, park's, or owner's history — and take any season of it).
+- **Six once-per-game powerups:** 🎟️ Season Ticket, 🚚 Relocate,
+  ✌️ Double Play, 🔁 Trade Deadline, 🏠 Homegrown (sign a man who debuted with
+  the club for a flat $1M), ⭐ Primetime (browse a whole career — or a
+  manager's, park's, or owner's history — and take any season of it). Any
+  combination can be armed on one spin.
 - **Finale:** score ledger, your squad vs. the card-perfect dream team,
   a 162-game goal bar, and a shareable seed (`GAME #XXXX` replays the exact
   card sequence).

@@ -60,14 +60,14 @@ Beating the payroll takes powerups plus a little luck — by design.
 ## Powerups (one free use each)
 
 Six named pills in two rows (3+3) under the team banner, graying when spent. Double
-Play, Trade Deadline, Prime Time, and Homegrown are **arming toggles**; Trade
-Deadline applies to specials as well as players, and Prime Time to the manager:
+Play, Trade Deadline, Primetime, and Homegrown are **arming toggles**; Trade
+Deadline applies to specials as well as players, and Primetime to the manager:
 
 | Powerup | Effect |
 |---|---|
 | 🎟️ **Season Ticket** | Re-pick **any season** (1985–2025) of the rolled franchise — forward or backward. |
 | 🚚 **Relocate** | Reroll to a different random team, same year. |
-| ⭐ **Prime Time** | Arm it, tap an unsigned listed player (or the open manager tile), browse the whole career, and take any other season at its real price. Owner and stadium tiles are never Prime targets. |
+| ⭐ **Primetime** | Arm it, tap an unsigned listed player (or the open manager tile), browse the whole career, and take any other season at its real price. Owner and stadium tiles are never Prime targets. |
 | ✌️ **Double Play** | Take **two choices** from a single spin — any mix of players and specials (owner + Bryant off one Cubs roll). |
 | 🔁 **Trade Deadline** | Arm it, then replace anything already taken — a signed player, or your owner/stadium/skipper — with this spin's equivalent. |
 | 🏠 **Homegrown** | The hometown discount. Arm it — the market filters to players who *debuted* with this spin's franchise, repriced to a flat **$1M** (never more than the listed price); every other row grays out. Signing one spends it; disarming restores the list. Rerolls disarm it, never spend it. Works in every difficulty and bank mode. |
