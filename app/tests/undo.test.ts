@@ -320,6 +320,39 @@ describe("one level, repeatable", () => {
     expect(g.slots.every((s) => s === null)).toBe(true);
   });
 
+  it("takes back the pick, not the spin the stove rolled straight after it", async () => {
+    // The case every other test in this file walks around, because they all
+    // call spin() by hand. In the app nobody does: committing a pick drops
+    // `choicesLeft` to zero, and SpinBanner's effect spins on the next turn of
+    // the event loop with no tap in between. So the real sequence around a
+    // signing is sign → spin → land, and if that spin took a point of its own
+    // it would replace the signing with the roll that followed it — leaving
+    // undo able to rewind only to just after the pick, having spent the one
+    // point that could have taken the pick back. No choice in the game would
+    // ever be undoable.
+    const g = await spun();
+    const cursor = g.rng.state;
+    const before = JSON.stringify(g.slots);
+
+    g.signPlayer(g.card!.players[0]);
+    expect(g.slots.filter(Boolean)).toHaveLength(1);
+    // What the banner does on its own, unprompted, the instant the pick lands.
+    expect(g.choicesLeft).toBe(0);
+    g.spin();
+    await g.land();
+
+    expect(g.canUndo).toBe(true);
+    g.undo();
+    // The signing is gone — the thing the player actually meant to take back.
+    expect(JSON.stringify(g.slots)).toBe(before);
+    expect(g.slots.every((s) => s === null)).toBe(true);
+    // And the reel is back on the card he was standing on when he signed,
+    // with the cursor that dealt it, so re-signing deals the same game on.
+    expect(g.rng.state).toBe(cursor);
+    expect(g.phase).toBe("landed");
+    expect(g.choicesLeft).toBe(1);
+  });
+
   it("takes no point for arming a powerup, which the player reverses himself", async () => {
     const g = await spun();
     g.signPlayer(g.card!.players[0]);

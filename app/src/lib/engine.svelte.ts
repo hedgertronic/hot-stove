@@ -767,7 +767,21 @@ export class Game {
     if (this.phase !== "preSpin") return;
     // Before the draw, so undo rewinds the cursor with the rest of the game
     // and a re-spin deals this exact card again.
-    this.snapshot();
+    //
+    // KEPT, not overwritten, when a choice already holds the point. The stove
+    // never idles: committing a pick drops `choicesLeft` to zero and
+    // SpinBanner's effect spins on the very next turn of the event loop, with
+    // no tap in between. A fresh point here would therefore replace the
+    // player's signing with the auto-spin that followed it a millisecond later
+    // — undo would rewind to just after the choice, having spent the one point
+    // that could have taken the choice back, and no pick in the game would ever
+    // be undoable. The point a player means is the last thing they DID, and an
+    // automatic spin is not one of those.
+    //
+    // The point is therefore filled exactly when nothing is holding it: the
+    // first spin of a game, and the spin after an undo, since `undo()` consumes
+    // what it restores. Both are the last thing the player did.
+    if (this.undoPoint === null) this.snapshot();
     this.disarmToggles();
     const entry = this.rng.pick(this.index.cards);
     this.beginSpin(entry, "full");
