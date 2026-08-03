@@ -204,9 +204,12 @@
           type="text"
           maxlength="8"
           placeholder="KF12OY"
-          autocapitalize="characters"
+          inputmode="text"
+          autocapitalize="none"
+          autocorrect="off"
           autocomplete="off"
           spellcheck="false"
+          enterkeyhint="go"
           autofocus
           bind:value={seedInput}
           onkeydown={(e) => {
@@ -579,7 +582,15 @@
     border-radius: 6px;
   }
   /* Fluid inside its half-cell: at 320px the pair is ~150px wide each, and a
-     fixed field width would push GO out of the row. */
+     fixed field width would push GO out of the row.
+     font-size is 16px — the floor below which Mobile Safari auto-zooms a
+     focused input. A visual size below 16px is achieved by reducing padding
+     rather than the type size. DO NOT drop font-size below 16px here and do
+     NOT add maximum-scale to the viewport meta: that would break pinch-zoom
+     for every user, not just the ones entering a seed. `autocapitalize="none"`
+     keeps the keyboard from switching to uppercase mode; CSS `text-transform`
+     handles the uppercase display, so the two do not conflict, and parseSeedCode
+     already calls `.toUpperCase()` on the input value. */
   .seedin {
     flex: 1;
     min-width: 0;
@@ -588,12 +599,12 @@
     background: var(--card);
     color: var(--ink);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     text-align: center;
-    padding: 5px 8px;
+    padding: 2px 8px;
     outline: none;
   }
   .seedin:focus {
@@ -611,16 +622,16 @@
     padding: 5px 12px;
     cursor: pointer;
   }
-  /* Narrowest phones: the field's half is ~141px, and a full six-character
-     code at the base tracking scrolls inside it — a code you cannot read back
-     is a code you cannot check before tapping GO. Tighter tracking and a
-     slimmer GO hand the field ~20px, which fits all six. (After the base
-     rules, not inside the earlier narrow block: equal specificity, source
-     order decides.) */
+  /* Narrowest phones: the field's half is ~141px. At 16px with base 0.08em
+     tracking, a full seven-character seed code still fits, but horizontal
+     padding eats into the available glyph width. Drop tracking toward zero
+     and tighten horizontal padding so the full code is visible without
+     scrolling. (After the base rules, not inside the earlier narrow block:
+     equal specificity, source order decides.) */
   @media (max-width: 359px) {
     .seedin {
-      letter-spacing: 0.05em;
-      padding: 5px 4px;
+      letter-spacing: 0.03em;
+      padding: 2px 4px;
     }
     .seedgo {
       padding: 5px 9px;

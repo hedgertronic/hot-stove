@@ -5,24 +5,25 @@ import { BANKS, DIFFICULTIES } from "./modes";
 import { GAMES, MARINERS_WINS } from "./scoring";
 
 /* ---------------------------------------------------------------------------
- * The shareable result string. Exactly five lines, every game, forever:
+ * The shareable result string. Five lines for a clean game, six for one
+ * where at least one badge fired:
  *
  *   HOT STOVE 📊💼        HOT STOVE 🔭⚾
  *   🟩🟢🔵                 🟨🟡🟣
  *   🟢🔵⚪                 🟡🟣🔵
  *   🟣🟢⚪                 🟡🟣🔵
- *   104–58               162–0 🔱🏆💵🔮
+ *   💚 104–58 #CODE        💛 162–0
+ *                          🔱🏆💵🔮
  *
  *   1.   Title — the game, and the two mode emoji that qualify the score.
  *   2-4. The finished roster as a fixed 3×3: the manager, then the eight
  *        slots in SLOT_TYPES order.
- *   5.   The record, trailed by any badges that fired.
- *
- * Five lines is the format's core invariant, not an outcome of what happened
- * to fit. Two results pasted one after the other line up row for row, which is
- * the same property the 3×3 grid buys inside a single string — badges ride the
- * record rather than taking a line of their own precisely so a decorated
- * season and a quiet one stay the same height.
+ *   5.   The record line: one heart in the season's tier color, then the
+ *        win-loss record, then the seed code when one was shared. The heart
+ *        is the tier signal; the record is the punchline.
+ *   6.   The badge run — the emoji of every badge that fired, butting against
+ *        each other with no separator, on their own line. Absent when no badge
+ *        fires, so a clean game and a decorated one differ by exactly one line.
  *
  * The grid is a ROSTER, not a spin log. A spin log runs 7–16 entries and mixes
  * players with owner/stadium/swap events, so no two strings share a shape and
@@ -31,12 +32,20 @@ import { GAMES, MARINERS_WINS } from "./scoring";
  * Wordle's rectangle scannable: your top-left is my top-left. Row three lands
  * as SP·SP·RP, so the pitching staff reads as its own line.
  *
- * One number, and it comes last — the grid tells the story and the record is
- * the punchline, so nothing competes with the grid on the way down. The title
- * line is deliberately digit-free for the same reason.
+ * The record line's leading heart uses a color vocabulary distinct from the
+ * grid's circles and squares, so the tier signal never reads as a stray roster
+ * cell. The color ramp is the same ladder: 💔 for a losing season, 🤍 at .500,
+ * 💚 at the century mark, 💙 at the Mariners record, 💜 for 135+, 💛 for 155+.
+ * A reader who knows 💙 on a player's WAR chip means "star-caliber" reads 💙 on
+ * the record line as "star-caliber season" — one ramp, two uses.
  *
- * Everything survives a text message: five short lines, nothing wider than a
- * dozen characters, no columns, no alignment a proportional font can break.
+ * Badges live on their own line below the record rather than trailing the
+ * record so they are free of its width. The title and grid lines always occupy
+ * lines 1–4 and the record always occupies line 5, so two results pasted side
+ * by side still align row for row through the grid whether or not badges fired.
+ *
+ * Everything survives a text message: short lines, no columns, no alignment a
+ * proportional font can break.
  *
  * Nothing here spoils anything. No player, team, year, or card is named, so a
  * friend who plays the same cards learns only how well you did with them. The
@@ -73,6 +82,27 @@ const MANAGER_EMOJI: Record<WarTier, string> = {
  * neutral candidate is a player circle. */
 const EMPTY_CELL = "⬛";
 
+/** The record line's tier heart: one colored heart per rung on the record
+ * ladder (lib/format.recordFromTotal, thresholds at 81 / 100 / 116 / 135 /
+ * 155 wins), using hearts rather than the grid's circles and squares so the
+ * glyph reads as "season quality" and never as a stray roster cell.
+ *
+ * The same six hues as the WAR ladder — brick → gray → green → blue →
+ * violet → gold — but the thresholds are different: the WAR ladder steps at
+ * 0 / 2 / 4 / 6 / 8 WAR, while this ladder steps at win landmarks a baseball
+ * fan already knows. Never derive the record tier from `warTier(wins)` —
+ * `warTier(104)` returns "elite" because 104 ≥ 8, which would stamp a
+ * 104-win season gold instead of green. Always read `tier` from
+ * `recordFromTotal`. */
+const RECORD_TIER_EMOJI: Record<WarTier, string> = {
+  neg: "💔",
+  low: "🤍",
+  mid: "💚",
+  high: "💙",
+  star: "💜",
+  elite: "💛",
+};
+
 /** The grid's shape is a constant of the game — eight roster slots plus one
  * manager — not a formatting choice. */
 const COLS = 3;
@@ -99,18 +129,19 @@ export interface ShareInput {
    * truncated to eight, so the grid is 3×3 whatever arrives. */
   roster: (number | null)[];
   /** Off by default. When supplied, the seed code trails the record line as
-   * `104–58 #WDU` — the code the home screen's PLAY A SEED input takes, which
-   * turns the string from a scorecard back into a replayable challenge. It
-   * rides the record line rather than the title so the title stays free of
-   * digits. */
+   * `💚 104–58 #WDU` — the code the home screen's PLAY A SEED input takes,
+   * which turns the string from a scorecard back into a replayable challenge.
+   * It rides the record line rather than the title so the title stays free of
+   * digits, and rather than the badge line so the seed is always on line five
+   * regardless of what badges fired. */
   seed?: number;
   /** Badge KEYS (lib/badges), in the order `earnedBadges` deals them out —
    * `FinaleResult.badges` verbatim. The string resolves them to emoji itself,
    * so lib/badges stays the one place a badge's face is written down and a
    * caller can never spend an emoji the badge set doesn't own. Unknown keys
-   * are dropped. An empty list leaves the record line bare, with no trailing
-   * space. Uncapped: the finale's pill row caps itself because pills cost
-   * pixels, and emoji in a text message do not. */
+   * are dropped. An empty list produces no badge line. Uncapped: the finale's
+   * pill row caps itself because pills cost pixels, and emoji on their own line
+   * do not; they now have the full line to themselves. */
   badges?: string[];
 }
 
@@ -150,40 +181,63 @@ export function shareTitle(difficulty: Difficulty, bank: Bank): string {
   return `HOT STOVE ${DIFFICULTIES[difficulty].emoji}${BANKS[bank].emoji}`;
 }
 
-/** The record, from the same ladder the finale stamp and the home record book
- * read (`format.recordFromTotal`), so the three can never disagree. */
+/** The win-loss record from the same ladder the finale stamp and the home
+ * record book read (`format.recordFromTotal`), so the three can never disagree.
+ * Returns only the record string ("104–58") — the tier glyph lives in
+ * `shareRecordLine` alongside the other record-line parts. */
 export function shareRecord(total: number): string {
   const { wins, losses } = recordFromTotal(total, GAMES, MARINERS_WINS);
   return `${wins}–${losses}`;
 }
 
-/** The last line: the record, then the emoji of any badge that fired, then the
- * seed if one was asked for. `badges` arrives as KEYS and is resolved through
- * `badges.badgeEmoji` here. Assembled by joining only the parts that exist, so
- * a bare record has no trailing space — a lone space at the end of a line is
- * invisible in a diff and permanent in a text message.
+/** The fifth line: a tier heart, the win-loss record, and the seed code when
+ * one was asked for.
  *
- * The badges are ONE part, not one part each: emoji butt against each other
- * and the line spends a single space separating the run from the record. They
- * are a haul rather than a list — the same reason the grid's cells touch —
- * and spacing them out made four badges read as four separate remarks.
- * Everything else on the line is a different KIND of thing, so the record, the
- * haul, and the seed each keep their own space.
+ * The heart encodes which rung of the record ladder the season landed on —
+ * the same thresholds `format.recordFromTotal` uses, so the heart and the
+ * colored stamp the finale displays can never disagree. It reads `tier` from
+ * `recordFromTotal` directly rather than calling `warTier(wins)`: the record
+ * ladder's rungs sit at 81 / 100 / 116 / 135 / 155 wins, and `warTier(104)`
+ * returns "elite" (since 104 ≥ 8 WAR) — the wrong answer.
  *
- * Badges ride this line rather than taking their own because five lines is the
- * invariant; a decorated season and a quiet one must be the same height. */
-export function shareScoreLine(total: number, badges: string[] = [], seed?: number): string {
-  const parts = [shareRecord(total), badgeEmoji(badges).join("")];
+ * The seed, when supplied, follows the record with a single space, so the
+ * line reads as "what you scored, then how to replay it." It is here rather
+ * than on the badge line so the code is always on line five, independent of
+ * what badges the game earned. */
+export function shareRecordLine(total: number, seed?: number): string {
+  const { wins, losses, tier } = recordFromTotal(total, GAMES, MARINERS_WINS);
+  const heart = RECORD_TIER_EMOJI[tier];
+  const parts = [`${heart} ${wins}–${losses}`];
   if (seed !== undefined) parts.push(`#${seedCode(seed)}`);
-  return parts.filter(Boolean).join(" ");
+  return parts.join(" ");
 }
 
-/** The full shareable string: title, the 3×3 grid, and the score line.
- * Exactly five lines, whatever the game did. */
+/** The sixth line (absent when empty): the emoji of every badge that fired,
+ * resolved by key through `badges.badgeEmoji` and butted against each other
+ * with no separator.
+ *
+ * Returns an empty string when the list is empty or every key is unknown —
+ * `shareText` omits the line entirely in that case, so a clean game never
+ * produces a blank sixth line. Unknown keys vanish without a trailing space:
+ * a lone space at the end of a line is invisible in a diff and permanent in
+ * a text message. */
+export function shareBadgeLine(badges: string[] = []): string {
+  return badgeEmoji(badges).join("");
+}
+
+/** The full shareable string: title, the 3×3 grid, the record line, and
+ * the badge run on its own line when at least one badge fired.
+ *
+ * Five lines for a clean game, six for a decorated one. Lines 1–4 (title +
+ * grid) are always the same height, so two results pasted side by side
+ * compare row for row through the grid regardless of what badges fired. */
 export function shareText(input: ShareInput): string {
-  return [
+  const badgeLine = shareBadgeLine(input.badges);
+  const lines = [
     shareTitle(input.difficulty, input.bank),
     shareGrid(input.roster, input.managerWins),
-    shareScoreLine(input.total, input.badges, input.seed),
-  ].join("\n");
+    shareRecordLine(input.total, input.seed),
+  ];
+  if (badgeLine) lines.push(badgeLine);
+  return lines.join("\n");
 }
