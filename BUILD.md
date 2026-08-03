@@ -43,9 +43,22 @@ Visual reference: `design/cardstock-v2.html` (authoritative for look, motion, an
     stadiumMult budget budgetRaw contracts[{name salary est}] prorated manager players[]`
   - player: `id name pos war warRaw cost contract salary est awards[] ws pen pa gs
     relIP posG{c if of dh} debut teams[]`
+  - player, sparse (written only when they carry a value, to keep cards small):
+    `age bc hof wbc` — `wbc` is the player's World Baseball Classic medal for
+    that season in Ring-chasing points, `2` for the champion and `1` for the
+    losing finalist. The Classic is played in March, so the tournament year is
+    the card year and one season can hold both a medal and a World Series ring;
+    the scorer adds both.
 - `meta.json` — `displayAvgM replacementWins slots avgSlot8 salaryFloor proration`
 - `owners.json` — `franchises{franchID: {name, owners[{name from to}]}}` — resolve the
   rolled year against `[from, to)` for the owner row's display name.
+- `wbc.json` — hand-curated INPUT, not output: `tournaments{year: {champion,
+  runnerUp: {country, players[{name brId note?}]}}}`, one entry per Classic
+  finalist roster, plus leading `_`-prefixed notes explaining the sourcing and
+  the null `brId` rows. The build joins it onto cards by `(brId, year)`; the
+  point values live in `pipeline/scoring.py`, so the file stores the placing
+  only. Editing `WBC_CHAMPION_POINTS` / `WBC_RUNNERUP_POINTS` requires a data
+  regen — the cards carry the number.
 
 ## Game state machine
 

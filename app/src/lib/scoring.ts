@@ -22,6 +22,23 @@ export const AWARD_POINTS: Record<string, number> = {
 };
 export const RING_POINTS = 3; // per player whose team won the World Series that season
 export const PENNANT_POINTS = 1; // per player whose team won the pennant but lost the Series
+/** World Baseball Classic medals, on the same Ring-chasing axis as the October
+ * hardware above. The Classic is played in March of the same calendar year as
+ * the card season, so a medal and a ring describe the same player-season and
+ * BOTH count. 2017 Alex Bregman won the Classic with the United States and the
+ * World Series with Houston: that one season is worth WBC_CHAMPION_POINTS +
+ * RING_POINTS = 5. The stacking is a true fact about the player, not a
+ * double-count to suppress — they are two different tournaments and he won
+ * both. Nine 2017 seasons stack this way (Bregman, Clippard and Gregerson at
+ * +5; Correa and Beltran at +4 as pennant winners; five more at +2).
+ *
+ * The values sit below RING_POINTS deliberately. Only five Classics land inside
+ * the 1985–2025 card window, and the 2006 and 2009 champions (Japan) were
+ * rosters of NPB players with almost no MLB seasons, so WBC points are far
+ * scarcer than rings. Pricing a gold medal at a ring's value would let the
+ * handful of eligible card years own the axis outright. */
+export const WBC_CHAMPION_POINTS = 2; // per player on the Classic winner that year
+export const WBC_RUNNERUP_POINTS = 1; // per player on the Classic's losing finalist
 export const MANAGER_PER_NET_WIN = 0.2; // hired manager: (team W − team L) × this, in WINS
 /** Hired manager won the BBWAA Manager of the Year that season. Hardware, not
  * wins: it joins the awardPoints (trophy case) sum, never the managerWins term. */
@@ -86,6 +103,8 @@ export function score(args: {
   managerRecord?: [number, number] | null;
   scoutHits?: number;
   managerMoty?: boolean;
+  wbcChampions?: number;
+  wbcRunnersUp?: number;
 }): ScoreParts {
   const {
     totalWar,
@@ -97,6 +116,8 @@ export function score(args: {
     managerRecord = null,
     scoutHits = 0,
     managerMoty = false,
+    wbcChampions = 0,
+    wbcRunnersUp = 0,
   } = args;
   const mw = managerRecord ? (managerRecord[0] - managerRecord[1]) * MANAGER_PER_NET_WIN : 0;
   const parts: ScoreParts = {
@@ -105,7 +126,15 @@ export function score(args: {
     budgetBonus: round1(budgetBonus(spendM, budgetM)),
     // The skipper's MotY is hardware like any player award — trophy case.
     awardPoints: awardPoints(awardLists) + (managerMoty ? MANAGER_MOTY_POINTS : 0),
-    ringPoints: rings * RING_POINTS + pennants * PENNANT_POINTS,
+    // One Ring-chasing row carries every tournament a player won that season —
+    // October rings and pennants plus March's Classic medals. They share a row
+    // because they answer one question ("what did this club win?"); a separate
+    // ledger line would imply a separate axis.
+    ringPoints:
+      rings * RING_POINTS +
+      pennants * PENNANT_POINTS +
+      wbcChampions * WBC_CHAMPION_POINTS +
+      wbcRunnersUp * WBC_RUNNERUP_POINTS,
     scoutBonus: round1(scoutHits * SCOUT_HIT_POINTS),
     luxuryTax: round1(luxuryTax(spendM, budgetM)),
     total: 0,

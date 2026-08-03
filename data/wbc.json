@@ -1,0 +1,1270 @@
+{
+ "_source": "Hand-curated from the Wikipedia tournament pages for each World Baseball Classic (the infobox '| champion =' and '| second =' fields name the two finalists; the roster sections name the players). Curated the same way data/owners.json is, and read the same way: the pipeline consumes this file, it never fetches it. Baseball-Reference is not touched for any of it.",
+ "_ids": "brId is the Baseball-Reference player id, the key every card joins on. Names are as Wikipedia spells them, which is not always how B-R does: Wikipedia writes Korean names family-name-first (Choo Shin-soo is B-R's Shin-Soo Choo, choosh01). Where two B-R ids share a name, the note field records how the ambiguity was settled.",
+ "_unresolved": "A null brId means the player has no Baseball-Reference id to join on. Almost all of them are NPB, KBO or Cuban national-team players who never played an MLB season, so they can never appear on a card and award nothing. They stay in the file on purpose: the roster is the record of what was checked, and a missing name reads as an oversight where a null brId reads as a decision.",
+ "_placing": "champion and runnerUp are the placings; the point values live in pipeline/scoring.py (WBC_CHAMPION_POINTS, WBC_RUNNERUP_POINTS) so the scorer and the data can never disagree about what a gold medal is worth.",
+ "tournaments": {
+  "2006": {
+   "champion": {
+    "country": "Japan",
+    "players": [
+     {
+      "name": "Akinori Iwamura",
+      "brId": "iwamuak01"
+     },
+     {
+      "name": "Akinori Otsuka",
+      "brId": "otsukak01"
+     },
+     {
+      "name": "Daisuke Matsuzaka",
+      "brId": "matsuda01"
+     },
+     {
+      "name": "Hirotoshi Ishii",
+      "brId": null
+     },
+     {
+      "name": "Hiroyuki Kobayashi",
+      "brId": null
+     },
+     {
+      "name": "Hitoshi Tamura",
+      "brId": null
+     },
+     {
+      "name": "Ichiro Suzuki",
+      "brId": "suzukic01"
+     },
+     {
+      "name": "Kazuhiro Wada",
+      "brId": null
+     },
+     {
+      "name": "Koji Uehara",
+      "brId": "ueharko01"
+     },
+     {
+      "name": "Kosuke Fukudome",
+      "brId": "fukudko01"
+     },
+     {
+      "name": "Kyuji Fujikawa",
+      "brId": "fujikky01"
+     },
+     {
+      "name": "Michihiro Ogasawara",
+      "brId": null
+     },
+     {
+      "name": "Motonobu Tanishige",
+      "brId": null
+     },
+     {
+      "name": "Munenori Kawasaki",
+      "brId": "kawasmu01"
+     },
+     {
+      "name": "Naoyuki Shimizu",
+      "brId": null
+     },
+     {
+      "name": "Nobuhiko Matsunaka",
+      "brId": null
+     },
+     {
+      "name": "Nori Aoki",
+      "brId": "aokino01"
+     },
+     {
+      "name": "Ryoji Aikawa",
+      "brId": null
+     },
+     {
+      "name": "Shinya Miyamoto",
+      "brId": null
+     },
+     {
+      "name": "Shunsuke Watanabe",
+      "brId": null
+     },
+     {
+      "name": "Soichi Fujita",
+      "brId": null
+     },
+     {
+      "name": "Takahiro Arai",
+      "brId": null
+     },
+     {
+      "name": "Takahiro Mahara",
+      "brId": null
+     },
+     {
+      "name": "Tatsuhiko Kinjō",
+      "brId": null
+     },
+     {
+      "name": "Tomoya Satozaki",
+      "brId": null
+     },
+     {
+      "name": "Tomoyuki Kubota",
+      "brId": null
+     },
+     {
+      "name": "Toshiaki Imae",
+      "brId": null
+     },
+     {
+      "name": "Toshiya Sugiuchi",
+      "brId": null
+     },
+     {
+      "name": "Tsuyoshi Nishioka",
+      "brId": "nishits01"
+     },
+     {
+      "name": "Tsuyoshi Wada",
+      "brId": "wadats01"
+     },
+     {
+      "name": "Yasuhiko Yabuta",
+      "brId": "yabutya01"
+     }
+    ]
+   },
+   "runnerUp": {
+    "country": "Cuba",
+    "players": [
+     {
+      "name": "Adiel Palma",
+      "brId": null
+     },
+     {
+      "name": "Alexei Ramírez",
+      "brId": "ramiral03"
+     },
+     {
+      "name": "Ariel Borrero",
+      "brId": null
+     },
+     {
+      "name": "Ariel Pestano",
+      "brId": null
+     },
+     {
+      "name": "Carlos Tabares",
+      "brId": null
+     },
+     {
+      "name": "Deinis Suárez",
+      "brId": null
+     },
+     {
+      "name": "Eduardo Paret",
+      "brId": null
+     },
+     {
+      "name": "Eriel Sánchez",
+      "brId": null
+     },
+     {
+      "name": "Frederich Cepeda",
+      "brId": null
+     },
+     {
+      "name": "Joan Carlos Pedroso",
+      "brId": null
+     },
+     {
+      "name": "Jonder Martínez",
+      "brId": null
+     },
+     {
+      "name": "Juan Carlos Moreno",
+      "brId": null
+     },
+     {
+      "name": "Leslie Anderson",
+      "brId": null
+     },
+     {
+      "name": "Luis Borroto",
+      "brId": null
+     },
+     {
+      "name": "Maikel Folch",
+      "brId": null
+     },
+     {
+      "name": "Michel Enríquez",
+      "brId": null
+     },
+     {
+      "name": "Norberto González",
+      "brId": null
+     },
+     {
+      "name": "Ormari Romero",
+      "brId": null
+     },
+     {
+      "name": "Osmani Urrutia",
+      "brId": null
+     },
+     {
+      "name": "Pedro Luis Lazo",
+      "brId": null
+     },
+     {
+      "name": "Roger Machado",
+      "brId": null
+     },
+     {
+      "name": "Rudy Reyes",
+      "brId": null
+     },
+     {
+      "name": "Vicyohandri Odelín",
+      "brId": null
+     },
+     {
+      "name": "Yadel Martí",
+      "brId": null
+     },
+     {
+      "name": "Yadier Pedroso",
+      "brId": null
+     },
+     {
+      "name": "Yoandy Garlobo",
+      "brId": null
+     },
+     {
+      "name": "Yosvani Pérez",
+      "brId": null
+     },
+     {
+      "name": "Yulieski González",
+      "brId": null
+     },
+     {
+      "name": "Yulieski Gurriel",
+      "brId": "gourryu01"
+     },
+     {
+      "name": "Yunesky Maya",
+      "brId": "mayayu01"
+     }
+    ]
+   }
+  },
+  "2009": {
+   "champion": {
+    "country": "Japan",
+    "players": [
+     {
+      "name": "Akinori Iwamura",
+      "brId": "iwamuak01"
+     },
+     {
+      "name": "Atsunori Inaba",
+      "brId": null
+     },
+     {
+      "name": "Daisuke Matsuzaka",
+      "brId": "matsuda01"
+     },
+     {
+      "name": "Hideaki Wakui",
+      "brId": null
+     },
+     {
+      "name": "Hiroyuki Nakajima",
+      "brId": null
+     },
+     {
+      "name": "Hisashi Iwakuma",
+      "brId": "iwakuhi01"
+     },
+     {
+      "name": "Ichiro Suzuki",
+      "brId": "suzukic01"
+     },
+     {
+      "name": "Kenji Johjima",
+      "brId": "johjike01"
+     },
+     {
+      "name": "Kenta Kurihara",
+      "brId": null
+     },
+     {
+      "name": "Kosuke Fukudome",
+      "brId": "fukudko01"
+     },
+     {
+      "name": "Kyuji Fujikawa",
+      "brId": "fujikky01"
+     },
+     {
+      "name": "Masahiro Tanaka",
+      "brId": "tanakma01"
+     },
+     {
+      "name": "Michihiro Ogasawara",
+      "brId": null
+     },
+     {
+      "name": "Minoru Iwata",
+      "brId": null
+     },
+     {
+      "name": "Munenori Kawasaki",
+      "brId": "kawasmu01"
+     },
+     {
+      "name": "Norichika Aoki",
+      "brId": "aokino01"
+     },
+     {
+      "name": "Satoshi Komatsu",
+      "brId": null
+     },
+     {
+      "name": "Seiichi Uchikawa",
+      "brId": null
+     },
+     {
+      "name": "Shinnosuke Abe",
+      "brId": null
+     },
+     {
+      "name": "Shuichi Murata",
+      "brId": null
+     },
+     {
+      "name": "Shunsuke Watanabe",
+      "brId": null
+     },
+     {
+      "name": "Takahiro Mahara",
+      "brId": null
+     },
+     {
+      "name": "Tetsuya Utsumi",
+      "brId": null
+     },
+     {
+      "name": "Tetsuya Yamaguchi",
+      "brId": null
+     },
+     {
+      "name": "Toshiya Sugiuchi",
+      "brId": null
+     },
+     {
+      "name": "Yasuyuki Kataoka",
+      "brId": null
+     },
+     {
+      "name": "Yoshiyuki Ishihara",
+      "brId": null
+     },
+     {
+      "name": "Yoshiyuki Kamei",
+      "brId": null
+     },
+     {
+      "name": "Yu Darvish",
+      "brId": "darviyu01"
+     }
+    ]
+   },
+   "runnerUp": {
+    "country": "South Korea",
+    "players": [
+     {
+      "name": "Bong Jung-keun",
+      "brId": null
+     },
+     {
+      "name": "Choi Jeong",
+      "brId": null
+     },
+     {
+      "name": "Chong Tae-hyon",
+      "brId": null
+     },
+     {
+      "name": "Choo Shin-soo",
+      "brId": "choosh01",
+      "note": "Korean name order: Shin-Soo Choo"
+     },
+     {
+      "name": "Hyun-soo Kim",
+      "brId": null
+     },
+     {
+      "name": "Im Tae-hoon",
+      "brId": null
+     },
+     {
+      "name": "Jang Won-sam",
+      "brId": null
+     },
+     {
+      "name": "Jeong Keun-woo",
+      "brId": null
+     },
+     {
+      "name": "Jong Hyun-wook",
+      "brId": null
+     },
+     {
+      "name": "Kang Min-ho",
+      "brId": null
+     },
+     {
+      "name": "Kim Kwang-hyun",
+      "brId": null
+     },
+     {
+      "name": "Kim Tae-kyun",
+      "brId": null
+     },
+     {
+      "name": "Ko Young-min",
+      "brId": null
+     },
+     {
+      "name": "Lee Bum-ho",
+      "brId": null
+     },
+     {
+      "name": "Lee Dae-ho",
+      "brId": null
+     },
+     {
+      "name": "Lee Jae-woo",
+      "brId": null
+     },
+     {
+      "name": "Lee Jin-young",
+      "brId": null
+     },
+     {
+      "name": "Lee Jong-wook",
+      "brId": null
+     },
+     {
+      "name": "Lee Seung-ho",
+      "brId": null
+     },
+     {
+      "name": "Lee Taek-keun",
+      "brId": null
+     },
+     {
+      "name": "Lee Yong-kyu",
+      "brId": null
+     },
+     {
+      "name": "Lim Chang-yong",
+      "brId": null
+     },
+     {
+      "name": "Oh Seung-hwan",
+      "brId": null
+     },
+     {
+      "name": "Park Ki-hyuk",
+      "brId": null
+     },
+     {
+      "name": "Park Kyung-oan",
+      "brId": null
+     },
+     {
+      "name": "Ryu Hyun-jin",
+      "brId": null
+     },
+     {
+      "name": "Son Min-han",
+      "brId": null
+     },
+     {
+      "name": "Yoon Suk-min",
+      "brId": null
+     }
+    ]
+   }
+  },
+  "2013": {
+   "champion": {
+    "country": "Dominican Republic",
+    "players": [
+     {
+      "name": "Alejandro De Aza",
+      "brId": "deazaal01"
+     },
+     {
+      "name": "Alfredo Simón",
+      "brId": "simonal01"
+     },
+     {
+      "name": "Atahualpa Severino",
+      "brId": "severat01"
+     },
+     {
+      "name": "Carlos Santana",
+      "brId": "santaca01"
+     },
+     {
+      "name": "Edinson Volquez",
+      "brId": "volqued01"
+     },
+     {
+      "name": "Edwin Encarnación",
+      "brId": "encared01"
+     },
+     {
+      "name": "Erick Aybar",
+      "brId": "aybarer01"
+     },
+     {
+      "name": "Fernando Rodney",
+      "brId": "rodnefe01"
+     },
+     {
+      "name": "Francisco Peña",
+      "brId": "penafr01"
+     },
+     {
+      "name": "Hanley Ramírez",
+      "brId": "ramirha01"
+     },
+     {
+      "name": "José Reyes",
+      "brId": "reyesjo01",
+      "note": "Ambiguous resolved: reyesjo01 has 2013 card (TOR SS), reyesjo02 does not"
+     },
+     {
+      "name": "José Veras",
+      "brId": "verasjo01"
+     },
+     {
+      "name": "Juan Cedeño",
+      "brId": null
+     },
+     {
+      "name": "Kelvin Herrera",
+      "brId": "herreke01"
+     },
+     {
+      "name": "Leury García",
+      "brId": "garcile02"
+     },
+     {
+      "name": "Lorenzo Barceló",
+      "brId": "barcelo01"
+     },
+     {
+      "name": "Miguel Tejada",
+      "brId": "tejadmi01"
+     },
+     {
+      "name": "Moisés Sierra",
+      "brId": "sierrmo01"
+     },
+     {
+      "name": "Nelson Cruz",
+      "brId": "cruzne02",
+      "note": "Ambiguous resolved: cruzne02 has 2013 card (TEX RF), cruzne01 does not"
+     },
+     {
+      "name": "Octavio Dotel",
+      "brId": "doteloc01"
+     },
+     {
+      "name": "Pedro Strop",
+      "brId": "stroppe01"
+     },
+     {
+      "name": "Ricardo Nanita",
+      "brId": null
+     },
+     {
+      "name": "Robinson Canó",
+      "brId": "canoro01"
+     },
+     {
+      "name": "Samuel Deduno",
+      "brId": "dedunsa01"
+     },
+     {
+      "name": "Santiago Casilla",
+      "brId": "garcija01"
+     },
+     {
+      "name": "Wandy Rodríguez",
+      "brId": "rodriwa01"
+     },
+     {
+      "name": "Ángel Castro",
+      "brId": "castran01"
+     }
+    ]
+   },
+   "runnerUp": {
+    "country": "Puerto Rico",
+    "players": [
+     {
+      "name": "Alex Ríos",
+      "brId": "riosal01"
+     },
+     {
+      "name": "Andres Santiago",
+      "brId": null
+     },
+     {
+      "name": "Andy González",
+      "brId": "gonzaan01"
+     },
+     {
+      "name": "Carlos Beltrán",
+      "brId": "beltrca01"
+     },
+     {
+      "name": "Carlos Rivera",
+      "brId": "riverca01"
+     },
+     {
+      "name": "Eddie Rosario",
+      "brId": "rosared01"
+     },
+     {
+      "name": "Efrain Nieves",
+      "brId": null
+     },
+     {
+      "name": "Fernando Cabrera",
+      "brId": "cabrefe01"
+     },
+     {
+      "name": "Giancarlo Alvarado",
+      "brId": null
+     },
+     {
+      "name": "Giovanni Soto",
+      "brId": "sotogi01"
+     },
+     {
+      "name": "Hiram Burgos",
+      "brId": "burgohi01"
+     },
+     {
+      "name": "Irving Falu",
+      "brId": "faluir01"
+     },
+     {
+      "name": "J. C. Romero",
+      "brId": "romerj.01"
+     },
+     {
+      "name": "Jesús Feliciano",
+      "brId": "felicje01"
+     },
+     {
+      "name": "José Berríos",
+      "brId": "berrijo01"
+     },
+     {
+      "name": "José De La Torre",
+      "brId": "delatjo01"
+     },
+     {
+      "name": "José Molina",
+      "brId": "molinjo01"
+     },
+     {
+      "name": "Luis Figueroa",
+      "brId": "figuelu01"
+     },
+     {
+      "name": "Mario Santiago",
+      "brId": null
+     },
+     {
+      "name": "Martín Maldonado",
+      "brId": "maldoma01"
+     },
+     {
+      "name": "Mike Avilés",
+      "brId": "avilemi01"
+     },
+     {
+      "name": "Nelson Figueroa",
+      "brId": "figuene01"
+     },
+     {
+      "name": "Orlando Román",
+      "brId": null
+     },
+     {
+      "name": "Pedro Valdés",
+      "brId": "valdepe01"
+     },
+     {
+      "name": "Xavier Cedeño",
+      "brId": "cedenxa01"
+     },
+     {
+      "name": "Yadier Molina",
+      "brId": "molinya01"
+     },
+     {
+      "name": "Ángel Pagán",
+      "brId": "paganan01"
+     }
+    ]
+   }
+  },
+  "2017": {
+   "champion": {
+    "country": "United States",
+    "players": [
+     {
+      "name": "Adam Jones",
+      "brId": "jonesad01"
+     },
+     {
+      "name": "Alex Bregman",
+      "brId": "bregmal01"
+     },
+     {
+      "name": "Alex Wilson",
+      "brId": "wilsoal01"
+     },
+     {
+      "name": "Andrew McCutchen",
+      "brId": "mccutan01"
+     },
+     {
+      "name": "Andrew Miller",
+      "brId": "millean01"
+     },
+     {
+      "name": "Brandon Crawford",
+      "brId": "crawfbr01"
+     },
+     {
+      "name": "Brett Cecil",
+      "brId": "cecilbr01"
+     },
+     {
+      "name": "Buster Posey",
+      "brId": "poseybu01"
+     },
+     {
+      "name": "Chris Archer",
+      "brId": "archech01"
+     },
+     {
+      "name": "Christian Yelich",
+      "brId": "yelicch01"
+     },
+     {
+      "name": "Daniel Murphy",
+      "brId": "murphda08"
+     },
+     {
+      "name": "Danny Duffy",
+      "brId": "duffyda01"
+     },
+     {
+      "name": "David Robertson",
+      "brId": "roberda08"
+     },
+     {
+      "name": "Drew Smyly",
+      "brId": "smylydr01"
+     },
+     {
+      "name": "Eric Hosmer",
+      "brId": "hosmeer01"
+     },
+     {
+      "name": "Giancarlo Stanton",
+      "brId": "stantmi03"
+     },
+     {
+      "name": "Ian Kinsler",
+      "brId": "kinslia01"
+     },
+     {
+      "name": "J. A. Happ",
+      "brId": "happja01"
+     },
+     {
+      "name": "Jake McGee",
+      "brId": "mcgeeja01"
+     },
+     {
+      "name": "Jonathan Lucroy",
+      "brId": "lucrojo01"
+     },
+     {
+      "name": "Josh Harrison",
+      "brId": "harrijo05"
+     },
+     {
+      "name": "Luke Gregerson",
+      "brId": "gregelu01"
+     },
+     {
+      "name": "Marcus Stroman",
+      "brId": "stromma01"
+     },
+     {
+      "name": "Michael Fulmer",
+      "brId": "fulmemi01"
+     },
+     {
+      "name": "Mychal Givens",
+      "brId": "givenmy01"
+     },
+     {
+      "name": "Nate Jones",
+      "brId": "jonesna01"
+     },
+     {
+      "name": "Nolan Arenado",
+      "brId": "arenano01"
+     },
+     {
+      "name": "Pat Neshek",
+      "brId": "neshepa01"
+     },
+     {
+      "name": "Paul Goldschmidt",
+      "brId": "goldspa01"
+     },
+     {
+      "name": "Sam Dyson",
+      "brId": "dysonsa01"
+     },
+     {
+      "name": "Tanner Roark",
+      "brId": "roarkta01"
+     },
+     {
+      "name": "Tyler Clippard",
+      "brId": "clippty01"
+     }
+    ]
+   },
+   "runnerUp": {
+    "country": "Puerto Rico",
+    "players": [
+     {
+      "name": "Alex Claudio",
+      "brId": "claudal01"
+     },
+     {
+      "name": "Andrew Barbosa no",
+      "brId": null,
+      "note": "Wikipedia formatting artifact — likely Andres Barbosa (no MLB career)"
+     },
+     {
+      "name": "Andrés Santiago",
+      "brId": null
+     },
+     {
+      "name": "Carlos Beltrán",
+      "brId": "beltrca01"
+     },
+     {
+      "name": "Carlos Correa",
+      "brId": "correca01"
+     },
+     {
+      "name": "Dereck Rodríguez",
+      "brId": "rodride01"
+     },
+     {
+      "name": "Eddie Rosario",
+      "brId": "rosared01"
+     },
+     {
+      "name": "Edwin Díaz",
+      "brId": "diazed04",
+      "note": "Ambiguous resolved: diazed04 has 2017 card (SEA RP b.1994), diazed03 does not"
+     },
+     {
+      "name": "Emilio Pagan",
+      "brId": "paganem01"
+     },
+     {
+      "name": "Enrique Hernández",
+      "brId": "hernaen02"
+     },
+     {
+      "name": "Francisco Lindor",
+      "brId": "lindofr01"
+     },
+     {
+      "name": "Giovanni Soto",
+      "brId": "sotogi01"
+     },
+     {
+      "name": "Hector Santiago",
+      "brId": "santihe01"
+     },
+     {
+      "name": "Hiram Burgos",
+      "brId": "burgohi01"
+     },
+     {
+      "name": "J. C. Romero",
+      "brId": "romerj.01"
+     },
+     {
+      "name": "Javier Báez",
+      "brId": "baezja01"
+     },
+     {
+      "name": "Joe Colón",
+      "brId": "colonjo01"
+     },
+     {
+      "name": "Joe Jiménez",
+      "brId": "jimenjo02"
+     },
+     {
+      "name": "Joel Piñeiro",
+      "brId": "pineijo01"
+     },
+     {
+      "name": "Jorge López",
+      "brId": "lopezjo02"
+     },
+     {
+      "name": "José Berríos",
+      "brId": "berrijo01"
+     },
+     {
+      "name": "José De La Torre",
+      "brId": "delatjo01"
+     },
+     {
+      "name": "José De León",
+      "brId": "deleojo03"
+     },
+     {
+      "name": "Kennys Vargas",
+      "brId": "vargake01"
+     },
+     {
+      "name": "Mario Santiago",
+      "brId": null
+     },
+     {
+      "name": "Mike Avilés",
+      "brId": "avilemi01"
+     },
+     {
+      "name": "Orlando Román",
+      "brId": null
+     },
+     {
+      "name": "René Rivera",
+      "brId": "riverre01"
+     },
+     {
+      "name": "Reymond Fuentes",
+      "brId": "fuentre01"
+     },
+     {
+      "name": "Roberto Pérez",
+      "brId": "perezro02"
+     },
+     {
+      "name": "Seth Lugo",
+      "brId": "lugose01"
+     },
+     {
+      "name": "T. J. Rivera",
+      "brId": "rivertj01"
+     },
+     {
+      "name": "Yadier Molina",
+      "brId": "molinya01"
+     },
+     {
+      "name": "Ángel Pagán",
+      "brId": "paganan01"
+     }
+    ]
+   }
+  },
+  "2023": {
+   "champion": {
+    "country": "Japan",
+    "players": [
+     {
+      "name": "Atsuki Yuasa",
+      "brId": null
+     },
+     {
+      "name": "Hiromi Itoh",
+      "brId": null
+     },
+     {
+      "name": "Hiroto Takahashi",
+      "brId": null
+     },
+     {
+      "name": "Hiroya Miyagi",
+      "brId": null
+     },
+     {
+      "name": "Hotaka Yamakawa",
+      "brId": null
+     },
+     {
+      "name": "Kazuma Okamoto",
+      "brId": "okamoka01"
+     },
+     {
+      "name": "Keiji Takahashi",
+      "brId": null
+     },
+     {
+      "name": "Kensuke Kondoh",
+      "brId": null
+     },
+     {
+      "name": "Lars Nootbaar",
+      "brId": "nootbla01"
+     },
+     {
+      "name": "Masataka Yoshida",
+      "brId": "yoshima02"
+     },
+     {
+      "name": "Munetaka Murakami",
+      "brId": "murakmu01"
+     },
+     {
+      "name": "Roki Sasaki",
+      "brId": "sasakro01"
+     },
+     {
+      "name": "Ryoji Kuribayashi",
+      "brId": null
+     },
+     {
+      "name": "Shohei Ohtani",
+      "brId": "ohtansh01"
+     },
+     {
+      "name": "Shosei Togo",
+      "brId": null
+     },
+     {
+      "name": "Shota Imanaga",
+      "brId": "imanash01"
+     },
+     {
+      "name": "Shugo Maki",
+      "brId": null
+     },
+     {
+      "name": "Soichiro Yamazaki",
+      "brId": null
+     },
+     {
+      "name": "Sosuke Genda",
+      "brId": null
+     },
+     {
+      "name": "Taisei Makihara",
+      "brId": null
+     },
+     {
+      "name": "Taisei Ota",
+      "brId": null
+     },
+     {
+      "name": "Takumi Ohshiro",
+      "brId": null
+     },
+     {
+      "name": "Takumu Nakano",
+      "brId": null
+     },
+     {
+      "name": "Takuya Kai",
+      "brId": null
+     },
+     {
+      "name": "Tetsuto Yamada",
+      "brId": null
+     },
+     {
+      "name": "Ukyo Shuto",
+      "brId": null
+     },
+     {
+      "name": "Yoshinobu Yamamoto",
+      "brId": "yamamyo01"
+     },
+     {
+      "name": "Yu Darvish",
+      "brId": "darviyu01"
+     },
+     {
+      "name": "Yuhei Nakamura",
+      "brId": null
+     },
+     {
+      "name": "Yuki Matsui",
+      "brId": "matsuyu01"
+     },
+     {
+      "name": "Yuki Udagawa",
+      "brId": null
+     }
+    ]
+   },
+   "runnerUp": {
+    "country": "United States",
+    "players": [
+     {
+      "name": "Aaron Loup",
+      "brId": "loupaa01"
+     },
+     {
+      "name": "Adam Ottavino",
+      "brId": "ottavad01"
+     },
+     {
+      "name": "Adam Wainwright",
+      "brId": "wainwad01"
+     },
+     {
+      "name": "Bobby Witt Jr.",
+      "brId": "wittbo02"
+     },
+     {
+      "name": "Brady Singer",
+      "brId": "singebr01"
+     },
+     {
+      "name": "Cedric Mullins",
+      "brId": "mullice01"
+     },
+     {
+      "name": "Daniel Bard",
+      "brId": "bardda01"
+     },
+     {
+      "name": "David Bednar",
+      "brId": "bednada01"
+     },
+     {
+      "name": "Devin Williams",
+      "brId": "willide03"
+     },
+     {
+      "name": "J. T. Realmuto",
+      "brId": "realmjt01"
+     },
+     {
+      "name": "Jason Adam",
+      "brId": "adamja01"
+     },
+     {
+      "name": "Jeff McNeil",
+      "brId": "mcneije01"
+     },
+     {
+      "name": "Kendall Graveman",
+      "brId": "graveke01"
+     },
+     {
+      "name": "Kyle Freeland",
+      "brId": "freelky01"
+     },
+     {
+      "name": "Kyle Higashioka",
+      "brId": "higasky01"
+     },
+     {
+      "name": "Kyle Schwarber",
+      "brId": "schwaky01"
+     },
+     {
+      "name": "Kyle Tucker",
+      "brId": "tuckeky01"
+     },
+     {
+      "name": "Lance Lynn",
+      "brId": "lynnla01"
+     },
+     {
+      "name": "Merrill Kelly",
+      "brId": "kellyme01"
+     },
+     {
+      "name": "Mike Trout",
+      "brId": "troutmi01"
+     },
+     {
+      "name": "Miles Mikolas",
+      "brId": "mikolmi01"
+     },
+     {
+      "name": "Mookie Betts",
+      "brId": "bettsmo01"
+     },
+     {
+      "name": "Nick Martinez",
+      "brId": "martini01"
+     },
+     {
+      "name": "Nolan Arenado",
+      "brId": "arenano01"
+     },
+     {
+      "name": "Paul Goldschmidt",
+      "brId": "goldspa01"
+     },
+     {
+      "name": "Pete Alonso",
+      "brId": "alonspe01"
+     },
+     {
+      "name": "Ryan Pressly",
+      "brId": "pressry01"
+     },
+     {
+      "name": "Tim Anderson",
+      "brId": "anderti01"
+     },
+     {
+      "name": "Trea Turner",
+      "brId": "turnetr01"
+     },
+     {
+      "name": "Will Smith",
+      "brId": "smithwi05",
+      "note": "Ambiguous resolved: WBC 2023 Will Smith is LAD catcher (smithwi05 b.1995); smithwi04 pitcher also has 2023 card"
+     }
+    ]
+   }
+  }
+ }
+}

@@ -66,7 +66,21 @@ def total_score(picks: list[dict], budget: float) -> float:
         award_lists=[p["awards"] for p in picks],
         rings=sum(p["ws"] for p in picks),
         pennants=sum(p["pen"] for p in picks),
+        wbc_champions=sum(
+            p.get("wbc") == scoring.WBC_CHAMPION_POINTS for p in picks),
+        wbc_runners_up=sum(
+            p.get("wbc") == scoring.WBC_RUNNERUP_POINTS for p in picks),
     )["total"]
+
+
+def wbc_points(picks: list[dict]) -> int:
+    """Ring-chasing points a roster draws from the Classic alone.
+
+    Read off the card field rather than recomputed, so the harness measures
+    exactly what the game will score. `.get` because the field is sparse: it
+    is present only on the player-seasons that medaled.
+    """
+    return sum(p.get("wbc", 0) for p in picks)
 
 
 def main() -> None:
@@ -76,6 +90,15 @@ def main() -> None:
 
     greedy_war, greedy_cost, greedy_bargains, under = [], [], [], 0
     greedy_total, aware_war, aware_total = [], [], []
+    # Classic exposure, three numbers because they answer three questions.
+    # `offers` is how many of the 8 spins land on a card that has a medalist
+    # in the slot at all — the chance the axis is even on the table. `landings`
+    # and `pts` are what the cost-blind bot actually takes, and it is not
+    # chasing medals: it takes the best WAR in the slot and collects a medal
+    # only by accident. `chase` is the other end, the most a player who always
+    # preferred the biggest medal in the slot could bank — the ceiling on how
+    # far this axis can tilt a game.
+    wbc_offers, wbc_landings, wbc_pts, wbc_chase = [], [], [], []
     for _ in range(trials):
         cards = rng.sample(all_cards, len(SLOT_ORDER))
         picks = draft(cards, budget=None)
@@ -86,6 +109,13 @@ def main() -> None:
         greedy_bargains.append(sum(p["cost"] < 5.0 for p in picks))
         under += c <= AVG_BUDGET
         greedy_total.append(total_score(picks, AVG_BUDGET))
+        wbc_landings.append(sum("wbc" in p for p in picks))
+        wbc_pts.append(wbc_points(picks))
+        best = [max((p.get("wbc", 0) for p in card["players"] if eligible(slot, p)),
+                    default=0)
+                for slot, card in zip(SLOT_ORDER, cards)]
+        wbc_offers.append(sum(b > 0 for b in best))
+        wbc_chase.append(sum(best))
         aware = draft(cards, budget=MONEYBALL_BUDGET)
         aware_war.append(sum(p["war"] for p in aware))
         aware_total.append(total_score(aware, MONEYBALL_BUDGET))
@@ -97,6 +127,16 @@ def main() -> None:
     print(f"  cost   mean ${mean(greedy_cost):5.1f}M  p10 ${q_cost[0]:5.1f}M  p50 ${q_cost[4]:5.1f}M  p90 ${q_cost[8]:5.1f}M")
     print(f"  under avg budget (${AVG_BUDGET}M) while ignoring cost: {100 * under / trials:.0f}%")
     print(f"  bargain (<$5M) signings per 8-man draft: {mean(greedy_bargains):.1f}")
+    any_wbc = 100 * sum(n > 0 for n in wbc_landings) / trials
+    any_offer = 100 * sum(n > 0 for n in wbc_offers) / trials
+    print(f"  WBC medalists offered per 8-spin draft: {mean(wbc_offers):.2f} slots  "
+          f"({any_offer:.0f}% of drafts see at least one)")
+    print(f"  WBC medalists signed per 8-man draft: {mean(wbc_landings):.2f}  "
+          f"({any_wbc:.0f}% of drafts sign at least one)")
+    print(f"  WBC ring-chasing points per draft: {mean(wbc_pts):.2f}  "
+          f"(max seen {max(wbc_pts)})")
+    print(f"  ceiling if every spin took the biggest medal on offer: "
+          f"{mean(wbc_chase):.2f} pts  (max seen {max(wbc_chase)})")
     print(f"\ncost-aware at moneyball budget (${MONEYBALL_BUDGET}M):")
     print(f"  WAR mean {mean(aware_war):.1f}  (greedy gap: {mean(greedy_war) - mean(aware_war):.1f} WAR)")
 

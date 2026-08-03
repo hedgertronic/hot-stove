@@ -31,6 +31,13 @@ export interface CardPlayer {
    * season of his; present only when true. Managers elected as managers carry
    * `managerHof` on the card instead. */
   hof?: boolean;
+  /** World Baseball Classic medal for this exact season, in Ring-chasing
+   * points: 2 for the champion, 1 for the losing finalist. The Classic is
+   * played in March, so the tournament year is the card year and a player can
+   * hold a medal and a World Series ring for the same season — both count.
+   * Present only when the player medaled; five Classics fall inside the
+   * 1985–2025 window, so all but a handful of player-seasons omit it. */
+  wbc?: number;
   bat?: { avg: number; obp: number; slg: number; hr: number; rbi: number; sb: number };
   pit?: { w: number; l: number; sv: number; era: number; so: number };
 }

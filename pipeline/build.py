@@ -6,6 +6,9 @@ Output layout (all consumed by the static frontend):
   data/meta.json         constants + per-year normalization tables
   data/cards/{BR}_{year}.json   full card, fetched on demand at spin time
   data/owners.json       owner names by franchise (hand-curated, flavor only)
+  data/wbc.json          World Baseball Classic finalist rosters (hand-curated
+                         INPUT, not output — read here, joined onto cards as
+                         each player's `wbc` medal value)
   data/specials.json     per-franchise front-office timeline (manager/park/
                          attendance/budget per season) for Prime Time on
                          manager/stadium/owner tiles — fetched lazily
@@ -18,7 +21,9 @@ from collections import defaultdict
 from pathlib import Path
 
 from pipeline import fetch
-from pipeline.scoring import REPLACEMENT_WINS
+from pipeline.scoring import (
+    REPLACEMENT_WINS, WBC_CHAMPION_POINTS, WBC_RUNNERUP_POINTS,
+)
 from pipeline.transform import (
     BANKROLL_GAMMA, BANKROLL_MIN_M, BANKROLL_PIVOT_M, BANKROLL_SCALE,
     DISPLAY_AVG_M, MIN_GS, MIN_PA, MIN_RELIEF_IP, SLOTS,
@@ -50,11 +55,49 @@ LAHMAN_TABLES = ["People", "Teams", "Appearances", "Batting", "Pitching",
                  "Salaries", "AwardsPlayers", "AwardsSharePlayers", "Managers",
                  "AllstarFull", "AwardsManagers", "HallOfFame"]
 
+# The card value a Classic placing is worth. The mapping is one-way on
+# purpose: data/wbc.json stores the PLACING and pipeline/scoring.py owns the
+# POINTS, so the file and the scorer can never drift apart on what a medal is
+# worth. The consequence is that editing either constant in scoring.py is an
+# economy change AND a data change — the cards carry the number, so they have
+# to be rebuilt for the new value to reach the game.
+WBC_PLACING_POINTS = {
+    "champion": WBC_CHAMPION_POINTS,
+    "runnerUp": WBC_RUNNERUP_POINTS,
+}
+
+
+def load_wbc() -> list[dict]:
+    """data/wbc.json flattened to one row per roster entry.
+
+    Hand-curated input, checked in beside owners.json and read (never
+    written) by the build. Flattening here means GameData receives it as
+    just another table of rows, exactly like the Lahman tables, and the
+    transform module stays free of filesystem access.
+
+    A missing file yields no rows rather than an error: the Classic is one
+    pedigree fact among several, and a fresh clone without it should still
+    produce a complete, playable data set — every card simply carries no
+    medals.
+    """
+    path = DATA_DIR / "wbc.json"
+    if not path.exists():
+        return []
+    doc = json.loads(path.read_text())
+    return [
+        {"year": _i(year), "placing": placing,
+         "brId": p["brId"], "name": p["name"]}
+        for year, sides in doc.get("tournaments", {}).items()
+        for placing in ("champion", "runnerUp")
+        for p in sides[placing]["players"]
+    ]
+
 
 def load_raw() -> dict:
     raw = {f"war_{k}": fetch.load_war(k) for k in ("bat", "pitch")}
     for table in LAHMAN_TABLES:
         raw[table] = fetch.load_lahman(table)
+    raw["wbc"] = load_wbc()
     return raw
 
 
@@ -155,6 +198,16 @@ def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]
         # ws/pen flags — 955 of 35,720 player-seasons carry it.
         if lahman_id in gd.hof_players:
             player["hof"] = True
+        # World Baseball Classic medal for this exact season: 2 for the
+        # champion, 1 for the losing finalist, the same numbers scoring.py
+        # pays. The value is the POINTS rather than a boolean because a gold
+        # and a silver are worth different amounts and the scorer reads them
+        # off the card. Sparse like `hof` rather than always-present like
+        # ws/pen: five Classics fall in the 1985-2025 window, so the field is
+        # absent from well over 99% of player-seasons and writing a 0 on all
+        # of them would cost bytes on every card to say nothing.
+        if placing := gd.wbc.get((bbref_id, year)):
+            player["wbc"] = WBC_PLACING_POINTS[placing]
         players.append(player)
     players.sort(key=lambda p: p["war"], reverse=True)
     return players
@@ -186,6 +239,14 @@ def main() -> None:
     specials: dict[str, list[dict]] = defaultdict(list)  # franchID -> FO timeline
     seasons, no_country, hof_seasons = 0, 0, 0
     hof_ids: set[str] = set()
+    # Classic join audit: which roster entries actually reached a card, and
+    # how much the axis is worth per tournament year. The rosters resolve
+    # unevenly by construction — the 2006 and 2009 champions were NPB clubs
+    # with barely an MLB season between them — so the per-year totals are the
+    # number worth watching, not the overall hit rate.
+    wbc_cards: dict[int, int] = defaultdict(int)   # year -> player-seasons flagged
+    wbc_points: dict[int, int] = defaultdict(int)  # year -> total points on cards
+    wbc_ids: set[str] = set()
     hof_mgr_cards, hof_mgr_ids = 0, set()
 
     for (year, br), row in sorted(gd.team_rows.items()):
@@ -243,6 +304,10 @@ def main() -> None:
             if p.get("hof"):
                 hof_seasons += 1
                 hof_ids.add(p["id"])
+            if pts := p.get("wbc"):
+                wbc_cards[year] += 1
+                wbc_points[year] += pts
+                wbc_ids.add(p["id"])
         special = {
             "team": br, "year": year, "name": row["name"], "park": row["park"],
             "mgr": card["manager"], "w": card["wins"], "l": card["losses"],
@@ -310,6 +375,17 @@ def main() -> None:
           f"({no_country} missing)")
     print(f"hall of fame: {len(hof_ids)} players / {hof_seasons:,} player-seasons; "
           f"{len(hof_mgr_ids)} managers on {hof_mgr_cards} cards")
+
+    wbc_rows = gd.raw["wbc"]
+    resolved = sum(1 for r in wbc_rows if r["brId"])
+    print(f"world baseball classic: {len(wbc_rows)} roster entries, "
+          f"{resolved} with a B-R id, {sum(wbc_cards.values())} on cards "
+          f"({len(wbc_ids)} distinct players)")
+    for year in sorted(wbc_cards):
+        year_cards = sum(1 for c in index if c["year"] == year)
+        print(f"  {year}: {wbc_cards[year]:3} player-seasons  "
+              f"{wbc_points[year]:3} points across {year_cards} cards  "
+              f"({wbc_points[year] / year_cards:.2f} pts/card)")
 
     # Short-stint audit: player-seasons on cards only via the WAR >= 2.0
     # override (below every playing-time floor).

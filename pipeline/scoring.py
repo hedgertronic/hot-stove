@@ -16,6 +16,23 @@ AWARD_POINTS = {"MVP": 3, "CY": 3, "MVP2": 2, "CY2": 2, "MVP3": 1, "CY3": 1,
                 "ROY": 2, "AS": 1, "GG": 1, "SS": 1}
 RING_POINTS = 3      # per player whose team won the World Series that season
 PENNANT_POINTS = 1   # per player whose team won the pennant but lost the Series
+# World Baseball Classic medals, on the same Ring-chasing axis as the October
+# hardware above. The Classic is played in March of the same calendar year as
+# the card season, so a medal and a ring describe the same player-season and
+# BOTH count. 2017 Alex Bregman won the Classic with the United States and the
+# World Series with Houston: that one season is worth WBC_CHAMPION_POINTS +
+# RING_POINTS = 5. The stacking is a true fact about the player, not a
+# double-count to suppress — they are two different tournaments and he won
+# both. Nine 2017 seasons stack this way (Bregman, Clippard and Gregerson at
+# +5; Correa and Beltran at +4 as pennant winners; five more at +2).
+#
+# The values sit below RING_POINTS deliberately. Only five Classics land inside
+# the 1985-2025 card window, and the 2006 and 2009 champions (Japan) were
+# rosters of NPB players with almost no MLB seasons, so WBC points are far
+# scarcer than rings. Pricing a gold medal at a ring's value would let the
+# handful of eligible card years own the axis outright.
+WBC_CHAMPION_POINTS = 2   # per player on the World Baseball Classic winner that year
+WBC_RUNNERUP_POINTS = 1   # per player on the Classic's losing finalist
 # Hired manager: (team W - team L) x this, negative allowed. 0.2 makes the
 # hire a real decision (policy-aware bot sweep: 0.1 -> 116+ on-field 0.1%,
 # 0.2 -> 2.8% "rare but chaseable", 162+ 0.2% -> 0.75%; bots chase better
@@ -81,6 +98,8 @@ def score(
     manager_record: tuple[int, int] | None = None,
     scout_hits: int = 0,
     manager_moty: bool = False,
+    wbc_champions: int = 0,
+    wbc_runners_up: int = 0,
 ) -> dict[str, float]:
     # Manager net wins fold into expected wins UNrounded; managerWins is an
     # informational part (already inside expectedWins, never added to total).
@@ -96,7 +115,13 @@ def score(
         # The skipper's MotY is hardware like any player award — trophy case.
         "awardPoints": award_points(award_lists)
         + (MANAGER_MOTY_POINTS if manager_moty else 0),
-        "ringPoints": rings * RING_POINTS + pennants * PENNANT_POINTS,
+        # One Ring-chasing row carries every tournament a player won that
+        # season — October rings and pennants plus March's Classic medals.
+        # They share a row because they answer one question ("what did this
+        # club win?"); a separate ledger line would imply a separate axis.
+        "ringPoints": rings * RING_POINTS + pennants * PENNANT_POINTS
+        + wbc_champions * WBC_CHAMPION_POINTS
+        + wbc_runners_up * WBC_RUNNERUP_POINTS,
         "scoutBonus": round(scout_hits * SCOUT_HIT_POINTS, 1),
         "luxuryTax": round(luxury_tax(spend_m, budget_m), 1),
     }

@@ -126,6 +126,7 @@ class GameData:
         self.raw = raw
         self._build_ids()
         self._build_teams()
+        self._build_wbc()
         self._build_positions()
         self._build_stat_lines()
         self._build_war()
@@ -202,6 +203,29 @@ class GameData:
         for year, games in games_by_year.items():
             avg_g = mean(games)
             self.proration[year] = round(162 / avg_g, 3) if avg_g < 155 else 1.0
+
+    # -- World Baseball Classic medals -------------------------------------
+
+    def _build_wbc(self) -> None:
+        """Classic finalists by player-season — the third pedigree fact.
+
+        Sibling of the ws_winner / pennant tables above, and keyed the same
+        way a card is: the Classic is played in March, so the tournament year
+        IS the MLB season year, and one lookup on (bbrefID, year) answers
+        whether that exact card season carries a medal.
+
+        The rows arrive already flattened from data/wbc.json (a hand-curated
+        file, the way owners.json is), so this module keeps its one job —
+        turning rows into derived state — and never reads the filesystem.
+        Rows whose brId is null are the players with no Baseball-Reference id,
+        overwhelmingly NPB/KBO/Cuban national-team men with no MLB season;
+        they are carried through the file for the record and dropped here
+        because there is nothing for them to join to.
+        """
+        self.wbc: dict[tuple[str, int], str] = {}  # (bbrefID, year) -> placing
+        for r in self.raw.get("wbc", []):
+            if r["brId"]:
+                self.wbc[(r["brId"], _i(r["year"]))] = r["placing"]
 
     # -- Positions (Lahman Appearances, summed across stints) --------------
 

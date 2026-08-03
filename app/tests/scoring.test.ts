@@ -15,6 +15,8 @@ interface Fixture {
     manager_record: [number, number] | null;
     scout_hits: number;
     manager_moty: boolean;
+    wbc_champions: number;
+    wbc_runners_up: number;
   };
   expect: Record<string, number>;
 }
@@ -32,6 +34,8 @@ describe("scoring parity with pipeline/scoring.py", () => {
         managerRecord: f.args.manager_record,
         scoutHits: f.args.scout_hits,
         managerMoty: f.args.manager_moty,
+        wbcChampions: f.args.wbc_champions,
+        wbcRunnersUp: f.args.wbc_runners_up,
       });
       expect(parts).toEqual(f.expect);
     });
@@ -85,5 +89,39 @@ describe("Manager of the Year is trophy-case hardware", () => {
   it("a non-MotY manager adds 0 (omitted and explicit false agree)", () => {
     expect(score({ ...args, managerMoty: false })).toEqual(score(args));
     expect(score(args).awardPoints).toBe(3); // the MVP only
+  });
+});
+
+describe("World Baseball Classic medals ride the Ring-chasing row", () => {
+  const args = { totalWar: 30, spendM: 50, budgetM: 100, awardLists: [] };
+
+  it("a gold medal is +2 and a silver is +1, both in ringPoints", () => {
+    expect(score({ ...args, wbcChampions: 1 }).ringPoints).toBe(2);
+    expect(score({ ...args, wbcRunnersUp: 1 }).ringPoints).toBe(1);
+    expect(score({ ...args, wbcChampions: 3, wbcRunnersUp: 2 }).ringPoints).toBe(8);
+  });
+
+  it("medals land in ringPoints, never in the award or win columns", () => {
+    const plain = score(args);
+    const medaled = score({ ...args, wbcChampions: 2 });
+    expect(medaled.awardPoints).toBe(plain.awardPoints);
+    expect(medaled.expectedWins).toBe(plain.expectedWins);
+    expect(medaled.total).toBeCloseTo(plain.total + 4, 5);
+  });
+
+  /* Stacking is the intended behavior, not a double-count. The Classic is
+   * played in March and the World Series in October, so one player-season can
+   * genuinely hold both: 2017 Alex Bregman won gold with the United States and
+   * a ring with Houston, and that season is worth 2 + 3 = 5. */
+  it("a ring and a gold medal in the same season stack to +5", () => {
+    expect(score({ ...args, rings: 1, wbcChampions: 1 }).ringPoints).toBe(5);
+    // 2017 Carlos Correa: gold medal, and Houston's ring — the same +5.
+    // 2017 Carlos Beltran on the pennant-loser ledger would be 1 + 2 = 3.
+    expect(score({ ...args, pennants: 1, wbcChampions: 1 }).ringPoints).toBe(3);
+  });
+
+  it("no medals is the default (omitted and explicit zero agree)", () => {
+    expect(score({ ...args, wbcChampions: 0, wbcRunnersUp: 0 })).toEqual(score(args));
+    expect(score(args).ringPoints).toBe(0);
   });
 });
