@@ -169,8 +169,9 @@ The mock (`design/cardstock-v2.html`) still wins on look/feel.
 
 - **Difficulty collapsed to two rungs.** Standard (WAR + salary + award pills) and
   Scout (the old Eye Test renamed: names and positions only — pure name
-  recognition). The stats-line middle mode is gone; `statLine` survives in the
-  Prime Time career sheet. Settings migration maps old eyetest→scout and old
+  recognition). The stats-line middle mode is gone, and `statLine` went with it
+  (see round 25 — it never did reach the Prime Time career sheet, and the trad
+  line has no renderer left). Settings migration maps old eyetest→scout and old
   scout/rookie→standard, disambiguated by a settings version stamp (the name
   "scout" collides across versions).
 - **The club must be complete.** The game no longer ends at eight players: you
@@ -1929,9 +1930,10 @@ that lies. It now describes the shape and points at the module for every number.
 
 ### Open, with the reasoning so far
 
-**Scouting at 0.5 instead of 1.0** — unresolved. It needs the same treatment the
-badges got (a study, then a decision), and it is now cheap to do correctly
-because changing it means regenerating fixtures, which is finally possible.
+**Scouting at 0.5 instead of 1.0** — settled in Round 25 below. It needed the
+same treatment the badges got (a study, then a decision), and it was cheap to do
+correctly because changing it means regenerating fixtures, which is finally
+possible.
 
 **The payroll bonus is not a 10-point axis, it is a 20-point one**, and there is
 a cliff at the cap: `+10` at exactly the budget, `0` one dollar over, plus an
@@ -1944,11 +1946,30 @@ alone is 2.2 MB with no schema change; twelve fields are dead across every card.
 Untouched this round because it is a pipeline change that cannot be verified
 without a full rebuild.
 
-**`statLine()` is a finished, tested, unused feature.** `bat` and `pit` are on
-every player and their only consumer is `format.ts:statLine`, which no component
-imports. Eye Test's own blurb ("No stats · no awards") implies the trad line was
-meant to render in the other modes — so this is plausibly a regression to fix
-rather than data to delete, and the two branches lead opposite ways.
+**`statLine()` was a finished, tested, unused feature, and it is now deleted.**
+`bat` and `pit` were on every player with `format.ts:statLine` as their only
+consumer, which no component imported. The open question was whether that made
+it a regression to restore or data to drop; it was put to the player, who does
+not want the trad line, so the branch is closed and both the function and the
+two objects are gone. The cards fell 15,202,676 → 12,478,984 bytes (2.72 MB,
+17.9%), verified by diffing the old and new trees key by key: zero card-level
+key changes, zero player-key changes beyond `bat`/`pit`, zero shared-value
+changes. `pipeline/transform.py` still BUILDS the stat lines and nothing emits
+them — the multi-stint join is the expensive half and deleting it would pull
+`"Batting"` out of `LAHMAN_TABLES`, changing what a fresh clone downloads.
+
+**Twelve more dead card fields are measured but NOT removed.** `warRaw`,
+`contract`, `salary`, `est`, `pa`, `gs`, `relIP`, `teams`, `attendancePct`,
+`budgetRaw`, `contracts` and `posG.dh` have no reader in `app/src` outside their
+`types.ts` declarations and `lab/fixtures.ts`, which writes them to satisfy the
+type rather than reading them. Dropping all of them is a further 4.82 MB (38.6%
+of what remains). Held back because the cost is not in the pipeline: `gs` alone
+has 47 fixture hits across `app/tests`, `pa` 27, `contract` 22, and those would
+surface as excess-property errors in `svelte-check` rather than as test
+failures. `engine.svelte.ts:1404` also spreads a whole card (`...card`) for the
+best-roster yardstick, so any card-LEVEL removal has to be checked against
+save/share serialization first — that would make it a save-compat question
+rather than a size one.
 
 **History cannot simply be capped.** `appendHistory` is unbounded and fails
 silently at quota, which looks like a bug wanting a `slice`. It is not: the
@@ -1957,3 +1978,113 @@ oldest row deletes a badge the player earned. The correct fix is compaction —
 fold a dropped row's badges and countries into a retained summary — and it is
 not urgent at ~420 bytes a row (about 12,000 games). It becomes urgent
 immediately if per-game finales are stored, at ~5.4 KB each.
+
+## Round 25 — a scout point is worth half, and the copies that said otherwise (2026-08-03)
+
+### SCOUT_HIT_POINTS is 0.5
+
+Round 24 left this open and named the reason it could finally be closed: the
+change is one constant in two files plus a regeneration, and the regeneration
+diff is the whole blast radius. That is exactly what it turned out to be. Of the
+31 parity cases, 18 moved and 13 (the zero-hit ones) are byte-identical; in
+every case that moved, `scoutBonus` and `total` fell by exactly 0.5 per hit and
+nothing else changed. No other field in any case moved, which is also the
+standing proof that `gen_fixtures.py` has not drifted from the fixtures it
+generated at 1.0.
+
+What it costs a real season, from the always-on bot regression over 400 games a
+bot: baseline 112.5 → 110.9, powerups 137.7 → 135.4, and the powerups bot's
+≥162 rate goes 1% → 0%. WAR, spend, the payroll bonus and the tax columns are
+unchanged to the tenth, so the whole move is the scouting row and nothing
+leaked. A perfect nine-⭐ sweep is worth 4.5 points now rather than 9 — less
+than two World Series rings, where it used to be three.
+
+### The pair now says it is a pair
+
+`scoring.py` and `scoring.ts` each carry a header naming the other file by path
+and naming `pipeline/gen_fixtures.py` as the thing that fails when only one of
+them is edited. The mechanism has existed since Round 24; what was missing was
+any way for someone opening one file to learn the other exists before changing a
+number in it.
+
+### Five more copies, found by asking what still restates a constant
+
+BUILD.md was the third copy and it rotted (Round 24). It was not the last one.
+
+- **SPEC.md's Scoring section was a fourth prose copy, and it had rotted
+  further than BUILD.md's did.** It carried `47.7 + Σ WAR` (the baseline has
+  been 50 since Round 6), an award table missing every ballot finish and the
+  All-Star selections, no Classic medals, no scouting bonus at all, and — worst,
+  because it describes a mechanic the game deliberately removed — "displayed
+  record comes from a seeded game-by-game Monte Carlo sim." The sim was cut in
+  Round 5 for reconciling with nothing; the spec has been advertising it since.
+  It is not a dead file, either: BUILD.md's first line, README.md's reading
+  order and `engine.svelte.ts`'s header all point a reader at it. Same treatment
+  BUILD.md got — the shape, in words, and the module for every number. It is the
+  cleanest demonstration of the rule available: two prose copies, written by the
+  same hands from the same source, and BOTH drifted, while the Py↔TS pair with a
+  test between them stayed exact.
+
+- **`bestroster.ts`'s header wrote the whole objective out in numbers** —
+  `min(50 + WAR + 0.2·mgrNet, 162)`, `10·(2·spend/budget − 1)`, `3·rings`,
+  `1·scoutHits`. The block earns its place by explaining why the solver
+  maximizes the finale's total rather than WAR, so it stays; it now names the
+  terms and points at `./scoring` for every value, which is the same treatment
+  BUILD.md got. Its fixed-point proof is written with a symbolic weight too —
+  the argument needs the scout point to be non-negative and needs nothing else
+  about it, and that is worth saying, because the old proof was only literally
+  true at 1.0.
+- **The help sheet said `+1`**, in a SCORING list whose line directly above it
+  already interpolates `{MANAGER_PER_NET_WIN}`. It interpolates
+  `{SCOUT_HIT_POINTS}` now.
+- **Study 4's theoretical ceiling had three constants inlined, and one had
+  already rotted.** It computed the dataset ceiling with `net * 0.1` — the
+  manager rate has been 0.2 since Round 6 — plus a literal `+10` bonus and `+9`
+  scout. It imported `REPLACEMENT_WINS`, `GAMES` and `AWARD_POINTS` from
+  `scoring.ts` and inlined the rest, which is precisely the shape a rot takes:
+  the pinned half stays right and the inlined half quietly stops being true. All
+  four terms are imported now. The stale one dates to `0ede1d0`, 57 commits back,
+  and this is the argument for pinning stated at its cheapest — nothing failed,
+  no test went red, the study just printed a wrong ceiling that whole time.
+  Its artifact is regenerated (5,000-seed sweep, 414s), and the correction is
+  larger than the scout change that prompted it: the skipper term doubles, so
+  the dataset ceiling goes 211.1 → 213.6 even though the scout term fell 9 → 4.5.
+  Lou Piniella's 2001 Mariners were being credited +7.0 wins where the shipped
+  game gives +14.0. The sweep moves too, and downward as expected: max 174.5 →
+  172.5, mean 135.5 → 134.5, and games ≥162 over 5,000 seeds 31 → 23.
+- **The bot harness reported the scout BONUS in a field both studies read as a
+  hit COUNT.** `scout: f.parts.scoutBonus` was indistinguishable from
+  `f.scoutHits` while the constant was 1.0. Study 10 knew, and said so in a
+  comment that stopped being true the moment the constant moved; Study 12 did
+  not know, and would have reported a 🔮 CRYSTAL BALL rate thresholded on points
+  against a badge gated on seats. The field is `f.scoutHits` now, because a
+  count keeps meaning the same thing when the price of a seat changes.
+
+Left unpinned deliberately: the help sheet's award values, its `+3` ring and its
+`50 base`, and the finale's `50 + N WAR` why-line. Interpolating ten award
+constants into a sentence a player reads makes the sentence worse, and the copy
+is a teaching surface rather than a second implementation. The distinction that
+matters is whether a number is restated somewhere it can go stale unnoticed —
+these are read every time the sheet is opened, on the same screen as the ledger
+that would contradict them. A prose file nobody opens for months is the opposite
+case, which is why both of them rotted and the help sheet did not.
+
+### One display bug the constant would have created
+
+The finale's scouting row rendered `signed(p.scoutBonus, 0)`, matching the
+trophy case and ring-chasing rows above it, which are integer-valued by
+construction. `scoutBonus` is not integer-valued any more: at any odd hit count
+the row would have rounded to a whole number and stopped adding up to the total
+printed underneath it. It renders to the tenth now, like the payroll bonus and
+the baseline-wins rows that were already fractional.
+
+### A weaker intent than the test names claim
+
+`bestroster.test.ts` has two below-replacement cases — a −2.0 catcher and a −0.5
+catcher — whose comments read as if the solver weighed the scout point against
+the WAR and decided. It does not: rule 6 makes seats dominate the total, so a
+lone card's lone catcher is rostered at any WAR whatsoever. Neither case can
+fail on a change to `SCOUT_HIT_POINTS`, and neither could at 1.0 either. The
+comments now say what the cases actually pin. Recorded rather than fixed,
+because a case that discriminates on the constant would be a different case, not
+a tuned version of these.

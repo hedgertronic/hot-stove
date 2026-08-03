@@ -256,7 +256,16 @@ class GameData:
         best = max(games, key=lambda p: games[p])
         return best if games[best] > 0 else None
 
-    # -- Traditional stat lines (Scout mode; summed across stints) ---------
+    # -- Traditional stat lines (summed across stints) ----------------------
+    #
+    # Full triple-slash and W-L/ERA/K inputs for every card player-season. No
+    # card field is emitted from these today and nothing downstream reads them:
+    # the game shows WAR, price and award pills, never a trad line. They stay
+    # computed because the expensive half is this join — summing multi-stint
+    # Lahman rows into full-season totals — and it survives, so re-emitting a
+    # stat line costs a few lines in build.py plus a rebuild. Dropping them
+    # would also pull "Batting" out of LAHMAN_TABLES, changing what a fresh
+    # clone downloads.
 
     def _build_stat_lines(self) -> None:
         self.bat_line: dict[tuple[str, int], dict[str, int]] = {}

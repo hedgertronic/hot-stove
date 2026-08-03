@@ -23,11 +23,13 @@
     moty: boolean;
     /** Right-edge win value ("+4.8 W"; empty in Eye Test). */
     val: string;
-    /** Rung of the WAR ladder this season's win value lands on, or "" when the
-     * mode hides it. One class drives the row's wash AND the value's color, so
-     * the two can never disagree about which rung a season is. The `war-`
-     * prefix matches the roster rail's, and for the same reason: a test can
-     * assert Eye Test emits no `war-` token at all. */
+    /** Rung of the WAR ladder this season's win value lands on as a bare word
+     * (`elite`, `mid`, …), or "" when the mode hides it. One field, spelled two
+     * ways in the markup, which is app.css's own split: the CHIP wears the bare
+     * word every WAR chip in the game wears, and the ROW wears the prefixed
+     * `war-elite` because the rung is a fact about the season rather than about
+     * the chip drawn on it. The prefix matches the roster rail's, and for the
+     * same reason: a test can assert Eye Test emits no `war-` token at all. */
     tier: string;
     /** The landed card's own season — hire it the normal way. */
     here: boolean;
@@ -63,7 +65,7 @@
             // scale for "how good is this", which is why the share string has
             // always printed the manager cell in the players' own six hues.
             val: game.scout ? "" : `${signed((s.w - s.l) * MANAGER_PER_NET_WIN)} W`,
-            tier: game.showWar ? `war-${warTier((s.w - s.l) * MANAGER_PER_NET_WIN)}` : "",
+            tier: game.showWar ? warTier((s.w - s.l) * MANAGER_PER_NET_WIN) : "",
             here: s.team === c.team && s.year === c.year,
           }));
       } catch {
@@ -102,17 +104,21 @@
              while the season varies, so the lead is year + team code. Every
              other beat matches SpecialRows' skipper row — bare 🧢 in the
              fixed-width type column, muted W–L riding right beside the label,
-             MOY pill after it, win value at the right edge.
+             MOY pill after it, win value at the right edge in a WAR chip.
              Every season fits (this sheet only opens on an open manager
              seat), so only the landed card's own year grays out. -->
-        <button class="srow {row.tier}" disabled={row.here} onclick={() => pick(row)}>
+        <button
+          class="srow {row.tier ? `war-${row.tier}` : ''}"
+          disabled={row.here}
+          onclick={() => pick(row)}
+        >
           <span class="ic">🧢</span>
           <span class="mid">
             <span class="who">{row.year} {row.team}</span>
             {#if row.rec}<span class="meta">{row.rec}</span>{/if}
             {#if row.moty}<AwardPill code="MOY" small />{/if}
           </span>
-          {#if row.val}<span class="val">{row.val}</span>{/if}
+          {#if row.val}<span class="val warchip {row.tier}">{row.val}</span>{/if}
         </button>
       {/each}
     </div>
@@ -133,10 +139,18 @@
     display: grid;
     gap: 6px;
   }
-  /* Card-white is the resting state and the Eye Test state: with the win value
-     withheld there is no rung to draw, and a career of identical blank rows is
-     the honest picture of what that mode knows. The tinting rule's pair paints
-     over it below. */
+  /* ---------- a market row, so: white cardstock in --line ----------
+     This sheet is a MARKET — the whole point of it is comparing 23 seasons of
+     one career and choosing one — and app.css's rule is that a row still being
+     chosen between stays plain and puts its value in a chip. The chips then
+     align in a column and the eye runs down them, which is exactly what a wall
+     of six competing washes prevents. The rung a season earns is not withheld;
+     it moves to where it can be read against its neighbours.
+     The row carries `war-{tier}` all the same, because the rung is a fact about
+     the season and the sheet's test reads it there — but that class sets
+     app.css's --rung pair and paints nothing on its own, so the row spends
+     neither half of it. Eye Test emits no token at all, and a career of
+     identical blank rows is the honest picture of what that mode knows. */
   .srow {
     display: flex;
     align-items: center;
@@ -153,63 +167,15 @@
     width: 100%;
     min-height: 48px;
   }
-  /* A season is worth a number of wins and the game has exactly one scale for
-     that, so every row here is the tinting rule's pair at the rung its own
-     record earns: the hue's wash for the card, the hue's line for the border,
-     and the same line color on the win value at the right edge. This is the
-     roster rail's hired-manager seat, one screen earlier — browse the career in
-     the same colors the chair will wear once the season is hired, and a 108-win
-     year is legible as gold before the number is read.
-     THE ROW, NOT THE VALUE, CARRIES THE WASH. Coloring "+9.2 W" alone was the
-     smaller change and it does not survive contrast: the rung-8 hues on the old
-     pink card run 1.93:1 at the low rung. Against their own rung-2 wash the
-     same six run 2.17–3.77:1, which is the register the rail's WAR numerals
-     have always used, and the wash does most of the reading anyway.
-     Pink is gone from this sheet for the same reason it left the MGR seat: it
-     was saying "manager", and 🧢 in the type column plus a header reading
-     "⭐ PRIMETIME — 🧢 {name}" already say it on every row.
-     Placed above the :disabled block on purpose — the two weigh the same, and
-     the landed card's own season must gray out whatever rung it earned. */
-  .srow.war-neg {
-    background: var(--war-neg-fill);
-    border-color: var(--war-neg);
-  }
-  .srow.war-low {
-    background: var(--war-low-fill);
-    border-color: var(--war-low);
-  }
-  .srow.war-mid {
-    background: var(--war-mid-fill);
-    border-color: var(--war-mid);
-  }
-  .srow.war-high {
-    background: var(--war-high-fill);
-    border-color: var(--war-high);
-  }
-  .srow.war-star {
-    background: var(--war-star-fill);
-    border-color: var(--war-star);
-  }
-  .srow.war-elite {
-    background: var(--war-elite-fill);
-    border-color: var(--war-elite);
-  }
-  /* Ink, on every rung. app.css's rule for type on a rung-2 fill is ink, and
-     these rows are that fill: the numeral used to be tinted to match its own
-     wash, which runs 2.17:1 to 3.77:1 where ink runs 9.52:1 at worst. The rung
-     is already said twice on the row, by the fill and by the frame. Same
-     correction the finale's seats and the ballpark chip took. */
-  .srow[class*="war-"] .val {
-    color: var(--ink);
-  }
   .srow:active {
     transform: translate(-1px, -1px);
   }
   /* Unavailable rows speak the taken-tile language from the draft screen: the
-     whole card drops to gray and goes monochrome, rung and all. The tier is not
-     whispered through the way a dead market row keeps its WAR chip's hue —
-     there is exactly one unavailable season here, the landed card's own, and it
-     is the season already on offer in the FRONT OFFICE row at full color. */
+     whole card drops to gray and goes monochrome, its own chip included. The
+     tier is not whispered through the way a dead market row keeps its chip's
+     hue — there is exactly one unavailable season here, the landed card's own,
+     and it is the season already on offer in the FRONT OFFICE row at full
+     color. */
   .srow:disabled {
     background: var(--gray-bg);
     border-color: var(--gray-ink);
@@ -234,7 +200,12 @@
     line-height: 1;
     flex: none;
   }
-  .mid {
+  /* `mid` is also the WAR ladder's middle rung, and on this row the chip is the
+     season label's SIBLING — so the child combinator that fences the same
+     collision in PlayerList and PrimePicker cannot fence it here, and a
+     mid-rung chip would be turned into a wrapping flex box with no 42px floor.
+     The name collision is the whole bug; excluding the chip is the whole fix. */
+  .srow > .mid:not(.warchip) {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -257,10 +228,11 @@
     font-weight: 600;
     flex: none;
   }
+  /* The chip owns its own type, border and wash — everything the row adds is
+     the right edge and a promise not to wrap "−8.4 W" across two lines. */
   .val {
     margin-left: auto;
-    font-weight: 800;
-    font-size: 14px;
+    flex: none;
     white-space: nowrap;
   }
 </style>

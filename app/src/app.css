@@ -26,6 +26,49 @@
        is ink under a light gold ring, which is why legend still reads as "off
        the top of the ladder" rather than as one more gold pill.
 
+   ---------- WHERE THE RUNG IS WORN ----------
+
+   The tinting rule says what a colored surface looks like. This says WHICH
+   surfaces get one, and it has no exceptions:
+
+     * A MARKET row — anything still being chosen between — is white cardstock
+       in --line, and its value rides a separate .warchip. A market is a
+       COMPARISON surface: the chips align in a column and the eye runs down
+       them, which a wall of six competing washes actively prevents.
+     * A COMMITTED row — signed, hired, or already on the club — wears the rung
+       as its own fill and frame, and its numeral goes --ink.
+
+   That single line settles four things that used to be settled separately:
+
+     - The finale is entirely committed rows, so it is entirely tinted.
+     - The rail is committed rows, so a filled seat is tinted — the manager's
+       chair is not a special case, it was merely the first one converted.
+     - On the finale's dream team, the seats the player actually drafted are
+       committed and the rest never were, so drafted-vs-not needs no new device:
+       it is the rule already running. Do NOT reach for a dashed border here.
+       The dash is the ARMED channel and spending it on "you drafted this" would
+       collide with every tappable seat in the game.
+     - FRONT OFFICE tiles (owner gold, ballpark blue, skipper red) are market
+       rows whose hue is a CATEGORY, not a value — they say what the chair is,
+       not how good the hire would be. Those three identity hues are the same
+       hexes as three WAR rungs, and that is safe precisely because the rule
+       keeps them apart: nothing in a market is ever rung-tinted, so an identity
+       fill and a rung fill can never appear side by side.
+
+   The rung is applied through --rung-fill / --rung-line rather than by
+   repeating the ladder in every component. A .war-* class sets the pair and
+   nothing else; each surface then spends them in ONE declaration and decides
+   for itself whether it takes the fill, the line, or both. Custom properties
+   inherit and carry no specificity, so a component's own scoped rule can never
+   lose a cascade fight to the ladder — which is exactly what four hand-copied
+   ladders were quietly risking.
+
+   Absent the class, both fall back: no --war-* class means no tint, which is
+   what keeps Eye Test honest. Tier color is withheld from every in-play surface
+   while `showWar` is false (the rail asserts on it: no `war-` token may appear
+   in that SSR output at all), and revealed unconditionally at the finale, where
+   the hidden hardware is supposed to come out.
+
    THREE FILLS ARE HELD OFF THE RULE, each at its token: --brick-wash, the
    warm gray pair, and --gold-8. One more is held in place: the payroll meter's
    fill stays saturated --green, because green-2 against the white track is
@@ -355,29 +398,67 @@ button {
   margin-left: 2.5px;
   vertical-align: 1px;
 }
+/* ---------- the rung, as a pair of custom properties ----------
+   The ONLY place the six tiers are enumerated. Every surface that wears a rung
+   — the chip below, the rail seats, the manager's chair, both finale squads,
+   the manager career sheet — reads these two and never names a --war-* token
+   directly. Adding a tier is one edit here; retuning a hue is still one edit in
+   :root above.
+
+   These set custom properties and nothing else, deliberately. A rule that also
+   painted would have to out-specify whatever scoped rule the component wrote,
+   and there is no specificity that is right for every caller. Properties have
+   none to fight over: the component's own single declaration does the painting,
+   so the ladder cannot win a fight it should not be in.
+
+   TWO SPELLINGS, one ladder. A chip wears the bare tier (`elite`); everything
+   that tints a ROW wears the prefixed one (`war-elite`). That split is not
+   untidiness, it is load-bearing, and tests/help-specimens.test.ts is what it
+   is holding up: that file proves the help sheet's manager chair derives its
+   rung from Bobby Cox's real 1995 record rather than hard-coding a rung that
+   looks about right, and it proves it by finding `war-star` in the markup. The
+   sheet also draws a six-rung chip ladder two paragraphs above that chair. If
+   chips spelled their tier the same way, the ladder would emit `war-star` on
+   its own and the assertion would pass no matter what the chair did — a test
+   that can no longer fail when the thing it guards breaks. Keeping the chip's
+   spelling distinct is what keeps that proof honest, so it is spelled out in
+   the selector list here rather than unified away. */
+.war-neg,
 .warchip.neg {
-  background: var(--war-neg-fill);
-  border-color: var(--war-neg);
+  --rung-fill: var(--war-neg-fill);
+  --rung-line: var(--war-neg);
 }
+.war-low,
 .warchip.low {
-  background: var(--war-low-fill);
-  border-color: var(--war-low);
+  --rung-fill: var(--war-low-fill);
+  --rung-line: var(--war-low);
 }
+.war-mid,
 .warchip.mid {
-  background: var(--war-mid-fill);
-  border-color: var(--war-mid);
+  --rung-fill: var(--war-mid-fill);
+  --rung-line: var(--war-mid);
 }
+.war-high,
 .warchip.high {
-  background: var(--war-high-fill);
-  border-color: var(--war-high);
+  --rung-fill: var(--war-high-fill);
+  --rung-line: var(--war-high);
 }
+.war-star,
 .warchip.star {
-  background: var(--war-star-fill);
-  border-color: var(--war-star);
+  --rung-fill: var(--war-star-fill);
+  --rung-line: var(--war-star);
 }
+.war-elite,
 .warchip.elite {
-  background: var(--war-elite-fill);
-  border-color: var(--war-elite);
+  --rung-fill: var(--war-elite-fill);
+  --rung-line: var(--war-elite);
+}
+
+/* The chip spends both. Untiered it falls back to bare cardstock in --line,
+   which is what an Eye Test chip and the market's own frame already are. */
+.warchip {
+  background: var(--rung-fill, transparent);
+  border-color: var(--rung-line, var(--line));
 }
 
 /* Dashed section separator (FRONT OFFICE / PLAYERS) */

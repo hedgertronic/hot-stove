@@ -1,27 +1,24 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import {
-    loadStoredFinale,
-    type Bank,
-    type Difficulty,
-    type GameConfig,
-  } from "../lib/engine.svelte";
+  import type { Bank, Difficulty, GameConfig, StoredFinale } from "../lib/engine.svelte";
   import { parseSeedCode, recordFromTotal } from "../lib/format";
+  import { loadHistory } from "../lib/history";
   import { BANKS, DIFFICULTIES } from "../lib/modes";
   import { bestFor } from "../lib/settings";
   import CornerButtons from "./CornerButtons.svelte";
   import Logo from "./Logo.svelte";
+  import SeasonsModal from "./SeasonsModal.svelte";
 
   let {
     config,
     onplay,
-    onlast,
+    onopen,
   }: {
     config: GameConfig;
     onplay: (c: GameConfig, seed?: number) => void;
-    /** Reopen the last finished game's finale (only ever called when one is
-     * stored — the control is present always, but disabled otherwise). */
-    onlast: () => void;
+    /** Reopen a finished game's finale, from the seasons list. Only ever called
+     * with a record storage still holds. */
+    onopen: (rec: StoredFinale) => void;
   } = $props();
 
   // Seed once from the saved settings; the rows edit local state until PLAY.
@@ -52,21 +49,24 @@
   );
 
 
-  // The way back into the last finished game's finale. Read once: the home
-  // screen is rebuilt every time it is shown, and nothing writes the archive
-  // while it is on screen. A finished game unmounts this screen on the way to
-  // the finale and mounts a fresh one on the way back, so the read is current
-  // without any reactivity of its own.
+  // The way back into any finished game. Read once: the home screen is rebuilt
+  // every time it is shown, and nothing appends to the log while it is on
+  // screen. A finished game unmounts this screen on the way to the finale and
+  // mounts a fresh one on the way back, so the read is current without any
+  // reactivity of its own.
   //
-  // GLOBAL, unlike the record book below: it is the last game played, whatever
-  // mode that game was played in. The button says LAST, the book says BEST.
+  // GLOBAL, unlike the record book below: every season ever played, whatever
+  // mode it was played in. The button opens the list, the book says BEST.
   //
-  // Null in exactly two situations, and the button is disabled in both: nobody
-  // has ever finished a game here, and the last game was quit. Quitting takes
-  // `hotstove.current` and nothing else, but every route into a game clears the
-  // archive first — so a game there is anything to quit is a game with no
-  // archive behind it.
-  const lastFinale = loadStoredFinale();
+  // Only the count is needed here — whether the list would have anything in it.
+  // Which of those seasons can still be reopened is the modal's question, and
+  // it reads the archive itself when it mounts rather than making the home
+  // screen parse a few hundred kilobytes it has no other use for. Quits are
+  // excluded on the log's own marker, the same guard `bestFor` counts games
+  // with: a row with no total resolved no season.
+  const seasons = loadHistory().filter((e) => typeof e.total === "number").length;
+
+  let seasonsOpen = $state(false);
 
   // PLAY A SEED: a shared code replays that game's exact card sequence
   // under whatever mode combo is selected above.
@@ -178,8 +178,8 @@
     >PLAY <span class="bic">🔥</span></button
   >
 
-  <!-- The two secondaries, side by side under PLAY: back into the last
-       finished game, and into a shared seed. Equal halves on the finale's own
+  <!-- The two secondaries, side by side under PLAY: back into the seasons
+       already played, and into a shared seed. Equal halves on the finale's own
        action-row proportions (48px tall, 13px display caps) — the one
        equal-width button row this codebase already has.
     -->
@@ -189,8 +189,8 @@
          appears and disappears directly under the primary action moves PLAY A
          SEED across the screen between visits and shifts the thumb target of
          the row above, which costs more than a dimmed label does. -->
-    <button class="btn ubtn" disabled={lastFinale === null} onclick={onlast}
-      >LAST GAME <span class="bic">🧾</span></button
+    <button class="btn ubtn" disabled={seasons === 0} onclick={() => (seasonsOpen = true)}
+      >SEASONS <span class="bic">🧾</span></button
     >
     <!-- PLAY A SEED swaps ITS OWN half for the field rather than the row: the
          cell keeps its height, so the button beside it never moves under the
@@ -261,7 +261,11 @@
     </div>
   </div>
 
-
+  {#if seasonsOpen}
+    <!-- Created fresh on every open, which is what makes its read of the log
+         and the archive current. -->
+    <SeasonsModal onclose={() => (seasonsOpen = false)} {onopen} />
+  {/if}
 </div>
 
 <style>

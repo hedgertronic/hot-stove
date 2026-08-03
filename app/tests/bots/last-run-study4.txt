@@ -9,16 +9,16 @@
   IF   Jeff Bagwell           HOU 1994  WAR  11.6  $ 18.4M  GG,MVP,SS,AS
   C    Buster Posey           SFG 2012  WAR   7.6  $  1.4M  MVP,SS,AS  💍
   FLEX Mookie Betts           BOS 2018  WAR  10.7  $ 17.9M  GG,MVP,SS,AS  💍
-  MGR  Lou Piniella SEA 2001  net +70 → +7.0 wins
-  totals: WAR 80.1, awards 45, rings/pennants 10, expected wins 137.1
-  ceiling = 137.1 wins + 10 bonus + 45 awards + 10 rings + 9 scout = 211.1 pts
+  MGR  Lou Piniella SEA 2001  net +70 → +14.0 wins
+  totals: WAR 80.1, awards 45, rings/pennants 10, expected wins 144.1
+  ceiling = 144.1 wins + 10 bonus + 45 awards + 10 rings + 4.5 scout = 213.6 pts
   roster cost $193.8M — FITS under Blank Check $203.2M
 
 [2] SEED SWEEP — powerups bot, Classic, 5000 seeds
-  max 174.5, p99 160.3, p99.9 167.5, mean 135.5
-  games >=150: 430   >=155: 175   >=162: 31
+  max 172.5, p99 159.6, p99.9 167.5, mean 134.5
+  games >=150: 366   >=155: 128   >=162: 23
 
 [3] BLANK CHECK ($203.2M fixed cap) — powerups bot, 400 seeds
-  mean 141.5, med 142.0, p90 153.1, max 175.9, mean WAR 51.8, mean spend $149.0M, >=162: 5
+  mean 140.1, med 140.8, p90 151.1, max 170.9, mean WAR 51.8, mean spend $149.0M, >=162: 3
 
-runtime 18.778s
+runtime 414s

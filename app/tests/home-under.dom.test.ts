@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
-/** The two-up row under PLAY: LAST GAME's availability, and PLAY A SEED's way
+/** The two-up row under PLAY: SEASONS' availability, and PLAY A SEED's way
  * back out of the field it opens.
  *
- * The storage half — which situations leave an archive and which do not — is
- * asserted in finale-persist.test.ts, where the engine can actually finish a
- * game. What only a mounted component can show is the other half: that the
- * archive's absence reaches the DOM as a real `disabled` attribute rather than
- * a fade, that the row is always two cells whatever storage holds, and that
- * cancelling the seed field closes it, empties it, and hands focus back to the
- * button it replaced.
+ * SEASONS is enabled by the LOG, not by the archive: every season a career has
+ * finished appears in the list, and whether any given one can still be reopened
+ * is the modal's question (seasons.dom.test.ts). What only a mounted component
+ * can show is that an empty log reaches the DOM as a real `disabled` attribute
+ * rather than a fade, that the row is always two cells whatever storage holds,
+ * and that cancelling the seed field closes it, empties it, and hands focus
+ * back to the button it replaced.
  *
  * Geometry (the row's box not moving between states) is a screenshot job:
  * jsdom has no layout, so a width assertion here would pass on zeroes.
@@ -16,27 +16,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import Home from "../src/components/Home.svelte";
+import { appendHistory } from "../src/lib/history";
 
-const FINALE_KEY = "hotstove.finale";
-
-/** The smallest record `loadStoredFinale` accepts: a v1 stamp, a total the
- * ledger can dereference, and a roster array. */
-function archive(): void {
-  localStorage.setItem(
-    FINALE_KEY,
-    JSON.stringify({
-      v: 1,
-      seed: 42,
-      config: { difficulty: "standard", bank: "classic" },
-      spinCount: 3,
-      seen: [],
-      slots: [],
-      owner: null,
-      stadium: null,
-      manager: null,
-      finale: { parts: { total: 120 } },
-    }),
-  );
+/** One finished season in the log. `total` is what makes it one. */
+function season(): void {
+  appendHistory({ v: 2, date: "2026-08-02", seed: 42, total: 120, difficulty: "standard", bank: "classic" });
 }
 
 function open() {
@@ -47,7 +31,7 @@ function open() {
     props: {
       config: { difficulty: "standard", bank: "classic" },
       onplay: vi.fn(),
-      onlast: vi.fn(),
+      onopen: vi.fn(),
     },
   });
   flushSync();
@@ -80,13 +64,13 @@ function focused(): Promise<void> {
   return vi.waitFor(() => expect(document.activeElement?.tagName).toBe("BUTTON"));
 }
 
-describe("LAST GAME", () => {
+describe("SEASONS", () => {
   it("is disabled, not absent, when nothing has ever been finished", () => {
     const ui = open();
-    // The row is two cells whether or not there is a game to go back to: the
+    // The row is two cells whether or not there is a season to go back to: the
     // control under the primary action must not move between visits.
     expect(ui.cells()).toHaveLength(2);
-    expect(ui.last().textContent).toContain("LAST GAME");
+    expect(ui.last().textContent).toContain("SEASONS");
     // Genuinely disabled — unfocusable and unclickable, not merely faded.
     expect(ui.last().disabled).toBe(true);
     ui.close();
@@ -100,32 +84,34 @@ describe("LAST GAME", () => {
     ui.close();
   });
 
-  it("is enabled the moment an archive exists, and calls back on tap", () => {
-    archive();
-    const onlast = vi.fn();
-    const target = document.createElement("div");
-    document.body.appendChild(target);
-    const app = mount(Home, {
-      target,
-      props: { config: { difficulty: "standard", bank: "classic" }, onplay: vi.fn(), onlast },
-    });
-    flushSync();
-    const btn = target.querySelector(".under .ubtn") as HTMLButtonElement;
-    expect(btn.disabled).toBe(false);
-    btn.click();
-    expect(onlast).toHaveBeenCalledOnce();
-    unmount(app);
-    target.remove();
+  it("stays disabled for a log holding nothing but quits", () => {
+    // A quit is a row with no total, and the list is seasons that resolved.
+    // Same guard the record book counts games with.
+    appendHistory({ date: "2026-08-02", badges: ["packedin"] });
+    const ui = open();
+    expect(ui.last().disabled).toBe(true);
+    ui.close();
   });
 
-  it("reads the archive fresh on every mount, so the state survives a reload", () => {
+  it("is enabled the moment a season is logged, and opens the list on tap", () => {
+    season();
+    const ui = open();
+    expect(ui.last().disabled).toBe(false);
+    expect(ui.target.querySelector('[role="dialog"]')).toBeNull();
+    ui.last().click();
+    flushSync();
+    expect(ui.target.querySelector('[role="dialog"]')).not.toBeNull();
+    ui.close();
+  });
+
+  it("reads the log fresh on every mount, so the state survives a reload", () => {
     // A reload is a fresh mount against the same storage — the same thing this
     // does twice. The disabled state is a read of localStorage, not of memory.
     const first = open();
     expect(first.last().disabled).toBe(true);
     first.close();
 
-    archive();
+    season();
     const second = open();
     expect(second.last().disabled).toBe(false);
     second.close();

@@ -3,6 +3,14 @@
 The frontend ports these functions to JS; this module exists so balance changes
 can be playtested in Python against real cards before touching UI code.
 All dollar amounts are normalized display millions (league-avg slot-8 = $160M).
+
+app/src/lib/scoring.ts is the hand-maintained 1:1 port, and gen_fixtures.py is
+what keeps the two honest: it runs THIS module over 31 frozen cases into
+app/tests/scoring-fixtures.json, which app/tests/scoring.test.ts replays through
+the TypeScript. So a balance change here is three steps, not one — edit here,
+mirror it there, `python pipeline/gen_fixtures.py` — and the parity test fails
+until all three are done. The regeneration diff is also the readable blast
+radius of whatever was changed.
 """
 
 from __future__ import annotations
@@ -41,7 +49,7 @@ MANAGER_PER_NET_WIN = 0.2
 # Hired manager won the BBWAA Manager of the Year that season. Hardware, not
 # wins: it joins the awardPoints (trophy case) sum, never the managerWins term.
 MANAGER_MOTY_POINTS = 2
-SCOUT_HIT_POINTS = 1.0  # per drafted player who's in the WAR-optimal roster
+SCOUT_HIT_POINTS = 0.5  # per drafted player who's in the WAR-optimal roster
 
 LUXURY_TAX_PER_M = 1.0
 BUDGET_BONUS_MAX = 10.0

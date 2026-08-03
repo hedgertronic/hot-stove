@@ -1,7 +1,14 @@
 /** 1:1 port of pipeline/scoring.py — that module is the source of truth.
  * Balance changes happen there first (playtested via pipeline/playtest.py),
  * then get mirrored here. tests/scoring.test.ts holds parity fixtures
- * generated from the Python implementation. */
+ * generated from the Python implementation.
+ *
+ * THE TWO FILES ARE A PAIR AND `pipeline/gen_fixtures.py` IS WHAT KEEPS THEM
+ * HONEST. It runs pipeline/scoring.py over 31 frozen cases and writes
+ * tests/scoring-fixtures.json; scoring.test.ts replays those cases through the
+ * code below and compares. Change a constant or a formula here without making
+ * the same change there and regenerating, and the parity test fails — which is
+ * the point. A number edited on one side only has nowhere to hide. */
 import type { ScoreParts } from "./types";
 
 export const REPLACEMENT_WINS = 50;
@@ -43,7 +50,7 @@ export const MANAGER_PER_NET_WIN = 0.2; // hired manager: (team W − team L) ×
 /** Hired manager won the BBWAA Manager of the Year that season. Hardware, not
  * wins: it joins the awardPoints (trophy case) sum, never the managerWins term. */
 export const MANAGER_MOTY_POINTS = 2;
-export const SCOUT_HIT_POINTS = 1.0; // per drafted pick who's in the dream team
+export const SCOUT_HIT_POINTS = 0.5; // per drafted pick who's in the dream team
 
 export const LUXURY_TAX_PER_M = 1.0;
 export const BUDGET_BONUS_MAX = 10.0;

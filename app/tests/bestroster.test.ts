@@ -153,9 +153,9 @@ describe("bestRoster", () => {
   });
 
   it("rosters a season that costs more than the scout point it pays, because a seat must be filled", () => {
-    // A seat on the dream club is worth SCOUT_HIT_POINTS (1.0) all by itself,
-    // so on value alone the bar is −1.0 WAR and this catcher is under it: at
-    // −2.0 he still loses the club half a win.
+    // A seat on the dream club is worth SCOUT_HIT_POINTS (0.5) all by itself,
+    // so on value alone the bar is −0.5 WAR and this catcher is well under it:
+    // at −2.0 he costs the club a point and a half.
     //
     // He is signed anyway, and the reason is the game's rule rather than the
     // arithmetic. There is no passing (DECISIONS.md 2) and a club must be
@@ -169,8 +169,13 @@ describe("bestRoster", () => {
     expect(best.dreamSeats).toBe(1);
   });
 
-  it("rosters a slightly below-replacement season, because the seat itself scores", () => {
-    // −0.5 WAR costs half a win and pays a whole scout point: net +0.5.
+  it("rosters a slightly below-replacement season, right at the seat's own value", () => {
+    // −0.5 WAR costs half a win and the seat pays half a point back, so this
+    // catcher sits exactly on the value bar. He rosters — but so does the
+    // −2.0 catcher above, and for the same reason: rule 6 makes seats dominate
+    // the total, so a lone card's lone catcher is signed at any WAR. Neither
+    // case can discriminate on SCOUT_HIT_POINTS; what they pin is the shallow
+    // and deep ends of "the solver never sits a seat out."
     const best = dream([card([player({ pos: "C", posG: C, war: -0.5 })], { manager: null })]);
     expect(best.picks[0]?.war).toBe(-0.5);
     expect(best.dreamSeats).toBe(1);

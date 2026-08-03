@@ -99,25 +99,6 @@ export function parseSeedCode(code: string): number | null {
   return n;
 }
 
-/** Rate stat in baseball notation: 0.292 → ".292" (1.000+ keeps its digit). */
-function dot3(a: number): string {
-  return a.toFixed(3).replace(/^0\./, ".");
-}
-
-/** Scout-mode trad stat line. Pitchers read W–L / ERA / K; everyone else reads
- * the triple slash plus HR·RBI·SB. Two-way seasons show the pitching line. */
-export function statLine(p: {
-  pos: string;
-  bat?: { avg: number; obp: number; slg: number; hr: number; rbi: number; sb: number };
-  pit?: { w: number; l: number; sv: number; era: number; so: number };
-}): string {
-  if (isPitcher(p) && p.pit)
-    return `${p.pit.w}–${p.pit.l} · ${p.pit.era.toFixed(2)} ERA · ${p.pit.so} K`;
-  if (p.bat)
-    return `${dot3(p.bat.avg)}/${dot3(p.bat.obp)}/${dot3(p.bat.slg)} · ${p.bat.hr} HR · ${p.bat.rbi} RBI · ${p.bat.sb} SB`;
-  return "";
-}
-
 /** The season record a points total resolves into, with its rung on the WAR
  * ladder the whole game speaks: round the points to a win count, clamp to the
  * 162-game season (a blown-out negative total is an 0–162 season; ≥162 caps

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Game } from "../lib/engine.svelte";
   import {
     clearBadgeCue,
     firstEverPlay,
@@ -24,11 +25,20 @@
    * is a block that pins them to its top edge (`home`).
    *
    * `newBadges` is the finale's first-time-ever badge list, or null anywhere
-   * that is not a finale. The home screen never passes it. */
+   * that is not a finale. The home screen never passes it.
+   *
+   * `game` is the live run, and it is what the undo pill needs. The pill is
+   * drawn only where there is a game to rewind, so the home screen keeps its
+   * pair in the left corner and the in-game HUD gains a third beside the ✕. */
   let {
     home = false,
     newBadges = null,
-  }: { home?: boolean; newBadges?: string[] | null } = $props();
+    game = null,
+  }: {
+    home?: boolean;
+    newBadges?: string[] | null;
+    game?: Game | null;
+  } = $props();
 
   let cues = $state(loadCues());
   let unplayed = $state(firstEverPlay());
@@ -66,6 +76,14 @@
     if (badgeCue) cues = clearBadgeCue();
     trophyOpen = true;
   }
+
+  // stopPropagation for the pair's reason above: the pill sits over click
+  // handling tied to the landed card, and the tap that rewinds a move must not
+  // also reach the market it rewound.
+  function tapUndo(e: MouseEvent) {
+    e.stopPropagation();
+    game?.undo();
+  }
 </script>
 
 <button
@@ -89,6 +107,22 @@
     /></svg
   ></button
 >
+
+<!-- The third pill, drawn only where there is a run to rewind — the home
+     screen passes no game and keeps its pair.
+     Line art rather than ↩️ for the trophy's reason: a color emoji dropped into
+     a 10px text-glyph pill sits low and reads as a sticker on a control. -->
+{#if game}
+  <button
+    class="help undo"
+    disabled={!game.canUndo}
+    onclick={tapUndo}
+    aria-label="Undo last move"
+    ><svg class="tico" viewBox="0 0 14 14" aria-hidden="true"
+      ><path d="M11 11.5V8.5A4 4 0 0 0 7 4.5H2.5 M5.5 2 2.5 4.5l3 2.5" /></svg
+    ></button
+  >
+{/if}
 
 {#if helpOpen}
   <HelpModal onclose={() => (helpOpen = false)} />
@@ -140,6 +174,52 @@
   .trophy {
     left: 32px;
     right: auto;
+  }
+  /* Inboard of the ✕, which App.svelte pins at `right: 0` — the mirror of the
+     trophy sitting inboard of the ?. `left: auto` matters for the reason the
+     trophy needs `right: auto`: `.help` anchors to the left corner by default,
+     and a rule setting only `right` would leave this pill in both.
+
+     A third pill at `left: 64px`, beside the ? and the case, is the placement
+     this corner was chosen OVER, and the wordmark is why. The HUD centers the
+     logo in a flex row while these pills sit absolute above it, so the two
+     sides are not interchangeable: the left group would need 92px of corner
+     and the right pair needs 60px. Measured against the 129px logo (and the
+     +52px a mode chip adds beside it) inside `#app`'s 14px padding, `left: 64px`
+     lands on the H of HOTSTOVE at every common phone width in an opt-in mode —
+     37px of overlap at 320px, still 2px at 390px. `right: 32px` is clear
+     everywhere but 320px-with-a-chip, where it grazes by 5px.
+
+     What this corner costs is the ✕'s armed state. `.quit.armed` drops the
+     twin width for `width: auto; padding: 0 8px` and grows "QUIT?" leftward to
+     about 55px — 35px of Nunito at 12px/800 plus padding and borders — which
+     covers 23 of this pill's 28px for the 2.5 seconds the confirm is up. That
+     is accepted rather than worked around: the overgrowth is deliberate and
+     documented beside `.quit.armed`, App.svelte renders the ✕ after this
+     component so the confirm paints on top and takes the tap, and a player who
+     has just armed a quit should be looking at the quit. A transient overlap
+     behind a modal-ish confirm beats a permanent one across the logo. */
+  .undo {
+    left: auto;
+    right: 32px;
+  }
+  /* Nothing to take back: the pill stays in the corner and goes flat, rather
+     than disappearing. It sits directly inboard of ✕, and a control that comes
+     and goes there walks the quit target 32px sideways between taps — the same
+     trade Home.svelte's LAST GAME button makes,
+     and the same flat language (one opacity on the whole control, no hue
+     change) at the same 0.65 — a second dimming number for the same idea would
+     read as two different states.
+     What 0.65 buys here, measured against --card: the border goes to 3.21:1
+     and the stroked arrow to 2.70:1. The border clears the 3:1 a graphical
+     object owes and the arrow does not, which is what makes the pill legible
+     as a control before its glyph is legible as an arrow — and the arrow's
+     shortfall is covered rather than argued away, since WCAG 1.4.11 exempts
+     components that are inactive. Dimming further would trade the border's
+     margin for nothing. */
+  .undo:disabled {
+    opacity: 0.65;
+    cursor: default;
   }
   /* Line art rather than an emoji: the ?/✕ pills are 10px text glyphs, and a
      color emoji dropped into that geometry sits low and reads as a sticker on

@@ -355,12 +355,12 @@ export interface CountryDef {
  * before the finale, and no move a player can make produces a Lithuanian — so a
  * tier here is a fact about how unlikely a stamp was, never a target.
  *
- * `passportBoard()` DOES walk these keys, to draw the countries a career has
- * not reached as grayed slots. That is a scale for the stamps beside them
- * rather than a checklist: an unvisited slot names no player, suggests no
- * action, and the ones a player will actually see next are the ones already at
- * the top. The rule the panel still keeps is the one that matters — nothing
- * here is ever shown DURING a game, where it could steer a signing.
+ * No surface walks these keys to draw a board. A country a career has never
+ * reached is not on the passport at all — see `passportBoard()` for why the
+ * grayed slots that used to fill it are gone. The table is read one country at
+ * a time, to decorate a stamp that has already been earned. The rule that
+ * matters is unchanged: nothing here is ever shown DURING a game, where it
+ * could steer a signing.
  *
  * The bands are the badge ladder's own, one rung per order of magnitude of
  * club rate: 20%+ common, 5–20% uncommon, 1–5% rare, under 1% ultra. The split
@@ -622,13 +622,12 @@ export interface PassportItem {
   /** First time this country has ever been fielded. Finale only: in the case
    * every stamp is already found, so the flag would mark all of them. */
   fresh: boolean;
-  /** Never been fielded at all — a slot rather than a stamp. The board in the
-   * trophy case shows every country there is, so an unvisited one is drawn with
-   * its tier fill held back, a dashed border, its flag in grayscale and no
-   * number. The name is not drawn on any stamp, visited or not; it is the
-   * stamp's accessible name and its tooltip. */
-  locked: boolean;
-  /** Hover/assistive detail. Null draws no title attribute at all. */
+  /** The sentence a stamp reveals when it is tapped, after the country's own
+   * name. Null is a stamp with nothing to add — the finale's, where a career
+   * sentence beside a count of tonight's men would be two subjects on one
+   * stamp — and it still opens, on the country's name alone. That name is the
+   * question a bare flag cannot answer on a touch screen, so no stamp is ever
+   * inert. */
   title: string | null;
 }
 
@@ -674,53 +673,42 @@ export function passportItems(
       rarity: s.rarity,
       count: s.counted > 0 ? s.players : null,
       fresh: fresh.has(s.country),
-      locked: false,
       title: stampTitle(s),
     }))
     .sort((a, b) => Number(b.fresh) - Number(a.fresh));
 }
 
-/** The whole board: every country there is, collected ones first.
+/** The trophy case's board: the countries this career has fielded, rarest
+ * first. Nothing else — a country nobody has been to is not on it.
  *
- * ---- This reverses a rule, on purpose ----
+ * ---- The empty slots are gone ----
  *
- * The panel used to show found stamps and nothing else, on the reasoning that
- * a country is not collectible — nothing in the game shows a birth country
- * before the finale, so a grid of grayed-out slots would point a player at a
- * hunt they have no way to run.
+ * The board was the whole table for a while, with every unreached country
+ * drawn as a grayed slot, on the reasoning that a player who has fielded
+ * eleven countries cannot tell whether that is most of them or a tenth, and a
+ * souvenir with no scale is one you cannot tell a story about.
  *
- * That reasoning was about INVITATION and it held; what it got wrong is what
- * the empty slots are for. A player who has fielded eleven countries has no way
- * to know whether that is most of them or a tenth of them, and a souvenir with
- * no scale is a souvenir you cannot tell a story about. The slots answer that
- * and still invite nothing: they are unsorted by anything actionable, they name
- * no player, and there is no move that produces a Lithuanian. Landing one
- * remains an accident — the board just tells you how unlikely the accident was.
+ * The scale cost more than it bought. Most of the table is somewhere nobody
+ * has been — 24 of the 39 are ultra — so the board opened as a wall of what
+ * the player does not have, with the handful they do have as a short row on
+ * top. That is a checklist however carefully the slots are worded, and it is
+ * the shape the passport exists to not be. The stamps are the souvenir; the
+ * absences were never the point.
  *
- * The unvisited half runs commonest first, which is the honest order for a
- * thing nobody chases: the countries near the top are the ones a few more
- * seasons will turn up on their own, and 🇱🇹 sits at the bottom where it
- * belongs. Sorting them by name would imply the list is for looking things up
- * in, which it is not.
+ * RARITY orders what is left, rarest first. The case is a collection board and
+ * the badge bands above it are already stacked that way, so the passport reads
+ * on the same axis as the sheet it sits at the bottom of rather than
+ * introducing a second one. Within a tier the sort is stable, so
+ * `passportItems`' newest-first order survives underneath it. The finale draws
+ * the same stamps in an order of its own and is meant to: that surface is one
+ * night's scoreboard, not a collection.
  *
- * A country the table does not know cannot appear as a slot — there is nothing
- * to draw — but it still appears as a STAMP once fielded, on plain paper. The
- * board is `COUNTRIES` plus whatever the log turned up. */
+ * A country the table does not know sorts last. It has no measured tier, and
+ * an unmeasured country at the head of a board ordered by rarity would read as
+ * the rarest thing on it. */
 export function passportBoard(): PassportItem[] {
-  const found = passportItems();
-  const seen = new Set(found.map((i) => i.country));
-  const locked = Object.entries(COUNTRIES)
-    .filter(([country]) => !seen.has(country))
-    .sort((a, b) => b[1].freq - a[1].freq)
-    .map(([country, def]) => ({
-      country,
-      flag: def.flag,
-      rarity: def.rarity,
-      count: null,
-      fresh: false,
-      locked: true,
-      title: "Never fielded.",
-    }));
-  return [...found, ...locked];
+  const rank = (r: Rarity | null) =>
+    r === null ? RARITY_ORDER.length : RARITY_ORDER.indexOf(r);
+  return passportItems().sort((a, b) => rank(a.rarity) - rank(b.rarity));
 }
 

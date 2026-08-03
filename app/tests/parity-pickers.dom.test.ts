@@ -214,11 +214,14 @@ describe("the help sheet teaches with the real parts", () => {
     // are the dashed invitation.
     expect(ui.target.querySelector(".cell.filled")).not.toBeNull();
     expect(ui.target.querySelector(".cell.empty")).not.toBeNull();
-    // Both payroll faces, through the real PayrollBox: under, then over. The
-    // probe is the meter's own alarm class and the overrun figure's element,
-    // not their wording — the copy belongs to that component.
-    expect(ui.target.querySelectorAll(".pay")).toHaveLength(2);
-    expect(ui.target.querySelectorAll(".paylbl .left")).toHaveLength(1);
+    // All three payroll faces, through the real PayrollBox: no owner yet, under,
+    // then over. The probe is the meter's own alarm class and the overrun
+    // figure's element, not their wording — the copy belongs to that component.
+    // The ownerless box is the one a player meets FIRST and the only one whose
+    // payroll is $0, so it reads $0 LEFT and lifts the `.left` count with it.
+    expect(ui.target.querySelectorAll(".pay")).toHaveLength(3);
+    expect(ui.target.querySelectorAll(".paylbl .left")).toHaveLength(2);
+    expect(ui.target.querySelectorAll(".pmeter.pnocap")).toHaveLength(1);
     expect(ui.target.querySelectorAll(".pmeter.pover")).toHaveLength(1);
     expect(ui.target.querySelector(".paylbl .warn")?.textContent).toContain("$14.3M");
     // A powerup pill in each of its three states.

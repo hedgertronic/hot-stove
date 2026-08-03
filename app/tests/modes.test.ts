@@ -6,7 +6,7 @@ import {
   SLOT_TYPES,
   type GameConfig,
 } from "../src/lib/engine.svelte";
-import { recordFromTotal, statLine } from "../src/lib/format";
+import { recordFromTotal } from "../src/lib/format";
 import { bestFor, loadSettings, saveSettings } from "../src/lib/settings";
 import type { Card, CardPlayer, GameIndex, Meta, Owners } from "../src/lib/types";
 
@@ -290,18 +290,5 @@ describe("recordFromTotal ladder (home record book + finale stamp)", () => {
     expect(recordFromTotal(134).tier).toBe("high");
     expect(recordFromTotal(115).tier).toBe("mid");
     expect(recordFromTotal(99).tier).toBe("low");
-  });
-});
-
-describe("stat lines", () => {
-  it("hitters read slash/HR/RBI/SB", () => {
-    expect(
-      statLine({ pos: "3B", bat: { avg: 0.292, obp: 0.385, slg: 0.544, hr: 39, rbi: 102, sb: 8 } }),
-    ).toBe(".292/.385/.544 · 39 HR · 102 RBI · 8 SB");
-  });
-  it("pitchers read W–L/ERA/K", () => {
-    expect(statLine({ pos: "SP", pit: { w: 19, l: 5, sv: 0, era: 2.44, so: 284 } })).toBe(
-      "19–5 · 2.44 ERA · 284 K",
-    );
   });
 });

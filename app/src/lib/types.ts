@@ -38,8 +38,6 @@ export interface CardPlayer {
    * Present only when the player medaled; five Classics fall inside the
    * 1985–2025 window, so all but a handful of player-seasons omit it. */
   wbc?: number;
-  bat?: { avg: number; obp: number; slg: number; hr: number; rbi: number; sb: number };
-  pit?: { w: number; l: number; sv: number; era: number; so: number };
 }
 
 export interface Contract {

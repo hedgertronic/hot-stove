@@ -46,7 +46,7 @@ describe("study 10: dream-team scout hits", () => {
       const spins: number[] = [];
       for (const seed of seeds) {
         const r = await playGame(seed, run.bot, d);
-        hits.push(r.scout); // SCOUT_HIT_POINTS is 1.0, so bonus === hits
+        hits.push(r.scout); // a seat count, like the 🔮 threshold it feeds
         spins.push(r.spins); // spins bound the cards seen, and so the dream seats
       }
       lines.push(

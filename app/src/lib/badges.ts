@@ -325,6 +325,11 @@ export interface BadgeFacts {
    * the honest answer — nobody typed it, because there was nothing to type it
    * into. */
   konami?: boolean;
+  /** A move was taken back with the HUD's undo during this game.
+   *
+   * Optional for `konami`'s reason and it fails the same way: a fact set built
+   * before the field existed reports no rewind rather than a free badge. */
+  undone?: boolean;
   /** `Game.pedigree.rings`. */
   rings: number;
   /** `ScoreParts.awardPoints` — includes the manager's MotY points. */
@@ -2080,11 +2085,11 @@ export const BADGES: BadgeDef[] = [
   },
 
   // ---- meta: what you did to the app, not to a club — these stack ----
-  /* Four badges that read no roster, no record and no payroll. Two are about
-   * where a seed came from, one is about leaving, one is about a keyboard.
-   * None of them can be earned by playing better, and none of them is
-   * measurable against a bot population: no arm quits, no arm types a seed,
-   * and no arm has hands. */
+  /* Five badges that read no roster, no record and no payroll. Two are about
+   * where a seed came from, one is about leaving, one is about a keyboard, one
+   * is about changing your mind. None of them can be earned by playing better,
+   * and none of them is measurable against a bot population: no arm quits, no
+   * arm types a seed, no arm has hands, and no arm takes a pick back. */
   {
     // The one badge in the table `earnedBadges` never pushes. It is written
     // straight into the history row by the quit path, because there is no
@@ -2177,6 +2182,37 @@ export const BADGES: BadgeDef[] = [
     // drives the engine directly and never touches a keyboard at all.
     freq: null,
     how: "Entered the Konami code.",
+  },
+  /* The undo button, which the HUD offers openly and which takes back exactly
+   * one committed move — a spin, a signing, a hire — by restoring the position
+   * that stood before it, RNG cursor included, so re-doing the same thing
+   * deals the same card.
+   *
+   * `ironic` for ✳️ THE ASTERISK's reason rather than 🧳 PACKED IT IN's. A
+   * mulligan is a joke at your own expense: the season you finished is one
+   * decision less committed than the one the seed dealt you, which is the same
+   * shrug ✳️ makes about replaying a code you had already played. Both belong
+   * beside the result and neither belongs in the progress fraction — and the
+   * locked slot has to stay anonymous for 💀's reason, because "↩️ SECOND
+   * THOUGHTS" printed on an empty case is an instruction to go press the
+   * button, in a game whose whole shape is living with the card you were
+   * dealt.
+   *
+   * SECOND THOUGHTS over THE DO-OVER: the axis speaks in idiom about the
+   * player — PACKED IT IN, WORD OF MOUTH — and names no mechanic. "The
+   * do-over" is the feature's name; "second thoughts" is what the player had. */
+  {
+    key: "secondthoughts",
+    emoji: "↩️",
+    label: "SECOND THOUGHTS",
+    rarity: "ironic",
+    axis: "meta",
+    ironic: true,
+    // Unmeasurable one step past 🎮: a bot arm drives the engine directly and
+    // never presses a button at all, so every harness game runs start to
+    // finish with nothing taken back. There is no population behind this.
+    freq: null,
+    how: "Took back a move.",
   },
 ];
 
@@ -2553,6 +2589,7 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // Same default-false reading, same reason: a fact set assembled before the
   // field existed reports no keyboard rather than a free badge.
   if (f.konami === true) out.push("cheatcodes");
+  if (f.undone === true) out.push("secondthoughts");
   if (roster.some(isRecord)) out.push("recordbook");
   if (roster.some(isChase)) out.push("chase");
   if (roster.some((p) => p.year === 2020)) out.push("covid");

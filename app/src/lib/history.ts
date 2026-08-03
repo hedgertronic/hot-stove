@@ -5,7 +5,17 @@
  * already point at each other: settings imports the engine's config types, so
  * an engine that imported settings would close a cycle. History is the third
  * thing both of them actually depend on, so it owns the key, the row shape,
- * and the tolerance for rows written by older builds. */
+ * and the tolerance for rows written by older builds.
+ *
+ * It owns a SECOND key beside the log — the replayable archive at the bottom of
+ * the file — because the two are the same games at two very different sizes and
+ * the difference is what makes one of them cappable. They live together so that
+ * the rule keeping the cap off the log is written next to the log it protects.
+ *
+ * `StoredFinale` is imported as a TYPE only. That import is erased at build
+ * time and adds no runtime edge, so the engine still depends on this module and
+ * never the other way around. */
+import type { StoredFinale } from "./engine.svelte";
 
 const HISTORY_KEY = "hotstove.history";
 
@@ -29,6 +39,15 @@ const HISTORY_KEY = "hotstove.history";
  * produces no season. */
 export interface HistoryEntry {
   date: string;
+  /** Shared with this game's record in the replayable archive at the bottom of
+   * this file — the one thing tying a 420-byte log row to the ~5.4KB finale it
+   * can be walked back into. Minted by `finishGame` as the season ends, so it
+   * is absent on every row written before the archive existed and on every
+   * unscored row: a quit reaches no finale, so there is nothing to point at.
+   *
+   * An id naming no surviving archive record is the normal end state of an old
+   * season — still counted, still stamped, no longer openable. */
+  id?: string;
   /** Absent on an unscored row (a quit). Its absence IS the marker: every
    * reader that measures play already guards on it being a number. */
   total?: number;
@@ -114,4 +133,102 @@ export function earnedBadgeKeys(): Set<string> {
     for (const k of e.badges) if (typeof k === "string") keys.add(k);
   }
   return keys;
+}
+
+/* ---------- the replayable archive ---------- */
+
+/** The finished games that can still be REOPENED, oldest first.
+ *
+ * A log row is ~420 bytes and says what a season scored. The finale screen
+ * needs the whole club, the ledger and the dream team — ~5.4KB per game. Those
+ * two appetites cannot share one store, and here they do not: the log above
+ * stays uncapped and complete, and this key holds a bounded tail of
+ * `StoredFinale` records, each carrying the id of the row it belongs to.
+ *
+ * ---- Why the cap is HERE, and never on the log ----
+ *
+ * The trophy case (`earnedBadgeKeys`) and the passport (`settings.passport`)
+ * are lifetime UNIONS over the log. Trimming its oldest row to buy space would
+ * permanently un-earn a badge and un-stamp a country, and a player would watch
+ * their own collection shrink as they kept playing. So the log is never
+ * trimmed, by this or by anything.
+ *
+ * Evicting from THIS key costs exactly one thing: that season can no longer be
+ * walked back into. It still counts toward the record book, still holds its
+ * badges, still carries its stamps. The seasons list draws such a row as one it
+ * cannot open rather than dropping it, so the loss is visible rather than
+ * silent.
+ *
+ * ---- The number ----
+ *
+ * 50 × ~5.4KB ≈ 270KB against the ~5MB an origin gets — roughly 18× headroom.
+ * The ceiling is not what sets the cap, though; `hotstove.current` is. A live
+ * game that cannot write its save loses a season outright to iOS Safari's tab
+ * eviction, which is strictly worse than losing the ability to reopen a season
+ * already played and already scored. At 1,000 lifetime games the log is ~420KB
+ * and this key is still 270KB, so the whole origin sits under 0.8MB and the
+ * in-progress save is never the thing being squeezed. (~5.4KB is a real finale
+ * over the real corpus — the one-card fixture the tests play understates it.)
+ *
+ * ---- Two obligations ----
+ *
+ * These records are plain `StoredFinale`s, so bumping the engine's
+ * FINALE_VERSION makes them unrenderable exactly as it does `hotstove.finale`.
+ * That bump has to remove this key too; nothing here is migrated, as nothing
+ * here ever is.
+ *
+ * And the shape check below repeats `loadStoredFinale`'s rather than calling
+ * it. Importing that function would make the log depend on the engine at
+ * runtime and close the very cycle this module's position in the stack exists
+ * to avoid — so the two dereferences every finale surface performs are checked
+ * twice, on purpose. */
+const ARCHIVE_KEY = "hotstove.archive";
+/** Exported because the seasons list says the number out loud once a season has
+ * aged out — a cap the player can see explained is the difference between a
+ * dead row and a broken one. */
+export const ARCHIVE_CAP = 50;
+
+/** One archived finale: everything the finale screen renders, plus the id
+ * shared with its log row. */
+export type ArchivedFinale = StoredFinale & { id: string };
+
+/** Every reopenable game, oldest first. Rows missing an id or missing what the
+ * finale screen dereferences are dropped rather than handed on: an archive
+ * record exists to be rendered, and one that cannot be is no record. Corrupt or
+ * absent storage reads as an empty archive, like the log above. */
+export function loadArchive(): ArchivedFinale[] {
+  try {
+    const a = JSON.parse(localStorage.getItem(ARCHIVE_KEY) ?? "[]");
+    if (!Array.isArray(a)) return [];
+    return a.filter(
+      (r) =>
+        typeof r?.id === "string" &&
+        typeof r.finale?.parts?.total === "number" &&
+        Array.isArray(r.slots),
+    );
+  } catch {
+    return [];
+  }
+}
+
+/** Archive one finished game, evicting the oldest once the cap is reached.
+ *
+ * A quota failure evicts and retries rather than giving up on the first throw —
+ * the same principle as the swallowed writes above, one step further. The
+ * newest season is the one most likely to be reopened, so it is the last thing
+ * surrendered; and if not even a single record will fit, the archive already in
+ * storage is left standing rather than emptied. Either way the finale the
+ * player just earned is untouched, because it was written and claimed before
+ * this ran. */
+export function archiveGame(rec: ArchivedFinale): void {
+  const rows = [...loadArchive(), rec];
+  if (rows.length > ARCHIVE_CAP) rows.splice(0, rows.length - ARCHIVE_CAP);
+  while (rows.length > 0) {
+    try {
+      localStorage.setItem(ARCHIVE_KEY, JSON.stringify(rows));
+      return;
+    } catch {
+      rows.shift();
+    }
+  }
 }

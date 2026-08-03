@@ -4,14 +4,15 @@ import { track } from "../lib/analytics";
   import { ownerFor } from "../lib/data";
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
   import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, warTier } from "../lib/format";
-  import { GAMES, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
-  import { shareText as shareResult } from "../lib/share";
   import {
-    countryDef,
-    passport,
-    passportItems,
-    type PassportItem,
-  } from "../lib/settings";
+    GAMES,
+    MANAGER_PER_NET_WIN,
+    MARINERS_WINS,
+    WBC_CHAMPION_POINTS,
+    WBC_RUNNERUP_POINTS,
+  } from "../lib/scoring";
+  import { shareText as shareResult } from "../lib/share";
+  import { countryDef, passport, type PassportItem } from "../lib/settings";
   import AwardPill from "./AwardPill.svelte";
   import BadgeSlot from "./BadgeSlot.svelte";
   import Passport from "./Passport.svelte";
@@ -118,22 +119,32 @@ import { track } from "../lib/analytics";
       amt: signed(p.awardPoints, 0),
       cls: p.awardPoints > 0 ? "plus" : "zero",
     });
-    const { rings, pennants } = game.pedigree;
-    // One emoji per pedigree season — 💍💍🚩 reads as the actual trophy case.
-    // Past 8 emojis (a stacked-pedigree outlier) the row would overflow its
-    // single line, so it falls back to the ×N form.
+    const { rings, pennants, wbcChampions, wbcRunnersUp } = game.pedigree;
+    // One emoji per honour the club's seasons won — 💍💍🚩🌐 reads as the
+    // actual trophy case. October's rings and pennants and March's Classic
+    // medals share this row because they share this ledger line, so the glyph
+    // count is all four and so is the fallback's threshold: past 8 emojis (a
+    // stacked-pedigree outlier) the row would overflow its single line, so it
+    // falls back to the ×N form.
     const pedigreeChips: { code: string; n: number }[] = [];
-    if (rings + pennants > 8) {
+    if (rings + pennants + wbcChampions + wbcRunnersUp > 8) {
       if (rings) pedigreeChips.push({ code: "💍", n: rings });
       if (pennants) pedigreeChips.push({ code: "🚩", n: pennants });
+      if (wbcChampions) pedigreeChips.push({ code: "🌐", n: wbcChampions });
+      if (wbcRunnersUp) pedigreeChips.push({ code: "🎌", n: wbcRunnersUp });
     } else {
       if (rings) pedigreeChips.push({ code: "💍".repeat(rings), n: 1 });
       if (pennants) pedigreeChips.push({ code: "🚩".repeat(pennants), n: 1 });
+      if (wbcChampions) pedigreeChips.push({ code: "🌐".repeat(wbcChampions), n: 1 });
+      if (wbcRunnersUp) pedigreeChips.push({ code: "🎌".repeat(wbcRunnersUp), n: 1 });
     }
     out.push({
       key: "pedigree",
       lbl: "Ring chasing",
-      why: pedigreeChips.length > 0 ? undefined : "no rings, no pennants",
+      // Names all four things the row can now be empty of, in one phrase
+      // short enough to survive the narrow phone: spelled out as "no rings,
+      // no pennants, no medals" the line ellipsizes at 320px.
+      why: pedigreeChips.length > 0 ? undefined : "nothing won",
       chips: pedigreeChips.length > 0 ? pedigreeChips : undefined,
       amt: signed(p.ringPoints, 0),
       cls: p.ringPoints > 0 ? "plus" : "zero",
@@ -145,7 +156,10 @@ import { track } from "../lib/analytics";
         // One star per find, like the pedigree row (max 9 fits the line).
         chips: fin.scoutHits > 0 ? [{ code: "⭐".repeat(fin.scoutHits), n: 1 }] : undefined,
         why: fin.scoutHits > 0 ? undefined : "none found",
-        amt: signed(p.scoutBonus, 0),
+        // One decimal, unlike the trophy case and ring rows above: a scout
+        // point is worth half, so this row lands on .5 at every odd count and
+        // a whole-number rendering would not add up to the total.
+        amt: signed(p.scoutBonus),
         cls: p.scoutBonus > 0 ? "plus" : "zero",
       });
     }
@@ -398,20 +412,34 @@ import { track } from "../lib/analytics";
    * same claim about the same kind of object and a second vocabulary for
    * "this one is new" would be one to learn for nothing.
    *
-   * THE WHOLE PASSPORT, not this club's slice of it. The panel used to list the
-   * countries on the roster and nothing else, which is the narrower and worse
-   * object: it told a player what they already had in front of them, and hid
-   * the thing the moment is actually about — that tonight's club added a stamp
-   * to a collection. Showing the career and flagging what tonight put in it
-   * makes the new one legible AGAINST something, and gives a club that added
-   * nothing new a souvenir anyway.
+   * THIS CLUB, COUNTED THIS CLUB. Every stamp names a country one of tonight's
+   * eight men was born in, and its number is how many of tonight's men that
+   * was — six Americans read USA ×6. The panel is built straight off
+   * `game.slots` for that reason, so the countries and the counts answer the
+   * same question and the header over them ("Countries fielded") is literally
+   * true of both.
    *
-   * It carries the numbers for the same reason: this is the passport, so it
-   * counts what the passport counts — unique players per country across every
-   * game. `passportItems` is the trophy case's own builder, so the two panels
-   * cannot disagree about a single figure on a single stamp. No grayed slots
-   * here, though: the empty half of the board is context for a collection being
-   * browsed, and this is a scoreboard.
+   * The lifetime figure is the trophy case's job and is a different number
+   * about a different subject: across a career USA ×24 is a fact about the
+   * collection, and printed here — inches under a nine-man roster — it reads as
+   * a claim about the roster, which is the one thing it is not. The two panels
+   * therefore run two builders on purpose. `passportItems` still serves the
+   * case, unchanged.
+   *
+   * The number counts distinct MEN, the same definition the case's number
+   * carries, which is why the map holds a Set of player ids rather than a
+   * tally. Tonight nobody can appear twice — one seat, one signing — so the
+   * Set's size and a counter agree; the Set is what keeps them agreeing if a
+   * mode ever lets one man fill two seats.
+   *
+   * No grayed slots here: the empty half of the board is context for a
+   * collection being browsed, and this is a scoreboard.
+   *
+   * ORDER: biggest count first, and a new country ahead of an equal one. The
+   * count is the new information tonight — where this club actually came from —
+   * so the country that supplied the most men leads. (The trophy case sorts by
+   * rarity instead: that panel is a collection and a collection is read by what
+   * is scarce.)
    *
    * Which countries are new is read out of the lifetime passport rather than
    * handed over by the engine, which means it is true the moment this component
@@ -420,9 +448,7 @@ import { track } from "../lib/analytics";
    * the log: a country on tonight's roster with ONE visit is a country this
    * club is the only record of, which is exactly "never fielded before". A
    * restored finale reads the same, since the row is still there and still the
-   * only one. Note that both halves are required — a one-visit country NOT on
-   * tonight's roster is impossible, but reading visits alone would flag it if
-   * it ever became possible.
+   * only one.
    *
    * It fails toward celebrating rather than withholding, twice. A history row
    * that never landed — a full or disabled localStorage — leaves the country
@@ -431,40 +457,37 @@ import { track } from "../lib/analytics";
    * so a country first met back then reads as new the next time it appears.
    * Neither is recoverable: the log holds no roster and never has. Both name a
    * real country the club really held, which is the whole content of the
-   * chip — only the chip can be generous. */
+   * chip — only the chip can be generous. Building off the roster is also what
+   * retires the orphan branch this used to carry: a country the log has no row
+   * for is no longer a country the panel has to rescue, because the panel never
+   * asked the log which countries to draw. */
   const clubCountries = $derived.by((): PassportItem[] => {
-    const tonight = new Set<string>();
+    const byCountry = new Map<string, Set<string>>();
     for (const s of game.slots) {
-      const raw = s?.bc;
-      if (typeof raw === "string" && raw.trim() !== "") tonight.add(raw.trim());
+      if (!s) continue;
+      const bc = typeof s.bc === "string" ? s.bc.trim() : "";
+      if (bc === "") continue;
+      const men = byCountry.get(bc) ?? new Set<string>();
+      men.add(s.id);
+      byCountry.set(bc, men);
     }
     const visits = new Map(passport().map((s) => [s.country, s.visits]));
-    const fresh = new Set(
-      [...tonight].filter((c) => (visits.get(c) ?? 1) <= 1),
-    );
-    const items = passportItems(fresh);
-    // A country tonight's club held that the lifetime passport has no row for
-    // at all — the storage failure above. It still gets a stamp, because the
-    // panel's subject is where these men came from and the log's silence is not
-    // the player's problem.
-    const known = new Set(items.map((i) => i.country));
-    const orphans: PassportItem[] = [...tonight]
-      .filter((c) => !known.has(c))
-      .map((c) => {
-        const def = countryDef(c);
+    return [...byCountry]
+      .map(([country, men]) => {
+        const def = countryDef(country);
         return {
-          country: c,
+          country,
           flag: def?.flag ?? "",
           rarity: def?.rarity ?? null,
-          count: null,
-          fresh: true,
-          locked: false,
+          count: men.size,
+          fresh: (visits.get(country) ?? 1) <= 1,
+          // No hover detail. The case's tooltip spells out a career — first
+          // fielded, players across seasons — and that sentence beside a
+          // one-club count is two subjects on one stamp.
           title: null,
         };
-      });
-    // The new ones lead, the same order `bragRow` puts the badge pills in and
-    // for the same reason: the flagged one is what the player is here to see.
-    return [...orphans, ...items].sort((a, b) => Number(b.fresh) - Number(a.fresh));
+      })
+      .sort((a, b) => b.count - a.count || Number(b.fresh) - Number(a.fresh));
   });
 
   /** The front office a club ran, or null under a fixed cap — where payroll is
@@ -553,7 +576,12 @@ import { track } from "../lib/analytics";
       {#if row.chips}
         <span class="chipline">
           {#each row.chips as c (c.code)}
-            {#if c.code.startsWith("💍") || c.code.startsWith("🚩") || c.code.startsWith("⭐")}
+            <!-- The chip's own glyph says which renderer it wants: an award
+                 code ("MVP", "CY") is a pill, an emoji run is bare type. Every
+                 emoji the ledger can emit is listed here, so a new one — a
+                 Classic medal, say — has to be added or it falls through to
+                 AwardPill and renders as an unknown award. -->
+            {#if c.code.startsWith("💍") || c.code.startsWith("🚩") || c.code.startsWith("⭐") || c.code.startsWith("🌐") || c.code.startsWith("🎌")}
               <span class="pedchip"
                 >{c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
               >
@@ -633,12 +661,13 @@ import { track } from "../lib/analytics";
        work a "PASSPORT" header used to do and the row costs no vertical rhythm
        to introduce.
        It sat beside the roster for one round, on the reasoning that a birth
-       country belongs to the men listed there. True, and beside the point: the
-       thing being SHOWN is a property of the career, and next to eight seats it
-       read as a ninth fact about the club rather than as a souvenir of it.
-       Nothing renders at all for a club whose log holds no country — every save
-       written before the field existed, and every restored finale older than
-       it. -->
+       country belongs to the men listed there. True, and beside the point: next
+       to eight seats a row of flags reads as a ninth fact about the club rather
+       than as a souvenir of it. Here it closes the payoff stack — record,
+       badges, stamps — and is the last thing read before the exits.
+       Nothing renders at all for a club whose seats carry no country — every
+       save written before the field existed, and every restored finale older
+       than it. -->
   <!-- `disp` because Passport sets no font of its own — it inherits, so the
        same stamp renders in Nunito inside the trophy sheet and would have
        dropped to system sans out here the moment it left the `.squad disp`
@@ -651,12 +680,13 @@ import { track } from "../lib/analytics";
 <!-- All-caps, like every other action in the game. These three read Title Case
      while HOME's own row two taps away read PLAY / LAST GAME / PLAY A SEED,
      which made one control look like two.
-     PLAY AGAIN, not "Replay". The button starts a NEW season in the same mode
+     RUN IT BACK, not "Replay". The button starts a NEW season in the same mode
      on a fresh seed — it does not replay anything, and "replay" is the exact
-     word for what the seed chip below it actually does. -->
+     word for what the seed chip below it actually does. It is also the widest
+     of the three labels, which is why the row pins `white-space` below. -->
 <div class="btnrow fin-actions">
   <button class="btn ghost disp" onclick={onmodes}>MODES <span class="bic">🕹️</span></button>
-  <button class="btn disp" onclick={onreplay}>PLAY AGAIN <span class="bic">🔄</span></button>
+  <button class="btn disp" onclick={onreplay}>RUN IT BACK <span class="bic">🔄</span></button>
   <button class="btn hot disp" onclick={share}>
     {#if shareState === "idle"}SHARE <span class="bic">📣</span>{:else if shareState === "copied"}COPIED <span
         class="bic">🔥</span
@@ -687,6 +717,23 @@ import { track } from "../lib/analytics";
               <AwardPill code={a} />
             {/each}
             {#if slot.ws}<span class="emo">💍</span>{:else if slot.pen}<span class="emo">🚩</span>{/if}
+            <!-- March's medal beside October's, and INDEPENDENT of it: the
+                 Classic is played in the spring of the same card season, so one
+                 man can wear a ring and a medal both (2017 Alex Bregman did).
+                 🌐 champion, 🎌 finalist — the globe for the tournament that
+                 puts the whole world in one bracket, the crossed flags for the
+                 side that got there and lost. Not 🥇/🥈: those are the glyphs
+                 inside the MVP and CY award pills sitting on this very row, and
+                 a bare medal next to them reads as a pill that failed to
+                 render. Until now the medal was worth points on the ledger and
+                 had no mark on the man who won it.
+                 YOUR SQUAD only. The dream team's rows below cannot carry one:
+                 `BestPick` has no `wbc` field, so the solver's club knows
+                 nothing about medals — a gap in bestroster.ts, not something
+                 this component can answer. -->
+            {#if slot.wbc === WBC_CHAMPION_POINTS}<span class="emo">🌐</span>{:else if slot.wbc === WBC_RUNNERUP_POINTS}<span
+                class="emo">🎌</span
+              >{/if}
           </span>
         </span>
         <span class="qwar">{slot.war.toFixed(1)}</span>
@@ -742,11 +789,32 @@ import { track } from "../lib/analytics";
         {/if}
       </div>
     {/if}
+    <!-- What the two treatments mean, said once. An uncaptioned visual
+         distinction is a puzzle; four words is the whole explanation.
+         No pronoun and no sentence: `tests/finale-ceiling` holds this block to
+         saying nothing ABOUT itself — no tagline, no near-miss callout, no
+         consolation — and a legend has to read as a key rather than as the
+         beginning of one. -->
+    <div class="dtkey">TINTED = SIGNED · PLAIN = UNSIGNED</div>
+    <!-- DRAFTED vs NOT, and app.css's rung rule already draws it — no new
+         device, and specifically not a dashed border, which is the ARMED
+         channel every tappable seat in the game spends. A season the player
+         actually signed is COMMITTED, so it wears its rung as fill and frame
+         the way YOUR SQUAD's rows above do. A season they never had was never
+         committed to anything, so it gets the market treatment: white cardstock
+         in --line with its WAR moved out onto a .warchip. That is the same pair
+         of surfaces the draft screen ran all game — the club you own is tinted,
+         the men you are still choosing between are chips in a column — so the
+         dream team reads as "here is what you took and here is what was on the
+         board" without teaching anything new.
+         The ⭐ stays. It marks the same seats, and it is the mark the scouting
+         ledger row counts, so removing it would leave that row pointing at
+         nothing. -->
     {#each fin.best.picks as pick, i}
       {@const mine =
         pick != null &&
         game.slots.some((s) => s && s.id === pick.id && s.year === pick.year && s.team === pick.team)}
-      <div class="qrow {pick ? `war-${warTier(pick.war)}` : ''}">
+      <div class="qrow {pick && mine ? `war-${warTier(pick.war)}` : ''}">
         <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
         {#if pick}
           <!-- Awards show WHY the solver chose this season — they count in
@@ -760,10 +828,16 @@ import { track } from "../lib/analytics";
               {#each sortAwards(pick.awards) as a}
                 <AwardPill code={a} />
               {/each}
-              {#if pick.ws}<span class="emo">💍</span>{:else if pick.pen}<span class="emo">🚩</span>{/if}
+              {#if pick.ws}<span class="emo">💍</span>{:else if pick.pen}<span class="emo">🚩</span>{/if}{#if pick.wbc === WBC_CHAMPION_POINTS}<span
+                  class="emo">🌐</span
+                >{:else if pick.wbc === WBC_RUNNERUP_POINTS}<span class="emo">🎌</span>{/if}
             </span>
           </span>
-          <span class="qwar">{pick.war.toFixed(1)}</span>
+          {#if mine}
+            <span class="qwar">{pick.war.toFixed(1)}</span>
+          {:else}
+            <span class="warchip {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
+          {/if}
         {:else}
           <span class="qname empty">—</span>
         {/if}
@@ -989,18 +1063,87 @@ import { track } from "../lib/analytics";
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
-  /* The exits keep their distance: the stamp (and any brags) is the payoff
-     moment, and the buttons are the next scene. This override lives BELOW the
-     wide-layout block, so it must carry its own media query to win. */
   /* Cells and glyph come from the shared `.btnrow` in app.css; only the column
-     count and the moat above it are this row's own. */
+     count, the moat above it and the phone's label fit are this row's own.
+     THE MOAT STAYS 28px, because it is doing the same job it always was: the
+     stamp (and any brags) is the payoff moment and the buttons are the next
+     scene, and with nothing between them the gap is the whole separation. A
+     finale whose seats carry no birth country — every save written before the
+     field existed — renders no passport at all, and that finale is exactly the
+     one the 28 was measured for.
+     This block lives BELOW the wide-layout rule, so the ≥760px moat must carry
+     its own media query to win. */
   .fin-actions {
     grid-template-columns: 1fr 1fr 1fr;
     margin-top: 28px;
   }
-  @media (min-width: 760px) {
-    /* The score column has spare height beside the rosters — a wider moat. */
+  /* WITH the passport in the gap, half that. The separation is now an object
+     rather than a distance, so the air on both sides of it can match: 8px
+     above the stamps, 14px below. Adjacent siblings, so the two margins
+     COLLAPSE — `.clubpass` sets `margin-bottom: 14px` and neither box has a
+     border, padding or a formatting context between them, so the pair resolves
+     to the larger rather than their sum. Leaving 28 here would win that
+     collapse and re-open the moat the passport was put there to close.
+     The adjacent-sibling selector is what keeps the two cases apart: no
+     passport, no override, and the 28 above still stands. */
+  .clubpass + .fin-actions {
+    margin-top: 14px;
+  }
+  /* ONE LINE, ALWAYS. A wrapped label stands the row up to 58px — 78px at
+     320px, where it breaks three ways — and the row's job is three equal 48px
+     cells at one baseline.
+     `1fr` is `minmax(auto, 1fr)`, so each track is floored at its MIN-CONTENT:
+     three tracks that do not fit overflow the row rather than shrinking, which
+     is why the fit has to be arithmetic rather than a hope.
+     THE PHONE BUYS THE FIT OUT OF THE CELL'S OWN PADDING, not out of the
+     glyph. Stock `.btnrow` cells are 8px of side padding on a 9px gap, and at
+     13px with the glyph that is 352px of demand against a 332px column at a
+     360px screen (the viewport less 28px of `#app` padding). Trimming to 3px
+     and 6px returns 36px — demand 316px, and the row closes with 16px spare.
+     A button 48px tall and ~90px wide is nowhere near its touch minimum, so
+     the padding is the cheapest thing in the row to spend; the glyph is not,
+     because `.btnrow` in app.css exists to keep the finale's row and HOME's
+     one control in two places and the glyph is half of what makes them look
+     it.
+     Sized for the WIDEST label, so the row is stable under the rename: RUN IT
+     BACK measures 90.2px in the bundled Nunito at 13px/0.04em against PLAY
+     AGAIN's 85.8px. The 4.4px is inside the 16px of headroom, which is the
+     whole point of measuring — the old row had none and was wrapping at every
+     phone width already. */
+  .fin-actions .btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 759px) {
     .fin-actions {
+      gap: 6px;
+    }
+    .fin-actions .btn {
+      padding-left: 3px;
+      padding-right: 3px;
+    }
+  }
+  /* The breakpoint `.bic` already steps its glyph down at, and the label steps
+     with it. The narrow phone is the one width the trimmed padding alone does
+     not close: 292px of column against 307px of demand at 13px. 11.5px brings
+     it to 285px and the row fits with 7px spare — the smaller `.bic` (15px,
+     from app.css) is already counted in that.
+     11.5 rather than 12 because 12 lands on 292.7px against a 292px column —
+     a 0.7px miss is a miss, and one that would come back the moment a font
+     fell back or a device rounded the other way. */
+  @media (max-width: 359px) {
+    .fin-actions .btn {
+      font-size: 11.5px;
+    }
+  }
+  @media (min-width: 760px) {
+    /* The score column has spare height beside the rosters — a wider moat.
+       Both selectors, and the compound one is why: `.clubpass + .fin-actions`
+       is (0,2,0) against this rule's (0,1,0), so a bare `.fin-actions` here
+       would LOSE to the phone override on every wide screen that renders a
+       passport — media queries carry no specificity of their own. Matching the
+       compound is what makes the wide layout win it back. */
+    .fin-actions,
+    .clubpass + .fin-actions {
       margin-top: 48px;
     }
   }
@@ -1152,9 +1295,39 @@ import { track } from "../lib/analytics";
   }
   /* Tucked to the badge row above it rather than spaced as a section of its
      own — same column, same idea, one beat apart. The bottom margin is the
-     gap to the actions, which is the real section break on this side. */
+     gap to the actions; it collapses against theirs, and both are 14 so the
+     one that wins is the one that was intended.
+     No `overflow`, no `position`, no `transform`, and deliberately none: a
+     stamp's open panel is absolutely positioned, and any of the three here
+     would clip it, re-origin it, or trap it. It needs nothing from this box
+     either — `Passport` sets `position: relative` on the stamp row itself, so
+     the panel's containing block and its horizontal fence are both inside the
+     component that draws it, the way `.brags` above does for BadgeSlot. */
   .clubpass {
     margin: 8px 0 14px;
+  }
+  /* What the dream team's two row treatments mean. It reads as a caption
+     rather than as a rule of the game, so it takes the ceiling's own quiet
+     small-caps rather than a psep of its own — the header two lines up already
+     said what the block is. */
+  .dtkey {
+    margin: 0 0 8px;
+    text-align: center;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  /* An unsigned dream seat's WAR, in the market's own chip. `.qwar` is the
+     committed rows' numeral and this is the other half of the same pair, so it
+     is a different element rather than the same one reclassed: the chip's
+     26.275px height and 13.5px type are measured in app.css and `.qwar`'s
+     scoped 13px would out-specify them and quietly undo that.
+     `flex: none` because the row is a flex line — the chip's 42px minimum
+     would otherwise be shrunk away by a long name beside it. */
+  .qrow .warchip {
+    margin-left: auto;
+    flex: none;
   }
   .qname.empty {
     color: var(--gray-ink);

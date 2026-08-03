@@ -20,9 +20,9 @@ signable — no mode-select click:
 2. **Stadium row** — the park by name. Buying applies attendance as a bankroll
    multiplier (0.85×–1.15× by percentile). One per game; consumes the spin.
 3. **Skipper row** — the actual manager by name (Lahman Managers). Hiring scores
-   **(team W − team L) × 0.2** at the finale — Maddon's 103–58 Cubs = +9.0, a
-   fire-sale manager is negative — plus **+2 trophy-case points** if he won the
-   BBWAA **Manager of the Year** that season. One per game; consumes the spin.
+   his net wins at the finale (see Scoring; a fire-sale manager is negative),
+   plus trophy-case points if he won the BBWAA **Manager of the Year** that
+   season. One per game; consumes the spin.
 4. **Player list** — sorted by **salary, high → low** (scrolling down = bargain
    territory), WAR shown left / salary right. Signing fills a matching open slot.
 
@@ -79,21 +79,38 @@ Hired skipper displays as a chip under the roster rail — name and year only
 
 ```
 score = expected wins + bonuses − penalties
-expected wins = 47.7 + Σ WAR          (replacement-level baseline, capped at 162)
 ```
 
-- **Luxury tax:** −1 pt per $1M (normalized) over bankroll.
-- **Front-office bonus (Price-is-Right, with teeth):** linear from **−10** (empty
-  payroll) through 0 (half the cap) to **+10** (right at the cap); 0 if over — the
-  luxury tax takes it from there. Drastically underusing the bankroll costs points.
-- **Awards** (that exact season): MVP +3 · Cy Young +3 · ROY +2 · Gold Glove +1 · Silver Slugger +1.
-- **Championship pedigree:** +3 💍 per player whose team won the World Series that
-  season; +1 🚩 per player whose team won the pennant but lost the Series.
-- **Skipper:** if hired, (team W − team L) × 0.2 — negative allowed. If he won the
-  BBWAA **Manager of the Year** that season, +2 more — hardware, so it lands in the
-  awards (trophy case) total, not the win column.
-- Displayed record comes from a seeded game-by-game Monte Carlo sim of expected wins
-  (the *drama*); the score uses expected wins (the *math*).
+**No numbers live in this section, on purpose** — the same rule BUILD.md's
+scoring section follows, and for the same reason. Every constant and every
+formula is in `pipeline/scoring.py`; `app/src/lib/scoring.ts` is a 1:1 port, and
+`pipeline/gen_fixtures.py` holds the two in parity. This block had rotted the
+way BUILD.md's did: it carried the pre-Round-6 replacement baseline, an award
+table missing the ballot finishes and All-Star selections, no World Baseball
+Classic medals, no scouting bonus, and a Monte Carlo record the game stopped
+simulating in Round 6.
+
+- **Expected wins** are the replacement baseline plus roster WAR plus the hired
+  skipper's net wins, capped at a full season.
+- **Luxury tax:** a flat rate per $1M (normalized) over bankroll, uncapped.
+- **Front-office bonus (Price-is-Right, with teeth):** a two-sided swing —
+  negative for an empty payroll, zero at half the cap, maximal right at it, and
+  zero once over, where the luxury tax takes it from there. Drastically
+  underusing the bankroll costs points.
+- **Awards** (that exact season): the trophy case sums MVP and Cy Young, their
+  ballot runner-up and third-place finishes, Rookie of the Year, All-Star
+  selections, Gold Gloves and Silver Sluggers.
+- **Ring chasing:** per player, a World Series ring, a pennant, and both World
+  Baseball Classic medals. A ring and a medal describe the same player-season
+  and both count.
+- **Skipper:** if hired, (team W − team L) at a fixed rate per net win —
+  negative allowed. If he won the BBWAA **Manager of the Year** that season he
+  scores more — hardware, so it lands in the awards (trophy case) total, not the
+  win column.
+- **Scouting:** a fixed amount per seat where your pick matches the dream team's
+  — the best club the same cards could have produced.
+- The displayed record is deterministic: expected wins, rounded. It is not a
+  simulation, and must reconcile exactly with the ledger row above it.
 - **Finale reveal** (smush-style): the record counts up, then the score itemizes row by
   row — expected wins first, each bonus/penalty popping in with its one-line "why",
   total stamps last. Scrolling past the share buttons reveals the **squad review**:

@@ -307,6 +307,27 @@
     height: 17px;
     overflow: hidden;
     background: var(--card);
+    /* This rounded clip is the ONLY thing keeping the fill inside the pill, and
+       it has to hold across a compositing boundary. Every state's hatch
+       animates `transform` on `.pfill`'s ::before, and an animated transform is
+       promoted to a layer of its own — Chrome's LayerTree gives the reason as
+       `ActiveTransformAnimation` for all three hatches at both sizes. A
+       promoted layer is composited against its ancestors instead of painted
+       inside them, so `overflow: hidden` over a 999px radius stops being paint
+       this element performs and becomes a clip that must be carried to the
+       child's layer; the shape is a rectangle wherever that clip is not
+       carried, which is a fill painting over its own outline at the four
+       corners. Declaring `will-change` gives the track a layer up front, so the
+       rounded shape is the clipping layer's OWN rather than something a child's
+       layer has to inherit.
+       The corner-rounding is load-bearing HERE and cannot move down: the fill's
+       flat right edge is the quantity — its position is what says 40% or 96% —
+       so `.pfill` can never carry a radius, which leaves this track as the only
+       object in the box that owns the pill shape.
+       `will-change` rather than a `translateZ(0)` because the hack rasterizes
+       this 2.5px line through a real transform, and a resampled hairline curve
+       at 17px is the one cost the bar cannot pay. */
+    will-change: transform;
   }
   /* The ledger row's miniature. The same bar under the same rules at a third
      the height — the width belongs to the row that places it, because the row

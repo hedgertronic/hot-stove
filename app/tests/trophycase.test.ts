@@ -43,7 +43,7 @@ function game(badges: unknown, bank = "classic"): unknown {
 }
 
 function home(): string {
-  return render(Home, { props: { config: CLASSIC, onplay: () => {}, onlast: () => {} } }).body;
+  return render(Home, { props: { config: CLASSIC, onplay: () => {}, onopen: () => {} } }).body;
 }
 
 /** The case renders in its own sheet now, not on the home screen. */
@@ -74,8 +74,11 @@ describe("badgeCase", () => {
   it("pins the collectible denominator to the badge table", () => {
     // The summary line prints this denominator; it lives in badges.ts, and a
     // table edit must move the fraction here rather than silently anywhere.
+    // The denominator holds at 56 while the table grows to 69: ↩️ SECOND
+    // THOUGHTS is an anti-trophy, and an anti-trophy belongs to neither side
+    // of the fraction. That gap between the two numbers is the assertion.
     expect(COLLECTIBLE.length).toBe(56);
-    expect(BADGES.length).toBe(68);
+    expect(BADGES.length).toBe(69);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 

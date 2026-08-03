@@ -7,7 +7,7 @@ import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadSpecials, ownerFor } from "./data";
 import { eligibleTypes, visiblePlayers } from "./eligibility";
 import { recordFromTotal, type WarTier } from "./format";
-import { appendHistory, earnedBadgeKeys } from "./history";
+import { appendHistory, archiveGame, earnedBadgeKeys } from "./history";
 import { Rng, randomSeed } from "./rng";
 import {
   GAMES,
@@ -399,6 +399,17 @@ export class Game {
    * a code that altered the game would make every score after it
    * incomparable. */
   konami = $state(false);
+  /** A move was taken back during this game — ↩️ SECOND THOUGHTS.
+   *
+   * A fact about the RUN, not about the position, which is exactly why
+   * `hydrate` does not carry it (see the note there): every snapshot was taken
+   * BEFORE the undo that restores it, so a hydrate that put this field back
+   * would clear it on the one call that earns it.
+   *
+   * On the Game and inside `save()` for `konami`'s reason — iOS Safari evicts
+   * background tabs, and a player who undoes, reloads, then finishes would
+   * otherwise lose the badge silently. */
+  undoUsed = $state(false);
   powerups = $state<Record<PowerupKey, PowerupState>>({
     seasonTicket: "ready",
     relocate: "ready",
@@ -437,6 +448,64 @@ export class Game {
 
   private pendingCard: Promise<Card> | null = null;
   private pendingEntry: IndexEntry | null = null;
+
+  /** The game as it stood before the last committed move: its serialized state
+   * plus the card that was on the reel at that moment. Everything `undo()`
+   * puts back.
+   *
+   * ONE point, never a stack. It is consumed the moment it is used, so undo
+   * cannot run twice in a row, and the next committed move takes a fresh one —
+   * "go back one move", repeatable, with no history to keep consistent.
+   *
+   * IT IS THE SAVE'S OWN SHAPE, and that is the load-bearing part.
+   * `serialize()`/`hydrate()` already round-trip a complete resumable game. A
+   * second serializer written for undo would be free to drift from that one,
+   * and a drifted undo does not fail loudly: it silently hands back a game
+   * missing whatever the two disagreed about. There is one description of a
+   * game in flight and both readers go through it.
+   *
+   * `rngState` IS THE WHOLE POINT. This game is seeded and seeds are
+   * shareable: two players on one seed must be dealt the same cards. `Rng` is
+   * a cursor, so rewinding the game without rewinding `rng.state` would leave
+   * the cursor past the draw that was taken back — undo a spin, spin again,
+   * and a DIFFERENT card comes up. That is an unlimited reroll and it makes a
+   * seed mean nothing. With the cursor rewound, repeating the same action
+   * reproduces the same result exactly. Whatever else `serialize()` gains or
+   * loses, `rngState` stays in it.
+   *
+   * IN MEMORY ONLY, in a file where every other fact is written to storage:
+   *
+   *  - The snapshot IS a serialized game. Putting it inside the serialized
+   *    game embeds the previous save in every save, and that one inside the
+   *    next. Keeping it finite needs a rule ("exclude this field from its own
+   *    serialization") that a later edit breaks with no symptom until the
+   *    quota does.
+   *  - `restore()` deliberately VOIDS state a reload cannot honor: it forfeits
+   *    a ✌️ Double Play's unspent second pick. A snapshot that survived the
+   *    reload would hand that forfeited pick straight back, undoing a decision
+   *    the reload had already made.
+   *
+   * So an eviction costs the one-move rewind and nothing else. The position is
+   * saved, `undoUsed` is saved, and undo simply comes back unavailable — which
+   * is the same thing a fresh spin says.
+   *
+   * Reactive because the HUD's pill reads `canUndo` to decide whether it is
+   * live, and that getter short-circuits on this field: with a plain field the
+   * FIRST read (null, no move made yet) returns before `phase` is ever
+   * touched, so no dependency is registered and the pill stays dead for the
+   * rest of the game however many moves are made.
+   *
+   * `$state.raw` rather than `$state`, because the point is REPLACED wholesale
+   * and never edited in place: nothing ever writes `undoPoint.card` or
+   * `undoPoint.state`, so there is nothing inside it worth tracking. Plain
+   * `$state` would deep-proxy the whole `Card` on every committed move to
+   * observe writes that never come. (It would not corrupt anything — svelte's
+   * proxy is idempotent, so re-storing an already-proxied card yields the same
+   * object, which undo.dom.test.ts pins. Raw is the cheaper and more honest
+   * declaration, not a bug fix.) */
+  private undoPoint = $state.raw<{ state: string; card: Card | null } | null>(
+    null,
+  );
 
   constructor(
     meta: Meta,
@@ -696,6 +765,9 @@ export class Game {
    * (double-tap on SPIN, taps mid-animation) are no-ops, never errors. */
   spin(): void {
     if (this.phase !== "preSpin") return;
+    // Before the draw, so undo rewinds the cursor with the rest of the game
+    // and a re-spin deals this exact card again.
+    this.snapshot();
     this.disarmToggles();
     const entry = this.rng.pick(this.index.cards);
     this.beginSpin(entry, "full");
@@ -777,6 +849,7 @@ export class Game {
       (c) => c.franchise === this.card!.franchise && c.year === year,
     );
     if (!entry) return;
+    this.snapshot();
     this.spendPowerup("seasonTicket");
     this.disarmToggles();
     this.spinCount -= 1; // same spin, new card
@@ -798,6 +871,7 @@ export class Game {
       (c) => c.year === this.card!.year && c.team === team,
     );
     if (!entry) return;
+    this.snapshot();
     this.spendPowerup("relocate");
     this.disarmToggles();
     this.spinCount -= 1;
@@ -990,6 +1064,7 @@ export class Game {
     if (!p) return false;
     const idx = this.primeSlotFor(p);
     if (idx === null) return false;
+    this.snapshot();
     const trade = this.slots[idx] !== null;
     this.slots[idx] = this.makeSigned(card, p, p.cost, false);
     this.spendPowerup("prime");
@@ -1021,6 +1096,7 @@ export class Game {
     const idx = this.index.cards.find(
       (c) => c.team === team && c.year === year,
     );
+    this.snapshot();
     // Read BEFORE the hire lands, the same way `hireOwner` reads its own
     // moment: this pick can be the one that completes the club, and the
     // question is what the rest of the club looked like walking in. ⭐ Prime
@@ -1132,6 +1208,7 @@ export class Game {
   /** Free respin out of a dead card. */
   coldRespin(): void {
     if (!this.coldStove) return;
+    this.snapshot();
     this.spinCount -= 1;
     this.phase = "preSpin";
     this.save();
@@ -1176,6 +1253,10 @@ export class Game {
         return;
       }
     }
+    // After the slot picker's early return above: opening the picker commits
+    // nothing, and a point taken there would overwrite the real one with the
+    // position the player is already standing in.
+    this.snapshot();
     const discounted = this.discountEligible(p);
     this.slots[idx] = this.makeSigned(
       this.card!,
@@ -1205,6 +1286,7 @@ export class Game {
     )
       return;
     const c = this.card;
+    this.snapshot();
     // Read BEFORE the choice is consumed: this hire can itself be the pick
     // that ends the game, and the question is what the roster looked like
     // walking in.
@@ -1229,6 +1311,7 @@ export class Game {
     )
       return;
     const c = this.card;
+    this.snapshot();
     this.stadium = {
       park: c.park,
       mult: c.stadiumMult,
@@ -1248,6 +1331,7 @@ export class Game {
       return;
     const c = this.card;
     if (c.manager == null) return;
+    this.snapshot();
     // The moment 🪑 THE INTERIM reads, recorded as it happens for the reason
     // beside `managerHiredLast`.
     this.managerHiredLast = this.otherSeatsFull;
@@ -1291,6 +1375,7 @@ export class Game {
   }
 
   private completeSwap(p: CardPlayer, idx: number): void {
+    this.snapshot();
     // TD + 🏠 both armed: a debut-eligible trade-in commits at the discounted
     // price and consumes both powerups.
     const discounted = this.discountEligible(p);
@@ -1315,6 +1400,11 @@ export class Game {
       return;
     if (!this.specialTaken(which)) return;
     const c = this.card;
+    // Hoisted above the branch so every refusal is behind us before the point
+    // is taken: a snapshot on a tap that then bails would overwrite a real one
+    // with the position the club is already standing in.
+    if (which === "manager" && c.manager == null) return;
+    this.snapshot();
     if (which === "owner") {
       this.owner = {
         name: this.ownerName,
@@ -1331,9 +1421,8 @@ export class Game {
         year: c.year,
       };
     } else {
-      if (c.manager == null) return;
       this.manager = {
-        name: c.manager,
+        name: c.manager!,
         wins: c.wins,
         losses: c.losses,
         year: c.year,
@@ -1414,6 +1503,12 @@ export class Game {
   }
 
   private async finishGame(): Promise<void> {
+    // Dropped first, before a single await. `endSpin` hands a complete club to
+    // this method and returns, leaving the phase on "landed" until the dream
+    // solve below resolves — a window with the HUD up in which `canUndo` would
+    // otherwise still be true, and a rewind taken inside it would have this
+    // method finish a game that no longer exists.
+    this.undoPoint = null;
     const players = this.slots.filter((s): s is Signed => s !== null);
     // Reload every card this game landed on (all memoized from play) and solve
     // for the best club those cards could have produced — the finale's scouting
@@ -1530,6 +1625,7 @@ export class Game {
         ? this.manager.wins - this.manager.losses
         : 0,
       konami: this.konami,
+      undone: this.undoUsed,
       managerTeam: this.manager?.team ?? null,
       managerYear: this.manager?.year ?? null,
       managerName: this.manager?.name ?? null,
@@ -1585,7 +1681,17 @@ export class Game {
       playedTheCeiling: bestPossibleTotal !== null && bestPossibleTotal <= parts.total,
     };
     this.phase = "finale";
-    this.recordHistory();
+    // The id tying this season's log row to its archive record. Minted here,
+    // once, and handed to both writers: the row is what the seasons list draws
+    // and the record is what it opens, so a row pointing at nothing would be a
+    // season that silently refuses to reopen.
+    //
+    // `crypto.randomUUID` is not reached for. The collision this has to survive
+    // is two games finishing in the same millisecond, and one player on one
+    // device cannot do that; the seed rides along only so a seed replayed twice
+    // in a day still writes two distinct ids.
+    const id = `${Date.now().toString(36)}-${(this.seed >>> 0).toString(36)}`;
+    this.recordHistory(id);
     try {
       localStorage.removeItem(SAVE_KEY);
     } catch {
@@ -1594,40 +1700,56 @@ export class Game {
     // Strictly after the in-progress save is dropped: the two keys describe
     // states that must never both hold, and this order means a storage failure
     // leaves the older, smaller record rather than both.
-    this.archiveFinale();
+    this.archiveFinale(id);
   }
 
-  /** Write the finale the screen is about to render, and claim the screen.
+  /** Write the finale the screen is about to render, claim the screen, and add
+   * the season to the replayable archive.
+   *
+   * TWO writes, in this order, and the order is the point. `hotstove.finale` is
+   * the LAST game and backs both the boot claim and the finale a reload lands
+   * on, so it is written first and on its own budget — a quota failure in the
+   * archive must never cost the player the finale they are looking at. The
+   * archive is the bounded tail of every season and evicts its own oldest
+   * record to fit, so it competes with neither the key above nor
+   * `hotstove.current`.
+   *
+   * ANY FUTURE `FINALE_VERSION` BUMP MUST ALSO DROP `hotstove.archive`.
+   * `loadArchive` checks the two fields the seasons list dereferences rather
+   * than `v`, exactly as `loadStoredFinale` does, so a record this build can no
+   * longer render would survive there after being correctly rejected from
+   * `hotstove.finale`.
    *
    * Guarded like every other write here: a full or disabled localStorage costs
    * the reload, never the finale the player already earned. The claim is set
    * only after the archive lands, so a quota failure can't leave a boot claim
    * pointing at nothing. */
-  private archiveFinale(): void {
+  private archiveFinale(id: string): void {
     if (!this.finale) return;
+    const rec = {
+      v: FINALE_VERSION,
+      seed: this.seed,
+      config: this.config,
+      spinCount: this.spinCount,
+      seen: this.seen,
+      slots: this.slots,
+      owner: this.owner,
+      stadium: this.stadium,
+      manager: this.manager,
+      finale: this.finale,
+    } satisfies StoredFinale;
     try {
-      localStorage.setItem(
-        FINALE_KEY,
-        JSON.stringify({
-          v: FINALE_VERSION,
-          seed: this.seed,
-          config: this.config,
-          spinCount: this.spinCount,
-          seen: this.seen,
-          slots: this.slots,
-          owner: this.owner,
-          stadium: this.stadium,
-          manager: this.manager,
-          finale: this.finale,
-        } satisfies StoredFinale),
-      );
+      localStorage.setItem(FINALE_KEY, JSON.stringify(rec));
       claimFinale();
     } catch {
       /* storage unavailable */
     }
+    // Outside that try on purpose: `archiveGame` swallows its own failure and
+    // evicts to make room, so catching here would only hide which write failed.
+    archiveGame({ ...rec, id });
   }
 
-  private recordHistory(): void {
+  private recordHistory(id: string): void {
     if (!this.finale) return;
     // Player ids by birth country. The passport counts unique PEOPLE across a
     // career, so a man rostered in three separate seasons has to be recognizable
@@ -1645,6 +1767,9 @@ export class Game {
       v: 2, // two-rung ladder era; disambiguates "scout" from the old stats mode
       date: new Date().toISOString().slice(0, 10),
       seed: this.seed,
+      // Beside the seed because both identify the game — this one points the
+      // seasons list at the record it opens.
+      id,
       total: this.finale.parts.total,
       record: `${this.finale.wins}-${this.finale.losses}`,
       spins: this.finale.spinCount,
@@ -1663,37 +1788,132 @@ export class Game {
     });
   }
 
+  // ---------- undo (one move back) ----------
+
+  /** Is there a move to take back?
+   *
+   * The finale is refused on `save()`'s boundary exactly — a finished season
+   * has resolved its badges and written its history row, and there is nothing
+   * left that a rewind could mean. "spinning" is refused too: the reel is mid
+   * animation with a card fetch already in flight, and `land()` would overwrite
+   * whatever was restored the moment it resolved. */
+  get canUndo(): boolean {
+    return (
+      this.undoPoint !== null &&
+      (this.phase === "preSpin" || this.phase === "landed")
+    );
+  }
+
+  /** Hold the position, for `undo()` to put back.
+   *
+   * Called at the top of every COMMITTED move, before it mutates anything: a
+   * spin, a re-spin off 🎟️/🚚, a cold-stove respin, and every choice the spin
+   * buys (sign, swap, owner, ballpark, skipper, both ⭐ Prime Time paths).
+   * Arming a powerup and opening a picker are not moves and take no point —
+   * the player reverses those by tapping the same pill again, and spending an
+   * undo on one would cost them the move behind it. */
+  private snapshot(): void {
+    this.undoPoint = {
+      state: JSON.stringify(this.serialize()),
+      card: this.card,
+    };
+  }
+
+  /** Take back the last committed move, once. The point is consumed here, so
+   * undo cannot run twice in a row; the next committed move takes a fresh one
+   * and undo is available again. */
+  undo(): void {
+    if (!this.canUndo) return;
+    const point = this.undoPoint!;
+    this.undoPoint = null;
+    this.undoUsed = true;
+    const s = JSON.parse(point.state);
+    this.hydrate(s);
+    // The card object itself rather than its reference: `undo` is synchronous
+    // because the snapshot kept the card it was standing on, and a rewind the
+    // player waits on a fetch for is a rewind they can tap through.
+    this.card = point.card;
+    this.phase = s.phase;
+    // No transient is serialized, so a half-open picker has nothing to put
+    // back — the base landed state, the same answer `restore()` gives a reload
+    // that lands mid-picker.
+    this.clearTransients();
+    this.save();
+  }
+
   // ---------- persistence (iOS Safari evicts tabs; resume must be exact) ----------
+
+  /** The one description of a game in flight: what `save()` writes, what
+   * `undo()` holds, and what `hydrate()` reads back. Written once so the
+   * resume path and the rewind path cannot drift apart.
+   *
+   * `rngState` is load-bearing for both of them — it is what makes a resumed
+   * game and an undone move deal the cards the seed says they deal. */
+  private serialize() {
+    return {
+      v: SAVE_VERSION,
+      config: this.config,
+      seed: this.seed,
+      rngState: this.rng.state,
+      spinCount: this.spinCount,
+      seen: this.seen,
+      phase: this.phase === "spinning" ? "preSpin" : this.phase,
+      cardRef: this.card
+        ? { team: this.card.team, year: this.card.year }
+        : null,
+      slots: this.slots,
+      owner: this.owner,
+      ownerHiredLast: this.ownerHiredLast,
+      stadium: this.stadium,
+      manager: this.manager,
+      managerHiredLast: this.managerHiredLast,
+      konami: this.konami,
+      undoUsed: this.undoUsed,
+      powerups: this.powerups,
+      choicesLeft: this.choicesLeft,
+      choicesUsed: this.choicesUsed,
+      spinLog: this.spinLog,
+    };
+  }
+
+  /** Put a serialized POSITION back on this Game — where the club stands, and
+   * nothing about the run it belongs to.
+   *
+   * `seed` and `config` are absent because they are constructor arguments and
+   * never change. `konami` and `undoUsed` are absent for a sharper reason:
+   * both are facts about the RUN, and `undo()` restores a snapshot taken
+   * BEFORE the thing they record. Carrying them here would let a rewind erase
+   * a keystroke typed after the move, and would clear `undoUsed` on the very
+   * call that sets it. `restore()` reads both straight off the save instead,
+   * where the save genuinely is the whole run.
+   *
+   * `phase` and `card` are the callers' business too: `restore()` re-fetches
+   * the card by reference and decides between landed and preSpin, `undo()`
+   * already holds the card object and the phase it snapshotted.
+   *
+   * The argument is untyped because it genuinely is: it is `JSON.parse` output
+   * from any of three save versions, and v4/v5 records are missing fields by
+   * design (the file migrates nothing — it tolerates absences). */
+  private hydrate(s: any): void {
+    this.rng.state = s.rngState;
+    this.spinCount = s.spinCount;
+    this.seen = s.seen ?? [];
+    this.slots = s.slots;
+    this.owner = s.owner;
+    this.ownerHiredLast = s.ownerHiredLast === true;
+    this.stadium = s.stadium;
+    this.manager = s.manager;
+    this.managerHiredLast = s.managerHiredLast === true;
+    this.powerups = s.powerups;
+    this.choicesLeft = s.choicesLeft;
+    this.choicesUsed = s.choicesUsed;
+    this.spinLog = s.spinLog;
+  }
 
   save(): void {
     if (this.phase === "finale") return;
     try {
-      localStorage.setItem(
-        SAVE_KEY,
-        JSON.stringify({
-          v: SAVE_VERSION,
-          config: this.config,
-          seed: this.seed,
-          rngState: this.rng.state,
-          spinCount: this.spinCount,
-          seen: this.seen,
-          phase: this.phase === "spinning" ? "preSpin" : this.phase,
-          cardRef: this.card
-            ? { team: this.card.team, year: this.card.year }
-            : null,
-          slots: this.slots,
-          owner: this.owner,
-          ownerHiredLast: this.ownerHiredLast,
-          stadium: this.stadium,
-          manager: this.manager,
-          managerHiredLast: this.managerHiredLast,
-          konami: this.konami,
-          powerups: this.powerups,
-          choicesLeft: this.choicesLeft,
-          choicesUsed: this.choicesUsed,
-          spinLog: this.spinLog,
-        }),
-      );
+      localStorage.setItem(SAVE_KEY, JSON.stringify(this.serialize()));
     } catch {
       /* storage unavailable */
     }
@@ -1782,29 +2002,19 @@ export class Game {
         s.seed,
         s.config ?? DEFAULT_CONFIG,
       );
-      game.rng.state = s.rngState;
-      game.spinCount = s.spinCount;
-      game.seen = s.seen ?? [];
-      // (older saves carry a tdBonus field from the retired bonus-spin rule —
-      // ignored; a restored complete club simply finishes on its next endSpin)
-      game.slots = s.slots;
-      game.owner = s.owner;
-      // Absent on a save written before the field, which reads as "not flying
-      // blind" — the conservative answer, and the same way every other
-      // optional fact here fails: a badge is withheld, never invented.
-      game.ownerHiredLast = s.ownerHiredLast === true;
-      game.stadium = s.stadium;
-      game.manager = s.manager;
-      // Both absent on a save written before their fields, and both read the
-      // conservative way for the reason `ownerHiredLast` does: an unrecorded
-      // moment is not a moment, and an unrecorded keystroke is not a keystroke.
-      // A badge is withheld, never invented.
-      game.managerHiredLast = s.managerHiredLast === true;
+      // The position, through the same reader `undo()` uses. Absent fields read
+      // conservatively inside it — `ownerHiredLast` on a save written before
+      // that field means "not flying blind", the same way every optional fact
+      // here fails: a badge is withheld, never invented. (Older saves also
+      // carry a tdBonus field from the retired bonus-spin rule — ignored; a
+      // restored complete club simply finishes on its next endSpin.)
+      game.hydrate(s);
+      // The two RUN facts, read here rather than in `hydrate` because a rewind
+      // must not erase them (see the note there). Both default false on a save
+      // written before their field: an unrecorded keystroke is not a keystroke,
+      // and an unrecorded rewind is not a rewind.
       game.konami = s.konami === true;
-      game.powerups = s.powerups;
-      game.choicesLeft = s.choicesLeft;
-      game.choicesUsed = s.choicesUsed;
-      game.spinLog = s.spinLog;
+      game.undoUsed = s.undoUsed === true;
       if (s.cardRef && s.phase === "landed") {
         game.card = await loadCard(s.cardRef.team, s.cardRef.year);
         game.phase = "landed";

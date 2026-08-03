@@ -60,6 +60,43 @@ Visual reference: `design/cardstock-v2.html` (authoritative for look, motion, an
   only. Editing `WBC_CHAMPION_POINTS` / `WBC_RUNNERUP_POINTS` requires a data
   regen — the cards carry the number.
 
+## Adding a season
+
+`data/` is disposable and `pipeline/` is the source of truth: a rebuild from the
+same inputs is byte-identical, so a card tree can always be thrown away and made
+again. Everything below is what a new season needs that the pipeline cannot work
+out for itself.
+
+1. **Move the bound.** `YEAR_MIN, YEAR_MAX = 1985, 2025` at `transform.py:20`.
+   It gates eight filters; the season does not exist until this moves.
+2. **Refresh the raw snapshots.** Delete the relevant file under `build/raw/` —
+   a new Lahman release, and the two WAR files. `fetch.py` re-fetches only what
+   is missing. Baseball-Reference is touched for EXACTLY TWO FILES EVER, double
+   cached; never loop refreshes against it, and never widen that to a third.
+3. **Curate what no feed carries.** Both are hand-maintained and neither will
+   update itself:
+   - `owners.json` — any franchise that changed hands (SABR, then Wikipedia).
+   - `wbc.json` — only in a Classic year. The tournament is played in March, so
+     its medals attach to that same calendar year's cards, and a Classic played
+     before its season's cards exist is invisible until they do. As of the
+     1985–2025 tree the file holds 2006, 2009, 2013, 2017 and 2023; the 2026
+     tournament belongs to a season this build does not yet reach.
+4. **Build**: `python -m pipeline.build`.
+5. **Re-pin the scoring fixtures**: `python pipeline/gen_fixtures.py`, then
+   confirm `git diff app/tests/scoring-fixtures.json` is empty. A non-empty diff
+   here means the new data moved a scoring input, which is a finding, not noise.
+6. **Check the seam, not the totals.** `python pipeline/spotcheck.py` prints a
+   card's innards for eyeballing. The new year's rookies, its debuts and any
+   club that changed ballpark or owner mid-season are where a bad join shows.
+
+Salaries are the known soft spot. A player-season Lahman's salary table has no
+row for falls back to that year's floor and is flagged `est: true`
+(`transform.py:388`), and the share doing so climbs steeply in recent seasons:
+2% in 1990, 21% in 2015, 23% in 2023, 51% in 2025 (2020 is 56%, its own case).
+So a fresh season landing around half estimated is the normal shape of this
+data, not a broken join — the thing that would signal a bad build is that figure
+jumping in an OLDER year, which is settled and should never move.
+
 ## Game state machine
 
 `spinning → landed (sign screen) → choice → spinning … → finale`
@@ -133,6 +170,9 @@ The shape, which is what a spec is for:
 - **Tournaments** (World Series rings, pennants, and both World Baseball Classic
   medals) sum into one ring-chasing term. A ring and a medal describe the same
   player-season and both count.
+- **Scouting** pays a fixed amount per seat where your pick matches the dream
+  team's — the best club the same cards could have produced. It is an agreement
+  score, not a roster-quality one.
 - **The displayed record is deterministic** — expected wins, rounded. It is not
   a simulation. The headline W–L must reconcile exactly with the ledger row
   above it; a simulated record read as a bug because it never did.

@@ -3,8 +3,9 @@
  *     over ALL cards maximizing WAR + awards + ring/pennant points (same
  *     144-state DP as src/lib/bestroster.ts, but with pedigree included in
  *     the objective — the shipped solver excludes it on purpose), plus the
- *     dataset's best manager, +10 payroll bonus, +9 scout, no tax; win cap
- *     at 162 expected wins honored.
+ *     dataset's best manager, a maxed payroll bonus, nine ⭐ seats, no tax;
+ *     win cap at 162 expected wins honored. Every point value comes from
+ *     src/lib/scoring.ts, so the ceiling tracks a balance change.
  *  2. Seed-sweep empirical max: powerups bot, Classic, 5,000 seeds.
  *  3. Blank Check runs: powerups bot at the fat $203.2M fixed cap — isolates
  *     money vs card luck in the remaining gap.
@@ -17,7 +18,14 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { GameConfig } from "../../src/lib/engine.svelte";
 import { eligibleTypes } from "../../src/lib/eligibility";
-import { AWARD_POINTS, GAMES, REPLACEMENT_WINS } from "../../src/lib/scoring";
+import {
+  AWARD_POINTS,
+  BUDGET_BONUS_MAX,
+  GAMES,
+  MANAGER_PER_NET_WIN,
+  REPLACEMENT_WINS,
+  SCOUT_HIT_POINTS,
+} from "../../src/lib/scoring";
 import type { CardPlayer, SlotType } from "../../src/lib/types";
 import {
   ALL_POWERUPS,
@@ -139,10 +147,15 @@ describe("study 4: the 162 ceiling", () => {
       if (c.wins - c.losses > bestMgr.net)
         bestMgr = { name: c.manager, team: c.team, year: c.year, net: c.wins - c.losses };
     }
-    const mgrWins = bestMgr.net * 0.1;
+    const mgrWins = bestMgr.net * MANAGER_PER_NET_WIN;
     const expWins = Math.min(REPLACEMENT_WINS + warSum + mgrWins, GAMES);
     const winCapped = REPLACEMENT_WINS + warSum + mgrWins > GAMES;
-    const ceiling = expWins + 10 + awards + rings + 9; // +bonus max, +scout max, no tax
+    // Every term is scoring.ts's own, so this ceiling moves when a balance
+    // constant does. Nine is the ⭐ maximum — eight roster seats plus the
+    // skipper — which is a roster shape, not a scoring constant, so it stays a
+    // literal here rather than widening badges.ts's private DREAM_SEATS.
+    const scoutMax = 9 * SCOUT_HIT_POINTS;
+    const ceiling = expWins + BUDGET_BONUS_MAX + awards + rings + scoutMax;
     const tax = Math.max(0, cost - BLANK_CHECK_M);
     lines.push("=== Study 4: is 162 possible? ===\n");
     lines.push("[1] THEORETICAL DATASET CEILING (all 1,188 cards, seed-free)");
@@ -158,7 +171,7 @@ describe("study 4: the 162 ceiling", () => {
         `expected wins ${f1(expWins)}${winCapped ? " (WIN-CAPPED at 162)" : ""}`,
     );
     lines.push(
-      `  ceiling = ${f1(expWins)} wins + 10 bonus + ${awards} awards + ${rings} rings + 9 scout = ${f1(ceiling)} pts`,
+      `  ceiling = ${f1(expWins)} wins + ${BUDGET_BONUS_MAX} bonus + ${awards} awards + ${rings} rings + ${f1(scoutMax)} scout = ${f1(ceiling)} pts`,
     );
     lines.push(
       `  roster cost $${f1(cost)}M — ${cost <= BLANK_CHECK_M ? "FITS under Blank Check $203.2M" : `over Blank Check by $${f1(tax)}M → net-of-tax ${f1(ceiling - tax)} pts`}`,

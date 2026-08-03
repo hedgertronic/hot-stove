@@ -92,6 +92,12 @@
   // Team pedigree (💍/🚩) lives beside the team name in the spin banner — the
   // rows only badge individual hardware.
   const hasBadges = (p: CardPlayer) => game.showAwards && p.awards.length > 0;
+  // A World Baseball Classic medal IS individual hardware — he won it in March
+  // with his country, and the club he is carded with had no part in it — so the
+  // row wears it, on the award pills' own `showAwards` gate. 🌐 champion, 🎌
+  // losing finalist: the two glyphs the finale's pedigree chips already spend on
+  // these same two honours, where 🥇🥈 are spoken for by the MVP and CY pills.
+  // It stays off the team overview, which is the club's record and not his.
 </script>
 
 <div class="plist disp">
@@ -105,6 +111,7 @@
     {@const discounted = game.discountEligible(p)}
     {@const price = game.priceFor(p)}
     {@const plabel = posLabel(p)}
+    {@const wbc = game.showAwards ? p.wbc : undefined}
     <button
       class="prow"
       class:dead={!playable && !primeable}
@@ -116,6 +123,12 @@
       <span class="mid">
         <span class="nameline">
           <span class="pname">{p.name}</span>
+          {#if wbc}<span
+              class="wbc"
+              role="img"
+              aria-label="World Baseball Classic {wbc === 2 ? 'champion' : 'finalist'}"
+              >{wbc === 2 ? "🌐" : "🎌"}</span
+            >{/if}
         </span>
         {#if hasBadges(p)}<span class="badges"
             >{#each sortAwards(p.awards) as a}<AwardPill code={a} small />{/each}</span
@@ -266,6 +279,16 @@
     display: inline-flex;
     align-items: center;
     gap: 3px;
+    flex: none;
+  }
+  /* The medal rides inside the nameline rather than with the badges, so it can
+     never wrap to the second line away from the man who won it. It sits under
+     the name's 14px because a glyph reads at its whole box where type reads at
+     its cap band, and line-height 1 keeps the emoji's taller line box from
+     setting the row's height. */
+  .wbc {
+    font-size: 12px;
+    line-height: 1;
     flex: none;
   }
   /* min-height = the WAR chip's exact height (13.5px × 1.65 line + 4px

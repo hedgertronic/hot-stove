@@ -71,11 +71,16 @@
 <div class="railwrap disp" class:pinned={!!pickPlayer} bind:clientHeight={railH}>
   <div class="psep railhead">YOUR SQUAD</div>
   <div class="rail">
-    <!-- The manager's seat anchors the left edge, spanning both rows — one
-         club, nine chairs, same visual language throughout. -->
+    <!-- The manager's seat leads the card at both widths — on the phone it
+         anchors the left edge spanning both rows, at width it is the first row.
+         One club, nine chairs, same visual language throughout. 🧢 labels it
+         where the players carry a position: the glyph says "different kind of
+         thing" in the column the eye already scans, and the manager career
+         sheet titles his seasons with the same cap. RailSeat gives it the
+         spoken name. -->
     <RailSeat
       chair="mgr"
-      label="MGR"
+      label="🧢"
       name={game.manager ? lastName(game.manager.name) : null}
       meta={game.manager ? `${game.manager.year} ${game.manager.team}` : null}
       tier={mgrTier}
@@ -154,9 +159,10 @@
     gap: 6px;
   }
   /* Wide: the rail owns a 350–380px column, so the club reads as the finale's
-     squad card — one full-width row per seat, manager last. Only the
-     ARRANGEMENT is here; the seat's own wide geometry is RailSeat's, keyed to
-     the same 760px because it is the same re-layout of the same page. */
+     squad card — one full-width row per seat, manager first, which is the order
+     the markup is already in. Only the ARRANGEMENT is here; the seat's own wide
+     geometry is RailSeat's, keyed to the same 760px because it is the same
+     re-layout of the same page. */
   @media (min-width: 760px) {
     .railhead {
       display: flex;

@@ -142,24 +142,12 @@ def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]
         salary, estimated = gd.resolve_salary(lahman_id, year)
         contract = gd.to_display_m(salary, year)
         games = gd.pos_games.get((lahman_id, year), {})
-        # Scout-mode extras: age + trad stat lines, omitted when absent/noise.
+        # Sparse leading field: seasonal age is written only when Lahman has a
+        # birth date to compute it from, on the same terms as the bc/hof/wbc
+        # fields set below — absent rather than null, to keep cards small.
         extras: dict = {}
         if (age := gd.seasonal_age(lahman_id, year)) is not None:
             extras["age"] = age
-        bat = gd.bat_line.get((lahman_id, year))
-        if bat and bat["ab"] >= 20:
-            obp_den = bat["ab"] + bat["bb"] + bat["hbp"] + bat["sf"]
-            obp = (bat["h"] + bat["bb"] + bat["hbp"]) / obp_den if obp_den else 0.0
-            total_bases = bat["h"] + bat["2b"] + 2 * bat["3b"] + 3 * bat["hr"]
-            extras["bat"] = {"avg": round(bat["h"] / bat["ab"], 3),
-                             "obp": round(obp, 3),
-                             "slg": round(total_bases / bat["ab"], 3),
-                             "hr": bat["hr"], "rbi": bat["rbi"], "sb": bat["sb"]}
-        pit = gd.pit_line.get((lahman_id, year))
-        if pit and pit["outs"] >= 3:
-            extras["pit"] = {"w": pit["w"], "l": pit["l"], "sv": pit["sv"],
-                             "era": round(9 * pit["er"] / (pit["outs"] / 3), 2),
-                             "so": pit["so"]}
         player = {
             **extras,
             "id": bbref_id,

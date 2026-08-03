@@ -17,10 +17,10 @@
   import { loadColors, loadIndex, loadMeta, loadOwners } from "./lib/data";
   import {
     Game,
-    claimFinale,
     clearStoredFinale,
     releaseFinale,
     type GameConfig,
+    type StoredFinale,
   } from "./lib/engine.svelte";
   import { BANKS, DIFFICULTIES } from "./lib/modes";
   import { loadSettings, recordQuit, saveSettings } from "./lib/settings";
@@ -117,13 +117,18 @@
     screen = "game";
   }
 
-  /** The home screen's way back into the last finished game's finale. Re-claims
-   * the screen, so a reload from there stays on the finale. */
-  function openLastFinale() {
+  /** The home screen's way back into a finished season, from the seasons list.
+   *
+   * NO BOOT CLAIM, unlike the finale a game just ended on. The claim is honored
+   * by re-reading `hotstove.finale`, which archives the LAST game and only
+   * that one — so claiming the screen while an older season is on it would
+   * resurrect the wrong finale on the next reload. A reload from here lands
+   * home instead, which is the honest answer: the season is still one tap away
+   * in the list it was opened from. */
+  function openFinale(rec: StoredFinale) {
     if (!deps) return;
-    const back = Game.fromStoredFinale(deps.meta, deps.index, deps.owners);
+    const back = Game.fromStoredFinale(deps.meta, deps.index, deps.owners, rec);
     if (!back) return;
-    claimFinale();
     game = back;
     restoredFinale = true;
     screen = "game";
@@ -279,7 +284,7 @@
 {:else if !booted || !colors}
   <div class="boot disp">Warming up the stove…</div>
 {:else if screen === "home" || !game}
-  <Home config={settings} onplay={startGame} onlast={openLastFinale} />
+  <Home config={settings} onplay={startGame} onopen={openFinale} />
 {:else}
   <header class="hud disp">
     <!-- The finale hands over its first-time-ever badges, which is what lights
@@ -288,6 +293,7 @@
          game ended, and re-noting them would re-light a case the player has
          already opened, on every reload. -->
     <CornerButtons
+      {game}
       newBadges={game.phase === "finale" && !restoredFinale
         ? (game.finale?.newBadges ?? [])
         : null}

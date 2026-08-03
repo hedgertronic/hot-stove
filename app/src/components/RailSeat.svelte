@@ -36,15 +36,19 @@
     /** `cell` is one of the eight player seats; `mgr` is the sideways chair
      * that anchors the left edge of the phone grid. */
     chair?: "cell" | "mgr";
-    /** The position, or MGR. The only thing an empty seat shows. */
+    /** The position, or the manager's 🧢. The only thing an empty seat shows,
+     * and on the manager's chair a glyph rather than a word: it does the "this
+     * row is a different KIND of thing" job the sideways geometry already
+     * starts, and the career sheet labels his seasons with the same cap. */
     label: string;
     /** Display name — already shortened by the caller. Null is an empty seat. */
     name?: string | null;
     /** The season line under the name: "1995 ATL". */
     meta?: string | null;
     /** The WAR rung as a bare word (`elite`, `mid`, …), or "" for no rung at
-     * all. The frame reads `war-${tier}` and the numeral reads `tier`, so one
-     * value cannot dress the two halves of a seat differently. */
+     * all. The seat reads `war-${tier}`, which sets app.css's --rung pair and
+     * dresses fill and frame from the one value. The numeral carries the bare
+     * word too, as a hook with no rule behind it — it is ink on every rung. */
     tier?: string;
     /** The numeral as it should read — "5.2", "+14.0 W". Null draws none. */
     war?: string | null;
@@ -58,6 +62,12 @@
   } = $props();
 
   const rung = $derived(tier === "" ? "" : `war-${tier}`);
+  /** The manager's chair labels itself with a glyph, and an emoji announces as
+   * its Unicode name ("billed cap"), so the spoken name is carried separately:
+   * `role="img"` is the one role a generic element takes that honours
+   * `aria-label`. A player seat's label is a position code — real text — and
+   * takes neither. */
+  const spoken = $derived(chair === "mgr" ? { role: "img", "aria-label": "Manager" } : {});
 </script>
 
 {#if pickable}
@@ -69,11 +79,11 @@
   </button>
 {:else if name}
   <div class="{chair} filled {rung}">
-    <b>{label}</b><span>{name}</span><i>{meta}</i>
+    <b {...spoken}>{label}</b><span>{name}</span><i>{meta}</i>
     {#if war}<em class="rwar {tier}" class:mgw>{war}</em>{/if}
   </div>
 {:else}
-  <div class="{chair} empty"><b>{label}</b></div>
+  <div class="{chair} empty"><b {...spoken}>{label}</b></div>
 {/if}
 
 <style>
@@ -81,7 +91,7 @@
      container would park it at the top — the leftover space belongs half
      above, half below. */
   .cell {
-    border: 2.5px solid var(--line);
+    border: 2.5px solid var(--rung-line, var(--line));
     border-radius: 9px;
     background: var(--card);
     text-align: center;
@@ -103,58 +113,42 @@
   .rwar {
     display: none;
   }
-  /* Every seat wears its WAR bucket on its BORDER — the channel the tinting
-     rule opens up, and the one that costs nothing here. Three things have to
-     hold at once and this is the only arrangement that gets all three:
+  /* ---------- the rung ----------
+     A seat with someone in it is a COMMITTED row, so it wears its WAR bucket as
+     fill AND frame — the hue's wash inside the hue's line, the same object every
+     WAR chip in the game is. Both halves come from the pair app.css's `war-*`
+     class sets, so no hue is named here and no ladder is enumerated: the frame
+     spends --rung-line in the two border shorthands (`.cell` above, `.mgr`
+     below) and the wash is the one declaration here. Untiered, both fall back to
+     card white inside --line — which is exactly what Eye Test and an unhired
+     chair already are, so the mode cannot leak a read through a color.
 
-       * A PLAYER seat's FILL stays free. Those eight cells spend their fill on
-         state: card-white at rest, amber when the release picker has armed
-         them. A tinted fill takes that away — an armed 5.2-WAR seat could then
-         say "tappable" or "5.2-WAR guy" but not both. The border says the tier,
-         the fill says the state, and neither has to give anything up. (The
-         manager's chair has no armed state, which is what frees ITS fill for
-         the tier as well; see .mgr.filled below.)
-       * The DASH survives. Dashed still means armed-or-empty at every hue,
-         because the dash and the color are different properties of the same
-         line: a tappable elite seat is a dashed gold rectangle, an empty seat
-         is a dashed ink one.
-       * ONE IDEA AT BOTH WIDTHS. The bottom band this replaces only existed on
-         the phone, where the numeral doesn't fit, and stood down at ≥760px
-         where the numeral takes over — so the phone said "tier" with a band
-         and the desktop said it with a number. The border is present at both
-         widths, and at ≥760px the numeral joins it in the same hue.
+     FILLED ONLY, and that is the state-vs-value question settled rather than
+     traded. A player cell's fill is also the ARMED channel: the release picker
+     turns it amber, dashes it and nudges it, and an armed elite seat has to say
+     "tappable" before it says "5.2 WAR". It never has to choose, because it
+     never wears both classes — the armed branch of the template renders
+     `cell pickable`, never `filled`, so these two rules cannot meet on one
+     element. Source order is the backstop if they ever do: `.cell.pickable`
+     weighs the same and sits below.
+     The FRAME is a different channel and stays lit while armed: an armed elite
+     seat is a dashed gold rectangle over amber, tier and state at once. An EMPTY
+     seat is not committed and takes neither — dashed --line over nothing.
 
-     Everything below the border is unchanged: the name identifies the pick and
-     the numeral returns at width, so no decision rests on hue alone. */
-  .cell.war-neg,
-  .mgr.war-neg {
-    border-color: var(--war-neg);
-  }
-  .cell.war-low,
-  .mgr.war-low {
-    border-color: var(--war-low);
-  }
-  .cell.war-mid,
-  .mgr.war-mid {
-    border-color: var(--war-mid);
-  }
-  .cell.war-high,
-  .mgr.war-high {
-    border-color: var(--war-high);
-  }
-  .cell.war-star,
-  .mgr.war-star {
-    border-color: var(--war-star);
-  }
-  .cell.war-elite,
-  .mgr.war-elite {
-    border-color: var(--war-elite);
+     WHAT THE WASH COSTS THE SUB-LINES. A filled seat sits on whichever of six
+     washes its rung supplies, and violet-2 is the darkest of them:
+     --muted measures 3.39:1 there against 4.37:1 for --muted-2, on 8.5–9px type.
+     So both chairs' label and season lines run --muted-2 — one token, chosen for
+     the worst rung, and the sub-lines then read the same on all six. */
+  .cell.filled,
+  .mgr.filled {
+    background: var(--rung-fill, var(--card));
   }
   .cell b {
     display: block;
     font-size: 9px;
     letter-spacing: 0.07em;
-    color: var(--muted);
+    color: var(--muted-2);
   }
   .cell span {
     display: block;
@@ -168,14 +162,12 @@
     display: block;
     font-style: normal;
     font-size: 8.5px;
-    color: var(--muted);
+    color: var(--muted-2);
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  /* Filled seats stay plain card-white, like the finale's squad rows — green
-     is reserved for the finale's dream-team hits. */
   /* An empty seat is an invitation: just the position, centered, waiting. */
   .cell.empty {
     border-style: dashed;
@@ -212,12 +204,18 @@
      The grid placement is here rather than with the rail's own grid because it
      is a fact about the CHAIR — it is the only seat that spans two rows — and
      a caller laying seats out in a flex column (the help sheet, and the rail
-     itself at width) simply ignores it. */
+     itself at width) simply ignores it.
+     THE CHAIR OPENS THE CARD AT BOTH WIDTHS, and neither width needs a rule for
+     it: callers render the manager first, so the flex column takes him first by
+     DOM order, and the phone grid pins him to column one across both rows. The
+     skipper is above the roster while the club is being built and stays there
+     once he is hired, which is the one thing the two geometries have to agree
+     on. */
   .mgr {
     grid-column: 1;
     grid-row: 1 / 3;
     width: 52px;
-    border: 2.5px solid var(--line);
+    border: 2.5px solid var(--rung-line, var(--line));
     border-radius: 9px;
     writing-mode: sideways-lr;
     text-align: center;
@@ -225,15 +223,20 @@
     line-height: 1.3;
     overflow: hidden;
   }
-  /* The sub-lines run one rung darker than the player seats' do. Those sit on
-     card white, a single known ground; these sit on whichever of six washes the
-     skipper's rung supplies, and violet-2 is the darkest of them — --muted
-     measures 3.39:1 there against 4.37:1 for --muted-2, on 8.5–9px type. One
-     token, chosen for the worst rung, so the label reads the same on all six. */
+  /* The chair's label is a GLYPH where the player seats' is a position code, so
+     it answers to different type rules. A cap reads at its whole box and a code
+     reads at its cap band, so 9px — legible as three tracked letters — is a
+     speck as an emoji; and the tracking that separates P·O·S adds a phantom gap
+     after a single glyph, so it goes. `line-height: 1` is the same guard the
+     career sheet's 🧢 carries: the emoji face's line box stands taller than
+     Nunito's and would push the three stacked lines past the chair's 40px of
+     content. 13 + 14.3 + 11 = 38.3px against that 40px, so the cap can grow
+     without the season line clipping. */
   .mgr b {
     display: block;
-    font-size: 9px;
-    letter-spacing: 0.07em;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: normal;
     color: var(--muted-2);
   }
   .mgr span {
@@ -256,49 +259,6 @@
     text-overflow: ellipsis;
     max-height: 100%;
   }
-  /* The hired skipper's chair is the one seat in the rail whose FILL is free,
-     and it spends that freedom on the same rung its frame already draws. Fill
-     and frame are then the tinting rule's own pair — the hue at rung 2 inside
-     the hue at rung 8 — which is the object the game has been teaching since
-     the first WAR chip. A +14.0 W skipper is a gold seat rather than a pink
-     seat with a gold hairline you have to hunt for at 2.61:1.
-     WHY THIS SEAT AND NOT THE EIGHT BESIDE IT. A player cell can be armed by
-     the release picker and turns amber to say so, so its fill is a state
-     channel and cannot also be a value channel. The manager's chair is never a
-     pick target — hiring happens in the FRONT OFFICE row, not here — so it has
-     no state to announce and the fill is idle. Identity does not need the fill
-     either: the chair is the only sideways cell in the grid, it spans both
-     rows, it holds column one, and it says MGR.
-     WHAT EYE TEST SEES. The rule below is the fallback, and it is the honest
-     one: with no rung to draw the seat is card-white, exactly like the eight
-     filled player seats. The caller passes an empty `tier` in that mode, so the
-     wash cannot leak a read the mode hides — the same gate the border and the
-     numeral answer to, now with a third thing riding on it. */
-  .mgr.filled {
-    background: var(--card);
-  }
-  /* Placed after .mgr.filled deliberately: both selectors weigh the same, so
-     source order is what lets a rung paint over the card-white fallback. The
-     BORDER half of each rung lives up with the player seats' — the line
-     register is shared by every chair, and only the wash is the manager's. */
-  .mgr.filled.war-neg {
-    background: var(--war-neg-fill);
-  }
-  .mgr.filled.war-low {
-    background: var(--war-low-fill);
-  }
-  .mgr.filled.war-mid {
-    background: var(--war-mid-fill);
-  }
-  .mgr.filled.war-high {
-    background: var(--war-high-fill);
-  }
-  .mgr.filled.war-star {
-    background: var(--war-star-fill);
-  }
-  .mgr.filled.war-elite {
-    background: var(--war-elite-fill);
-  }
   .mgr.empty {
     border-style: dashed;
     background: transparent;
@@ -306,8 +266,11 @@
     display: grid;
     place-content: center;
   }
+  /* An unhired chair is nothing but its label, so the cap grows the way an
+     empty player seat's position code does — and it keeps the glyph's own
+     leading, because there is no name line under it to protect. */
   .mgr.empty b {
-    font-size: 11px;
+    font-size: 15px;
     color: var(--gray-ink);
   }
   /* Wide: the seat becomes one full-width row of the finale's squad card —
@@ -333,17 +296,19 @@
       line-height: 1.25;
       overflow: hidden;
     }
-    /* The skipper closes the squad card rather than opening it, which is the
-       finale's order too. Meaningless outside a flex parent, and the rail is
-       one at this width. */
-    .mgr {
-      order: 1;
-    }
+    /* The 34px label column is what aligns every row's second field, so both
+       chairs keep it; only the type differs, for the same reason it does on the
+       phone — a position code is tracked 9.5px caps and the manager's cap is a
+       glyph, which reads at its box. */
     .cell b,
     .mgr b {
       width: 34px;
       flex: none;
       font-size: 9.5px;
+    }
+    .mgr b {
+      font-size: 15px;
+      letter-spacing: normal;
     }
     .cell span,
     .mgr span {
@@ -369,9 +334,24 @@
       color: var(--gray-ink);
       width: 34px;
     }
-    /* Nothing stands down here any more. The tier border is the same idea at
-       both widths; the numeral joins it, in the same hue, because there is
-       room for it. */
+    /* An unhired chair is a full-width row here rather than a bare glyph, so
+       the cap holds the same 15px as a hired one — the empty rows' smaller type
+       is a phone rule, and this one only takes its color and its column. */
+    .mgr.empty b {
+      font-size: 15px;
+    }
+    /* Nothing stands down here any more: the numeral returns at the width that
+       has room for it, beside a border that says the same tier at both widths.
+       INK, on every rung, which is app.css's rule for type on a rung-2 fill
+       rather than anything about this seat — the finale's squad rows and the
+       manager career sheet's rows read the same way. The seat's fill IS that
+       wash now, and a numeral tinted to match it runs 2.17:1 to 3.77:1 at 13px
+       where ink runs 9.52:1 at worst. The rung is said twice already, by the
+       fill and by the frame; the numeral's job is the number.
+       The `tier` and `mgw` classes stay on the element as hooks with no rule
+       behind them. `mgw`'s absence is load-bearing: the manager used to be
+       pinned to flat --green here, which outweighed nothing and sat last, so it
+       silently won and any tiering above it did nothing. */
     .rwar {
       display: block;
       margin-left: auto;
@@ -379,30 +359,7 @@
       font-style: normal;
       font-weight: 800;
       font-size: 13px;
+      color: var(--ink);
     }
-    .rwar.neg {
-      color: var(--war-neg);
-    }
-    .rwar.low {
-      color: var(--war-low);
-    }
-    .rwar.mid {
-      color: var(--war-mid);
-    }
-    .rwar.high {
-      color: var(--war-high);
-    }
-    .rwar.star {
-      color: var(--war-star);
-    }
-    .rwar.elite {
-      color: var(--war-elite);
-    }
-    /* There is no .rwar.mgw rule, and its absence is load-bearing. The manager
-       used to be pinned to flat --green here, which has the same specificity
-       as .rwar.elite and sits later in the file, so it would silently win and
-       the tiering above would do nothing. The `mgw` class stays on the element
-       as a hook for a future manager-only rule; the rule itself is gone.
-       (Note --war-mid IS --green, so a .500 skipper renders exactly as before.) */
   }
 </style>

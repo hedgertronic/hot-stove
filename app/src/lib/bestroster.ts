@@ -2,14 +2,13 @@
  * finale's "you could have gone 141–21" yardstick, and the dream team the
  * ⭐ scout hits are counted against.
  *
- * OBJECTIVE. The solver maximizes the finale's OWN total, not WAR:
- *
- *   total = min(50 + WAR + 0.2·mgrNet, 162)      (expected wins)
- *         + 10·(2·spend/budget − 1)               (payroll bonus, 0 when over)
- *         + awardPoints (+2 for a MotY skipper)
- *         + 3·rings + 1·pennants
- *         + 1·scoutHits
- *         − max(0, spend − budget)                (luxury tax)
+ * OBJECTIVE. The solver maximizes the finale's OWN total, not WAR. Every term
+ * of that total is in the objective — expected wins (replacement + WAR + the
+ * skipper's net wins, capped), the payroll bonus, the trophy case including a
+ * MotY skipper, ring chasing, the scout hits, minus the luxury tax. The point
+ * values are `./scoring`'s and are imported below, never restated here: this
+ * file is a consumer of that module, and a formula written out in a comment is
+ * a copy nobody executes.
  *
  * A WAR-max club that spends 45% of its payroll gives back ~1 point of that
  * bonus for every 1% of the bankroll it leaves on the table, so the old
@@ -19,12 +18,14 @@
  * bonus is not separable from that choice.
  *
  * THE SCOUT TERM IS A FIXED POINT, not a circularity. The player's scout bonus
- * is |their club ∩ this club|, so this club's own score has to assume it hits
- * itself. Write base(R) for everything except the scout term and seats(R) for
- * the roster+skipper seats R fills. Choosing D = argmax [base(R) + seats(R)]
- * is self-consistent: for any legal club R,
- *   score(R) = base(R) + |R ∩ D| ≤ base(R) + seats(R) ≤ base(D) + seats(D)
- * so D really is the best club available, whichever club the player built.
+ * is w·|their club ∩ this club| for w = SCOUT_HIT_POINTS, so this club's own
+ * score has to assume it hits itself. Write base(R) for everything except the
+ * scout term and seats(R) for the roster+skipper seats R fills. Choosing
+ * D = argmax [base(R) + w·seats(R)] is self-consistent: for any legal club R,
+ *   score(R) = base(R) + w·|R ∩ D| ≤ base(R) + w·seats(R) ≤ base(D) + w·seats(D)
+ * so D really is the best club available, whichever club the player built. The
+ * middle inequality needs w ≥ 0 and nothing else, so the argument holds at
+ * whatever a seat is currently priced at.
  * Owner and ballpark earn no scout point (the engine counts players and the
  * skipper only), so `dreamSeats` still tops out at 9.
  *
@@ -144,6 +145,14 @@ export interface BestPick {
   /** Listed price, $M — what this seat costs the dream club's payroll.
    * Optional so hand-built lab fixtures stay valid; the solver always sets it. */
   cost?: number;
+  /** World Baseball Classic medal for this season, in Ring-chasing points —
+   * 2 champion, 1 losing finalist, absent otherwise, exactly as the card
+   * carries it. Here for the same reason `ws`/`pen` are: the finale draws the
+   * dream club's seats with the same hardware its own squad shows, and a medal
+   * the solver dropped would make the ceiling look like it won less than it
+   * did. Optional because most player-seasons have none, not because the
+   * solver sometimes omits it. */
+  wbc?: number;
 }
 
 /** The dream club's skipper — the same shape the finale renders for the hired
@@ -361,6 +370,7 @@ function cardItems(card: Card): Item[] {
       teamName: card.name,
       ws: p.ws,
       pen: p.pen,
+      wbc: p.wbc,
       awards: p.awards,
       cost: p.cost,
     };

@@ -339,6 +339,10 @@ export interface GameResult {
   bonus: number;
   tax: number;
   expectedWins: number;
+  /** ⭐ hits — the COUNT of dream-team seats the bot filled, not the points
+   * they paid. Every study reads it as a count (the 🔮 threshold is a count,
+   * and so is the ⭐ denominator), and a count is the quantity that keeps
+   * meaning the same thing when SCOUT_HIT_POINTS moves. */
   scout: number;
   spins: number;
   /** Hired manager's (W − L) — for post-hoc manager-multiplier studies. */
@@ -1085,7 +1089,7 @@ export async function playGame(
     bonus: f.parts.budgetBonus,
     tax: f.parts.luxuryTax,
     expectedWins: f.parts.expectedWins,
-    scout: f.parts.scoutBonus,
+    scout: f.scoutHits,
     spins: f.spinCount,
     mgrNet: g.manager ? g.manager.wins - g.manager.losses : 0,
     spent,

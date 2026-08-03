@@ -22,22 +22,20 @@ import { describe, expect, it } from "vitest";
 import { render } from "svelte/server";
 import HelpModal from "../src/components/HelpModal.svelte";
 import { MANAGER_PER_NET_WIN } from "../src/lib/scoring";
-import { signed, warTier } from "../src/lib/format";
+import { posLabel, signed, warTier } from "../src/lib/format";
+import { eligibleTypes } from "../src/lib/eligibility";
+import type { CardPlayer } from "../src/lib/types";
 
-interface Row {
-  id: string;
-  name: string;
-  war: number;
-  cost: number;
-  pos: string;
-}
 interface CardRow {
   year: number;
   team: string;
   wins: number;
   losses: number;
   manager: string | null;
-  players: Row[];
+  /** The app's own row type, not a narrowing of it: the utility specimen below
+   * runs a card player through `posLabel` and `eligibleTypes`, which read
+   * fields (`posG`) a hand-listed subset would have to remember to carry. */
+  players: CardPlayer[];
 }
 
 const DATA = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../..", "data");
@@ -61,11 +59,45 @@ const surname = (full: string) => full.split(" ").slice(1).join(" ");
 
 const BODY = render(HelpModal, { props: { onclose: () => {} } }).body;
 
+/** Every chair the sheet draws, as [class attribute, contents]. A seat holds
+ * only `<b>`, `<span>`, `<i>` and `<em>`, so the first closing div or button
+ * after one opens is that seat's own.
+ *
+ * THE SCOPE IS THE POINT. This file's job is to prove a chair's rung is
+ * DERIVED from the number beside it, and it used to prove it by finding
+ * `war-star` anywhere in the sheet — which worked only while exactly one
+ * element on the page could emit a `war-` token. The sheet now draws a rung on
+ * five seats across three specimens, so a page-wide search would pass no matter
+ * what any single chair wore: an assertion that can no longer fail when the
+ * thing it guards breaks. Cutting each chair out and reading ITS class is what
+ * keeps the proof honest as specimens are added. */
+const SEATS = [
+  ...BODY.matchAll(/<(?:div|button) class="((?:cell|mgr)[^"]*)"[^>]*>([\s\S]*?)<\/(?:div|button)>/g),
+];
+/** Every chair bearing this name — a man can hold two (Maddux sits in the rail
+ * and again in the trade picker), and both have to wear his rung. */
+const seatsOf = (name: string): string[] =>
+  SEATS.filter((m) => m[2].includes(`>${name}<`)).map((m) => m[1]);
+
+/** The extractor above is a regex over rendered markup, so it can DEGRADE
+ * silently: give RailSeat a wrapper element and every match truncates at the
+ * wrong closing tag, `seatsOf` returns nothing for everybody, and a test whose
+ * every assertion is "each seat found wears the right rung" passes over an
+ * empty set. Pinning the count is what makes that failure loud instead — nine
+ * chairs: five in the rail (the manager plus four seats), two lit by the slot
+ * picker, two by the trade picker. A specimen added or removed lands here
+ * first, which is the correct place for it to land. */
+it("finds every chair the sheet draws", () => {
+  expect(SEATS).toHaveLength(9);
+});
+
 describe("the help sheet's player specimens", () => {
-  /** [club, year, surname, the WAR the sheet prints] */
+  /** [club, year, surname, the WAR the sheet prints] — every seat the sheet
+   * draws with a name on it, rail and trade picker alike. */
   const SEASONS: [string, number, string, number][] = [
     ["LAD", 1997, "Piazza", 8.7],
     ["ATL", 1995, "Maddux", 10.8],
+    ["ATL", 1995, "Smoltz", 4.5],
   ];
 
   it.each(SEASONS)("prints %s %d %s at the WAR the card carries", (team, year, last, war) => {
@@ -79,15 +111,13 @@ describe("the help sheet's player specimens", () => {
   });
 
   it("gives each seat the rung its own number earns", () => {
-    // The caption's claim, checked rather than assumed. `war-star` on an 8.7 is
-    // the failure this whole file exists for.
-    for (const [, , , war] of SEASONS) {
-      expect(BODY, `${war} should wear war-${warTier(war)}`).toContain(`war-${warTier(war)}`);
+    // The caption's claim, checked on the seat that makes it. `war-star` on an
+    // 8.7 is the failure this whole file exists for.
+    for (const [, , last, war] of SEASONS) {
+      const seats = seatsOf(last);
+      expect(seats.length, `${last} has no seat on the sheet`).toBeGreaterThan(0);
+      for (const cls of seats) expect(cls, `${last} at ${war}`).toContain(`war-${warTier(war)}`);
     }
-    // 8.7 and 10.8 are both elite, so the two seats must NOT be showing two
-    // different rungs — and neither may be the manager's.
-    expect(warTier(8.7)).toBe("elite");
-    expect(warTier(10.8)).toBe("elite");
   });
 
   it("prints the market row's man at his real WAR and his real price", () => {
@@ -105,6 +135,27 @@ describe("the help sheet's player specimens", () => {
     expect(p.cost).toBe(44);
     expect(BODY).toContain("$44M");
   });
+
+  it("draws the slot picker over a man who really is eligible at two spots", () => {
+    // The specimen claims two things a made-up row could not: that Zobrist's
+    // 2009 earned him BOTH the IF and the OF seat, and that the tag over his
+    // name is what the game's own `posLabel` makes of those game counts. Both
+    // are read back off the card here — a hand-typed "2B/OF" beside a
+    // hand-picked pair of lit seats would be the help sheet teaching
+    // eligibility wrong, which is the same failure as a hand-picked rung.
+    const p = card("TBR", 2009).players.find((x) => surname(x.name) === "Zobrist")!;
+    expect(eligibleTypes(p)).toContain("IF");
+    expect(eligibleTypes(p)).toContain("OF");
+    expect(p.war).toBe(8.6);
+    expect(p.cost).toBe(1);
+    expect(BODY).toContain(`>${posLabel(p)}<`);
+    expect(BODY).toContain(">Ben Zobrist<");
+    expect(BODY).toContain(">8.6<");
+    expect(BODY).toContain("$1M");
+    // Two lit seats and an instruction, which is the screen those two
+    // eligibilities actually produce.
+    expect(BODY).toContain("↑ PICK A SLOT");
+  });
 });
 
 describe("the help sheet's manager specimen", () => {
@@ -115,8 +166,10 @@ describe("the help sheet's manager specimen", () => {
     const wins = (c.wins - c.losses) * MANAGER_PER_NET_WIN;
     expect(BODY).toContain(`${signed(wins)} W`);
     // The half that broke: the chair's rung has to be the rung that number
-    // earns, not a hand-picked one that looks about right.
-    expect(BODY).toContain(`war-${warTier(wins)}`);
+    // earns, not a hand-picked one that looks about right. Read off the chair's
+    // own element — see SEATS above for why the page-wide search this replaces
+    // could not fail any more.
+    expect(seatsOf("Cox")).toEqual([expect.stringContaining(`war-${warTier(wins)}`)]);
     expect(warTier(wins)).toBe("star");
   });
 });

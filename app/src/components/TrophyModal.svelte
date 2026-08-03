@@ -88,9 +88,8 @@
   const sections = RARITY_ORDER.map((rarity) => ({ rarity, items: slots(rarity) }))
     .filter((s) => s.items.length > 0);
 
-  /** The passport: every country there is, the ones this career has fielded
-   * first and the rest as grayed slots. Read once at mount for the same reason
-   * the case is.
+  /** The passport: the countries this career has fielded, rarest first. Read
+   * once at mount for the same reason the case is.
    *
    * ONE PAGE, not two. This lived behind a tab for one round, on the reasoning
    * that a panel under six bands and fifty-eight pills is a screen and a half
@@ -101,8 +100,8 @@
    * reads as one, badges then countries, with the app's own dashed separator
    * between them exactly like every other section in the game.
    *
-   * `passportBoard()` walks the whole country table; see the note on it for why
-   * that stopped being a checklist objection. */
+   * `passportBoard()` draws only what has been collected; see the note on it
+   * for why the unvisited half of the table is not on the sheet. */
   const items: PassportItem[] = passportBoard();
 
   /** The one opened badge, by key. Only an EARNED pill is a button, so only an
@@ -170,10 +169,15 @@
          No count. The stamps are the answer and a total would only rank it. -->
     <div class="band">
       <div class="psep">PASSPORT</div>
-      <!-- NOT "countries fielded" — this board is the whole table, and most of
-           it is countries nobody has been to. The finale's passport carries
-           that label because there it is true. -->
-      <Passport stamps={items} label="Passport — countries fielded and still to visit" />
+      {#if items.length === 0}
+        <p class="caseempty">No countries yet — play a season.</p>
+      {:else}
+        <!-- "Countries fielded" is the whole of it now: the board is what the
+             career turned up and the unvisited table is not on the sheet. The
+             finale's passport carries the same label, because the two draw the
+             same stamps. -->
+        <Passport stamps={items} label="Passport — countries fielded, rarest first" />
+      {/if}
     </div>
   </div>
 </Sheet>
