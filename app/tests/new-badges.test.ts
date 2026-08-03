@@ -27,6 +27,7 @@ import { render } from "svelte/server";
 import BadgePill from "../src/components/BadgePill.svelte";
 import TrophyModal from "../src/components/TrophyModal.svelte";
 import {
+  BADGES,
   BADGE_BY_KEY,
   bragRow,
   earnedBadges,
@@ -266,6 +267,10 @@ const guy = (over: Partial<BadgeRosterEntry> = {}): BadgeRosterEntry => ({
 const fullClub = (over: Partial<BadgeRosterEntry> = {}) =>
   Array.from({ length: 8 }, () => guy(over));
 
+/** The exclusive on-field axis, read off the table so a rung added to it is
+ * covered here without being listed twice. */
+const ONFIELD = BADGES.filter((b) => b.axis === "onfield").map((b) => b.key);
+
 describe("🌠 THE DREAM TEAM", () => {
   it("fires on nine of nine, and takes 🔮's slot", () => {
     const got = earnedBadges(f({ dreamSeats: 9, scoutHits: 9 }));
@@ -421,6 +426,228 @@ describe("🙈 DIDN'T ASK THE PRICE", () => {
   });
 });
 
+describe("🫡 FEARLESS LEADER", () => {
+  /** A full club whose best season is 5.0 WAR, so the skipper's line is the
+   * only thing under test. */
+  const club = (war = 5.0) => fullClub({ war });
+  const led = (netWins: number, over: Partial<BadgeFacts> = {}) =>
+    earnedBadges(f({ roster: club(), managerNetWins: netWins, ...over }));
+
+  it("fires when the dugout out-earns every seat", () => {
+    // 30 net wins × 0.2 = 6.0, against a best seat of 5.0.
+    expect(led(30)).toContain("fearless");
+  });
+
+  it("measures in wins, not in net record", () => {
+    // 20 net wins is 4.0 — a bigger number than any WAR on the club until the
+    // exchange rate is applied, and the badge applies it.
+    expect(led(20)).not.toContain("fearless");
+  });
+
+  it("wants strictly more, so a tie goes to the roster", () => {
+    // 25 × 0.2 = 5.0 exactly, matching the best seat.
+    expect(led(25)).not.toContain("fearless");
+  });
+
+  it("reads the club's best season, never its total", () => {
+    // Eight 1.0-WAR men total 8.0, which no skipper in the set can beat; the
+    // badge asks about the best one, so a 1.2-win skipper clears it.
+    const seats = fullClub({ war: 1.0 });
+    expect(
+      earnedBadges(f({ roster: seats, managerNetWins: 6 })),
+    ).toContain("fearless");
+  });
+
+  it("refuses a losing skipper, however bad the roster", () => {
+    // −80 net is −16.0 wins, the worst card in the set, and it beats every
+    // seat on a club of −20 WAR men. That club has earned an anti-trophy.
+    const seats = fullClub({ war: -20 });
+    expect(
+      earnedBadges(f({ roster: seats, managerNetWins: -80 })),
+    ).not.toContain("fearless");
+  });
+
+  it("needs the whole club, so two good seats are not a roster", () => {
+    expect(
+      earnedBadges(f({ roster: [guy({ war: 5.0 }), guy({ war: 5.0 })], managerNetWins: 30 })),
+    ).not.toContain("fearless");
+  });
+
+  it("cannot fire on facts assembled before managerNetWins existed", () => {
+    expect(earnedBadges(f({ roster: club() }))).not.toContain("fearless");
+  });
+});
+
+describe("🚒 THE FIREMAN and 🧤 THE FIELD GENERAL", () => {
+  /** Seven $8M men plus one seat under test. */
+  const clubWith = (seat: BadgeRosterEntry) => [
+    ...Array.from({ length: 7 }, () => guy({ pos: "SS", costPaid: 8 })),
+    seat,
+  ];
+
+  it("hands the reliever his badge when he outcosts the club", () => {
+    const got = earnedBadges(f({ roster: clubWith(guy({ pos: "RP", costPaid: 20 })) }));
+    expect(got).toContain("fireman");
+    expect(got).not.toContain("fieldgeneral");
+  });
+
+  it("hands the catcher his", () => {
+    const got = earnedBadges(f({ roster: clubWith(guy({ pos: "C", costPaid: 20 })) }));
+    expect(got).toContain("fieldgeneral");
+    expect(got).not.toContain("fireman");
+  });
+
+  it("wants a strict maximum, so a tie at the top counts for nobody", () => {
+    // The shape a club of minimum-salary men lands on: everyone at one price.
+    const flat = [
+      ...Array.from({ length: 6 }, () => guy({ pos: "SS", costPaid: 1 })),
+      guy({ pos: "RP", costPaid: 1 }),
+      guy({ pos: "C", costPaid: 1 }),
+    ];
+    const got = earnedBadges(f({ roster: flat }));
+    expect(got).not.toContain("fireman");
+    expect(got).not.toContain("fieldgeneral");
+  });
+
+  it("counts seats rather than objects, so a reused entry still ties", () => {
+    // A fact set that reuses one object across seats must answer the question
+    // about seats: eight references to one $20M catcher is eight seats at $20M,
+    // which is a tie, not a maximum.
+    const one = guy({ pos: "C", costPaid: 20 });
+    expect(
+      earnedBadges(f({ roster: Array.from({ length: 8 }, () => one) })),
+    ).not.toContain("fieldgeneral");
+  });
+
+  it("both need the whole club", () => {
+    expect(
+      earnedBadges(f({ roster: [guy({ pos: "C", costPaid: 20 }), guy({ costPaid: 1 })] })),
+    ).not.toContain("fieldgeneral");
+  });
+
+  it("reads the position the card prints, not the seat he fills", () => {
+    // Nothing here knows which slot a man sits in, and that is deliberate: the
+    // C seat takes anyone with ten games behind the plate, so the badge would
+    // otherwise mean something the player cannot see. A man listed at C who
+    // played every game at first base is still the catcher this badge names.
+    expect(
+      earnedBadges(f({ roster: clubWith(guy({ pos: "C", costPaid: 20 })) })),
+    ).toContain("fieldgeneral");
+    expect(
+      earnedBadges(f({ roster: clubWith(guy({ pos: "1B", costPaid: 20 })) })),
+    ).not.toContain("fieldgeneral");
+  });
+});
+
+describe("🪙 LEAGUE MINIMUM", () => {
+  const at = (prices: number[]) =>
+    earnedBadges(
+      f({
+        roster: prices.map((costPaid) => guy({ costPaid })),
+      }),
+    );
+
+  it("fires on four seats at the minimum", () => {
+    expect(at([1.0, 1.2, 1.6, 1.6, 20, 20, 20, 20])).toContain("minimum");
+  });
+
+  it("holds the line at three", () => {
+    expect(at([1.0, 1.2, 1.6, 1.7, 20, 20, 20, 20])).not.toContain("minimum");
+  });
+
+  it("takes $1.6M as the minimum — the 1985 floor, not the modern one", () => {
+    // The card set's cheapest season is $1.6M in 1985 and $1.0M from 1992 on,
+    // so the price has to be the highest floor in the window or a mid-eighties
+    // club at its own minimum could never earn it.
+    expect(at([1.6, 1.6, 1.6, 1.6])).toContain("minimum");
+    expect(at([1.7, 1.7, 1.7, 1.7])).not.toContain("minimum");
+  });
+
+  it("needs no full club — a count cannot be padded by vacancy", () => {
+    expect(at([1.0, 1.0, 1.0, 1.0])).toContain("minimum");
+    expect(at([])).not.toContain("minimum");
+  });
+});
+
+describe("💳 THE BILL CAME DUE", () => {
+  const busted = (baselineWins: number, stampWins: number) =>
+    earnedBadges(
+      f({
+        baselineWins,
+        baselineLosses: 162 - baselineWins,
+        stamp: { wins: stampWins, losses: 162 - stampWins },
+        spendM: 200,
+        budgetM: 140,
+      }),
+    );
+
+  it("fires where the on-field ladder awards nothing", () => {
+    // A 106-win club taxed back to 94: 🚀 is vetoed, and before this rung the
+    // season walked away from the axis with nothing.
+    const got = busted(106, 94);
+    expect(got).toContain("taxed");
+    expect(got.filter((k) => ONFIELD.includes(k))).toEqual(["taxed"]);
+  });
+
+  it("catches the century as well as the named rungs", () => {
+    expect(busted(101, 88)).toContain("taxed");
+  });
+
+  it("stays off a club whose stamp held its rung", () => {
+    const got = busted(106, 130);
+    expect(got).toContain("astros");
+    expect(got).not.toContain("taxed");
+  });
+
+  it("stays off a club that never earned a rung to lose", () => {
+    // 99 baseline wins is the most common unbadged total in the game; losing
+    // nothing is not an anti-trophy.
+    expect(busted(99, 60)).not.toContain("taxed");
+  });
+
+  it("yields to the floor rungs, which name a record the player can see", () => {
+    // A 103 baseline taxed to a 30–132 stamp reads 📉: that is the record on
+    // the screen, and the floor rungs are about what the screen says.
+    const deep = busted(103, 30);
+    expect(deep).toContain("worst");
+    expect(deep).not.toContain("taxed");
+    const hundredLosses = busted(103, 60);
+    expect(hundredLosses).toContain("skull");
+    expect(hundredLosses).not.toContain("taxed");
+  });
+
+  it("needs the payroll to have gone over", () => {
+    // The stamp can fall below the baseline without a tax — the payroll bonus
+    // bottoms out at −10 — and that club is not what this badge names.
+    expect(
+      earnedBadges(
+        f({
+          baselineWins: 106,
+          baselineLosses: 56,
+          stamp: { wins: 94, losses: 68 },
+          spendM: 40,
+          budgetM: 140,
+        }),
+      ),
+    ).not.toContain("taxed");
+  });
+
+  it("cannot fire on facts assembled before the stamp existed", () => {
+    // Absent, the stamp reads as the baseline, which always holds its own rung.
+    expect(
+      earnedBadges(
+        f({ baselineWins: 106, baselineLosses: 56, spendM: 200, budgetM: 140 }),
+      ),
+    ).not.toContain("taxed");
+  });
+
+  it("names both records in its copy, the way the whole axis does", () => {
+    const how = BADGE_BY_KEY.taxed.how.toLowerCase();
+    expect(how).toContain("baseline wins");
+    expect(how).toContain("the finale stamps");
+  });
+});
+
 describe("every new badge resolves to a definition", () => {
   it("has a table entry for each key the triggers above emit", () => {
     for (const key of [
@@ -429,6 +656,11 @@ describe("every new badge resolves to a definition", () => {
       "cheatcodes",
       "interim",
       "blindbust",
+      "fearless",
+      "fireman",
+      "fieldgeneral",
+      "minimum",
+      "taxed",
     ]) {
       expect(BADGE_BY_KEY[key], `${key} is undefined`).toBeDefined();
     }

@@ -1,4 +1,4 @@
-import { GOAL_POINTS } from "./scoring";
+import { GOAL_POINTS, MANAGER_PER_NET_WIN } from "./scoring";
 
 /* The badge set — one table, read by the finale pill row, the share string,
  * and the home trophy case. Adding a badge means adding one BadgeDef and one
@@ -60,6 +60,13 @@ import { GOAL_POINTS } from "./scoring";
  *    and the stamp is the only record the finale ever prints. That was the
  *    owner's call and it is what makes 👔 reachable at all; the arithmetic is
  *    beside `dayjob`.
+ *
+ *    💳 is the last arm of that chain and the only rung that reads the veto
+ *    itself. A club whose baseline earned a rung and whose stamp could not
+ *    hold it used to walk off the axis with nothing at all; it now walks off
+ *    with an anti-trophy naming what happened, provided the payroll is what
+ *    happened. It sits UNDER 👔 / 📉 / 💀, so a stamp deep enough to post a
+ *    record low still reads the record it posted.
  *
  *    Because the axis genuinely uses two measures, every `how` string on it
  *    names WHICH ones it means, in the finale's own words — "baseline wins" is
@@ -475,6 +482,67 @@ const FRANCHISE_SHARE = 0.5;
 /** What a 🏠 Homegrown dollar has to buy for the discount to be a play rather
  * than a click — the WAR ladder's top tier. */
 const HOMEGROWN_WAR = 8.0;
+
+/** 🪙 LEAGUE MINIMUM's price, and how many seats have to carry it.
+ *
+ * The price is the league minimum this card set actually has, and it is
+ * era-shaped rather than flat. Measured off `cost` in data/cards: the cheapest
+ * season available is $1.6M in 1985, $1.1–1.4M through 1991, and $1.0M from
+ * 1992 on. A rung written at $1.0M would be unreachable for a mid-eighties
+ * seat that IS at its league minimum, so the price is the HIGHEST floor in the
+ * window rather than the lowest. It buys 42.1% of the set's 35,720
+ * player-seasons, against 20.5% at $1.0M.
+ *
+ * Four is the rung. Measured over 4,000 reference seasons (study 17): three
+ * seats is 34.30%, which is the shape a club lands on without meaning to; four
+ * is 10.15%, beside 🔮 CRYSTAL BALL (9.60), 🧢 (9.91) and 📆 (9.43); five is
+ * 1.40%, a coin that rarely comes up. Same ladder that picked AGE_COUNT and
+ * DECADE_COUNT — the rung is the one that is neither an accident nor a myth.
+ *
+ * The count includes a 🏠 Homegrown seat, which is signed at a flat $1M and is
+ * therefore at the minimum by construction. That is at most ONE seat, because
+ * the powerup is one-shot, and the badge is not a Homegrown badge in disguise:
+ * counting only seats NOT signed at the flat price the reference arm lands
+ * four 2.40% of the time — but the VANILLA arm, which has no Homegrown at all,
+ * lands four 15.65% of the time, half again as often as the reference arm
+ * does. The powerups are mostly spent making a club richer (a reroll shops for
+ * a bigger bankroll), so the arm that has them buys fewer minimum men, not
+ * more.
+ *
+ * Exported for the reason CROWN_WINS and WORST_WINS are: the price is a claim
+ * about data/cards, and badges-supply.test.ts pins it against the cards
+ * themselves so a regen that raises a year's floor above it fails there rather
+ * than quietly locking one era out of the badge. */
+export const MINIMUM_M = 1.6;
+export const MINIMUM_SEATS = 4;
+
+/* ---- the two position badges, and why they are keyed to `pos` ----
+ *
+ * 🚒 THE FIREMAN and 🧤 THE FIELD GENERAL both ask the same question about a
+ * payroll — which seat did the club spend the most on — and answer it for the
+ * two positions nobody spends on.
+ *
+ * They read `pos`, the position the card prints, rather than the SLOT the man
+ * sits in. The two are not the same thing: eligibility.ts fills the C seat
+ * from anyone with ten games behind the plate, so a man listed at C can sit in
+ * IF or FLEX and a man listed at 1B can sit at C. `pos` is what the player is
+ * looking at when they sign him, so it is what the badge counts. The RP seat
+ * is the one place the two readings coincide — it takes `pos === "RP"` and
+ * nothing else — so a full club holds exactly one reliever, measured at
+ * 100.00% over 8,000 bot seasons.
+ *
+ * The comparison is a STRICT maximum, and that is not a detail: 20.5% of the
+ * set's player-seasons cost exactly $1.0M, so ties at the bottom of the market
+ * are the common case, and a `>=` reading would hand a club of eight
+ * minimum-salary men every position badge at once. A tie at the top counts for
+ * nobody — measured at 0.20% of full clubs.
+ *
+ * Neither is an anti-trophy, and that was measured rather than assumed. The
+ * relief seat is the weakest on the field (no relief season in the set reaches
+ * 8.0 WAR; see the ceiling note beside GOLD_WAR), so paying the most for it
+ * looks like a misallocation — but clubs whose priciest man is the reliever
+ * score 137.01 against the population's 136.91, and the catcher's clubs 139.04
+ * against the same 136.91. Both shapes are rare, neither is a mistake. */
 
 /* ---- the three shape badges, and the ceiling they all run into ----
  *
@@ -1116,6 +1184,43 @@ export const BADGES: BadgeDef[] = [
     freq: 0,
     how: "100 losses or more on the record the finale stamps.",
   },
+  /* The hole the stamped-record gate leaves, filled. `onFieldBadge` awards
+   * NOTHING when a baseline earns a rung and the stamp cannot hold it — the
+   * rung is vetoed rather than dropped, for the reasons written out beside
+   * that function — so a club worth 106 wins on the field that taxed itself
+   * back to 94 walked away from the on-field axis empty-handed. This is the
+   * anti-trophy for exactly that season, and nothing else can reach it: it is
+   * the LAST arm of the same else-chain, under 👔 / 📉 / 💀, so a club whose
+   * stamp sank far enough to post a record low still reads 📉. The axis stays
+   * exclusive, and the ladder's own ordering is untouched.
+   *
+   * `ironic`, because a 106-win club that scored 94 is a joke told by the
+   * ledger rather than an achievement. Not `secret` — no badge in this file
+   * carries both, and an anti-trophy already wears an anonymized locked slot.
+   *
+   * The over-the-payroll gate is measured rather than assumed. A stamp can
+   * fall below its baseline without a tax — the payroll bonus bottoms out at
+   * −10 — but of every club that lost a rung across 8,000 bot seasons (study
+   * 17), 4 of 4 were past the cap. The gate makes the label and the copy
+   * exactly true, and costs nothing that was ever observed.
+   *
+   * `freq: 0` is measured, and it is measured in the same place 👔, 📉, 💀,
+   * 🧾, 🕸️ and 🏖️ measure theirs: the reference arm treats the cap as a hard
+   * feasibility gate, so it almost never busts a payroll on purpose. The rung
+   * is reachable — study 17's overspend arm, which crosses the cap whenever
+   * the WAR pays for it, lands it 0.15% of the time, and study 14 measures the
+   * same clubs from the other side. A player who signs the roster first and
+   * reads the bill afterwards is the population this is for. */
+  {
+    key: "taxed",
+    emoji: "💳",
+    label: "THE BILL CAME DUE",
+    rarity: "ironic",
+    axis: "onfield",
+    ironic: true,
+    freq: 0,
+    how: "Baseline wins worth a badge, a payroll past the cap, and a record the finale stamps too low to keep it.",
+  },
 
   // ---- the goal, its own axis ----
   {
@@ -1503,6 +1608,39 @@ export const BADGES: BadgeDef[] = [
     freq: 9.91,
     how: "Hired a Manager of the Year and finished above 105 baseline wins.",
   },
+  /* The dugout out-earning the whole field, and the exchange rate that makes
+   * it a real question rather than a formality. A skipper is worth
+   * (W − L) × MANAGER_PER_NET_WIN in WINS, i.e. 0.2 apiece: the best card in
+   * the set, Lou Piniella's 116–46 Mariners, is worth 14.0, the worst — Pedro
+   * Grifol's 41–121 White Sox — is worth −16.0, and a .500 dugout is worth
+   * nothing at all. Half the cards in the set are on the wrong side of that.
+   *
+   * So the badge asks a top-decile dugout to beat a whole draft's best pick.
+   * Measured over 4,000 reference seasons (study 17): the median skipper is
+   * worth 4.0 wins and the median club's best seat posts 9.6 WAR, and the two
+   * cross 8.95% of the time.
+   *
+   * It reads the club's BEST season, never the roster's total. Against the
+   * total it is not a rare badge, it is an impossible one — 0.00% across
+   * 8,000 seasons, because no dugout in the set is worth what eight men are.
+   *
+   * Both gates hold weight the measurement cannot show. `full` is 🏅's gate:
+   * "more than any player" over a club with two seats filled is a claim about
+   * a club that does not exist. Strictly positive is what keeps this a trophy
+   * rather than an accidental anti-trophy — a −16-win skipper over eight
+   * negative-WAR seats also beats every seat on the roster, and that club has
+   * earned 👔, not this. Every bot club is full and every bot skipper who
+   * clears the roster is a winning one, so both gates measure identically in
+   * the harness and neither is removable. */
+  {
+    key: "fearless",
+    emoji: "🫡",
+    label: "FEARLESS LEADER",
+    rarity: "uncommon",
+    axis: "roster",
+    freq: 8.95,
+    how: "Your skipper was worth more wins than any player on the roster.",
+  },
   /* 🧢's opposite number, and the dugout's version of the gamble 🕶️ names on
    * the payroll. The club is built, every other seat is filled, and the last
    * spin has to produce a skipper out of whatever card the reel deals — so
@@ -1601,6 +1739,51 @@ export const BADGES: BadgeDef[] = [
     // 🚜 and 🤏 measure against the budget and say "payroll" for it; this one
     // says "spent" because that is the number it divides by.
     how: "Half of everything you spent went to one player.",
+  },
+  /* 💎's question asked of the two seats a payroll is never aimed at. See the
+   * block beside MINIMUM_M for why both read `pos` rather than the slot, why
+   * the maximum is strict, and why neither is an anti-trophy. */
+  {
+    key: "fireman",
+    emoji: "🚒",
+    label: "THE FIREMAN",
+    rarity: "ultra",
+    axis: "roster",
+    // 1.40% over 4,000 reference seasons, and the least settled number added
+    // this round: the binomial SE at that rate and that n is 0.19pp, and the
+    // ultra/rare band line sits at 1.5. The two context arms disagree with it
+    // by more than the SE does — 2.40% with no powerups, 1.45% overspending —
+    // so the tier is worth re-reading after any change to how the bots value
+    // a seat. `rare` would put a 1.40% badge under 🏭 COMPANY TOWN's 1.90
+    // floor and break the band-disjointness the 🧓/🍼 pair stands on.
+    freq: 1.4,
+    how: "Your reliever was the most expensive man on the club.",
+  },
+  {
+    key: "fieldgeneral",
+    emoji: "🧤",
+    label: "THE FIELD GENERAL",
+    rarity: "uncommon",
+    axis: "roster",
+    // 7.70%, against 1.40% for the reliever — the gap is supply rather than
+    // taste. A full club holds exactly one man at RP and 7.7% of the set's
+    // player-seasons are catchers, so the C badge is drawing on eight seats'
+    // worth of chances and the RP badge on one. 99.35% of full clubs hold at
+    // least one man listed at catcher.
+    freq: 7.7,
+    how: "Your catcher was the most expensive man on the club.",
+  },
+  {
+    key: "minimum",
+    emoji: "🪙",
+    label: "LEAGUE MINIMUM",
+    rarity: "uncommon",
+    axis: "roster",
+    freq: 10.15,
+    // The price is named in the copy because it is not a number a player can
+    // read off any screen: the market rows print what a man costs, never what
+    // the floor was that year.
+    how: "Four players signed at the league minimum, $1.6M or less.",
   },
   /* Drafting against an unknown payroll — the one nerve play Clean House sets
    * up. The bank does not tell you your cap until you hire an owner, so every
@@ -1999,6 +2182,11 @@ export const COLLECTIBLE = BADGES.filter((b) => !b.ironic);
  * taxed-out 116-win club a consolation 💯, which turns the penalty back into a
  * prize and makes "matched the Mariners" a thing you can half-do.
  *
+ * This function still returns null on a veto, and always will: the veto is
+ * what it is for. What the veto costs is now named elsewhere — `earnedBadges`
+ * runs 💳 THE BILL CAME DUE off exactly this condition, at the bottom of the
+ * same else-chain, so the club gets an anti-trophy rather than a lower rung.
+ *
  * `stampWins` defaults to `baselineWins`, which is what a fact set assembled
  * before the stamp existed supplies: on that path the gate is satisfied by
  * construction and the ladder behaves exactly as it did before it. */
@@ -2078,6 +2266,22 @@ export function earnedBadges(f: BadgeFacts): string[] {
   else if (floor.wins <= 0) out.push("dayjob");
   else if (floor.wins <= WORST_WINS) out.push("worst");
   else if (floor.losses >= 100) out.push("skull");
+  // The last arm, and the hole the veto above leaves. A rung picked by the
+  // baseline and refused by the stamp earns nothing from `onFieldBadge`; this
+  // catches that club and only that club. Asking the ladder itself — "would
+  // this baseline have earned a rung on its own?" — rather than naming a win
+  // total means the two can never drift apart: a rung added at 96 tomorrow is
+  // covered here the day it ships.
+  //
+  // Under 💀, never over it. A 103 baseline taxed to a 30–132 stamp reads 📉,
+  // because 30–132 is the record on the screen and the floor rungs are about
+  // what the player can see. This rung is for the club that lost its badge
+  // without earning a worse one.
+  else if (
+    f.spendM > f.budgetM &&
+    onFieldBadge(f.baselineWins, f.baselineWins) !== null
+  )
+    out.push("taxed");
 
   if (f.total >= GOAL_POINTS) out.push("perfect");
   // Stacks with 🏆 on purpose: one says the season hit the game's stated goal,
@@ -2160,6 +2364,15 @@ export function earnedBadges(f: BadgeFacts): string[] {
     out.push("worldtour");
   if (f.rings >= RING_BEARERS) out.push("rings");
   if (f.managerMoty && f.baselineWins > SKIPPER_WINS) out.push("skipper");
+  // The dugout against the field. `managerNetWins` is the skipper's own
+  // (W − L); MANAGER_PER_NET_WIN turns it into the WINS term the ledger prints
+  // beside him, so the two sides of the comparison are in the same units.
+  // `?? 0` reads an absent record as .500 exactly, which fails the strictly
+  // positive test and withholds the badge — the fail-safe direction, and the
+  // same reading 🪑 takes of the same field.
+  const managerWins = (f.managerNetWins ?? 0) * MANAGER_PER_NET_WIN;
+  if (full && managerWins > 0 && roster.every((p) => managerWins > p.war))
+    out.push("fearless");
   // The dugout left to the last spin, and the chair that was still there when
   // the player got to it. `managerLast` is the recorded moment; the net wins
   // are the skipper's own, never the club's stamp. `?? 0` makes an absent
@@ -2206,6 +2419,24 @@ export function earnedBadges(f: BadgeFacts): string[] {
     roster.some((p) => p.costPaid / f.spendM >= FRANCHISE_SHARE)
   )
     out.push("franchiseplayer");
+  // One seat strictly outcosts every other, compared by index rather than by
+  // object identity so a fact set that reuses one entry object across seats
+  // still answers the question about seats. Strict for the reason recorded
+  // beside MINIMUM_M: ties at the bottom of the market are the common case.
+  const priciestAt = (pos: string): boolean =>
+    full &&
+    roster.some(
+      (p, i) =>
+        p.pos === pos &&
+        roster.every((q, j) => j === i || q.costPaid < p.costPaid),
+    );
+  if (priciestAt("RP")) out.push("fireman");
+  if (priciestAt("C")) out.push("fieldgeneral");
+  // No `full` gate, unlike the two above: a count badge cannot be earned by
+  // vacancy, and four minimum men on a club with a seat still open is four
+  // minimum men.
+  if (roster.filter((p) => p.costPaid <= MINIMUM_M).length >= MINIMUM_SEATS)
+    out.push("minimum");
   // `full` is required here as well as in the engine's flag, because the flag
   // answers "was the roster full WHEN the owner was hired" and this badge's
   // copy claims a finished club — a 🔁 Trade Deadline release afterwards could

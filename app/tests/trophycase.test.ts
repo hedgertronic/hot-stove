@@ -74,8 +74,8 @@ describe("badgeCase", () => {
   it("pins the collectible denominator to the badge table", () => {
     // The summary line prints this denominator; it lives in badges.ts, and a
     // table edit must move the fraction here rather than silently anywhere.
-    expect(COLLECTIBLE.length).toBe(52);
-    expect(BADGES.length).toBe(63);
+    expect(COLLECTIBLE.length).toBe(56);
+    expect(BADGES.length).toBe(68);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 

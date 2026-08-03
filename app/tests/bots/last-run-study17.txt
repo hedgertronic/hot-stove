@@ -1,0 +1,149 @@
+=== Study 17: five candidate badges, measured as ingredients ===
+Wall clock: 445.3s for 4000 games.
+Column order everywhere: reference (Clean House + all powerups, n=2000)  |  vanilla (Clean House, no powerups, n=2000)  |  overspend (all powerups, crosses the cap, n=2000)
+Full clubs (eight seats filled): 100.00%   100.00%   100.00%
+Clubs with a skipper:            100.00%   100.00%   100.00%
+
+--- 1. 🫡 the skipper's wins beat every player's WAR ---
+  shipped shape (full club, skipper > 0, beats every seat):   8.95%     9.60%     9.70%
+  without the positive gate:                                   8.95%     9.60%     9.70%
+  without the full-club gate:                                  8.95%     9.60%     9.70%
+  beats the roster's TOTAL WAR (a different, harder claim):     0.00%     0.00%     0.00%
+
+  distribution of the skipper's contribution, and of the top seat:
+    reference  skipper wins  p50 4.00  p90 9.00  p99 14.00  max 14.00
+               best seat WAR p50 9.60  p10 8.00  min 6.20
+    vanilla    skipper wins  p50 2.80  p90 7.60  p99 10.80  max 14.00
+               best seat WAR p50 7.80  p10 6.30  min 3.90
+    overspend  skipper wins  p50 4.00  p90 9.20  p99 14.00  max 14.00
+               best seat WAR p50 9.50  p10 8.00  min 5.80
+
+--- 2/3. 🚒 / 🧤 which position is the most expensive man on the club ---
+  (strict maximum: a tie at the top counts for nobody)
+  reference (Clean House + all powerups, n=2000)
+    SP      31.75%  (635)
+    3B      11.10%  (222)
+    1B      10.30%  (206)
+    RF       9.50%  (190)
+    LF       8.90%  (178)
+    SS       8.55%  (171)
+    C        7.70%  (154)
+    CF       6.75%  (135)
+    2B       2.15%  (43)
+    RP       1.40%  (28)
+    DH       1.25%  (25)
+    SP/DH    0.45%  (9)
+    TIE      0.20%  (4)
+  vanilla (Clean House, no powerups, n=2000)
+    SP      27.00%  (540)
+    1B      13.35%  (267)
+    RF       9.90%  (198)
+    3B       9.10%  (182)
+    C        8.75%  (175)
+    LF       8.70%  (174)
+    CF       8.15%  (163)
+    SS       6.50%  (130)
+    2B       3.35%  (67)
+    RP       2.40%  (48)
+    DH       2.40%  (48)
+    SP/DH    0.25%  (5)
+    TIE      0.15%  (3)
+  overspend (all powerups, crosses the cap, n=2000)
+    SP      32.15%  (643)
+    1B      10.90%  (218)
+    3B      10.00%  (200)
+    RF       9.45%  (189)
+    SS       8.95%  (179)
+    LF       8.90%  (178)
+    C        7.30%  (146)
+    CF       6.50%  (130)
+    2B       2.25%  (45)
+    RP       1.45%  (29)
+    DH       1.30%  (26)
+    SP/DH    0.55%  (11)
+    TIE      0.30%  (6)
+
+  🚒 RP is the priciest seat:    1.40%     2.40%     1.45%
+  🧤 C  is the priciest seat:    7.70%     8.75%     7.30%
+
+  Supply: the RP seat takes `pos === "RP"` only, so a full club holds exactly
+  one. The C SEAT takes anyone with ten games behind the plate, and a man
+  listed at C can sit in IF or FLEX — so the count of catchers varies.
+  full clubs holding at least one pos === "C":   99.35%    97.70%    99.10%
+  full clubs holding exactly one pos === "RP":  100.00%   100.00%   100.00%
+
+  Is either a misallocation? Mean final total, club by club:
+    reference  all 136.91   RP-priciest 137.01 (n=28)   C-priciest 139.04 (n=154)
+               mean WAR of that priciest seat:  RP 9.19   C 9.41
+    vanilla    all 112.03   RP-priciest 111.43 (n=48)   C-priciest 111.94 (n=175)
+               mean WAR of that priciest seat:  RP 7.59   C 7.89
+    overspend  all 135.84   RP-priciest 135.10 (n=29)   C-priciest 136.79 (n=146)
+               mean WAR of that priciest seat:  RP 9.19   C 9.37
+
+--- 4. 🪙 seats at the league minimum ---
+  Card-set floors: $1.6M in 1985, $1.1–1.4M to 1991, $1.0M from 1992 on.
+  at or under $1.0M — share of clubs with N such seats:
+    reference  1+  87.70%  2+  30.55%  3+   4.90%  4+   0.70%  5+   0.05%  6+   0.00%  7+   0.00%  8+   0.00%
+               mean 1.24 seats, Homegrown share of them 63.64%
+    vanilla    1+  59.90%  2+  21.55%  3+   5.50%  4+   1.20%  5+   0.05%  6+   0.05%  7+   0.00%  8+   0.00%
+               mean 0.88 seats, Homegrown share of them 0.00%
+    overspend  1+  87.55%  2+  31.80%  3+   5.20%  4+   0.60%  5+   0.20%  6+   0.00%  7+   0.00%  8+   0.00%
+               mean 1.25 seats, Homegrown share of them 63.46%
+  at or under $1.2M — share of clubs with N such seats:
+    reference  1+  93.55%  2+  54.60%  3+  16.80%  4+   3.65%  5+   0.40%  6+   0.00%  7+   0.00%  8+   0.00%
+               mean 1.69 seats, Homegrown share of them 46.66%
+    vanilla    1+  83.95%  2+  49.40%  3+  20.35%  4+   5.80%  5+   1.05%  6+   0.10%  7+   0.00%  8+   0.00%
+               mean 1.61 seats, Homegrown share of them 0.00%
+    overspend  1+  93.85%  2+  55.60%  3+  17.00%  4+   3.75%  5+   0.50%  6+   0.00%  7+   0.00%  8+   0.00%
+               mean 1.71 seats, Homegrown share of them 46.60%
+  at or under $1.6M — share of clubs with N such seats:
+    reference  1+  96.65%  2+  72.85%  3+  34.30%  4+  10.15%  5+   1.40%  6+   0.10%  7+   0.00%  8+   0.00%
+               mean 2.15 seats, Homegrown share of them 36.60%
+    vanilla    1+  94.10%  2+  71.10%  3+  39.95%  4+  15.65%  5+   3.65%  6+   0.60%  7+   0.00%  8+   0.00%
+               mean 2.25 seats, Homegrown share of them 0.00%
+    overspend  1+  96.85%  2+  73.20%  3+  33.65%  4+   9.90%  5+   1.90%  6+   0.10%  7+   0.00%  8+   0.00%
+               mean 2.16 seats, Homegrown share of them 36.90%
+  at or under $2.0M — share of clubs with N such seats:
+    reference  1+  97.35%  2+  76.25%  3+  37.60%  4+  11.75%  5+   1.75%  6+   0.10%  7+   0.00%  8+   0.00%
+               mean 2.25 seats, Homegrown share of them 35.08%
+    vanilla    1+  95.90%  2+  75.95%  3+  45.20%  4+  18.40%  5+   4.85%  6+   0.75%  7+   0.05%  8+   0.00%
+               mean 2.41 seats, Homegrown share of them 0.00%
+    overspend  1+  97.35%  2+  76.20%  3+  37.30%  4+  11.80%  5+   2.25%  6+   0.10%  7+   0.00%  8+   0.00%
+               mean 2.25 seats, Homegrown share of them 35.36%
+  at or under $3.0M — share of clubs with N such seats:
+    reference  1+  98.30%  2+  82.20%  3+  47.60%  4+  16.70%  5+   3.20%  6+   0.15%  7+   0.00%  8+   0.00%
+               mean 2.48 seats, Homegrown share of them 31.78%
+    vanilla    1+  97.80%  2+  84.25%  3+  57.50%  4+  26.85%  5+   8.40%  6+   1.35%  7+   0.05%  8+   0.00%
+               mean 2.76 seats, Homegrown share of them 0.00%
+    overspend  1+  98.10%  2+  82.30%  3+  46.50%  4+  16.55%  5+   3.55%  6+   0.25%  7+   0.00%  8+   0.00%
+               mean 2.47 seats, Homegrown share of them 32.17%
+
+  Same rungs counting only seats NOT signed at the Homegrown price:
+    $1.0M reference  1+  37.35%  2+   6.70%  3+   0.95%  4+   0.05%  5+   0.00%  6+   0.00%  7+   0.00%  8+   0.00%
+    $1.0M vanilla    1+  59.90%  2+  21.55%  3+   5.50%  4+   1.20%  5+   0.05%  6+   0.05%  7+   0.00%  8+   0.00%
+    $1.0M overspend  1+  37.50%  2+   7.10%  3+   1.00%  4+   0.20%  5+   0.00%  6+   0.00%  7+   0.00%  8+   0.00%
+    $1.2M reference  1+  62.80%  2+  21.70%  3+   5.00%  4+   0.55%  5+   0.10%  6+   0.00%  7+   0.00%  8+   0.00%
+    $1.2M vanilla    1+  83.95%  2+  49.40%  3+  20.35%  4+   5.80%  5+   1.05%  6+   0.10%  7+   0.00%  8+   0.00%
+    $1.2M overspend  1+  63.10%  2+  22.15%  3+   4.95%  4+   0.90%  5+   0.05%  6+   0.00%  7+   0.00%  8+   0.00%
+    $1.6M reference  1+  79.90%  2+  40.80%  3+  13.20%  4+   2.40%  5+   0.30%  6+   0.00%  7+   0.00%  8+   0.00%
+    $1.6M vanilla    1+  94.10%  2+  71.10%  3+  39.95%  4+  15.65%  5+   3.65%  6+   0.60%  7+   0.00%  8+   0.00%
+    $1.6M overspend  1+  80.10%  2+  40.10%  3+  12.50%  4+   2.95%  5+   0.40%  6+   0.00%  7+   0.00%  8+   0.00%
+    $2.0M reference  1+  83.00%  2+  44.40%  3+  15.30%  4+   2.95%  5+   0.30%  6+   0.00%  7+   0.00%  8+   0.00%
+    $2.0M vanilla    1+  95.90%  2+  75.95%  3+  45.20%  4+  18.40%  5+   4.85%  6+   0.75%  7+   0.05%  8+   0.00%
+    $2.0M overspend  1+  82.90%  2+  43.55%  3+  15.00%  4+   3.50%  5+   0.50%  6+   0.00%  7+   0.00%  8+   0.00%
+    $3.0M reference  1+  87.80%  2+  54.40%  3+  21.75%  4+   4.70%  5+   0.65%  6+   0.00%  7+   0.00%  8+   0.00%
+    $3.0M vanilla    1+  97.80%  2+  84.25%  3+  57.50%  4+  26.85%  5+   8.40%  6+   1.35%  7+   0.05%  8+   0.00%
+    $3.0M overspend  1+  87.35%  2+  53.30%  3+  20.75%  4+   5.50%  5+   0.80%  6+   0.00%  7+   0.00%  8+   0.00%
+
+--- 5. 💳 the rung the baseline earned and the stamp took away ---
+  baseline earns a rung at all:         71.60%    12.15%    69.75%
+  …and the stamp vetoes it:              0.00%     0.05%     0.15%
+  …and no floor rung catches the club:   0.00%     0.05%     0.15%
+  (the floor-rung case, which reads 📉/💀 instead):   0.00%     0.00%     0.00%
+
+  reference (Clean House + all powerups, n=2000): n=0  over the payroll n/a%  mean drop 0.00 wins  mean baseline 0.00  mean stamp 0.00
+    with the trigger also gated on spend > payroll: 0.00%
+  vanilla (Clean House, no powerups, n=2000): n=1  over the payroll 100.00%  mean drop 30.00 wins  mean baseline 101.00  mean stamp 71.00
+    with the trigger also gated on spend > payroll: 0.05%
+  overspend (all powerups, crosses the cap, n=2000): n=3  over the payroll 100.00%  mean drop 9.00 wins  mean baseline 102.67  mean stamp 93.67
+    with the trigger also gated on spend > payroll: 0.15%
