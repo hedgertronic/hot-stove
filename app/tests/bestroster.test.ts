@@ -9,6 +9,9 @@
  * - THE FINALE OBJECTIVE (payroll bonus, luxury tax, owner, ballpark) runs
  *   through the classic-bank entry point, where the front office is solved.
  */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { bestRoster } from "../src/lib/bestroster";
 import { GAMES, MANAGER_PER_NET_WIN, score } from "../src/lib/scoring";
@@ -149,15 +152,21 @@ describe("bestRoster", () => {
     expect(trouts[0]?.year).toBe(2016);
   });
 
-  it("leaves out a season that costs more than the scout point it pays", () => {
+  it("rosters a season that costs more than the scout point it pays, because a seat must be filled", () => {
     // A seat on the dream club is worth SCOUT_HIT_POINTS (1.0) all by itself,
-    // because a player who drafts it scores that point. So the bar is −1.0 WAR,
-    // not zero: at −2.0 this catcher still loses the club half a win.
+    // so on value alone the bar is −1.0 WAR and this catcher is under it: at
+    // −2.0 he still loses the club half a win.
+    //
+    // He is signed anyway, and the reason is the game's rule rather than the
+    // arithmetic. There is no passing (DECISIONS.md 2) and a club must be
+    // complete to finish, so a player handed this one card takes this one
+    // catcher. A yardstick that declined him would be measuring a season
+    // nobody was allowed to play.
     const best = dream([card([player({ pos: "C", posG: C, war: -2 })], { manager: null })]);
-    expect(best.totalWar).toBe(0);
-    expect(best.picks.every((p) => p === null)).toBe(true);
+    expect(best.picks[0]?.war).toBe(-2);
+    expect(best.totalWar).toBe(-2);
     expect(best.manager).toBeNull();
-    expect(best.dreamSeats).toBe(0);
+    expect(best.dreamSeats).toBe(1);
   });
 
   it("rosters a slightly below-replacement season, because the seat itself scores", () => {
@@ -469,15 +478,27 @@ describe("bestRoster with a small card pool", () => {
   });
 
   it("counts only reachable seats when most cards have no usable player", () => {
-    // Six of eight cards are all-replacement: those spins could only ever have
-    // bought a skipper, so the honest denominator is 3, not 9.
+    // Six of eight cards carry nothing but a replacement-level catcher, and
+    // there is one catcher seat. So those six spins can supply, between them,
+    // one catcher and one skipper however badly they are wanted — the rest of
+    // their offer is a seat that is already taken.
+    //
+    // The denominator is what the pool can REACH, not what it can afford. The
+    // replacement catcher is signed (a seat that can be filled is filled), and
+    // the club still stops short of nine because four of these cards have no
+    // legal seat left to give.
     const cards = pool(8).map((c, i) =>
       i < 6 ? { ...c, players: [player({ pos: "C", posG: C, war: -2 })] } : c,
     );
     const best = dream(cards);
-    expect(best.picks.filter((p) => p !== null)).toHaveLength(2);
+    expect(best.dreamSeats).toBeLessThan(9);
     expect(best.manager).not.toBeNull();
-    expect(best.dreamSeats).toBe(3);
+    // The catcher seat is filled by the only man who can fill it.
+    expect(best.picks[0]?.war).toBe(-2);
+    // Every seat the pool can reach is reached: two good cards plus the
+    // doubled one, the replacement catcher, and the skipper.
+    expect(best.picks.filter((p) => p !== null)).toHaveLength(4);
+    expect(best.dreamSeats).toBe(5);
   });
 
   it("survives an empty card pool", () => {
@@ -674,5 +695,157 @@ describe("bestRoster ceiling sanity", () => {
     const picks = best.picks.filter((p) => p !== null);
     expect(50 + picks.reduce((t, p) => t + p!.war, 0) + (best.manager?.netWins ?? 0) * MANAGER_PER_NET_WIN)
       .toBeLessThanOrEqual(GAMES);
+  });
+});
+
+/* THE EMPTY-SEAT REGRESSION, replayed on the pools that actually produced one.
+ *
+ * Every seed below is a real Classic game a bot played end to end, recorded as
+ * the exact inputs the finale handed the solver: the distinct team-seasons the
+ * reel landed on, and the one off-reel season a ⭐ Prime Time signing reached.
+ * Against the solver as it stood, each of these printed a dream club with eight
+ * seats and an empty ninth, and each printed a total that no complete club in
+ * the same pool could match — which is the whole point, since the incomplete
+ * club won BECAUSE it was incomplete. The seat it skipped was the one that put
+ * payroll over the cap, and under the finale's own arithmetic the luxury tax it
+ * dodged is worth more than the win it gave up.
+ *
+ * Real cards rather than fixtures, because the price is the mechanism. Fixture
+ * cards cost $5M a man against a $999M cap, so no fixture pool can make an open
+ * seat pay; these carry the corpus's real salaries and the game's real banks.
+ *
+ * Pinned by team-season rather than by seed: the pool is the input the solver
+ * sees, so these keep testing the same thing if the reel's RNG or a bot policy
+ * ever moves. If a data regen retires one of these cards the test fails loudly
+ * on the missing file, which is the right outcome — it needs a new pool, not a
+ * softer assertion. */
+describe("bestRoster fills every seat, on the pools that left one open", () => {
+  const CARD_DIR = path.resolve(
+    fileURLToPath(new URL(".", import.meta.url)),
+    "../..",
+    "data",
+    "cards",
+  );
+  const readCard = (key: string): Card =>
+    JSON.parse(fs.readFileSync(path.join(CARD_DIR, `${key}.json`), "utf8")) as Card;
+
+  /** The off-reel pool the engine builds for ⭐ Prime Time: that season's card
+   * narrowed to the one player the powerup bought, with its skipper stripped —
+   * Prime Time buys one named thing, not the run of the card. */
+  const primeCard = (key: string, id: string): Card => {
+    const c = readCard(key);
+    return { ...c, players: c.players.filter((p: CardPlayer) => p.id === id), manager: null };
+  };
+
+  interface Replay {
+    /** The bot arm and seed this pool came off, for anyone re-deriving it. */
+    label: string;
+    /** Distinct team-seasons the reel landed on, in landing order. */
+    seen: string[];
+    /** The ⭐ Prime Time season, as [card key, player id]. */
+    prime: [string, string];
+  }
+
+  const REPLAYS: Replay[] = [
+    {
+      label: "seed 898010623 (all powerups)",
+      seen: ["COL_2018", "KCR_2002", "TEX_2002", "NYY_2007", "DET_2014", "ARI_2000", "ARI_2006",
+        "PIT_1986", "CHC_1991", "MON_1989", "PIT_2018", "CIN_1989", "KCR_1989"],
+      prime: ["STL_2022", "arenano01"],
+    },
+    {
+      label: "seed 2595044816 (all powerups)",
+      seen: ["HOU_2007", "NYM_1994", "CHC_2001", "CHC_2018", "LAA_2017", "CHW_1993", "NYM_1986",
+        "SDP_2017", "LAD_2010", "TOR_1990", "TBR_2008"],
+      prime: ["KCR_1989", "saberbr01"],
+    },
+    {
+      label: "seed 3517525175 (all powerups)",
+      seen: ["LAD_1996", "MON_1990", "TOR_2011", "TBR_2024", "TEX_2024", "DET_2025", "CHC_1993",
+        "TOR_1995", "PHI_2003", "OAK_1989", "TBD_1999", "TBR_2021", "CLE_2024"],
+      prime: ["LAD_1997", "piazzmi01"],
+    },
+    {
+      label: "seed 2229349348 (all powerups)",
+      seen: ["CIN_2015", "TEX_2021", "CLE_2016", "PIT_2021", "KCR_1992", "NYM_1992", "BAL_2000",
+        "NYY_2013", "CIN_1993", "KCR_2004", "PHI_1995", "PHI_1987", "MIL_2014"],
+      prime: ["CIN_2017", "vottojo01"],
+    },
+    {
+      label: "seed 4257157800 (all powerups)",
+      seen: ["BOS_1990", "CLE_2006", "DET_2008", "NYM_2013", "BOS_1987", "BOS_2016", "TOR_1993",
+        "CAL_1989", "CHW_2023", "TEX_2023", "CHC_2009", "CHW_1997", "STL_1997"],
+      prime: ["TOR_1997", "clemero02"],
+    },
+    {
+      label: "seed 3391180099 (all powerups)",
+      seen: ["PHI_2002", "COL_2006", "LAD_1990", "FLA_2004", "OAK_1992", "BOS_2009", "BOS_1986",
+        "KCR_2012", "LAA_2012", "PIT_2018", "MON_1996", "SEA_1988", "ARI_1998"],
+      prime: ["STL_2004", "rolensc01"],
+    },
+    {
+      label: "seed 1524637932 (all powerups, overspending)",
+      seen: ["COL_2016", "PHI_1999", "MIA_2012", "STL_2020", "STL_1985", "LAD_1990", "HOU_2021",
+        "SEA_1985", "CHW_2015", "WSN_2015", "SFG_2001", "MIN_2017", "KCR_2014"],
+      prime: ["STL_2022", "arenano01"],
+    },
+    {
+      label: "seed 3334677441 (all powerups, overspending)",
+      seen: ["PIT_1990", "PHI_2022", "KCR_1985", "STL_2003", "CHC_1987", "CHC_2001", "SEA_2001",
+        "BAL_2025", "BAL_1992", "NYY_1995", "KCR_1992", "ARI_2022"],
+      prime: ["SFG_2002", "bondsba01"],
+    },
+  ];
+
+  for (const replay of REPLAYS) {
+    it(`fills all nine seats from ${replay.label}`, () => {
+      const best = bestRoster(
+        replay.seen.map(readCard),
+        { offReel: [primeCard(replay.prime[0], replay.prime[1])] },
+      );
+      expect(best.picks.filter((p) => p === null)).toHaveLength(0);
+      expect(best.manager).not.toBeNull();
+      expect(best.dreamSeats).toBe(9);
+    });
+  }
+
+  /* The same question with no live pool behind it: a pool where the ONLY
+   * complete club is over the cap, and the club that skips a seat is the one
+   * that scores highest. Four cards, one bank, no ambiguity — the two starters
+   * cost $70M between them against a $60M cap, so the ninth seat costs its own
+   * salary in luxury tax and buys back barely a win.
+   *
+   * The right answer is the complete club anyway, and this test says so in the
+   * one shape where "the search just found a better club" cannot be the
+   * explanation: here the incomplete club really is worth more points, and it
+   * is still not a club anybody was allowed to build. */
+  it("takes the complete club even when skipping a seat would score higher", () => {
+    const priced = (over: Partial<CardPlayer>): CardPlayer =>
+      player({ war: 1, cost: 35, ...over });
+    const own = (i: number): Partial<Card> => ({
+      team: `T${i}`,
+      franchise: `T${i}`,
+      year: 1980 + i,
+      manager: null,
+      budget: 60,
+      stadiumMult: 1,
+    });
+    const cards: Card[] = [
+      card([priced({ pos: "C", posG: C })], own(0)),
+      card([priced({ pos: "SS", posG: IF })], own(1)),
+      card([priced({ pos: "SP", posG: NONE, gs: 30 })], own(2)),
+      card([priced({ pos: "RP", posG: NONE, relIP: 60 })], own(3)),
+    ];
+    // A $60M bank against $35M seats: any two of these men bust the cap, so
+    // every extra seat past the first is worth 1 win and −$35M of tax.
+    const best = bestRoster(cards, { fixedBudgetM: 60 });
+    const filled = best.picks.filter((p) => p !== null);
+    expect(filled).toHaveLength(4);
+    expect(best.dreamSeats).toBe(4);
+    // And the club it printed genuinely scores less than the one-man club it
+    // was allowed to prefer on points alone — which is the assertion that
+    // makes this a rule test rather than a search test.
+    const oneMan = bestRoster([cards[0]], { fixedBudgetM: 60 });
+    expect(best.total!).toBeLessThan(oneMan.total!);
   });
 });

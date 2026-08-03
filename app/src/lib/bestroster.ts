@@ -28,7 +28,7 @@
  * Owner and ballpark earn no scout point (the engine counts players and the
  * skipper only), so `dreamSeats` still tops out at 9.
  *
- * WHAT A LEGAL CLUB IS. Five rules, all solved together:
+ * WHAT A LEGAL CLUB IS. Six rules, all solved together:
  *
  * 1. ONE PICK PER CARD, PLUS ONE ✌️. A spin lands on one team-season and buys
  *    one thing — a player, the skipper, the owner, OR the ballpark. So the
@@ -45,6 +45,25 @@
  * 5. THE MARKET IS WHAT THE PLAYER SAW. Only players the card list would have
  *    shown (`visible`, mirroring Game.visiblePlayers) can be signed, at their
  *    listed price.
+ * 6. NO PASSING. There is no such thing as a club with an open seat: the game
+ *    will not let a season end until every seat is filled (DECISIONS.md item 2),
+ *    so a club a seat short is not a worse club, it is not a club. This is the
+ *    one rule the DP cannot carry in its state, and `better` is where it lives —
+ *    every club the search compares is ranked on (seats filled, total), seats
+ *    dominating. It has to dominate rather than break ties, because the
+ *    incomplete club usually scores HIGHER: the seat it skipped is the one that
+ *    pushed payroll past the cap, and dodging the luxury tax is worth more under
+ *    this objective than the win the missing player would have added. Measured
+ *    on real games, an eight-seat club could beat every complete club in the
+ *    same game by twenty points and be printed as the ceiling.
+ *
+ * The one honest exception to rule 6 is a pool too thin to reach nine seats — a
+ * three-card lab fixture, or a game abandoned four spins in. `better` compares
+ * seat counts rather than testing for nine, so those still get the fullest club
+ * their cards can field, and `dreamSeats` reports what came out; that is why the
+ * ⭐ denominator is that number and not a fixed nine. Across 800 bot games on
+ * the classic bank the exception never fires: every finished game reaches nine,
+ * which is Study 15's assertion rather than a rate it tolerates.
  *
  * WHAT THE CEILING ASSUMES, in one sentence: perfect play of the cards the reel
  * actually showed you — every roster seat, the skipper, the owner and the
@@ -89,7 +108,10 @@
  * the bisection on the best few; pass 3 tries the Double Play card on the best
  * few of those. Passes 2 and 3 are shortlist heuristics — they can only raise
  * the answer, and every club they consider is legal and scored exactly, so the
- * number printed is always a club somebody could really have built.
+ * number printed is always a club somebody could really have built. The
+ * shortlists are cut on the same (seats, total) order the winner is chosen by,
+ * so the refinement is spent on front offices that reach a complete club rather
+ * than on one whose best club is a seat short and cannot win anyway.
  *
  * Deterministic throughout: stable iteration order, strict-improvement
  * updates, fixed λ schedule and a fixed branch order, so two runs of the same
@@ -183,11 +205,12 @@ export interface BestRoster {
   /** THE CEILING: the finale total this club scores, from the same score()
    * the player's own stamp comes out of. */
   total?: number;
-  /** Best total the search reached WITHOUT crossing the payroll. Equal to
-   * `total` unless the dream club deliberately pays the luxury tax, which is
-   * the whole reason the cap is not a hard constraint here: the bonus is worth
-   * at most 10 points and a single elite season can be worth more. Null when
-   * no club in the search stayed under (a pool too expensive to fit). */
+  /** Best total the search reached WITHOUT crossing the payroll, over the same
+   * complete clubs `total` is chosen from. Equal to `total` unless the dream
+   * club deliberately pays the luxury tax, which is the whole reason the cap is
+   * not a hard constraint here: the bonus is worth at most 10 points and a
+   * single elite season can be worth more. Null when no club in the search
+   * stayed under (a pool too expensive to fit). */
   underBudgetTotal?: number | null;
 }
 
@@ -268,8 +291,48 @@ interface Chosen {
 interface Club {
   total: number;
   spend: number;
+  /** Seats this club occupies — one per item, so roster seats plus the skipper.
+   * Carried alongside the total because every comparison in the search is on
+   * the pair, not the total (see `better`). */
+  seats: number;
   chosen: Chosen[];
   dup: number;
+}
+
+/** THE ONLY ORDER THE SEARCH RANKS CLUBS BY: seats filled first, total second.
+ *
+ * A club with an open seat is not a club this game lets anybody finish
+ * (DECISIONS.md: there is no passing, and the club must be complete to finish),
+ * so it is not a candidate ceiling however well it scores. That has to dominate
+ * rather than break ties, because the incomplete club usually scores HIGHER:
+ * the seat it skipped was the one that pushed payroll past the cap, and under
+ * the finale's own arithmetic dodging the luxury tax is worth more than the
+ * win the missing player would have added. A yardstick that reads
+ * "you could have gone 141–21" off a club with nobody in the rotation is
+ * measuring a season nobody was allowed to play.
+ *
+ * Seat count is compared rather than tested against nine so a thin pool still
+ * gets an answer: a three-card fixture, or a game abandoned four spins in, can
+ * only reach the seats its cards carry, and the fullest club available is the
+ * honest ceiling for it. `dreamSeats` reports what came out, which is why the
+ * finale's ⭐ denominator is that number and not a fixed nine.
+ *
+ * Strict improvement keeps the search deterministic: the first club found at a
+ * given (seats, total) is the one kept. */
+function better(a: Club, b: Club | null): boolean {
+  if (b === null) return true;
+  return a.seats !== b.seats ? a.seats > b.seats : a.total > b.total;
+}
+
+/** A club record for `chosen`, scored exactly against `budgetM`. */
+function clubOf(chosen: Chosen[], budgetM: number, dup: number): Club {
+  return {
+    total: evaluate(chosen, budgetM),
+    spend: spendOf(chosen),
+    seats: chosen.length,
+    chosen,
+    dup,
+  };
 }
 
 /** The market the player actually saw on this card: below-replacement rows are
@@ -357,6 +420,36 @@ function fill(state: number, type: number): number {
   return used < CAPACITY[type] ? state + STRIDE[type] : -1;
 }
 
+/** Seats filled, per DP state — the digit sum of the state's mixed radix.
+ *
+ * This is what makes each probe return the FULLEST club at its own λ, which is
+ * the only form in which a probe is worth comparing. The pull the other way is
+ * arithmetic, not a bug: on the over-cap branch λ = −1, so an item is worth
+ * `base − cost` and a $20M starter worth one win scores −19, and a terminal
+ * state chosen on value alone answers "sign nobody". That answer is correct for
+ * a knapsack and useless as a candidate club, so terminal states are ranked
+ * seats first, value second — among states with the same seat count the
+ * best-scoring one still wins, which is exactly the DP's own optimum on the
+ * capacity vector that state names.
+ *
+ * What this array does NOT do is decide the answer. Whether a complete club
+ * gets printed is settled one level up, in `better`, where the clubs the passes
+ * produce are compared: an incomplete club that survived `repair` still has to
+ * lose to a complete one there, and before `better` existed it did not. Ranking
+ * DP states was measured on 600 bot games with `better` in place and changed no
+ * game's seat count; it is kept because a λ = −1 probe that seats nobody is a
+ * wasted probe, and because the fullest club at a given λ is the club that
+ * branch of the sweep is meant to be offering. */
+const SEATS: Int32Array = (() => {
+  const seats = new Int32Array(STATES);
+  for (let s = 0; s < STATES; s++) {
+    let n = 0;
+    for (let t = 0; t < RADIX.length; t++) n += Math.floor(s / STRIDE[t]) % RADIX[t];
+    seats[s] = n;
+  }
+  return seats;
+})();
+
 /** The first human seated twice, as [id, earlier card, later card]. Managers
  * carry no id and never conflict. */
 function findConflict(chosen: Chosen[]): [string, number, number] | null {
@@ -374,7 +467,16 @@ function findConflict(chosen: Chosen[]): [string, number, number] | null {
  * the seat the repeat would have taken with the best other thing that card
  * could have supplied. The refill matters — the DP is happy to seat one
  * two-way bat at both IF and UTIL off the same card, and a repair that only
- * deleted would hand back a club a seat short and score it as the ceiling. */
+ * deleted would hand back a club a seat short and score it as the ceiling.
+ *
+ * The refill can only come off the conflicting card, because that is the card
+ * whose one pick is being respent; a card that already supplied something has
+ * no second pick to give. So a card carrying exactly one usable human really
+ * can leave here a seat light, and this is the one place in the search that
+ * produces an incomplete club at all. `better` is what keeps such a club from
+ * being printed — it loses to any complete club the passes found — and
+ * `branchAndBound` is what can win the seat back outright, by re-solving with
+ * the doubled human barred and returning a complete club that never conflicted. */
 function repair(chosen: Chosen[], items: Item[][], lambda: number): Chosen[] {
   const used = new Set<string>();
   const filled = [0, 0, 0, 0, 0, 0, 0];
@@ -395,7 +497,10 @@ function repair(chosen: Chosen[], items: Item[][], lambda: number): Chosen[] {
       if (alt.playerId !== null && used.has(alt.playerId)) continue;
       if (filled[alt.type] >= CAPACITY[alt.type]) continue;
       const v = alt.base + lambda * alt.cost;
-      if (v <= 0) continue; // an empty seat beats a seat that costs points
+      // The LEAST BAD refill, never no refill: an empty seat beats a seat that
+      // costs points in a knapsack and never in this game, and under λ = −1
+      // every candidate refill scores negative, so a "skip a losing refill"
+      // guard here would empty the seat every time it was asked to fill one.
       if (best === null || v > bestVal) {
         best = alt;
         bestVal = v;
@@ -529,10 +634,21 @@ class Dp {
       nxt = tmp;
     }
 
+    // Seats first, value second — see SEATS. `forceManager` stays a hard floor
+    // rather than folding into the seat count: a club one seat short is a club
+    // this search may still print when the pool is that thin, but a club with
+    // nobody in the dugout is not a club the caller asked for.
     const first = forceManager ? MGR_STRIDE : 0;
     let bestState = -1;
-    for (let s = first; s < STATES; s++)
-      if (dp[s] !== -Infinity && (bestState < 0 || dp[s] > dp[bestState])) bestState = s;
+    for (let s = first; s < STATES; s++) {
+      if (dp[s] === -Infinity) continue;
+      if (
+        bestState < 0 ||
+        SEATS[s] > SEATS[bestState] ||
+        (SEATS[s] === SEATS[bestState] && dp[s] > dp[bestState])
+      )
+        bestState = s;
+    }
     if (bestState < 0) return null; // no legal club (a manager is required and none is left)
 
     const chosen: Chosen[] = [];
@@ -566,7 +682,7 @@ function sweep(
     const raw = dp.solve(lambda, skip, null, forceManager);
     if (raw === null) return null;
     const chosen = repair(raw, dp.items, lambda);
-    found.push({ total: evaluate(chosen, budgetM), chosen, spend: spendOf(chosen), dup });
+    found.push(clubOf(chosen, budgetM, dup));
     return chosen;
   };
 
@@ -604,8 +720,8 @@ function pick(found: Club[], budgetM: number): { best: Club; bestUnder: Club | n
   let best = found[0];
   let bestUnder: Club | null = null;
   for (const f of found) {
-    if (f.total > best.total) best = f;
-    if (f.spend <= budgetM && (bestUnder === null || f.total > bestUnder.total)) bestUnder = f;
+    if (better(f, best)) best = f;
+    if (f.spend <= budgetM && better(f, bestUnder)) bestUnder = f;
   }
   return { best, bestUnder };
 }
@@ -632,8 +748,17 @@ function branchAndBound(
     const conflict = findConflict(raw);
     if (conflict === null) {
       const total = evaluate(raw, budgetM);
-      if (total > best.total)
-        best = { total, chosen: raw, spend: spendOf(raw), dup: incumbent.dup };
+      // Seats first here too: this search is the only one that can hand back a
+      // seat `repair` had to vacate, and ranking its leaves on the total alone
+      // is exactly how a complete club got discarded for an incomplete one.
+      const cand = {
+        total,
+        spend: spendOf(raw),
+        seats: raw.length,
+        chosen: raw,
+        dup: incumbent.dup,
+      };
+      if (better(cand, best)) best = cand;
       return;
     }
     const [id, a, b] = conflict;
@@ -727,10 +852,14 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
   // pairs pass 1 ranked highest (the refinement moves a few points at most, so
   // a pair it could promote past the leader is already in this shortlist).
   const scored: { pair: Pair; best: Club; manager: boolean }[] = [];
-  let underBudget: number | null = null;
+  let underBudget: Club | null = null;
   const note = (u: Club | null): void => {
-    if (u !== null && (underBudget === null || u.total > underBudget)) underBudget = u.total;
+    if (u !== null && better(u, underBudget)) underBudget = u;
   };
+  // Read through a call rather than at the return site: `underBudget` is only
+  // ever written from inside `note`, and control-flow analysis at the return
+  // still holds it to its `null` initializer.
+  const underTotal = (): number | null => (underBudget === null ? null : underBudget.total);
   // Pass 1 ranks the front offices on the two probes that do not depend on the
   // budget at all — the plain best-players club (λ = 0) and the thriftiest one
   // (λ = −1). Both come out of the same DP for the two orderings of a card
@@ -759,12 +888,7 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
     }
     if (probe.clubs.length === 0) continue;
     const out = pick(
-      probe.clubs.map((chosen) => ({
-        total: evaluate(chosen, pair.budget),
-        chosen,
-        spend: spendOf(chosen),
-        dup: -1,
-      })),
+      probe.clubs.map((chosen) => clubOf(chosen, pair.budget, -1)),
       pair.budget,
     );
     if (out !== null) {
@@ -773,13 +897,20 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
     }
   }
   if (scored.length === 0) return { ...EMPTY, picks: Array(8).fill(null) };
+  // The shortlist is ranked on the same (seats, total) order the winner is
+  // chosen by, so the pairs that reach a complete club are the ones that get
+  // the expensive refinement — spending pass 2 on a front office whose only
+  // clubs are a seat short would be refining a candidate that cannot win.
   const order = scored
     .map((s, i) => ({ s, i }))
-    .sort((a, b) => b.s.best.total - a.s.best.total || a.i - b.i);
+    .sort(
+      (a, b) =>
+        b.s.best.seats - a.s.best.seats || b.s.best.total - a.s.best.total || a.i - b.i,
+    );
   for (const { s } of order.slice(0, REFINE_PAIRS)) {
     const refined = sweep(dp, s.pair.budget, s.pair.skip, s.manager, true);
     if (refined === null) continue;
-    if (refined.best.total > s.best.total) s.best = refined.best;
+    if (better(refined.best, s.best)) s.best = refined.best;
     note(refined.bestUnder);
   }
   // Pass 3 — one card doubled, on the front offices pass 2 left on top. The
@@ -792,13 +923,13 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
       if (!frontOffice[x]) continue;
       const out = sweep(doubled(x), s.pair.budget, s.pair.skip, s.manager, false, x);
       if (out === null) continue;
-      if (out.best.total > s.best.total) s.best = out.best;
+      if (better(out.best, s.best)) s.best = out.best;
       note(out.bestUnder);
     }
   }
 
   let winner = scored[0];
-  for (const s of scored) if (s.best.total > winner.best.total) winner = s;
+  for (const s of scored) if (better(s.best, winner.best)) winner = s;
   // Only the winner pays for the one-season-per-human search: a conflict needs
   // one human seated twice in an otherwise-optimal club, and the repair above
   // already made every candidate legal, so this recovers the seat rather than
@@ -862,6 +993,6 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
     budget: winner.pair.budget,
     spend: Math.round(spendOf(chosen) * 10) / 10,
     total: winner.best.total,
-    underBudgetTotal: underBudget,
+    underBudgetTotal: underTotal(),
   };
 }

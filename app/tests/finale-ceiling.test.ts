@@ -269,7 +269,9 @@ describe("the two payroll blocks", () => {
     const g = finaleOver();
     const { squad } = lists(g);
     expect(g.finale!.spend).toBeGreaterThan(g.finale!.budget);
-    expect(squad).toContain("OVER PAYROLL");
+    // The overrun reads as an amount and the word OVER, in the slot the
+    // remaining bankroll would have used.
+    expect(squad).toContain("OVER");
     expect(squad).toContain(money(g.finale!.spend - g.finale!.budget));
     expect(squad).not.toContain("LEFT");
   });
