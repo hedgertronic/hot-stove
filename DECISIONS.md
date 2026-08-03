@@ -1231,3 +1231,157 @@ not have and missed a `.badges` copy it does; the note now says what is true.
 `.pos`, `.cost` and `.badges` should move to `app.css` as one set.
 
 Items 7–10 from round 20 are untouched and still stand.
+
+## Round 22 — the seat that had to be filled, one dismissal, and five answers (2026-08-02)
+
+### Badge copy says the condition and stops
+
+Twenty-one `how` strings carried an aside after an em dash and none of them
+were load-bearing. The label already names the club, the year already names
+the era, and "the year the strike killed the World Series" is a fact about
+1994 rather than something the player did.
+
+Three were not simple deletions. 🏛️ kept "counting the skipper" — without it
+nobody knows the dugout counts toward the four, which is a RULE wearing an
+aside's clothes. The six named rungs converged on one sentence shape, "Exactly
+N baseline wins, and a final record no worse", so the ladder reads as one list
+instead of six differently-worded near-misses. And the header's vocabulary is
+untouched: "baseline wins" and "final record" are the finale's own two labels
+for two different numbers, and collapsing them would leave a badge describing
+a figure the screen never prints.
+
+🎲's 472-character string is exempt and stays exact. It names four living men,
+two of whom have pleaded not guilty and against whom Major League Baseball has
+made no finding, and its own comment records that nothing in it may be
+shortened into an assertion of guilt. Simpler copy is worth less than that.
+
+### An empty seat is not a club anybody was allowed to build
+
+The solver's DP ranked terminal states by value alone. On the over-cap branch
+λ = −1, so an item is worth `base − cost` and a $20M starter worth one win
+scores −19: strictly better to leave the rotation a man light. `repair()` said
+so out loud, in a comment — "an empty seat beats a seat that costs points" —
+which is true of a knapsack and false of this game, where there is no passing
+and a club must be complete to finish.
+
+`SEATS` ranks terminal states by seats filled first and value second, and the
+refill scan now takes the LEAST BAD alternative rather than none. A thin pool
+still yields the fullest club it can, which is why this is a preference rather
+than a filter.
+
+**It is a guard, and it is not the bug the player reported.** Measured over
+150 games per bot arm, with and without the change, the output is byte
+identical — 4.00% of all-powerup games produce a dream club under nine seats
+either way. So the reported empty starting-pitcher seat has another cause, and
+the study that would have caught this one is `study15-dreamfill`. Recording
+the negative result matters more than the fix: the next reader would otherwise
+assume the reported symptom was addressed.
+
+### The hatch was still sweeping a seam
+
+Round 21 removed the `background-size` that made the unknown-payroll hatch
+rasterize into squares, and the glitch survived, because the animation still
+moved `background-position`. A gradient with no `background-size` is painted
+once at exactly its box size and then TILED; sliding it sideways brings a tile
+boundary into view, and unless the bar happens to be a whole number of
+28.284px periods wide that boundary is a phase jump — a seam sweeping the
+first inch of the bar once per cycle. A translated runway one period wider
+than the bar never brings an edge into view at all.
+
+Going over the cap now scrolls too, so the two unsettled states share one
+motion language. The periods differ and the speeds are matched rather than the
+durations: 16px of stripe costs 22.627px of travel against the unknown hatch's
+20px/28.284px, so 2.08s and 2.6s both work out to 10.9px/s.
+
+### One dismissal, drawn once
+
+Every overlay now carries both affordances — a corner ✕ and a full-width
+bottom button — and `Sheet` draws both, because five components each growing
+their own corner button is the drift that cost a merge in Round 21. The header
+moved into the shell with them: the ✕'s 44px tap target only clears the first
+content row if one object controls the distance between them.
+
+The bottom label says what the sheet is. A picker is a thing you back out of,
+so CANCEL; a sheet that only tells you things says GOT IT; CLOSE is the
+neutral fallback.
+
+Sheet heights were the `vh` this file bans, in the one place it mattered most.
+`88svh` with a `dvh` line after it takes a 390×844 phone from ~590px to ~684px
+of sheet, which is the difference between a six-division Relocate grid that
+scrolls and one that does not. Framed sheets are a flex column now, so only
+the body scrolls and CANCEL is never scrolled off.
+
+**Escape did nothing on a freshly opened sheet**, and had not since sheets
+existed. The handler sits on `.sheet`, and nothing focused it — on mount
+`document.activeElement` was `<body>`, so Escape worked only after the player
+happened to tap inside. Focusing the shell also stops Tab walking the market
+rows behind an open modal.
+
+### The help sheet shows the thing instead of describing it
+
+Five specimens built from plain object literals: a market row with a
+tick-mark legend naming its own columns, the roster rail's seats, the payroll
+meter under and over, a powerup pill in all three states, and a badge pill
+earned and locked. `PayrollBox`, `BadgePill` and `AwardPill` are the REAL
+components — they take plain props and were already in the bundle. The market
+row and the rail seat are deliberately hand-rolled from the same markup and
+classes, because those two take a `Game`, and importing them would wire the
+help sheet to live engine state to draw a picture.
+
+Nothing comes from `src/lab`. The gallery is excluded from production by an
+`import.meta.env.DEV` guard, so a help sheet importing its fixtures would
+either break the build or drag the lab into the bundle. Module count held at
+168.
+
+### The powerup is spelled PRIMETIME
+
+One word, in user-facing copy only; the internal key stays `prime`.
+
+The rename bought back a character, and the armed labels needed it. Any
+combination can be on screen at once, so the 3+3 lattice has to hold in every
+armed state, and the widest resting row — DOUBLE PLAY · TRADE DEADLINE ·
+HOMEGROWN — sets the budget at 34 label characters. ✌️'s second state drops to
+"ONE MORE…" because with Double Play carrying a spin past its first pick the
+other two pills stay armed beside it, and the verb its first state already
+established is the cheapest word in the row to lose.
+
+### The seed field stopped zooming the page
+
+Mobile Safari zooms any focused form control whose computed `font-size` is
+under 16px, and the seed input was 13px. It is 16px now, with the vertical
+padding cut from 5px to 2px and the tracking eased from 0.12em to 0.08em so
+the box keeps roughly the height it had — a taller glyph and less padding
+very nearly cancel.
+
+`maximum-scale=1` would also have stopped the zoom and is not an option: it
+disables pinch-zoom for every user on the page, which trades one person's
+minor annoyance for everyone else's accessibility. The component comment says
+so, so nobody re-adds it.
+
+The keyboard now matches what a seed is. `autocapitalize` was `characters`,
+which put the keyboard in caps mode for no reason — the field is uppercased in
+CSS and the parser calls `toUpperCase()` anyway — and is now `none`;
+`autocorrect="off"` stops Safari mangling a code into a word; `enterkeyhint`
+makes the return key say "go".
+
+### The share string leads with the rung and gives badges their own line
+
+The record line carries a colored heart for the rung it landed on — 💔 under
+.500, then 🤍 💚 💙 💜 💛 up the ladder — read from `recordFromTotal`, never
+from `warTier`. The two disagree and it matters: `warTier(104)` is "elite"
+because 104 clears 8 WAR, while `recordFromTotal(104.3)` is "mid" because 104
+wins sits in the 100–115 band. Hearts rather than circles or squares, because
+lines 2–4 already spend the whole circle-and-square vocabulary on the roster
+grid and a seventh circle would read as a stray seat.
+
+**This reverses Round 18.** Badges used to ride the record line precisely so a
+decorated season and a quiet one stayed the same height. They now get a line
+of their own, because the badge set has grown to 49 triggerable badges and a
+run of them was crowding the one number the string exists to report. The
+invariant is weaker but still real: lines 1–4 align row-for-row between any
+two pasted results, so the grids still stack. Five lines quiet, six decorated.
+
+It also closes Round 20's open question about capping the badge run. With a
+line to itself the run needs no cap: the ceiling is 67 code points for a
+maximal real season and 83 for the paranoid every-badge case, against a record
+line that tops out at 17.

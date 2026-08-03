@@ -309,7 +309,10 @@ describe("PowerupRow parity", () => {
     const props = (g: Game) => ({ game: g, onSeasonTicket: () => {}, onRelocate: () => {} });
     const { std, sct } = pair(PowerupRow, mut, props);
     expect(sct).toBe(std);
-    for (const label of ["✌️ PICK TWO…", "🔁 PICK A TRADE…", "🏠 SIGN FOR $1M…", "⭐ TAP A PLAYER…"])
+    // All four armed at once, which is legal and is the case the row's width
+    // budget is written against: no row may exceed 34 label characters in any
+    // armed combination, or the 3+3 lattice breaks on a 390px phone.
+    for (const label of ["✌️ PICK TWO…", "🔁 TAP A TRADE…", "🏠 SIGN AT $1M…", "⭐ TAP A PLAYER…"])
       expect(std).toContain(label);
     expect(std).not.toContain("DONE");
     // Mid-release-pick the TD pill asks who goes — same in both modes.
