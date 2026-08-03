@@ -212,7 +212,7 @@
      closes a roster list in the other, and those want different air. Spacing
      is the caller's. */
   .pay {
-    border: 2.5px solid var(--ink);
+    border: 2.5px solid var(--line);
     border-radius: 12px;
     background: var(--card);
     padding: 8px 10px 10px;
@@ -227,15 +227,22 @@
     font-weight: 700;
   }
   .chip {
-    border: 2px solid var(--ink);
+    border: 2px solid var(--line);
     border-radius: 999px;
     padding: 1px 8px;
     background: var(--card);
   }
+  /* The ballpark's own hue, and it is the ballpark's because the FRONT OFFICE
+     tile a player buys it from is this exact pair (`SpecialRows .srow.stad`).
+     It read green here and blue there, which made the multiplier chip look like
+     a different object from the thing that set it.
+     Ink type, not a tinted one. This was the only chip in the game carrying a
+     hue as TEXT — every other one in every other component puts ink on a rung-2
+     fill, which is app.css's rule, and green-deep on green-wash measured 4.7:1
+     against 12.4:1 for ink on blue-2. */
   .chip.stad {
-    background: var(--green-wash);
-    border-color: var(--green-8);
-    color: var(--green-deep);
+    background: var(--blue-2);
+    border-color: var(--blue-8);
   }
   .chip.eff {
     background: var(--yellow);

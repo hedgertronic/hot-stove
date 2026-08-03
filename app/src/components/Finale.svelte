@@ -625,11 +625,38 @@ import { track } from "../lib/analytics";
   </div>
 {/if}
 
-<div class="fin-actions">
-  <button class="btn ghost disp" onclick={onmodes}>Modes <span class="bic">🕹️</span></button>
-  <button class="btn disp" onclick={onreplay}>Replay <span class="bic">🔄</span></button>
+{#if clubCountries.length > 0}
+  <!-- Directly under the badges, unlabelled and in the same column, because it
+       is the same kind of object: what this season turned up that is worth
+       keeping. A stamp is already legibly a stamp — small, square-cornered,
+       flag-led — where the badges above it are capsules, so the shape does the
+       work a "PASSPORT" header used to do and the row costs no vertical rhythm
+       to introduce.
+       It sat beside the roster for one round, on the reasoning that a birth
+       country belongs to the men listed there. True, and beside the point: the
+       thing being SHOWN is a property of the career, and next to eight seats it
+       read as a ninth fact about the club rather than as a souvenir of it.
+       Nothing renders at all for a club whose log holds no country — every save
+       written before the field existed, and every restored finale older than
+       it. -->
+  <div class="clubpass">
+    <Passport stamps={clubCountries} label="Countries fielded" />
+  </div>
+{/if}
+
+<!-- All-caps, like every other action in the game. These three read Title Case
+     while HOME's own row two taps away read PLAY / LAST GAME / PLAY A SEED,
+     which made one control look like two.
+     PLAY AGAIN, not "Replay". The button starts a NEW season in the same mode
+     on a fresh seed — it does not replay anything, and "replay" is the exact
+     word for what the seed chip below it actually does. -->
+<div class="btnrow fin-actions">
+  <button class="btn ghost disp" onclick={onmodes}>MODES <span class="bic">🕹️</span></button>
+  <button class="btn disp" onclick={onreplay}>PLAY AGAIN <span class="bic">🔄</span></button>
   <button class="btn hot disp" onclick={share}>
-    {#if shareState === "idle"}Share <span class="bic">📣</span>{:else if shareState === "copied"}Copied 🔥{:else}Copy failed{/if}
+    {#if shareState === "idle"}SHARE <span class="bic">📣</span>{:else if shareState === "copied"}COPIED <span
+        class="bic">🔥</span
+      >{:else}COPY FAILED{/if}
   </button>
 </div>
 
@@ -643,7 +670,7 @@ import { track } from "../lib/analytics";
   <div class="psep">YOUR SQUAD</div>
   {#each game.slots as slot, i}
     {#if slot}
-      <div class="qrow">
+      <div class="qrow war-{warTier(slot.war)}">
         <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
         <span class="qmid">
           <span class="qname"
@@ -658,12 +685,12 @@ import { track } from "../lib/analytics";
             {#if slot.ws}<span class="emo">💍</span>{:else if slot.pen}<span class="emo">🚩</span>{/if}
           </span>
         </span>
-        <span class="qwar {warTier(slot.war)}">{slot.war.toFixed(1)}</span>
+        <span class="qwar">{slot.war.toFixed(1)}</span>
       </div>
     {/if}
   {/each}
   {#if game.manager}
-    <div class="qrow skiprow war-{warTier(fin.parts.managerWins)}">
+    <div class="qrow war-{warTier(fin.parts.managerWins)}">
       <span class="qpos">MGR</span>
       <span class="qmid">
         <span class="qname"
@@ -679,10 +706,7 @@ import { track } from "../lib/analytics";
             >{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
         >
       </span>
-      <!-- The rung the row is already wearing, on the numeral that earned it.
-           This read plain green while the fill and the frame around it read
-           gold, which said two different things about one skipper. -->
-      <span class="qwar {warTier(fin.parts.managerWins)}">{signed(fin.parts.managerWins)} W</span>
+      <span class="qwar">{signed(fin.parts.managerWins)} W</span>
     </div>
   {/if}
   <!-- The payroll this club ran, closing the list. A footer, not a header: the
@@ -691,19 +715,6 @@ import { track } from "../lib/analytics";
        fields, so this renders on a finale of any age. -->
   {@render payroll(myFront, fin.budget, fin.spend)}
 </div>
-
-{#if clubCountries.length > 0}
-  <!-- Its own short block under the squad it belongs to, and not a column in
-       the roster rows: a birth country belongs to a man, but the thing being
-       shown is a property of the CAREER, and eight rows each carrying a flag
-       would read as eight facts instead of one. Nothing renders at all for a
-       player whose log holds no country — every save written before the field
-       existed, and every restored finale older than it. -->
-  <div class="squad disp">
-    <div class="psep">PASSPORT</div>
-    <Passport stamps={clubCountries} label="Countries fielded" />
-  </div>
-{/if}
 
 {#if fin.best}
   <div class="squad disp">
@@ -731,13 +742,16 @@ import { track } from "../lib/analytics";
       {@const mine =
         pick != null &&
         game.slots.some((s) => s && s.id === pick.id && s.year === pick.year && s.team === pick.team)}
-      <div class="qrow" class:dreamhit={mine}>
+      <div class="qrow {pick ? `war-${warTier(pick.war)}` : ''}">
         <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
         {#if pick}
           <!-- Awards show WHY the solver chose this season — they count in
                its objective now, not just WAR. -->
           <span class="qmid">
-            <span class="qname">{pick.name} <i>{pick.year} {pick.team}</i></span>
+            <span class="qname"
+              >{#if mine}<span class="emo qstar">⭐</span>{/if}{pick.name}
+              <i>{pick.year} {pick.team}</i></span
+            >
             <span class="qbadges">
               {#each sortAwards(pick.awards) as a}
                 <AwardPill code={a} />
@@ -745,7 +759,7 @@ import { track } from "../lib/analytics";
               {#if pick.ws}<span class="emo">💍</span>{:else if pick.pen}<span class="emo">🚩</span>{/if}
             </span>
           </span>
-          <span class="qwar {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
+          <span class="qwar">{pick.war.toFixed(1)}</span>
         {:else}
           <span class="qname empty">—</span>
         {/if}
@@ -753,11 +767,12 @@ import { track } from "../lib/analytics";
     {/each}
     {#if fin.bestManager}
       {@const bestWins = fin.bestManager.netWins * MANAGER_PER_NET_WIN}
-      <div class="qrow" class:dreamhit={fin.managerHit}>
+      <div class="qrow war-{warTier(bestWins)}">
         <span class="qpos">MGR</span>
         <span class="qmid">
           <span class="qname"
-            >{fin.bestManager.name} <i>{fin.bestManager.year} {fin.bestManager.team}</i></span
+            >{#if fin.managerHit}<span class="emo qstar">⭐</span>{/if}{fin.bestManager.name}
+            <i>{fin.bestManager.year} {fin.bestManager.team}</i></span
           >
           <!-- MotY is worth +2 in the solver's objective, so the pill shows
                WHY this skipper won the seat — the same reason the dream
@@ -769,10 +784,7 @@ import { track } from "../lib/analytics";
               >{:else if fin.bestManager.pen}<span class="emo">🚩</span>{/if}</span
           >
         </span>
-        <!-- Same rule for the dream club's skipper: the eight seats above it
-             carry their rung on the numeral, and this one had been the only
-             row in either list reading a hue it had not earned. -->
-        <span class="qwar {warTier(bestWins)}">{signed(bestWins)} W</span>
+        <span class="qwar">{signed(bestWins)} W</span>
       </div>
     {/if}
     <!-- The payroll the dream club would have run, in the same place and the
@@ -840,7 +852,7 @@ import { track } from "../lib/analytics";
     align-items: center;
     gap: 9px;
     min-height: 44px;
-    border: 2.5px solid var(--ink);
+    border: 2.5px solid var(--line);
     border-radius: 11px;
     background: var(--card);
     padding: 6px 12px;
@@ -976,10 +988,10 @@ import { track } from "../lib/analytics";
   /* The exits keep their distance: the stamp (and any brags) is the payoff
      moment, and the buttons are the next scene. This override lives BELOW the
      wide-layout block, so it must carry its own media query to win. */
+  /* Cells and glyph come from the shared `.btnrow` in app.css; only the column
+     count and the moat above it are this row's own. */
   .fin-actions {
-    display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 9px;
     margin-top: 28px;
   }
   @media (min-width: 760px) {
@@ -987,19 +999,6 @@ import { track } from "../lib/analytics";
     .fin-actions {
       margin-top: 48px;
     }
-  }
-  .fin-actions .btn {
-    min-height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    padding: 7px 8px;
-    font-size: 13px;
-  }
-  .bic {
-    font-size: 19px;
-    line-height: 1;
   }
   .btn.ghost {
     background: transparent;
@@ -1038,17 +1037,22 @@ import { track } from "../lib/analytics";
     gap: 8px;
     background: var(--card);
     /* Card-level box weight (2.5px), matching the market/ledger rows. */
-    border: 2.5px solid var(--ink);
+    border: 2.5px solid var(--line);
     border-radius: 10px;
     padding: 5px 9px;
     margin-bottom: 6px;
   }
+  /* --muted-2 rather than --muted, on both sub-lines: these sit on whichever
+     of six washes the row's rung supplies rather than on card white, and
+     violet-2 is the darkest of them — --muted measures 3.39:1 there against
+     4.37:1 for --muted-2. One token, chosen for the worst rung, so the line
+     reads the same on all six. */
   .qpos {
     width: 36px;
     font-size: 9.5px;
     font-weight: 800;
     letter-spacing: 0.05em;
-    color: var(--muted);
+    color: var(--muted-2);
     flex: none;
   }
   /* Name and badges share a line when they fit; the badges wrap below when a
@@ -1074,7 +1078,7 @@ import { track } from "../lib/analytics";
   }
   .qname i {
     font-style: normal;
-    color: var(--muted);
+    color: var(--muted-2);
     font-size: 11px;
     font-weight: 700;
   }
@@ -1093,95 +1097,60 @@ import { track } from "../lib/analytics";
   .qstar {
     margin-right: 4px;
   }
-  /* Every numeral in both lists carries a tier class, players and skippers
-     alike, so the bare `.qwar` color is a fallback nothing reaches — kept as
-     the one honest default for a value with no rung (Eye Test hides WAR, not
-     this row) rather than deleted and re-derived the next time a row is
-     added. */
+  /* Ink, on every row, because every row is now tinted. app.css's rule for
+     type on a rung-2 fill is ink and this is that rule rather than one about
+     these rows: the worst pair measures 9.52:1 and the best 13.41:1, where a
+     numeral tinted to match its own fill runs 2.17:1 to 3.77:1 at 13px. The
+     rung is said twice already, by the fill and by the frame; the numeral's
+     job is the number. */
   .qwar {
     margin-left: auto;
     font-weight: 800;
     font-size: 13px;
-    color: var(--green);
+    color: var(--ink);
     flex: none;
   }
-  .qwar.high {
-    color: var(--war-high);
-  }
-  .qwar.elite {
-    color: var(--war-elite);
-  }
-  .qwar.star {
-    color: var(--war-star);
-  }
-  .qwar.low {
-    color: var(--war-low);
-  }
-  .qwar.neg {
-    color: var(--war-neg);
-  }
-  .qwar.mid {
-    color: var(--war-mid);
-  }
-  /* The hired skipper's row wears the rung its wins earned, fill and frame
-     together — the hue at rung 2 inside the hue at rung 8, which is the pair
-     every WAR chip in the game has been teaching. It is the same seat, the same
-     rung and the same tokens `RosterRail` paints its manager chair with, so the
-     board and the finale describe one manager the same way instead of two.
-     The eight player rows above keep card white and carry their rung on the
-     numeral alone: eight tinted rows would be eight competing fills, and the
-     skipper is the one row whose value has nowhere else to live — its "+14.0 W"
-     is on a different scale from the WAR beside it and cannot be read against
-     them.
-     `.qrow.dreamhit` below outweighs nothing here: no row is ever both, since
-     the squad list owns `skiprow` and the dream list owns `dreamhit`. */
-  .qrow.skiprow.war-neg {
+  /* EVERY seat wears the rung it earned, fill and frame together — the hue at
+     rung 2 inside the hue at rung 8, the pair every WAR chip in the game has
+     been teaching, and the same tokens `RosterRail` paints its chairs with. So
+     the board and the finale describe one club the same way instead of two.
+     Both lists, both skippers: a row is a row.
+     This used to be the skipper's row alone, on the reasoning that eight
+     tinted rows would be eight competing fills. What that actually produced was
+     one row shouting on a page of white ones — and because the mid rung IS
+     green, a +2.6 W skipper read as a highlight rather than as a rung. Tinting
+     all of them turns the column into the ladder it was always describing: the
+     eye reads gold-gold-violet-blue down the edge and the club's shape is
+     legible before a single number is. */
+  .qrow.war-neg {
     background: var(--war-neg-fill);
     border-color: var(--war-neg);
   }
-  .qrow.skiprow.war-low {
+  .qrow.war-low {
     background: var(--war-low-fill);
     border-color: var(--war-low);
   }
-  .qrow.skiprow.war-mid {
+  .qrow.war-mid {
     background: var(--war-mid-fill);
     border-color: var(--war-mid);
   }
-  .qrow.skiprow.war-high {
+  .qrow.war-high {
     background: var(--war-high-fill);
     border-color: var(--war-high);
   }
-  .qrow.skiprow.war-star {
+  .qrow.war-star {
     background: var(--war-star-fill);
     border-color: var(--war-star);
   }
-  .qrow.skiprow.war-elite {
+  .qrow.war-elite {
     background: var(--war-elite-fill);
     border-color: var(--war-elite);
   }
-  /* Ink on a rung-2 fill, which is app.css's own rule for text on these six
-     washes and not a rule about this row: the worst pair measures 9.52:1 and
-     the best 13.41:1. Tinting the numeral to match its fill is the alternative
-     and it runs 2.17:1 to 3.77:1 on 13px type. The rung is already said twice
-     on this row, by the fill and by the frame; the numeral's job is the
-     number. */
-  .skiprow .qwar {
-    color: var(--ink);
-  }
-  /* One rung darker than the player rows' sub-lines take. Those sit on card
-     white, a single known ground; these sit on whichever of six washes the
-     skipper's rung supplies, and violet-2 is the darkest — --muted measures
-     3.39:1 there against 4.37:1 for --muted-2. One token, chosen for the worst
-     rung, so the line reads the same on all six. */
-  .skiprow .qpos,
-  .skiprow .qname i {
-    color: var(--muted-2);
-  }
-  /* The dream team's only "you found this one" cue is the green tint; the
-     matching squad row carries the ⭐ — one cue per list, no repetition. */
-  .qrow.dreamhit {
-    background: var(--green-wash);
-    border-color: var(--green-8);
+  /* Tucked to the badge row above it rather than spaced as a section of its
+     own — same column, same idea, one beat apart. The bottom margin is the
+     gap to the actions, which is the real section break on this side. */
+  .clubpass {
+    margin: 8px 0 14px;
   }
   .qname.empty {
     color: var(--gray-ink);
