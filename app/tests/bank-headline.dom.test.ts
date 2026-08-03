@@ -83,17 +83,35 @@ describe("the payroll label row", () => {
     target.remove();
   });
 
-  it("leaves the unknown uncolored while the club has spent nothing", () => {
+  it("reads a club with no owner as a club with a $0 payroll", () => {
+    // Not "$???". An unhired chair is not a mystery the player is waiting on,
+    // it is a payroll of zero — which is a state they can fix, and which every
+    // other reading in the box then follows from without its own rule.
     const game = forgeGame(CLASSIC, (g) => {
       g.card = mkCard();
     });
     const { target, comp } = mountBox(game);
 
-    const [, left] = labels(target);
-    expect(left.textContent).toBe("$??? LEFT");
-    // Nothing to color: there is no figure, and italic alone marks the unknown.
-    expect(amount(left)).toBe(null);
-    expect(left.classList.contains("nocap")).toBe(true);
+    const [spent, left] = labels(target);
+    expect(spent.textContent).toBe("SPENT $0M");
+    expect(left.textContent).toBe("$0M LEFT");
+    // A real figure, colored like one — the green of money still in hand.
+    expect(amount(left)).toBe("$0M");
+    expect(left.classList.contains("left")).toBe(true);
+    // The payroll chip says the same zero, still dashed because one is coming.
+    const eff = [...target.querySelectorAll(".chip")].map((c) => c.textContent);
+    expect(eff).toContain("$0M");
+    // Three ghost chips: the owner, the ballpark, and the product they have
+    // not made yet. The product is the one carrying the zero.
+    const ghosts = [...target.querySelectorAll(".chip.ghost")].map((c) => c.textContent);
+    expect(ghosts).toEqual(["💰", "🏟️", "$0M"]);
+    // Nothing hired and nothing spent is the ONE state the gray drifting hatch
+    // still belongs to — no quantity in either direction. Every other pre-owner
+    // state is now an overrun, so this is what the hatch means.
+    const meter = target.querySelector(".pmeter")!;
+    expect(meter.classList.contains("pnocap")).toBe(true);
+    expect(meter.classList.contains("pover")).toBe(false);
+    expect(target.querySelector(".pfill")!.classList.contains("unknown")).toBe(true);
 
     unmount(comp as never);
     target.remove();
@@ -113,13 +131,13 @@ describe("the payroll label row", () => {
     expect(amount(right)).toBe("$34M");
     expect(target.querySelector(".left")).toBe(null);
 
-    // The BAR does not join in. This is a headline, not a share: with no
-    // denominator there is still nothing for a fill to be a fraction of, so
-    // the meter keeps its gray track and its drifting unknown hatch.
+    // The BAR joins in, which is the whole point of reading the payroll as $0:
+    // over zero is over, so the club wears the same orange alarm an overrun
+    // club wears rather than a neutral hatch that says nothing is wrong.
     const meter = target.querySelector(".pmeter")!;
-    expect(meter.classList.contains("pnocap")).toBe(true);
-    expect(meter.classList.contains("pover")).toBe(false);
-    expect(target.querySelector(".pfill")!.classList.contains("unknown")).toBe(true);
+    expect(meter.classList.contains("pover")).toBe(true);
+    expect(meter.classList.contains("pnocap")).toBe(false);
+    expect(target.querySelector(".pfill")!.classList.contains("unknown")).toBe(false);
 
     // Hiring the owner supplies the denominator, and the same $34M turns from
     // over into left — which is exactly what hiring an owner did.

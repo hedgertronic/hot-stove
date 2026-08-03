@@ -97,11 +97,11 @@
   const YAMAUCHI = "Hiroshi Yamauchi";
   const PAYROLL_STATES = [
     {
-      note: "Classic, nothing hired — both chips ghosted, both names TBD, no denominator: drifting hatch and $??? LEFT",
+      note: "Classic, nothing hired — both chips ghosted, both names TBD, payroll $0: drifting gray hatch and $0M LEFT",
       props: { bank: "classic" as const, budget: 40, spend: 0, capKnown: false, pending: true },
     },
     {
-      note: "Classic, $34M signed before an owner — the spent figure is the box's only real number",
+      note: "Classic, $34M signed before an owner — over a $0 payroll, so the box wears the overrun alarm",
       props: { bank: "classic" as const, budget: 40, spend: 34, capKnown: false, pending: true },
     },
     {
@@ -201,15 +201,15 @@
   <PlayerList game={hd} confirmKey={null} setConfirm={noop} />
 
   <div class="psep">PAYROLL BOX</div>
-  <div class="cap">Pre-owner, nothing signed yet (hatched, $???)</div>
+  <div class="cap">Pre-owner, nothing signed yet — payroll $0, gray drifting hatch</div>
   <BankBox game={banks.preOwner} />
-  <div class="cap">Pre-owner, $34M signed — the spent figure is the box's only real number</div>
+  <div class="cap">Pre-owner, $34M signed — $34M over a $0 payroll</div>
   <BankBox game={banks.preOwnerSpent} />
   <div class="cap">Classic, ~39% spent</div>
   <BankBox game={banks.normal} />
   <div class="cap">Classic, ~96% spent (near cap)</div>
   <BankBox game={banks.nearCap} />
-  <div class="cap">Classic, $14.3M OVER PAYROLL</div>
+  <div class="cap">Classic, $14.3M over a real payroll</div>
   <BankBox game={banks.over} />
   <div class="cap">Moneyball (fixed cap, real owners line)</div>
   <BankBox game={banks.moneyball} />

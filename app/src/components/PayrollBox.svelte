@@ -34,9 +34,9 @@
    *  · classic, no front office on record — a finale older than these fields:
    *    the payroll alone, and no TBD names, because nothing is still coming
    *  · Moneyball / Blank Check — payroll set outright, no seats to fill
-   *  · no denominator yet (`capKnown` false) — a drifting hatch, $??? LEFT
-   *    while the club has spent nothing, and every dollar after that read as
-   *    over (see `preOwnerSpend`)
+   *  · no owner yet (`capKnown` false) — the payroll IS $0: a drifting gray
+   *    hatch and $0 LEFT while nothing is spent, and the over-payroll alarm
+   *    from the first dollar after that (see `over`)
    *  · over payroll — the alarm on the bar, the line, and the figure
    *
    * `mini` renders the bar alone, which is how the finale's ledger carries a
@@ -78,9 +78,9 @@
     parkName?: string | null;
     /** The ballpark's payroll multiplier — the right-hand chip. */
     parkMult?: number | null;
-    /** False before an owner is hired: the engine's budget is only the
-     * minBudget floor then, a data artifact rather than a real cap, and a bar
-     * cannot show a share of a denominator nobody knows yet. */
+    /** False before an owner is hired. The engine's budget is only the
+     * minBudget floor then — a data artifact rather than a real cap — so the
+     * box reads the club's payroll as $0 and shows it that way throughout. */
     capKnown?: boolean;
     /** The club is still being assembled, so an empty seat is a seat still to
      * fill: it wears a ghost chip and a "no owner yet" line. A finished club
@@ -93,30 +93,39 @@
     mini?: boolean;
   } = $props();
 
-  const over = $derived(capKnown && spend > budget);
-  const pct = $derived(!capKnown ? 0 : budget > 0 ? Math.min((spend / budget) * 100, 100) : 100);
-  /** Money committed against a payroll nobody has hired yet reads as money
-   * over. A club with no owner has no payroll — that is the whole point of the
-   * owner seat — so the honest headline for $15M spent into an empty chair is
-   * "$15M OVER" rather than a share of a number the player has never been
-   * shown.
+  /** A club with no owner has a payroll of ZERO, and the box says so in every
+   * one of its four registers rather than in one.
    *
-   * A LABEL rule, and only a label rule. The engine's cap arithmetic is
+   * That is the whole point of the owner seat: the chair is where a payroll
+   * comes from, so an empty chair is not an unknown number, it is no number.
+   * Saying "$???" made it a mystery the player was waiting on; saying "$0"
+   * makes it a state they can fix, and every consequence follows from the zero
+   * without needing its own rule — spend is measured against $0, so the first
+   * dollar committed is a dollar over, and $0 is what is LEFT until then.
+   *
+   * The bar goes with it. Over $0 is over, so a pre-owner club that has signed
+   * anybody wears the same orange alarm an over-payroll club wears, and the
+   * gray drifting hatch is left holding exactly one state: nothing hired,
+   * nothing spent. That is what it always meant.
+   *
+   * A DISPLAY rule, and only a display rule. The engine's cap arithmetic is
    * untouched: `effectiveBudget` still falls back to the league-minimum floor,
    * the luxury tax and the payroll bonus are still computed from it, and
-   * nothing here can move a point either way. The bar itself stays the drifting
-   * unknown hatch, because the bar's job is to show a share and there is still
-   * no denominator to take a share of.
+   * nothing here can move a point either way. The box is telling the player
+   * what hiring an owner is for; it is not scoring them on it.
    *
-   * Nothing on the finale can disagree with this: a classic club is not
-   * complete until an owner is in the chair, so the finale never renders the
-   * pre-owner state at all. What the player sees instead is the flip — the
-   * moment an owner is hired the same spend turns from OVER into LEFT, which is
-   * exactly what hiring an owner did. */
-  const preOwnerSpend = $derived(!capKnown && spend > 0);
-  /** How far past the payroll, in the two senses of past: over a real cap it is
-   * the overrun, and with no owner hired it is everything committed. */
-  const overBy = $derived(capKnown ? spend - budget : spend);
+   * Nothing on the finale can disagree: a classic club is not complete until an
+   * owner is in the chair, so the finale never renders this state at all. What
+   * the player sees instead is the flip — the moment an owner is hired the same
+   * spend turns from OVER into LEFT, which is exactly what hiring one did. */
+  const over = $derived(spend > (capKnown ? budget : 0));
+  const pct = $derived(!capKnown ? 0 : budget > 0 ? Math.min((spend / budget) * 100, 100) : 100);
+  /** The one state with no quantity to be under or over: no owner, nothing
+   * spent. The drifting gray hatch belongs to it alone now. */
+  const blank = $derived(!capKnown && spend <= 0);
+  /** How far past the payroll — and with no owner hired the payroll is $0, so
+   * everything committed is the overrun. */
+  const overBy = $derived(spend - (capKnown ? budget : 0));
   /** The full × = line needs both halves; one alone is not a multiplication. */
   const math = $derived(ownerBudget != null && parkMult != null);
 </script>
@@ -124,10 +133,10 @@
 <!-- The bar, alone, so the box and the finale's ledger row hold the SAME object
      rather than two that agree by hand. -->
 {#snippet meter()}
-  <div class="pmeter" class:mini class:pover={over} class:pnocap={!capKnown}>
-    {#if !capKnown}
-      <!-- No denominator: a drifting hatch reads as pure uncertainty rather
-           than as a share of something. -->
+  <div class="pmeter" class:mini class:pover={over} class:pnocap={blank}>
+    {#if blank}
+      <!-- Nothing hired and nothing spent: no quantity in either direction, so
+           a drifting hatch reads as the empty page it is. -->
       <span class="pfill unknown"></span>
     {:else}
       <span class="pfill" class:pzero={spend <= 0} style:width="{over ? 100 : pct}%"></span>
@@ -160,7 +169,11 @@
         {#if capKnown}
           <span class="chip eff">{money(budget)}</span>
         {:else}
-          <span class="chip ghost">$???</span>
+          <!-- Dashed, because a payroll is still coming; $0, because until it
+               does there genuinely isn't one. Both halves of the multiplication
+               above it are still ghosts — nothing is claiming this zero is a
+               product, only that it is what the club has to spend. -->
+          <span class="chip ghost">{money(0)}</span>
         {/if}
       {:else}
         <!-- A finished classic club with no front office on record. The payroll
@@ -183,12 +196,12 @@
     {@render meter()}
     <div class="paylbl">
       <span class="spent">SPENT <span class="pamt">{money(spend)}</span></span>
-      {#if over || preOwnerSpend}
+      {#if over}
         <span class="warn"><span class="pamt">{money(overBy)}</span> OVER</span>
-      {:else if !capKnown}
-        <span class="nocap">$??? LEFT</span>
       {:else}
-        <span class="left"><span class="pamt">{money(budget - spend)}</span> LEFT</span>
+        <span class="left"
+          ><span class="pamt">{money((capKnown ? budget : 0) - spend)}</span> LEFT</span
+        >
       {/if}
     </div>
   </div>
@@ -332,15 +345,25 @@
     border-right: 0;
     background: transparent;
   }
-  /* THE TWO UNSETTLED STATES, in one motion.
-     Nothing is resolved in either: one has no payroll yet, the other has a
-     payroll it has already blown, and a bar that drifts says "this number is
-     not where it lands" in a way a still bar cannot. So they share a diagonal
-     hatch drifting steadily right at the same 10.9px/s — same language, two
-     hues — and only the hue says which trouble it is.
-     Over payroll there is also no edge left to read: the bar is full and then
-     some, so the hatch is what says "past the end", and the ring goes orange
-     with it rather than framing an alarm in a calm green line. */
+  /* ALL THREE STATES, in one motion.
+     The drift used to belong to the two unsettled states alone, on the reading
+     that a moving bar says "this number is not where it lands". The trouble
+     with that reading is that it made the calm state the odd one out: a green
+     bar sitting perfectly still beside two that crawl looks like a different
+     component, and a player reads the STILLNESS as the anomaly rather than as
+     the reassurance. So every state drifts at the same 10.9px/s and the hue is
+     what says which one it is — the same division of labor the rest of the box
+     runs on.
+     What still separates them is the EDGE, which is a stronger signal than
+     motion ever was. Green has one and its position is the quantity. Over
+     payroll has none: the bar is full and then some, so the hatch is what says
+     "past the end" and the ring goes orange with it rather than framing an
+     alarm in a calm green line. The blank state has none either, and the label
+     beside it reads $0 SPENT, which no full green bar ever does.
+     Green keeps its solid green-5 UNDER the hatch rather than replacing it, so
+     the fill still reads as a filled area at a glance and the stripes are
+     texture on top. The other two have no area to preserve and paint the
+     stripes directly. */
   .pfill.unknown,
   .pmeter.pover .pfill {
     border-right: 0;
@@ -362,6 +385,13 @@
     --drift: 22.627px;
     --drift-time: 2.08s;
   }
+  /* Green runs the widest period of the three. Its stripes are one rung apart
+     rather than a hue against nothing, so they are the faintest of the set, and
+     a coarser pattern is what keeps them legible at that contrast. */
+  .pfill:not(.unknown) {
+    --drift: 33.941px;
+    --drift-time: 3.12s;
+  }
   /* The stripes ride a pseudo-element ONE PERIOD wider than the bar, translated
      by exactly that period. Sliding by one period maps the pattern onto itself,
      which is what makes the loop seamless, and the extra period is runway: no
@@ -378,8 +408,7 @@
      squares — the stripes stop being stripes.
      Reduced motion needs nothing here: app.css stops animations on `*::before`
      along with everything else, which leaves both hatches standing still. */
-  .pfill.unknown::before,
-  .pmeter.pover .pfill::before {
+  .pfill::before {
     content: "";
     position: absolute;
     top: 0;
@@ -387,7 +416,15 @@
     left: 0;
     width: calc(100% + var(--drift));
     animation: drift var(--drift-time) linear infinite;
+    /* Green-6 over the green-5 the fill is already painted: one rung apart, the
+       same step orange takes between its two stripes, and the faintest thing
+       the box draws. That is right for the state which is not asking for
+       anything — loud stripes on the calm bar would make being under payroll
+       look like a problem. */
+    background: repeating-linear-gradient(-45deg, transparent 0 12px, var(--green-6) 12px 24px);
   }
+  /* The two states with no area under the stripes: nothing beneath carries the
+     reading, so the pattern IS the fill and both of its bands are painted. */
   .pfill.unknown::before {
     background: repeating-linear-gradient(-45deg, var(--gray-bg) 0 10px, transparent 10px 20px);
   }
@@ -411,10 +448,10 @@
      overrun REPLACES it, so an over-payroll box going entirely orange is the
      correct reading of an over-payroll box.
      The pre-owner club is the one row where the two orange figures carry the
-     SAME number — everything spent, and all of it over. That is the state
-     saying exactly what it is: with no owner hired there is no payroll for any
-     of it to be inside of, so spent and over are the same figure until one is
-     hired. */
+     SAME number — everything spent, and all of it over. It reads as a
+     duplicate until the chip above it is read, and the chip above it says the
+     payroll is $0: spent and over ARE the same figure when there is no payroll
+     for any of it to be inside of. Hiring an owner is what separates them. */
   .paylbl {
     display: flex;
     align-items: baseline;
@@ -436,12 +473,5 @@
   }
   .left .pamt {
     color: var(--green-deep);
-  }
-  /* The one half of this row with no figure in it, so there is nothing for the
-     color rule to land on; italic alone marks the unknown. It stands only
-     while the club has spent nothing under an empty owner's chair — the first
-     dollar committed turns this half into the overrun. */
-  .nocap {
-    font-style: italic;
   }
 </style>

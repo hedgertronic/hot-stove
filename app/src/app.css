@@ -101,6 +101,11 @@
      light enough to sit visibly inside its rung-8 outline, dark enough to still
      be a quantity against the white track. */
   --green-5: #51cf66;
+  /* One rung down from the fill, and it exists for one job: the stripe that
+     drifts across the payroll bar. Green's step here is the same size orange's
+     5→6 step is, so the calm bar's texture and the alarm bar's read as the same
+     device at two temperatures rather than as two different patterns. */
+  --green-6: #40c057;
   --green-8: #2f9e44;
   --blue-2: #a5d8ff;
   --blue-8: #1971c2;
