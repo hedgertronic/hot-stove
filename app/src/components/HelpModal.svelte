@@ -1,9 +1,12 @@
 <script lang="ts">
   import { BADGE_BY_KEY } from "../lib/badges";
-  import { costTier, money, warTier } from "../lib/format";
+  import { SLOT_TYPES } from "../lib/engine.svelte";
+  import { costTier, money, slotLabel, warTier } from "../lib/format";
   import AwardPill from "./AwardPill.svelte";
   import BadgePill from "./BadgePill.svelte";
   import PayrollBox from "./PayrollBox.svelte";
+  import PowerupPill from "./PowerupPill.svelte";
+  import RailSeat from "./RailSeat.svelte";
   import Sheet from "./Sheet.svelte";
 
   /** How to play, taught mostly in pictures.
@@ -16,13 +19,17 @@
    *
    * ---- How the specimens are built ----
    *
-   * From plain object literals, never a `Game`. Three of them go through the
-   * real component, because those components already take plain props and are
-   * already in the bundle: `PayrollBox` (the finale renders it for a club no
-   * Game exists for), `BadgePill`, and `AwardPill`. The other two — the market
-   * row and the rail seats — are drawn from the same markup and classes their
-   * real screens use, because those components take a `Game` and importing one
-   * here would wire a help sheet to live engine state.
+   * From plain object literals, never a `Game`. All but one go through the REAL
+   * component: `PayrollBox`, `BadgePill`, `AwardPill`, `RailSeat` and
+   * `PowerupPill`. The last two used to be hand-copied markup here, on the
+   * grounds that their owners take a `Game` — so the seat and the pill were
+   * lifted out of `RosterRail` and `PowerupRow` into components of their own
+   * that take plain values. The copies are gone, and with them the only way for
+   * this sheet to teach a screen that no longer exists.
+   *
+   * The market row is the one specimen still drawn by hand. `PlayerList` is a
+   * list of buttons wired to signings and pickers, and there is no presentation
+   * layer to lift out of it that would not be the whole component.
    *
    * Nothing here comes from `src/lab`. That directory is the DEV-only fixture
    * gallery, excluded from the production bundle by an `import.meta.env.DEV`
@@ -47,13 +54,30 @@
   /** The same row with nowhere to put him — the market's gray. */
   const MARKET_DEAD = { pos: "C", name: "Iván Rodríguez", war: 5.2, cost: 6.9 };
 
-  /** Four of the nine chairs: two filled, two waiting. */
+  /** Four of the eight chairs: two filled, two waiting. Four rather than eight
+   * because the phone grid is 2×4 and this is 2×2 — the same object at a size
+   * that leaves room for a caption. */
   const SEATS = [
     { label: "C", name: "Piazza", meta: "1997 LAN", war: 6.4 },
-    { label: "IF", name: "", meta: "", war: 0 },
+    { label: "IF", name: null, meta: null, war: null },
     { label: "SP", name: "Maddux", meta: "1995 ATL", war: 9.7 },
-    { label: "RP", name: "", meta: "", war: 0 },
+    { label: "RP", name: null, meta: null, war: null },
   ];
+
+  /** The eight seats, counted off SLOT_TYPES rather than written out: "C · IF
+   * ×2 · OF · UTIL · SP ×2 · RP". A seat added to the game must not need this
+   * sentence found and edited — that is precisely the drift the specimens above
+   * were extracted to end, and copy drifts the same way markup does. */
+  const SEAT_LINE = (() => {
+    const runs: [string, number][] = [];
+    for (const t of SLOT_TYPES) {
+      const label = slotLabel(t);
+      const last = runs[runs.length - 1];
+      if (last && last[0] === label) last[1] += 1;
+      else runs.push([label, 1]);
+    }
+    return runs.map(([l, n]) => (n > 1 ? `${l} ×${n}` : l)).join(" · ");
+  })();
 
   const EARNED = BADGE_BY_KEY.hundred;
   const SECRET = BADGE_BY_KEY.twoway;
@@ -64,7 +88,7 @@
   <ul>
     <li>The stove spins you a random team-season, 1985–2025.</li>
     <li>Take <b>one</b> thing per spin — sign a player, or make a hire.</li>
-    <li>Fill 8 seats — C · IF ×2 · OF · UTIL · SP ×2 · RP — plus a manager.</li>
+    <li>Fill {SLOT_TYPES.length} seats — {SEAT_LINE} — plus a manager.</li>
   </ul>
 
   <div class="hsec">A PLAYER ROW</div>
@@ -96,19 +120,26 @@
   <p class="cap">Tap a row to sign. Gray means that seat is already taken.</p>
 
   <div class="hsec">YOUR SQUAD</div>
+  <!-- The real seat component, the real rungs. -->
   <div class="rail">
-    <div class="mgr filled"><b>MGR</b><span>Cox</span><i>1995 ATL</i></div>
+    <RailSeat chair="mgr" label="MGR" name="Cox" meta="1995 ATL" tier="star" war="+9.4 W" mgw />
     {#each SEATS as s (s.label)}
-      {#if s.name}
-        <div class="cell filled war-{warTier(s.war)}">
-          <b>{s.label}</b><span>{s.name}</span><i>{s.meta}</i>
-        </div>
-      {:else}
-        <div class="cell empty"><b>{s.label}</b></div>
-      {/if}
+      <RailSeat
+        label={s.label}
+        name={s.name}
+        meta={s.meta}
+        tier={s.war === null ? "" : warTier(s.war)}
+        war={s.war === null ? null : s.war.toFixed(1)}
+      />
     {/each}
   </div>
   <p class="cap">A seat's border color is that player's WAR tier. Dashed is empty.</p>
+  <ul>
+    <li><b>Eight seats:</b> {SEAT_LINE}.</li>
+    <li><b>UTIL</b> takes any position player — the flexible one.</li>
+    <li><b>Plus a manager</b>, hired from the front office row.</li>
+    <li>You can't sign two men into one seat. Full seats gray out.</li>
+  </ul>
 
   <div class="hsec">YOUR PAYROLL</div>
   <PayrollBox
@@ -132,9 +163,14 @@
   />
   <p class="cap">You <i>can</i> overspend — the luxury tax just eats your score.</p>
   <ul>
-    <li><b>💼 Clean House</b> — hire an owner and a ballpark to set your payroll.</li>
-    <li><b>⚾ Moneyball</b> — a fixed $51.5M, the 2002 A's.</li>
-    <li><b>💸 Blank Check</b> — a fixed $203.2M, the 2005 Yankees.</li>
+    <li>
+      <b>💼 Clean House</b> — you have <b>no payroll at all</b> until you hire an
+      owner, so every dollar spent before that is a dollar over. Draft an owner
+      for a budget, then a ballpark: the ballpark multiplies it, 0.85× to 1.15×.
+      Both come off the same spins your players do.
+    </li>
+    <li><b>⚾ Moneyball</b> — skip the hiring, take a fixed $51.5M. The 2002 A's.</li>
+    <li><b>💸 Blank Check</b> — skip it and take $203.2M. The 2005 Yankees.</li>
   </ul>
 
   <div class="hsec">BALL KNOWLEDGE</div>
@@ -150,9 +186,9 @@
        the row under the spin banner, so the sheet is naming things the player
        can already see. -->
   <div class="pups">
-    <span class="pp">🚚 RELOCATE</span>
-    <span class="pp armed">⭐ TAP A PLAYER…</span>
-    <span class="pp spent">🎟️ SEASON TICKET</span>
+    <PowerupPill label="🚚 RELOCATE" />
+    <PowerupPill label="⭐ TAP A PLAYER…" state="armed" />
+    <PowerupPill label="🎟️ SEASON TICKET" state="spent" />
   </div>
   <div class="lgnd three">
     <span>ready</span><span>armed — do the thing</span><span>spent</span>
@@ -351,116 +387,37 @@
     color: var(--orange);
   }
 
-  /* ---------- specimen: the roster rail (RosterRail's anatomy) ---------- */
-  /* Four seats rather than eight: the grid is 2×4 on the real screen and 2×2
-     here, which is the same object at a size that leaves room for a caption. */
+  /* ---------- the seat and pill specimens' CONTAINERS ---------- */
+  /* The seats and the pills are the real components now; only the boxes that
+     arrange them live here, and each one mirrors its screen's own arrangement.
+     Two seat columns rather than four: the phone rail is 2×4 and this is 2×2,
+     the same grid at a size that leaves room for a caption beside it. */
   .rail {
     display: grid;
     grid-template-columns: auto repeat(2, 1fr);
     gap: 6px;
   }
-  .cell,
-  .mgr {
-    border: 2.5px solid var(--ink);
-    border-radius: 9px;
-    background: var(--card);
-    text-align: center;
-    padding: 5px 2px;
-    font-size: 10px;
-    line-height: 1.25;
-    min-height: 52px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+  /* And the rail's OTHER arrangement at the width the rail changes at, because
+     a help sheet has to teach the screen the reader is about to be looking at.
+     RailSeat turns itself into a full-width row here; a seat drawn that way
+     inside a two-column grid is a row with no room, and the names clip. Same
+     breakpoint, same flex column, same manager-last order as RosterRail. */
+  @media (min-width: 760px) {
+    .rail {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
   }
-  .cell b,
-  .mgr b {
-    display: block;
-    font-size: 9px;
-    letter-spacing: 0.07em;
-    color: var(--muted);
-  }
-  .cell span,
-  .mgr span {
-    display: block;
-    font-weight: 800;
-    font-size: 11px;
-  }
-  .cell i,
-  .mgr i {
-    display: block;
-    font-style: normal;
-    font-size: 8.5px;
-    color: var(--muted);
-    font-weight: 700;
-  }
-  /* All six rungs, not just the two the specimens land on: the seats above are
-     a literal, and a rewritten number must move the border rather than quietly
-     lose it. */
-  .cell.war-neg {
-    border-color: var(--war-neg);
-  }
-  .cell.war-low {
-    border-color: var(--war-low);
-  }
-  .cell.war-mid {
-    border-color: var(--war-mid);
-  }
-  .cell.war-high {
-    border-color: var(--war-high);
-  }
-  .cell.war-star {
-    border-color: var(--war-star);
-  }
-  .cell.war-elite {
-    border-color: var(--war-elite);
-  }
-  .cell.empty {
-    border-style: dashed;
-    background: transparent;
-    color: var(--gray-ink);
-    display: grid;
-    place-content: center;
-  }
-  .cell.empty b {
-    font-size: 11px;
-    color: var(--gray-ink);
-  }
-  /* The manager's chair spans both rows on the left, as it does on the real
-     rail; upright here rather than rotated, because a 90° label at this size
-     costs more legibility than the fidelity buys. */
-  .mgr {
-    grid-column: 1;
-    grid-row: 1 / 3;
-    width: 52px;
-  }
-
-  /* ---------- specimen: powerup pills (PowerupRow's anatomy) ---------- */
+  /* `container-type` is PowerupPill's contract — its narrow type tier is keyed
+     to the width of the row holding it, exactly as PowerupRow's is, so a pill
+     in this sheet sizes itself the way a pill on the board does. */
   .pups {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     align-items: center;
     gap: 8px 7px;
-  }
-  .pp {
-    display: inline-flex;
-    align-items: center;
-    border: 2px solid var(--ink);
-    border-radius: 999px;
-    background: var(--card);
-    padding: 5px 8px;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-  }
-  .pp.armed {
-    background: var(--orange-2);
-    border-color: var(--orange-8);
-    color: var(--ink);
-  }
-  .pp.spent {
-    opacity: 0.32;
+    container-type: inline-size;
   }
 </style>
