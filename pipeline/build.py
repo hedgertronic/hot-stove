@@ -225,6 +225,17 @@ def main() -> None:
             managers[key] = (r["playerID"], _i(r["G"]))
 
     # Attendance percentile within each year drives the stadium multiplier.
+    #
+    # 2020 IS NOT A BUG, AND MUST NOT BE "FIXED". Every club drew zero that
+    # season, so `ranks.index(0)` returns 0 for all thirty and every 2020
+    # ballpark lands on the 0.85 floor. That reads like an accident of
+    # list.index and it is the honest answer anyway: the floor is what a park
+    # with nobody in it is worth, and 2020 is the one year the whole league
+    # earned it. Tie-breaking the zeros — by any rule at all — would invent a
+    # gate ranking out of thirty identical empty stadiums.
+    #
+    # `attendancePct` is 0.0 on all thirty for the same reason and is display
+    # only; nothing scores off it.
     att_by_year: dict[int, list[int]] = {}
     for (year, br), row in gd.team_rows.items():
         att_by_year.setdefault(year, []).append(_i(row["attendance"]))

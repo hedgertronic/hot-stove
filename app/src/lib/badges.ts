@@ -774,50 +774,6 @@ function isChase(p: { id: string; year: number }): boolean {
   return CHASE_SEASONS[p.id]?.includes(p.year) === true;
 }
 
-/** Derek Jeter, and that is the whole trigger.
- *
- * Keyed on the PLAYER rather than on a season, unlike the two tables above,
- * because the badge is not about a year he had — it is about the man being on
- * the club. Every one of his eighteen draftable seasons is a Yankee season, so
- * there is no club half to key on either.
- *
- * The supply is 18 of the 1,188 cards (1.52%), which is the largest one-man
- * supply anything in this file names: 🎲 rides 14 cards, 🏦 six, 💥 three. On
- * eight of those eighteen he is one of the card's five best seasons by WAR —
- * the proxy 💊's note uses for "a WAR-led draft actually takes him" — against
- * five of five for 🃏 THE TWO-WAY GUY, which measures 3.79%. So this fires
- * meaningfully more often than any rare in the set, which is what puts it at
- * `uncommon`; the other ten cards are seasons a player has to want him for. */
-export const CAPTAIN = "jeterde01";
-
-/** The men who ended a World Series with a hit, inside the 1985–2025 window.
- * There are exactly three, and each one's season is his club's title year:
- * Joe Carter's three-run shot off Mitch Williams, Édgar Rentería's single up
- * the middle in the eleventh, and Luis Gonzalez's bloop over a drawn-in
- * infield off Mariano Rivera.
- *
- * Keyed on the exact season the way 📖 and 💥 are, never on the player: Carter
- * has fifteen draftable seasons and Rentería sixteen, and all but one of each
- * is an ordinary year by this badge's standard. Ids are read off the cards
- * rather than from memory, because `renteri01` is Rick Renteria (FLA 1993) and
- * the man here is `renteed01` — the same collision shape as the Pedro Borbón
- * Jr. trap on 🚧, and badges-supply pins both halves of it.
- *
- * Three of the 1,188 cards can trip it, the identical supply to 💥 THE CHASE —
- * and it is strictly harder at that supply, which is why it sits a tier above.
- * All three chase seasons are among their card's five best by WAR (6.5, 7.5,
- * 11.9) and get signed by any draft that reads a number; the walk-off seasons
- * are 7.9, 2.0 and 0.9, so two of the three are years nothing but the story
- * would make you take. */
-export const WALK_OFF_SEASONS: Record<string, number[]> = {
-  cartejo01: [1993], // TOR — Carter, Game 6
-  renteed01: [1997], // FLA — Rentería, Game 7
-  gonzalu01: [2001], // ARI — Gonzalez, Game 7
-};
-function isWalkOff(p: { id: string; year: number }): boolean {
-  return WALK_OFF_SEASONS[p.id]?.includes(p.year) === true;
-}
-
 export const FATHER_SON: ReadonlyArray<readonly [string, string]> = [
   ["armasto01", "armasto02"], // Tony Armas / Tony Armas Jr.
   ["bannifl01", "bannibr01"], // Floyd Bannister / Brian Bannister
@@ -1873,44 +1829,6 @@ export const BADGES: BadgeDef[] = [
     // guilt, whatever the label above it says.
     how: "Signed or hired one of the four men in this game's window on baseball's betting rules. Pete Rose was banned in 1989 for betting on his own club. Tucupita Marcano was banned in 2024. Emmanuel Clase and Luis Ortiz were charged in 2025 over rigged pitches: both pleaded not guilty, both re-entered those pleas in February 2026, both are awaiting trial and have been on non-disciplinary paid leave since July 2025, and Major League Baseball has made no finding against either.",
   },
-  /* The two men whose seasons this game remembers for one swing rather than
-   * for a number. Both ride `era` with 📖 and 💥, which is the section for
-   * "who is on your roster, as history reads him" — the label on it says
-   * asterisk because that is where it started, and 📖 REWROTE THE RECORD BOOK
-   * has never been an asterisk either. */
-  {
-    // `secret` because the doctrine's first case applies exactly: it is a fact
-    // about ONE person, and "2️⃣ RE2PECT" on a locked slot is nothing but an
-    // instruction to go sign Derek Jeter. Anonymized, it is the thing you
-    // stumble into by signing him for your own reasons.
-    key: "respect",
-    secret: true,
-    // The captain's number, in the one glyph shape nothing else in the set
-    // wears — no other badge is a keycap, so it cannot be confused with a
-    // medal, a star or a household object at pill size. It costs three code
-    // points on the share line (digit, variation selector, keycap), which is
-    // under 👨‍👨‍👦's five.
-    emoji: "2️⃣",
-    label: "RE2PECT",
-    rarity: "uncommon",
-    axis: "era",
-    // Null: no study has run since the badge existed, and the tier is argued
-    // from the card supply instead — see the note beside CAPTAIN.
-    freq: null,
-    how: "Signed Derek Jeter.",
-  },
-  {
-    key: "walkoff",
-    secret: true,
-    emoji: "🎆",
-    label: "THE WALK-OFF",
-    rarity: "ultra",
-    axis: "era",
-    // Null for 💥 THE CHASE's reason: three exact seasons, no study since.
-    // The supply argument for the tier is beside WALK_OFF_SEASONS.
-    freq: null,
-    how: "Signed one of the three seasons that ended a World Series with a hit.",
-  },
 
   /* …and the shape of the years themselves, rather than any one of them. The
    * two poles: 📆 rewards committing to one slice of the history, 🕰️ rewards
@@ -2367,8 +2285,6 @@ export function earnedBadges(f: BadgeFacts): string[] {
   if (f.konami === true) out.push("cheatcodes");
   if (roster.some(isRecord)) out.push("recordbook");
   if (roster.some(isChase)) out.push("chase");
-  if (roster.some(isWalkOff)) out.push("walkoff");
-  if (roster.some((p) => p.id === CAPTAIN)) out.push("respect");
   if (roster.some((p) => p.year === 2020)) out.push("covid");
   if (
     roster.some(isScandal) ||
@@ -2392,24 +2308,31 @@ export interface Brag {
   fresh: boolean;
 }
 
-/** The finale's brag row: which badges get the scarce pill slots, in order.
+/** The finale's brag row: every badge the club earned, in order.
  *
  * Lives here rather than in the component because it is a rule about badges,
  * not about rendering — and because the component can only run it behind a
  * reveal animation, which puts it out of reach of a test.
  *
- * First-time badges sort to the FRONT. That is the whole reason the order is
- * touched: the row caps at a handful of pills and cuts from the tail of
- * `earnedBadges`' order, so a badge earned for the first time ever could land
- * past the cut and never be seen — the one pill the player most wants. The
- * sort is stable, so within each group the engine's order survives.
+ * UNCAPPED. The row used to keep four pills and cut the rest, on the reasoning
+ * that pills cost pixels; what that actually cost was the player's own result.
+ * A club that earns seven badges did something worth seven pills, the row wraps
+ * on its own, and a badge dropped for space is indistinguishable from a badge
+ * not earned. `cap` survives as an optional argument because the tests that
+ * pin the ORDER need a cut to observe it against, and because a future surface
+ * with a real width budget should get the same sorted list rather than its own.
+ *
+ * First-time badges still sort to the FRONT, now for emphasis rather than for
+ * survival: the pill a player most wants to see should not be seventh. The sort
+ * is stable, so within each group the engine's order survives.
  *
  * Keys that resolve to no definition are dropped, which covers a finale
- * restored from a save written before a badge was retired. */
+ * restored from a save written before a badge was retired — 2️⃣ RE2PECT and
+ * 🎆 THE WALK-OFF are both in that state as of this round. */
 export function bragRow(
   keys: string[],
   newKeys: string[],
-  cap: number,
+  cap: number = Infinity,
 ): Brag[] {
   const fresh = new Set(newKeys);
   return keys

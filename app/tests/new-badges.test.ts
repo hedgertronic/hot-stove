@@ -28,8 +28,6 @@ import BadgePill from "../src/components/BadgePill.svelte";
 import TrophyModal from "../src/components/TrophyModal.svelte";
 import {
   BADGE_BY_KEY,
-  CAPTAIN,
-  WALK_OFF_SEASONS,
   bragRow,
   earnedBadges,
   type BadgeFacts,
@@ -268,69 +266,6 @@ const guy = (over: Partial<BadgeRosterEntry> = {}): BadgeRosterEntry => ({
 const fullClub = (over: Partial<BadgeRosterEntry> = {}) =>
   Array.from({ length: 8 }, () => guy(over));
 
-describe("2️⃣ RE2PECT", () => {
-  it("fires on the captain, in any season", () => {
-    for (const year of [1996, 1999, 2014]) {
-      expect(earnedBadges(f({ roster: [guy({ id: CAPTAIN, year })] }))).toContain(
-        "respect",
-      );
-    }
-  });
-
-  it("fires on nobody else, however Yankee they look", () => {
-    const notHim = f({
-      roster: [guy({ id: "jeterde02", year: 1999, team: "NYY" })],
-    });
-    expect(earnedBadges(notHim)).not.toContain("respect");
-  });
-
-  it("keys on the id rather than the name", () => {
-    // Names are display strings and change spelling; the badge names a person.
-    const byName = f({ roster: [guy({ id: "someguy01", name: "Derek Jeter" })] });
-    expect(earnedBadges(byName)).not.toContain("respect");
-  });
-});
-
-describe("🎆 THE WALK-OFF", () => {
-  const walkers = Object.entries(WALK_OFF_SEASONS).flatMap(([id, years]) =>
-    years.map((year) => [id, year] as const),
-  );
-
-  it("names exactly three seasons", () => {
-    expect(walkers).toHaveLength(3);
-  });
-
-  it("fires on each of the three", () => {
-    for (const [id, year] of walkers) {
-      expect(
-        earnedBadges(f({ roster: [guy({ id, year })] })),
-        `${id} ${year}`,
-      ).toContain("walkoff");
-    }
-  });
-
-  it("does not fire on any other season of the same man", () => {
-    // The point of keying the season: Joe Carter has fifteen cards and one
-    // walk-off, and 🎆 is about the swing rather than about the player.
-    for (const [id, year] of walkers) {
-      for (const other of [year - 1, year + 1]) {
-        expect(
-          earnedBadges(f({ roster: [guy({ id, year: other })] })),
-          `${id} ${other}`,
-        ).not.toContain("walkoff");
-      }
-    }
-  });
-
-  it("does not fire on the wrong Renteria", () => {
-    // `renteri01` is Rick Renteria, a real draftable man who never won
-    // anything in a Series. The id is one character from Édgar's.
-    expect(
-      earnedBadges(f({ roster: [guy({ id: "renteri01", year: 1997 })] })),
-    ).not.toContain("walkoff");
-  });
-});
-
 describe("🌠 THE DREAM TEAM", () => {
   it("fires on nine of nine, and takes 🔮's slot", () => {
     const got = earnedBadges(f({ dreamSeats: 9, scoutHits: 9 }));
@@ -489,8 +424,6 @@ describe("🙈 DIDN'T ASK THE PRICE", () => {
 describe("every new badge resolves to a definition", () => {
   it("has a table entry for each key the triggers above emit", () => {
     for (const key of [
-      "respect",
-      "walkoff",
       "dreamteam",
       "beatdream",
       "cheatcodes",

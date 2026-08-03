@@ -74,8 +74,8 @@ describe("badgeCase", () => {
   it("pins the collectible denominator to the badge table", () => {
     // The summary line prints this denominator; it lives in badges.ts, and a
     // table edit must move the fraction here rather than silently anywhere.
-    expect(COLLECTIBLE.length).toBe(54);
-    expect(BADGES.length).toBe(65);
+    expect(COLLECTIBLE.length).toBe(52);
+    expect(BADGES.length).toBe(63);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 
@@ -123,6 +123,21 @@ describe("badgeCase", () => {
     expect(badgeCase().earned).toBe(1);
   });
 
+  it("survives a history full of the two badges retired this round", () => {
+    // `respect` and `walkoff` shipped, so real saves hold them. They reach
+    // three unguarded property accesses inside badgeCase's sort — a key that
+    // slipped past the filter would throw on `.rarity` and take the whole
+    // trophy case down for anyone who had earned one. Every entry is retired
+    // here, so a reader that only survived a MIXED history still fails.
+    seed(game(["respect"]), game(["walkoff", "respect"]));
+    expect(counts()).toEqual({});
+    const c = badgeCase();
+    expect(c.earned).toBe(0);
+    expect(c.tiles).toEqual([]);
+    // And the fraction's denominator never counted them either.
+    expect(c.total).toBe(COLLECTIBLE.length);
+  });
+
   it("survives history that is not an array at all", () => {
     store.set("hotstove.history", "{}");
     expect(badgeCase().tiles).toEqual([]);
@@ -151,11 +166,19 @@ describe("badgeCase", () => {
 });
 
 describe("the trophy case sheet", () => {
-  it("heads the sheet with the progress fraction", () => {
+  it("heads the sheet with its name and no fraction", () => {
+    // The denominator is gone on purpose. A trophy case answers "which
+    // trophies do I have", and the ladder below shows exactly that, band by
+    // band; "2 OF 52" only ever answered "how much is left", which turns a
+    // collection into an errand. The passport under it lost its count the same
+    // day and for the same reason.
     seed(game(["crystal", "twoway", "skull"]));
     const body = modal();
     expect(body).toContain("TROPHY CASE");
-    expect(body).toContain(`2 OF ${COLLECTIBLE.length}`);
+    expect(body).not.toMatch(/\d+ OF \d+/);
+    // The reader still computes it — the sheet just stopped printing it.
+    expect(badgeCase().earned).toBe(2);
+    expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 
   it("takes its header and its exits from the sheet, exactly once each", () => {
@@ -255,8 +278,9 @@ describe("the trophy case sheet", () => {
     // Every badge gets a slot, anti-trophies included — but theirs is fully
     // anonymous, so it invites nothing.
     expect(lockedSlots(body)).toBe(BADGES.length);
-    // The fraction still counts only what can be chased.
-    expect(body).toContain(`0 OF ${COLLECTIBLE.length}`);
+    // The reader's fraction still counts only what can be chased, even though
+    // the sheet no longer prints it.
+    expect(badgeCase().total).toBe(COLLECTIBLE.length);
     expect(COLLECTIBLE.length).toBeLessThan(BADGES.length);
   });
 
@@ -266,7 +290,7 @@ describe("the trophy case sheet", () => {
     expect(body).toContain("100-LOSS CLUB");
     expect(body).toContain(BADGE_BY_KEY.skull.emoji);
     // It never enters the fraction, earned or not.
-    expect(body).toContain(`0 OF ${COLLECTIBLE.length}`);
+    expect(badgeCase().earned).toBe(0);
     // And earning it converts its anonymous slot rather than adding one.
     expect(lockedSlots(body)).toBe(BADGES.length - 1);
   });
@@ -533,7 +557,8 @@ describe("the trophy case sheet", () => {
   it("says so plainly when nothing is earned yet", () => {
     seed();
     const body = modal();
-    expect(body).toContain(`TROPHY CASE · 0 OF ${COLLECTIBLE.length}`);
+    expect(body).toContain("TROPHY CASE");
+    expect(body).not.toMatch(/\d+ OF \d+/);
     expect(body).toContain("No badges yet");
   });
 });
