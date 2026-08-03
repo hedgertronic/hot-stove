@@ -4,11 +4,22 @@
  * they mount for real in jsdom rather than SSR-render. Contract under test:
  * PrimePicker career rows carry a WAR chip in Box Score only; the
  * SpecialPrimePicker (manager-only — owner and stadium tiles are never Prime
- * targets) withholds the W–L record, win value, and MOY pill in Eye Test. */
+ * targets) withholds the W–L record, win value, and MOY pill in Eye Test.
+ *
+ * The file also pins the DISMISSAL CHROME every sheet inherits from
+ * `Sheet.svelte` — a ✕ in the top-right corner and a full-width button along
+ * the bottom, both drawn by the shell rather than by each caller. That belongs
+ * here because it is the same class of claim: a contract several sheets have
+ * to satisfy identically, which is exactly what a per-component copy quietly
+ * stops doing. Both exits are asserted to call `onclose`, since a dismissal
+ * affordance that renders but does nothing is the failure worth catching. */
 import { describe, expect, it } from "vitest";
-import { mount, unmount } from "svelte";
+import { flushSync, mount, unmount } from "svelte";
+import HelpModal from "../src/components/HelpModal.svelte";
 import PrimePicker from "../src/components/PrimePicker.svelte";
 import SpecialPrimePicker from "../src/components/SpecialPrimePicker.svelte";
+import TeamPicker from "../src/components/TeamPicker.svelte";
+import YearPicker from "../src/components/YearPicker.svelte";
 import { forgeGame, mkCard, mkPlayer } from "../src/lab/fixtures";
 import { type Game, type GameConfig } from "../src/lib/engine.svelte";
 import type { Card, SpecialsIndex } from "../src/lib/types";
@@ -107,5 +118,122 @@ describe("SpecialPrimePicker manager career rows", () => {
     expect(html).not.toContain("93–69");
     expect(html).not.toContain("+4.8");
     expect(html).not.toContain("MOY");
+  });
+});
+
+/** Mount any sheet with an onclose spy and hand back the live root. */
+function open(component: unknown, props: Record<string, unknown>) {
+  const target = document.createElement("div");
+  document.body.appendChild(target);
+  let closed = 0;
+  const comp = mount(component as typeof HelpModal, {
+    target,
+    props: { ...props, onclose: () => (closed += 1) } as never,
+  });
+  // Settle the mount effects — the dialog's focus claim is one of them.
+  flushSync();
+  return {
+    target,
+    closes: () => closed,
+    x: () => target.querySelector<HTMLButtonElement>('button[aria-label="Close"]'),
+    footer: () => target.querySelector<HTMLButtonElement>("button.cancel"),
+    done: async () => {
+      await unmount(comp);
+      target.remove();
+    },
+  };
+}
+
+const colors = { franchises: { SEA: "#005c5c" } };
+const carded = (config: GameConfig): Game =>
+  forgeGame(config, (g) => {
+    g.card = cards.SEA_2001;
+  });
+
+describe("every sheet's two exits", () => {
+  /** Sheet · caller · the word its bottom button carries. A picker the player
+   * can back out of says CANCEL; a sheet that only tells them things says GOT
+   * IT. (TrophyModal and SpecialPrimePicker still draw their own chrome and
+   * are not on this list yet.) */
+  const SHEETS: [string, unknown, Record<string, unknown>, string][] = [
+    ["PrimePicker", PrimePicker, { game: primeGame(CLASSIC) }, "CANCEL"],
+    ["YearPicker", YearPicker, { game: carded(CLASSIC) }, "CANCEL"],
+    ["TeamPicker", TeamPicker, { game: carded(CLASSIC), colors }, "CANCEL"],
+    ["HelpModal", HelpModal, {}, "GOT IT"],
+  ];
+
+  for (const [name, component, props, word] of SHEETS) {
+    it(`${name} carries a corner ✕ and a ${word} button, and both close it`, async () => {
+      const ui = open(component, props);
+      expect(ui.x()).not.toBeNull();
+      expect(ui.footer()?.textContent?.trim()).toBe(word);
+
+      ui.x()!.click();
+      expect(ui.closes()).toBe(1);
+      ui.footer()!.click();
+      expect(ui.closes()).toBe(2);
+      await ui.done();
+    });
+
+    it(`${name} draws exactly one of each — no caller-local duplicate`, async () => {
+      const ui = open(component, props);
+      expect(ui.target.querySelectorAll('button[aria-label="Close"]')).toHaveLength(1);
+      expect(ui.target.querySelectorAll("button.cancel")).toHaveLength(1);
+      await ui.done();
+    });
+
+    /** Escape is the third exit, and the one that can render correctly and
+     * still do nothing: the handler sits on the dialog, so it only ever sees a
+     * key press when focus is inside it. Opening a sheet leaves focus on
+     * `<body>` behind the backdrop unless the dialog claims it, and this
+     * asserts the claim by pressing Escape at the DOCUMENT — the position a
+     * player who has tapped nothing is actually in. */
+    it(`${name} takes focus on open, so Escape closes it untouched`, async () => {
+      const ui = open(component, props);
+      expect(document.activeElement).toBe(ui.target.querySelector(".sheet"));
+      document.activeElement!.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      expect(ui.closes()).toBe(1);
+      await ui.done();
+    });
+  }
+});
+
+describe("the help sheet teaches with the real parts", () => {
+  it("renders a market row, rail seats, both payroll faces, pills, and badges", async () => {
+    const ui = open(HelpModal, {});
+    const h = ui.target.innerHTML;
+    // The market row's own anatomy, WAR ladder included (the app.css chip,
+    // not a copy): 9.7 is the elite rung.
+    expect(ui.target.querySelector(".prow .warchip.elite")).not.toBeNull();
+    expect(h).toContain("Pedro Martínez");
+    // A dead row beside the live one — the market's gray, shown not described.
+    expect(ui.target.querySelector(".prow.dead")).not.toBeNull();
+    // Rail seats: filled ones wear their WAR tier on the border, empty ones
+    // are the dashed invitation.
+    expect(ui.target.querySelector(".cell.filled")).not.toBeNull();
+    expect(ui.target.querySelector(".cell.empty")).not.toBeNull();
+    // Both payroll faces, through the real PayrollBox: under, then over. The
+    // probe is the meter's own alarm class and the overrun figure's element,
+    // not their wording — the copy belongs to that component.
+    expect(ui.target.querySelectorAll(".pay")).toHaveLength(2);
+    expect(ui.target.querySelectorAll(".paylbl .left")).toHaveLength(1);
+    expect(ui.target.querySelectorAll(".pmeter.pover")).toHaveLength(1);
+    expect(ui.target.querySelector(".paylbl .warn")?.textContent).toContain("$14.3M");
+    // A powerup pill in each of its three states.
+    for (const cls of [".pp", ".pp.armed", ".pp.spent"])
+      expect(ui.target.querySelector(cls)).not.toBeNull();
+    // A badge, earned and locked, through the real BadgePill.
+    expect(ui.target.querySelector(".brag:not(.locked)")).not.toBeNull();
+    expect(ui.target.querySelector(".brag.locked")).not.toBeNull();
+    await ui.done();
+  });
+
+  it("says PRIMETIME, one word, exactly as the pill does", async () => {
+    const ui = open(HelpModal, {});
+    expect(ui.target.innerHTML).toContain("PRIMETIME");
+    expect(ui.target.innerHTML).not.toContain("PRIME TIME");
+    await ui.done();
   });
 });

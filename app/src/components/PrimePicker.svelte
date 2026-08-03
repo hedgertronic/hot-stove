@@ -76,9 +76,13 @@
   }
 </script>
 
-<Sheet {onclose} label="Pick a season of this player's career">
-  <div class="sheet-h">⭐ PRIME TIME — {listed?.name ?? ""}</div>
-    <div class="sheet-sub">Sign any year of the career, at that year's price</div>
+<Sheet
+  {onclose}
+  label="Pick a season of this player's career"
+  title="⭐ PRIMETIME — {listed?.name ?? ''}"
+  subtitle="Sign any year of the career, at that year's price"
+  confirmLabel="CANCEL"
+>
     {#if failed}
       <div class="note">Couldn't load the career. Try again.</div>
     {:else if seasons === null}
@@ -114,23 +118,12 @@
         {/each}
       </div>
     {/if}
-    <button class="btn cancel" onclick={onclose}>Cancel</button>
 </Sheet>
 
 <style>
-  .sheet-h {
-    text-align: center;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-  }
-  .sheet-sub {
-    text-align: center;
-    font-size: 10.5px;
-    font-weight: 700;
-    color: var(--muted);
-    margin: 2px 0 10px;
-  }
+  /* Header, subtitle, ✕ and the CANCEL button all belong to Sheet — a picker
+     is a thing you back out of, so its bottom button says CANCEL rather than
+     CLOSE. */
   .note {
     text-align: center;
     font-size: 12px;
@@ -141,7 +134,6 @@
   .list {
     display: grid;
     gap: 6px;
-    margin-bottom: 12px;
   }
   .srow {
     display: flex;
@@ -259,10 +251,5 @@
   }
   .cost.spendy {
     color: var(--orange);
-  }
-  .cancel {
-    width: 100%;
-    font-size: 13px;
-    padding: 8px;
   }
 </style>

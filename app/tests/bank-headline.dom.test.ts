@@ -9,6 +9,10 @@
  * two things safely — outflow on the left, trouble on the right — so it is
  * worth a test rather than a comment.
  *
+ * The right half has three faces, and which one is showing is the whole
+ * subject here: the payroll left, the overrun, and the club with no owner yet,
+ * whose spend is all overrun because there is no payroll to be inside of.
+ *
  * Mounted in jsdom rather than SSR-rendered because the interesting cases are
  * transitions: hiring an owner turns the unknown into a real figure, and
  * spending past the payroll swaps that figure for the warning. Only a reactive
@@ -79,8 +83,10 @@ describe("the payroll label row", () => {
     target.remove();
   });
 
-  it("leaves the unknown uncolored until an owner supplies the denominator", () => {
-    const game = spendGame(CLASSIC, 34);
+  it("leaves the unknown uncolored while the club has spent nothing", () => {
+    const game = forgeGame(CLASSIC, (g) => {
+      g.card = mkCard();
+    });
     const { target, comp } = mountBox(game);
 
     const [, left] = labels(target);
@@ -89,6 +95,34 @@ describe("the payroll label row", () => {
     expect(amount(left)).toBe(null);
     expect(left.classList.contains("nocap")).toBe(true);
 
+    unmount(comp as never);
+    target.remove();
+  });
+
+  it("reads money spent into an empty owner's chair as money over", () => {
+    // A club with no owner has no payroll, so the first dollar committed is
+    // already past it: $34M spent reads as $34M over — the figure IS the
+    // spend, which is what separates this from a real overrun.
+    const game = spendGame(CLASSIC, 34);
+    const { target, comp } = mountBox(game);
+
+    const [, right] = labels(target);
+    expect(game.capKnown).toBe(false);
+    expect(right.classList.contains("warn")).toBe(true);
+    expect(right.textContent).toBe("$34M OVER");
+    expect(amount(right)).toBe("$34M");
+    expect(target.querySelector(".left")).toBe(null);
+
+    // The BAR does not join in. This is a headline, not a share: with no
+    // denominator there is still nothing for a fill to be a fraction of, so
+    // the meter keeps its gray track and its drifting unknown hatch.
+    const meter = target.querySelector(".pmeter")!;
+    expect(meter.classList.contains("pnocap")).toBe(true);
+    expect(meter.classList.contains("pover")).toBe(false);
+    expect(target.querySelector(".pfill")!.classList.contains("unknown")).toBe(true);
+
+    // Hiring the owner supplies the denominator, and the same $34M turns from
+    // over into left — which is exactly what hiring an owner did.
     game.owner = { ...OWNER };
     flushSync();
 
@@ -96,6 +130,7 @@ describe("the payroll label row", () => {
     expect(resolved.textContent).toBe("$58.1M LEFT");
     expect(amount(resolved)).toBe("$58.1M");
     expect(resolved.classList.contains("left")).toBe(true);
+    expect(target.querySelector(".warn")).toBe(null);
 
     unmount(comp as never);
     target.remove();
@@ -113,7 +148,11 @@ describe("the payroll label row", () => {
     expect(game.capKnown).toBe(true);
     expect(right.classList.contains("warn")).toBe(true);
     expect(right.classList.contains("left")).toBe(false);
-    expect(right.textContent).toContain("OVER PAYROLL");
+    // The overrun itself — $34M against a $20M payroll — rather than the words
+    // "over payroll". The figure is the news; the word PAYROLL is the row's
+    // subject either way and says nothing a player did not already know.
+    expect(right.textContent).toBe("$14M OVER");
+    expect(amount(right)).toBe("$14M");
     // The invariant that lets orange mean two things: the green figure is gone.
     expect(target.querySelector(".left")).toBe(null);
     // …and the spent figure keeps its own orange, so the row reads as one alarm.

@@ -13,7 +13,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import Finale from "../src/components/Finale.svelte";
-import { finaleCeilingAbove } from "../src/lab/fixtures";
+import { finaleCeilingAbove, finaleOver } from "../src/lab/fixtures";
+import type { Game } from "../src/lib/engine.svelte";
 
 const store = new Map<string, string>();
 (globalThis as Record<string, unknown>).localStorage = {
@@ -38,15 +39,20 @@ afterEach(() => {
   host = null;
 });
 
-function render(resolved: boolean): HTMLElement {
+function render(resolved: boolean, game: Game = finaleCeilingAbove()): HTMLElement {
   host = document.createElement("div");
   document.body.appendChild(host);
   app = mount(Finale, {
     target: host,
-    props: { game: finaleCeilingAbove(), onreplay: () => {}, onmodes: () => {}, resolved },
+    props: { game, onreplay: () => {}, onmodes: () => {}, resolved },
   });
   flushSync();
   return host;
+}
+
+/** The bar in the budget row of the ledger, whoever drew it. */
+function ledgerBar(el: HTMLElement): HTMLElement {
+  return el.querySelector(".lrow .minimeter .pmeter") as HTMLElement;
 }
 
 describe("a restored finale", () => {
@@ -78,6 +84,34 @@ describe("a restored finale", () => {
     const el = render(true);
     await Promise.resolve();
     expect(el.querySelector("canvas")).toBeNull();
+  });
+
+  it("draws the budget row's bar with the payroll box itself, at ledger scale", () => {
+    // The class is the evidence: `.pmeter` is PayrollBox's own track, and
+    // `mini` is the one thing the ledger asks it for. A lookalike built inside
+    // Finale is the parallel copy that drifted last time — two greens on the
+    // board and two others in the ledger — so the row goes through the
+    // component or the drift comes back.
+    const el = render(true);
+    const bar = ledgerBar(el);
+    expect(bar).not.toBeNull();
+    expect(bar.classList.contains("mini")).toBe(true);
+    // This fixture spends $88M of a $96.7M payroll: under, so the calm face.
+    expect(bar.classList.contains("pover")).toBe(false);
+    expect(bar.classList.contains("pnocap")).toBe(false);
+    expect(bar.querySelector(".pfill")).not.toBeNull();
+  });
+
+  it("wears the same over-payroll alarm the board wears when the club went over", () => {
+    // $116M spent against $96.7M — the luxury-tax face of the same row, and
+    // the same orange track and drifting hatch the board showed all game.
+    const el = render(true, finaleOver());
+    const bar = ledgerBar(el);
+    expect(bar.classList.contains("pover")).toBe(true);
+    expect(bar.querySelector(".pfill")).not.toBeNull();
+    // The row still names the overrun beside the bar, in the game's money
+    // format: $116M spent against a $96.7M payroll is $19.3M over.
+    expect(bar.closest(".lrow")?.querySelector(".why")?.textContent).toBe("$19.3M over");
   });
 
   it("a finale just earned still plays the reveal", () => {

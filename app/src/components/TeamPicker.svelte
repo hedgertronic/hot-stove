@@ -20,8 +20,12 @@
   }
 </script>
 
-<Sheet {onclose} label="Pick a team">
-  <div class="sheet-h">🚚 RELOCATE — ANY {game.card?.year ?? ""} CLUB</div>
+<Sheet
+  {onclose}
+  label="Pick a team"
+  title="🚚 RELOCATE — ANY {game.card?.year ?? ''} CLUB"
+  confirmLabel="CANCEL"
+>
   {#each divisions as d (d.label)}
     <div class="div-h">{d.label}</div>
     <div class="grid">
@@ -41,17 +45,11 @@
       {/each}
     </div>
   {/each}
-  <button class="btn cancel" onclick={onclose}>Cancel</button>
 </Sheet>
 
 <style>
-  .sheet-h {
-    text-align: center;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    margin-bottom: 10px;
-  }
+  /* Header, ✕ and the CANCEL button all belong to Sheet — a picker is a thing
+     you back out of, so its bottom button says CANCEL rather than CLOSE. */
   .div-h {
     font-size: 9.5px;
     font-weight: 800;
@@ -59,14 +57,16 @@
     color: var(--muted);
     margin: 8px 2px 5px;
   }
+  /* The first heading takes its air from the sheet's own header gap; its own
+     margin would stack on top and push six divisions toward a scroll. */
+  .div-h:first-child {
+    margin-top: 0;
+  }
   .grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 7px;
     margin-bottom: 4px;
-  }
-  .grid:last-of-type {
-    margin-bottom: 12px;
   }
   /* Each tile is a club color, so it wears the pair — the accent thinned into
      the cardstock for the fill, the accent itself for the line. Same derivation
@@ -101,10 +101,5 @@
   .teambtn:disabled {
     opacity: 0.32;
     cursor: default;
-  }
-  .cancel {
-    width: 100%;
-    font-size: 13px;
-    padding: 8px;
   }
 </style>

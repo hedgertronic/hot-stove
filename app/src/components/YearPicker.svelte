@@ -19,8 +19,12 @@
   }
 </script>
 
-<Sheet {onclose} label="Pick a season">
-  <div class="sheet-h">🎟️ SEASON TICKET — {game.card?.name ?? ""}</div>
+<Sheet
+  {onclose}
+  label="Pick a season"
+  title="🎟️ SEASON TICKET — {game.card?.name ?? ''}"
+  confirmLabel="CANCEL"
+>
   <div class="grid">
     {#each years as y (y)}
       <button class="yearbtn" disabled={y === game.card?.year} onclick={() => pick(y)}>
@@ -28,22 +32,16 @@
       </button>
     {/each}
   </div>
-  <button class="btn cancel" onclick={onclose}>Cancel</button>
 </Sheet>
 
 <style>
-  .sheet-h {
-    text-align: center;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    margin-bottom: 10px;
-  }
+  /* Header, ✕ and the CANCEL button all belong to Sheet — a picker is a thing
+     you back out of, so its bottom button says CANCEL rather than CLOSE. The
+     grid carries no bottom margin: Sheet's button supplies the gap. */
   .grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 7px;
-    margin-bottom: 12px;
   }
   .yearbtn {
     border: 2px solid var(--ink);
@@ -71,10 +69,5 @@
   .yearbtn:disabled {
     opacity: 0.32;
     cursor: default;
-  }
-  .cancel {
-    width: 100%;
-    font-size: 13px;
-    padding: 8px;
   }
 </style>
