@@ -97,18 +97,46 @@ Powerups (one each, four named pills in a row under the banner, gray when spent;
   Trigger check after both are owned; if roster full and TD unspent, offer the swap.
 
 Bankroll: `effective = ownerBudget × (stadiumMult if stadium else 1)`. Before an owner
-exists, show ghost chips and run the meter against the **league-minimum bankroll**
-(min `budget` across all cards — hardcode from data, or add to meta.json in the next
-pipeline pass), in warning orange when spent exceeds it. That floor is also the final
-bankroll if no owner is ever hired.
+exists, the payroll IS zero: ghost chips, a $0 figure, and the meter in warning
+orange the moment anything is signed, because anything over nothing is over. The
+**league-minimum bankroll** (`meta.json` → `minBudget`, the smallest `budget`
+across all cards) is not what the meter shows — it is the floor the SCORE falls
+back to if no owner is ever hired, so the two numbers answer different questions
+and only one of them is on screen.
 
-## Scoring (port `pipeline/scoring.py` 1:1 — it is the source of truth)
+## Scoring (`pipeline/scoring.py` IS the source of truth)
 
-expectedWins = min(47.7 + ΣWAR, 162) · budgetBonus = 10 × (2 × spend/budget − 1) if
-≤ budget else 0 (ranges −10 empty → +10 at the cap; underuse costs points) · awards
-MVP/CY 3, ROY 2, GG/SS 1 · rings 💍 2 (`ws`), pennants 🚩 1 (`pen`) · skipper
-(W−L)×0.1 if hired · luxuryTax = max(0, spend−budget) × 1.
-Displayed record: seeded per-game binomial sim of expectedWins/162 (drama only).
+**No numbers live in this section, on purpose.** Every constant and every formula
+is in `pipeline/scoring.py`, which is short, commented, and the thing the game
+actually runs on. `app/src/lib/scoring.ts` is a hand-maintained 1:1 port of it,
+and `pipeline/gen_fixtures.py` → `app/tests/scoring-fixtures.json` →
+`app/tests/scoring.test.ts` is what holds the two in parity.
+
+This section used to restate the formulas in prose, and every number in it had
+rotted: replacement wins, ring points, the skipper's per-net-win rate and the
+record's derivation were all wrong, and Manager of the Year, the World Baseball
+Classic medals and the scouting bonus were missing entirely. That is the cost of
+a third copy nothing executes — the two copies with a test between them stayed
+exact while this one drifted silently for months. Read the module.
+
+The shape, which is what a spec is for:
+
+- **Wins** are replacement level plus roster WAR plus the hired skipper's net
+  wins, capped at a full season.
+- **The payroll bonus is a two-sided swing**, not a bonus: it is negative for
+  leaving the bankroll unspent, zero at half, maximal right at the cap, and zero
+  the moment you go over — at which point the **luxury tax** takes over and is
+  uncapped. Underusing the bankroll costs points; that is the counterweight to
+  cheap-superstar drafting.
+- **Hardware** (player awards, ballot finishes, All-Star selections, and the
+  skipper's Manager of the Year) sums into one trophy-case term.
+- **Tournaments** (World Series rings, pennants, and both World Baseball Classic
+  medals) sum into one ring-chasing term. A ring and a medal describe the same
+  player-season and both count.
+- **The displayed record is deterministic** — expected wins, rounded. It is not
+  a simulation. The headline W–L must reconcile exactly with the ledger row
+  above it; a simulated record read as a bug because it never did.
+
 **Ledger labels must be deterministic/count-based** ("3 rings 💍 · 1 pennant 🚩",
 never "three 2016 rings").
 

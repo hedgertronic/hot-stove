@@ -1,5 +1,17 @@
 /** Parity fixtures generated from pipeline/scoring.py (the source of truth).
- * Regenerate via the snippet in the repo history if scoring.py changes. */
+ *
+ *     python3 pipeline/gen_fixtures.py
+ *
+ * Run that whenever scoring.py changes; the diff it leaves on
+ * scoring-fixtures.json is the blast radius of the change, and this suite is
+ * what then holds src/lib/scoring.ts to it. Run with nothing changed it must
+ * produce no diff at all.
+ *
+ * The line this replaces pointed at "the snippet in the repo history", which
+ * was never committed — for most of this project's life the fixtures could not
+ * be regenerated, so a Python-side balance change could be mirrored wrongly and
+ * nothing here would fail. The generator's own case list is the record of what
+ * this parity actually covers. */
 import { describe, expect, it } from "vitest";
 import { score } from "../src/lib/scoring";
 import fixtures from "./scoring-fixtures.json";
