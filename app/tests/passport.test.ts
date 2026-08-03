@@ -156,7 +156,7 @@ function finaleStamps(...countries: (string | undefined)[]): string {
 function stampFor(markup: string, country: string): string {
   const esc = country.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   for (const chunk of markup.split('<span class="stamp').slice(1)) {
-    if (new RegExp(`aria-label="${esc}[,."]`).test(chunk)) return chunk;
+    if (new RegExp(`aria-label="(New\\. )?${esc}[,."]`).test(chunk)) return chunk;
   }
   throw new Error(`no stamp for ${country}`);
 }
@@ -176,7 +176,7 @@ function stampClass(markup: string, country: string): string[] {
 /** Where a country's stamp sits on the board, for the ordering tests. */
 function stampAt(markup: string, country: string): number {
   const esc = country.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const i = markup.search(new RegExp(`aria-label="${esc}[,."]`));
+  const i = markup.search(new RegExp(`aria-label="(New\\. )?${esc}[,."]`));
   if (i < 0) throw new Error(`no stamp for ${country}`);
   return i;
 }
@@ -795,7 +795,7 @@ describe("the finale's passport", () => {
     expect(stamps).toContain("🇺🇸");
     expect(stamps).toContain("🇻🇪");
     expect(stamps).toContain("🇲🇽");
-    expect((stamps.match(/aria-label="Japan[,."]/g) ?? []).length).toBe(1);
+    expect((stamps.match(/aria-label="(New\. )?Japan[,."]/g) ?? []).length).toBe(1);
   });
 
   it("draws no empty slots — the board belongs to the trophy case", () => {

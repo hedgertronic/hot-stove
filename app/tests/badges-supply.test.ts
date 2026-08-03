@@ -21,6 +21,8 @@ import {
   CROWN_WINS,
   GAMBLERS,
   MATCHED,
+  MINIMUM_M,
+  MINIMUM_SEATS,
   SUSPENDED,
   WORST_WINS,
 } from "../src/lib/badges";
@@ -31,6 +33,9 @@ interface CardPlayerRow {
   name: string;
   pos: string;
   war: number;
+  /** Normalized salary in $M — the price 🪙 LEAGUE MINIMUM's floor is read
+   * against, and the same field `costPaid` starts from before any discount. */
+  cost: number;
   awards: string[];
   age?: number;
   posG?: { c?: number; if?: number; of?: number };
@@ -437,6 +442,64 @@ describe("the gold ceiling the shape badges are written around", () => {
       .filter((p) => (p.posG?.c ?? 0) >= MIN_POS_G && p.war >= 8.0)
       .map((p) => p.name);
     expect(gold).toEqual(["Mike Piazza"]);
+  });
+});
+
+/** The three price facts the round-24 badges stand on. All three break the
+ * same silent way the rungs do: 🪙 LEAGUE MINIMUM's $1.6M is a claim about
+ * what the cheapest season in a year actually costs, and 🚒 / 🧤 assume both
+ * positions can be dealt at all. A regen that repriced the floor would leave
+ * the arithmetic fine and the badge unreachable for a whole era. */
+describe("the prices the cheap-seat and position badges stand on", () => {
+  const seats = CARDS.flatMap((c) => c.players);
+  const years = [...new Set(CARDS.map((c) => c.year))].sort();
+  /** The cheapest season each year offers — the year's own league minimum. */
+  const floorFor = (year: number): number =>
+    Math.min(
+      ...CARDS.filter((c) => c.year === year).flatMap((c) =>
+        c.players.map((p) => p.cost),
+      ),
+    );
+
+  it("keeps $1.6M the highest league minimum in the window", () => {
+    // The price is the HIGHEST per-year floor rather than the lowest, so no
+    // era is priced out of its own minimum. 1985 and 1990 are the two years
+    // that sit on it; every other year is cheaper.
+    const floors = years.map(floorFor);
+    expect(Math.max(...floors)).toBe(MINIMUM_M);
+    expect(years.filter((y) => floorFor(y) === MINIMUM_M)).toEqual([1985, 1990]);
+    expect(Math.min(...floors)).toBe(1.0);
+    // …and nothing in the set is cheaper than a Homegrown dollar, which is
+    // what makes a flat $1M signing a minimum signing rather than a discount
+    // below one.
+    expect(Math.min(...seats.map((p) => p.cost))).toBe(1.0);
+  });
+
+  it("can deal a minimum-salary man in every year of the window", () => {
+    for (const y of years)
+      expect(floorFor(y), `${y} has no season at the minimum`).toBeLessThanOrEqual(
+        MINIMUM_M,
+      );
+    expect(years).toHaveLength(41);
+  });
+
+  it("can still fill four seats at the minimum off the set at large", () => {
+    // 🪙 asks for MINIMUM_SEATS of them across eight seats. The supply is not
+    // close to tight — 42% of the set is at or under the price — but the badge
+    // would be unreachable if it ever were.
+    const cheap = seats.filter((p) => p.cost <= MINIMUM_M).length;
+    expect(cheap).toBeGreaterThan(MINIMUM_SEATS);
+    expect(cheap / seats.length).toBeGreaterThan(0.3);
+  });
+
+  it("deals a catcher and a reliever on every card", () => {
+    // 🚒 and 🧤 read `pos`, and the RP seat can be filled from nothing else,
+    // so a card with no reliever would be a card that cannot complete a club.
+    for (const c of CARDS) {
+      const pos = c.players.map((p) => p.pos);
+      expect(pos, `${c.team} ${c.year} deals no reliever`).toContain("RP");
+      expect(pos, `${c.team} ${c.year} deals no catcher`).toContain("C");
+    }
   });
 });
 

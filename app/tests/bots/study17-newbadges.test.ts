@@ -30,9 +30,11 @@
  *     gate rather than about the rung. Study 14 measures the same population
  *     from the other side.
  *
- * Run: BOT_STUDIES=1 BOT_GAMES=2000 npx vitest run tests/bots/study17-newbadges.test.ts
+ * Run: BOT_STUDIES=1 BOT_GAMES=4000 BOT_GAMES_CTX=2000 \
+ *        npx vitest run tests/bots/study17-newbadges.test.ts
  * (BOT_GAMES sizes the reference arm, default 2000; BOT_GAMES_CTX sizes the
- * two context arms, default the same.)
+ * two context arms, default the same. last-run-study17.txt is the 4,000 /
+ * 2,000 / 2,000 run the thresholds in badges.ts were read off.)
  */
 import fs from "node:fs";
 import path from "node:path";
