@@ -18,11 +18,26 @@
     count?: number;
     /** The finale's thunk-in entrance. The case is a list, not an event. */
     animate?: boolean;
+    /** Seconds to hold before the thunk-in entrance plays. The finale's row
+     * deals its pills left to right and the order is the ROW's business, so
+     * the delay arrives as a number rather than being read off a position —
+     * a selector counting siblings breaks the moment an opened badge inserts
+     * its panel into the same row, and a wrapper carrying the index breaks
+     * BadgeSlot's `btnEl.parentElement` walk to the row it measures against.
+     * Ignored with `animate` false, where there is no animation to delay. */
+    delay?: number;
     /** First time this badge has ever been earned. Finale only — in the case
      * every badge is already earned, so the flag would mark all of them. */
     fresh?: boolean;
   }
-  let { badge, locked = false, count = 1, animate = false, fresh = false }: Props = $props();
+  let {
+    badge,
+    locked = false,
+    count = 1,
+    animate = false,
+    fresh = false,
+    delay = 0,
+  }: Props = $props();
 </script>
 
 <!-- Every visible part is its own element, and every gap between them is the
@@ -36,6 +51,7 @@
   class:locked
   class:animate
   class:withnew={fresh && !locked}
+  style:animation-delay={animate && delay > 0 ? `${delay}s` : null}
   title={locked ? undefined : badge.label}
 >
   {#if locked && (badge.ironic || badge.secret)}

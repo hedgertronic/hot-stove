@@ -1,7 +1,8 @@
 <script lang="ts">
   import { BADGE_BY_KEY } from "../lib/badges";
   import { SLOT_TYPES } from "../lib/engine.svelte";
-  import { costTier, money, slotLabel, warTier } from "../lib/format";
+  import { costTier, money, signed, slotLabel, warTier } from "../lib/format";
+  import { MANAGER_PER_NET_WIN } from "../lib/scoring";
   import AwardPill from "./AwardPill.svelte";
   import BadgePill from "./BadgePill.svelte";
   import PayrollBox from "./PayrollBox.svelte";
@@ -43,26 +44,40 @@
    * out rather than the same component wired to a fake game. */
   let { onclose }: { onclose: () => void } = $props();
 
+  /* EVERY FIGURE BELOW IS THE REAL ONE, read off data/cards, and every tier is
+   * DERIVED from it by the app's own `warTier`. Both halves matter. A caption a
+   * few lines down says a seat's border is that player's WAR tier, so a
+   * hand-picked tier beside a hand-picked number is the help sheet teaching the
+   * ladder wrong — a worse failure than the hand-copied markup these specimens
+   * were rewritten to remove, and the exact one that shipped here for a round:
+   * a manager chair labelled "star" over an invented "+9.4 W", which is elite.
+   * Nothing here is a plausible-looking invention any more. */
+
   /** One row off a real card: a generational season with hardware on it. */
   const MARKET = {
     pos: "SP",
     name: "Pedro Martínez",
     awards: ["CY", "AS"],
-    war: 9.7,
-    cost: 12.5,
+    war: 9.8,
+    cost: 54.6,
   };
   /** The same row with nowhere to put him — the market's gray. */
-  const MARKET_DEAD = { pos: "C", name: "Iván Rodríguez", war: 5.2, cost: 6.9 };
+  const MARKET_DEAD = { pos: "C", name: "Iván Rodríguez", war: 6.4, cost: 44 };
 
   /** Four of the eight chairs: two filled, two waiting. Four rather than eight
    * because the phone grid is 2×4 and this is 2×2 — the same object at a size
    * that leaves room for a caption. */
   const SEATS = [
-    { label: "C", name: "Piazza", meta: "1997 LAN", war: 6.4 },
+    { label: "C", name: "Piazza", meta: "1997 LAD", war: 8.7 },
     { label: "IF", name: null, meta: null, war: null },
-    { label: "SP", name: "Maddux", meta: "1995 ATL", war: 9.7 },
+    { label: "SP", name: "Maddux", meta: "1995 ATL", war: 10.8 },
     { label: "RP", name: null, meta: null, war: null },
   ];
+
+  /** Bobby Cox's 1995 Braves, 90–54, through the engine's own expression — so
+   * the chair's numeral and the rung it wears come from one number, and that
+   * number is the one the game would put there. */
+  const MGR_WINS = (90 - 54) * MANAGER_PER_NET_WIN;
 
   /** The eight seats, counted off SLOT_TYPES rather than written out: "C · IF
    * ×2 · OF · UTIL · SP ×2 · RP". A seat added to the game must not need this
@@ -122,7 +137,15 @@
   <div class="hsec">YOUR SQUAD</div>
   <!-- The real seat component, the real rungs. -->
   <div class="rail">
-    <RailSeat chair="mgr" label="MGR" name="Cox" meta="1995 ATL" tier="star" war="+9.4 W" mgw />
+    <RailSeat
+      chair="mgr"
+      label="MGR"
+      name="Cox"
+      meta="1995 ATL"
+      tier={warTier(MGR_WINS)}
+      war="{signed(MGR_WINS)} W"
+      mgw
+    />
     {#each SEATS as s (s.label)}
       <RailSeat
         label={s.label}

@@ -105,6 +105,11 @@
    * `passportBoard()` walks the whole country table; see the note on it for why
    * that stopped being a checklist objection. */
   const items: PassportItem[] = passportBoard();
+  /** A second read of the same log, deliberately. `passportBoard` hands back
+   * what the panel DRAWS, and the note below it needs one thing a drawn stamp
+   * does not carry: how many of a country's seasons recorded a roster at all.
+   * Widening PassportItem to carry a diagnostic onto every stamp costs more
+   * than parsing the log twice on a modal open. */
   const stamps = passport();
 
   /** The player count is not backfillable and the panel says so out loud.

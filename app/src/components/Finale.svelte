@@ -266,6 +266,9 @@ import { track } from "../lib/analytics";
    * `?? []` on both arguments covers a finale restored from a save older than
    * either field: an empty row, and no flags, rather than a throw. */
   const brags = $derived(bragRow(fin.badges ?? [], fin.newBadges ?? []));
+  /** Seconds between pills as the row deals. Nine badges finish in about a
+   * second at this step — a deal, not a queue. */
+  const BRAG_STEP = 0.12;
 
   /** The one open badge in the row, by key — the same one-at-a-time reveal the
    * trophy case runs, through the same BadgeSlot. A badge earned here explains
@@ -601,21 +604,23 @@ import { track } from "../lib/analytics";
       <!-- The pill and the tap-to-explain are BadgeSlot's, shared with the home
            trophy case, so a badge looks and behaves the same the moment it is
            earned as it does in the case. `animate` asks for the thunk-in
-           entrance; this seat supplies the left-to-right stagger below.
-           `display: contents` (see .bragseat): the wrapper carries the index
-           and generates no box, so the button and the reveal panel BadgeSlot
-           emits stay direct flex children of .brags and the panel's containing
-           block is still .brags. A wrapper that generated a box would fence the
-           panel inside one pill's width. -->
-      <span class="bragseat" style="--i: {i}">
-        <BadgeSlot
-          badge={b.def}
-          animate={!resolved}
-          fresh={b.fresh}
-          open={openBrag === b.def.key}
-          ontoggle={() => (openBrag = openBrag === b.def.key ? null : b.def.key)}
-        />
-      </span>
+           entrance and `delay` deals the row left to right.
+           The stagger is a NUMBER rather than a selector or a wrapper, and both
+           of those were tried. A `:nth-of-type` rule has to be written out once
+           per seat, which stopped working when the row uncapped; a span
+           carrying an index broke BadgeSlot outright, because it measures its
+           reveal panel against `btnEl.parentElement` and a `display: contents`
+           wrapper is a parent with no box to measure. The order is still the
+           row's business — the row just hands it over instead of encoding it in
+           the DOM. -->
+      <BadgeSlot
+        badge={b.def}
+        animate={!resolved}
+        delay={i * BRAG_STEP}
+        fresh={b.fresh}
+        open={openBrag === b.def.key}
+        ontoggle={() => (openBrag = openBrag === b.def.key ? null : b.def.key)}
+      />
     {/each}
   </div>
 {/if}
@@ -820,28 +825,6 @@ import { track } from "../lib/analytics";
     gap: 6px 8px;
     margin-top: 12px;
     position: relative;
-  }
-  /* The left-to-right deal. BadgePill's `animate` supplies the thunk; the order
-     the pills arrive in is the ROW's business, so the delay lives here.
-     Counted, not enumerated. This used to be one hand-written rule per seat,
-     which was serviceable while the row held at most four pills and is not now
-     that it holds every badge earned — a club with nine would have had six
-     pills arrive together. `--i` is the seat's index, set by the markup, and
-     one rule covers any count.
-     The seat generates no box (`display: contents`), so it changes nothing
-     about the row's layout or about where BadgeSlot's reveal panel is fenced;
-     it exists only to carry that index and to be the thing the delay is set on.
-     It reaches THROUGH the button to the pill, because the animation is on the
-     pill and a delay set on the button would apply to nothing.
-     The last seat lands at 0.12s × index, so nine pills finish in about a
-     second — the reveal is a deal, not a queue.
-     No reduced-motion override is needed: BadgePill drops the animation
-     entirely there, and a delay on nothing is nothing. */
-  .bragseat {
-    display: contents;
-  }
-  .bragseat > :global(button .brag) {
-    animation-delay: calc(var(--i) * 0.12s);
   }
   .ledger {
     display: grid;

@@ -28,6 +28,8 @@
     count?: number;
     /** The finale's thunk-in entrance. */
     animate?: boolean;
+    /** Forwarded to BadgePill: seconds before this pill's entrance plays. */
+    delay?: number;
     /** First time this badge has ever been earned. Finale only. */
     fresh?: boolean;
     open: boolean;
@@ -36,7 +38,15 @@
      * "close". */
     ontoggle: () => void;
   }
-  let { badge, count = 1, animate = false, fresh = false, open, ontoggle }: Props = $props();
+  let {
+    badge,
+    count = 1,
+    animate = false,
+    delay = 0,
+    fresh = false,
+    open,
+    ontoggle,
+  }: Props = $props();
 
   /** Per-instance, so the trophy case opened over a finale cannot point two
    * `aria-controls` at one id. */
@@ -168,7 +178,7 @@
   aria-controls={open ? howId : undefined}
   onclick={ontoggle}
 >
-  <BadgePill {badge} {count} {animate} {fresh} />
+  <BadgePill {badge} {count} {animate} {delay} {fresh} />
 </button>
 {#if open}
   <!-- A sibling of the button, not a child of it: the panel's containing block

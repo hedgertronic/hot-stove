@@ -1733,3 +1733,27 @@ and names which term moved.
    that is not in `git log`, so those fixtures can no longer be regenerated
    from the Python source of truth. That remains the highest-value item on the
    list.
+
+### Two defects the round's own changes introduced, both caught before shipping
+
+**The help sheet's manager chair was lying.** It shipped as
+`tier="star"` beside a hand-typed `war="+9.4 W"` — and 9.4 is `elite`, so the
+sheet was teaching the wrong rung directly under a caption reading "a seat's
+border color is that player's WAR tier". The number was invented too: Cox's
+1995 Braves went 90–54, which is `+7.2 W` through the engine's own expression,
+and 7.2 IS `star`. Every specimen figure is now the real one off data/cards
+(Piazza 8.7, Maddux 10.8, Pedro 9.8 at $54.6M, Pudge 6.4 at $44M), every tier
+is derived by `warTier` rather than written down, and `help-specimens.test.ts`
+finds each one on a card. Extracting the components fixed the markup drift and
+left the *data* drift untouched — worth remembering as a separate failure mode.
+
+**The uncapped brag row's first stagger broke BadgeSlot.** Replacing the
+hand-written `:nth-of-type` rules with a `display: contents` span carrying a
+`--i` index is correct CSS and quietly wrong here: `BadgeSlot.measure()` reads
+`btnEl.parentElement` to get the row it places its reveal panel against, and a
+`display: contents` parent generates no box, so `getBoundingClientRect()`
+returns zeros and every panel in the finale would have been mis-placed. The
+stagger is a `delay` NUMBER on BadgePill now — no wrapper, no selector counting
+siblings (which the panel would break anyway by inserting itself into the row).
+Verified in the browser rather than argued: seven pills at 0→0.72s, panel
+`offsetParent` `.brags`, fenced inside the row.
