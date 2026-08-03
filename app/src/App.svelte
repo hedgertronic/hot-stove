@@ -373,7 +373,7 @@
   .quit {
     position: absolute;
     right: 0;
-    border: 2px solid var(--ink);
+    border: 2px solid var(--line);
     border-radius: 999px;
     background: var(--card);
     color: var(--muted);
@@ -406,7 +406,7 @@
   }
   /* Emoji-only chip, scaled to sit beside the ?/✕ pills. */
   .modechip {
-    border: 2px solid var(--ink);
+    border: 2px solid var(--line);
     border-radius: 999px;
     background: var(--amber);
     padding: 2px 8px;

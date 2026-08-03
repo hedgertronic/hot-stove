@@ -183,7 +183,7 @@
     display: flex;
     align-items: center;
     gap: 9px;
-    border: 2.5px solid var(--ink);
+    border: 2.5px solid var(--line);
     border-radius: 11px;
     background: var(--yellow);
     border-color: var(--gold-8);

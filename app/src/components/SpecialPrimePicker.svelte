@@ -142,7 +142,7 @@
     align-items: center;
     gap: 9px;
     background: var(--card);
-    border: 2.5px solid var(--ink);
+    border: 2.5px solid var(--line);
     border-radius: 11px;
     padding: 6px 10px;
     cursor: pointer;

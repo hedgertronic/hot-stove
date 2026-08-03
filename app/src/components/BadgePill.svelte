@@ -104,7 +104,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    border: 2px solid var(--ink);
+    border: 2px solid var(--line);
     border-radius: 999px;
     background: var(--gray-bg);
     font-size: 10.5px;

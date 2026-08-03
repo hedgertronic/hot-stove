@@ -234,7 +234,7 @@
     margin: 0;
     width: max-content;
     max-width: min(280px, 100%);
-    border: 2px solid var(--ink);
+    border: 2px solid var(--line);
     border-radius: 10px;
     background: var(--card);
     color: var(--ink);
@@ -281,7 +281,7 @@
     left: var(--notch);
     margin-left: -7px;
     bottom: 100%;
-    border-bottom: 9px solid var(--ink);
+    border-bottom: 9px solid var(--line);
   }
   .notch::after {
     content: "";
@@ -305,7 +305,7 @@
     bottom: auto;
     top: 100%;
     border-bottom: 0;
-    border-top: 9px solid var(--ink);
+    border-top: 9px solid var(--line);
   }
   .how.above .notch::after {
     bottom: auto;

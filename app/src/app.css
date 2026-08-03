@@ -1,5 +1,7 @@
 /* Hot Stove design tokens — extracted from design/cardstock-v2.html.
-   Flat cardstock: ink borders + color washes do all structure. NO drop shadows.
+   Flat cardstock: ruled borders + color washes do all structure. NO drop
+   shadows. Every plain box is drawn in --line (see its note below); ink is kept
+   for type and for the two states that must outrank the page.
 
    ---------- THE TINTING RULE ----------
 
@@ -12,14 +14,8 @@
 
    WHAT STAYS INK. The rule governs surfaces whose color means something —
    a WAR rung, a rarity, a category, a team. Ink is not a hue and does not
-   enter the system, so it keeps three jobs:
+   enter the system, so it keeps two jobs:
 
-     * STRUCTURE — a plain card (a market row, the bank box, a ledger row, a
-       button, a picker tile) is white paper on an ink line. Ink on the ground
-       is 14.09:1 and every tinted border is 2.2–6.2:1, so ink is the only
-       thing left holding the page's structure; softening it too would leave
-       nothing hard on the page. This is the cardstock look and it is not
-       negotiable by the tinting rule.
      * ARMED / TAPPABLE — dashed. The DASH is the state channel and the HUE is
        the value channel, and they ride the same border without colliding: a
        tappable elite seat is a dashed gold line, a tappable empty seat is a
@@ -74,6 +70,30 @@
   --ground: #f6f1e3;
   --card: #fffdf6;
   --ink: #24221c;
+  /* ---------- the structural line ----------
+     Every plain white box in the game — a market row, a ledger row, the bank
+     box, a button, a picker tile, a chip — is card paper on THIS line, not on
+     ink. One token, so the weight of the page's structure is a single edit.
+
+     It is warm on purpose (r > g > b, the ground's own bias) and it is a
+     JUDGEMENT, so the number is written down. Against --card it measures
+     7.53:1 and against --ground 6.79:1, where ink measured 15.62 and 14.09.
+     That is the whole point of the change: at ink the structure was roughly
+     2.5x the contrast of the strongest tinted border (2.2–6.2:1), so a page of
+     white cards read as a grid of hard rectangles with the color trapped
+     inside them. At 7.53 the line still outranks every tinted border — the
+     hierarchy the tinting rule depends on survives — but a colored surface can
+     now hold its own beside a plain one instead of being fenced by it.
+
+     It is nowhere near a floor: WCAG 1.4.11 asks 3:1 of a meaningful boundary
+     and this clears it twice over, so the softening is a stylistic setting
+     with real headroom rather than a contrast budget being spent.
+
+     INK IS STILL INK for the two jobs that are not structure — the armed dash
+     and a committed solid fill (the SIGN pill, the confirm pill). Those are
+     now the hardest marks on the page, which is the correct order: the thing
+     you can act on should outrank the box it sits in. */
+  --line: #57534a;
   --muted: #6b6759;
   --muted-2: #5c5648;
   /* ---------- the hue pairs ----------
@@ -219,7 +239,7 @@ button {
 
 /* Shared button — hover nudge on pointer devices, press dip everywhere. */
 .btn {
-  border: 2.5px solid var(--ink);
+  border: 2.5px solid var(--line);
   border-radius: 11px;
   padding: 9px 12px;
   font-family: var(--disp);
@@ -246,6 +266,50 @@ button {
   color: var(--ink);
 }
 
+/* ---------- the button glyph ----------
+   Every emoji on every button in the game, at ONE size. It is not the button's
+   type size and must not inherit it: an emoji set to match 13px caps reads as a
+   smudge, and the label is the thing that should scale between surfaces, not
+   the icon. So PLAY's flame and MODES' joystick are the same object at the same
+   size even though PLAY's label runs 4px larger.
+   Its own line-height for the same reason the flag in Passport has one — as a
+   flex item the glyph is a box, and an inherited factor would size that box off
+   the paragraph rhythm rather than off the glyph.
+   Lived twice, privately, in Home and Finale, which is how the two surfaces
+   came to disagree about it. */
+.bic {
+  font-size: 19px;
+  line-height: 1;
+}
+@media (max-width: 359px) {
+  .bic {
+    font-size: 15px;
+  }
+}
+
+/* ---------- the action row ----------
+   MODES / PLAY AGAIN / SHARE at the finale and LAST GAME / PLAY A SEED at
+   home are one control in two places: equal cells, 48px tall, 13px display
+   caps, the glyph above. Held here so the two rows cannot drift the way their
+   glyph sizes and their capitalization already had.
+   The padding is asymmetric by app.css's optical centering rule — these labels
+   are all-caps, so the correction applies: 0.047 × 13px = 0.61px more above
+   than below. */
+.btnrow {
+  display: grid;
+  gap: 9px;
+}
+.btnrow .btn {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7.31px 8px 6.69px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
 /* ---------- the WAR chip ----------
    One ladder, one home. PlayerList and PrimePicker each used to carry a
    private copy of these six rules, so every ladder edit had to land twice or
@@ -260,7 +324,7 @@ button {
   display: inline-block;
   min-width: 42px;
   text-align: center;
-  border: 2px solid var(--ink);
+  border: 2px solid var(--line);
   border-radius: 9px;
   font-weight: 800;
   font-size: 13.5px;

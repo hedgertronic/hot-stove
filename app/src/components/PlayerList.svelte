@@ -176,7 +176,7 @@
     align-items: center;
     gap: 9px;
     background: var(--card);
-    border: 2.5px solid var(--ink);
+    border: 2.5px solid var(--line);
     border-radius: 11px;
     padding: 6px 10px;
     cursor: pointer;
@@ -206,7 +206,7 @@
     border-radius: 7px;
     background: var(--card);
     color: var(--ink);
-    border: 2px solid var(--ink);
+    border: 2px solid var(--line);
     display: grid;
     place-content: center;
     text-align: center;

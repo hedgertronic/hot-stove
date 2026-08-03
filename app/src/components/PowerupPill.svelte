@@ -64,7 +64,7 @@
     align-items: center;
     min-width: 0;
     text-align: center;
-    border: 2px solid var(--ink);
+    border: 2px solid var(--line);
     border-radius: 999px;
     background: var(--card);
     padding: 5px 11px;

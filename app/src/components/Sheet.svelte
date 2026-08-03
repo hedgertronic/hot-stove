@@ -125,7 +125,7 @@
   }
   .sheet {
     background: var(--ground);
-    border: 3px solid var(--ink);
+    border: 3px solid var(--line);
     border-bottom: 0;
     border-radius: 18px 18px 0 0;
     padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
@@ -190,7 +190,7 @@
      horizontal padding, so the footprint holds whatever glyph sits in it. */
   .x {
     flex: none;
-    border: 2px solid var(--ink);
+    border: 2px solid var(--line);
     border-radius: 999px;
     background: var(--card);
     color: var(--muted);
@@ -236,7 +236,7 @@
       padding: 24px;
     }
     .sheet {
-      border-bottom: 3px solid var(--ink);
+      border-bottom: 3px solid var(--line);
       border-radius: 18px;
       padding-bottom: 14px;
     }

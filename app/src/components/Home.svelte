@@ -170,14 +170,20 @@
     {/each}
   </div>
 
-  <button class="btn hot playbtn" onclick={() => onplay({ difficulty, bank })}> PLAY 🔥 </button>
+  <!-- The flame is a `.bic` like every other button glyph rather than loose
+       text: inline it inherited the button's 17px and rendered visibly smaller
+       than the 19px joystick and receipt on the rows around it, which is the
+       one place in the game an icon changed size according to its label. -->
+  <button class="btn hot playbtn" onclick={() => onplay({ difficulty, bank })}
+    >PLAY <span class="bic">🔥</span></button
+  >
 
   <!-- The two secondaries, side by side under PLAY: back into the last
        finished game, and into a shared seed. Equal halves on the finale's own
        action-row proportions (48px tall, 13px display caps) — the one
        equal-width button row this codebase already has.
     -->
-  <div class="under">
+  <div class="btnrow under">
     <!-- Always both halves, whatever storage holds. With nothing to go back to
          the button is genuinely disabled rather than gone: a control that
          appears and disappears directly under the primary action moves PLAY A
@@ -324,7 +330,7 @@
     width: 19px;
     height: 19px;
     flex: none;
-    border: 2px solid var(--ink);
+    border: 2px solid var(--line);
     border-radius: 5px;
     display: grid;
     place-content: center;
@@ -430,7 +436,7 @@
     background: transparent;
   }
   .pill.cash {
-    border: 2px solid var(--ink);
+    border: 2px solid var(--line);
     background: var(--card);
     color: var(--ink);
   }
@@ -464,45 +470,47 @@
       font-size: 7.5px;
       padding: 1.5px 5px;
     }
-    /* Two labels across ~150px halves: the pair stays on one line. */
+    /* Two labels across ~150px halves: the pair stays on one line. The glyph
+       narrows with them, in app.css beside the glyph's own rule. */
     .ubtn {
       font-size: 12px;
       gap: 4px;
       padding: 7px 4px;
     }
-    .bic {
-      font-size: 15px;
-    }
   }
+  /* The primary. All-caps at 17px, so app.css's optical correction is
+     0.047 × 17 = 0.80px more padding above than below — paid on top of .btn's
+     9px rather than out of it, because nothing depends on this button's exact
+     height. */
   .playbtn {
     width: 100%;
     min-height: 52px;
     margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9.4px 12px 8.6px;
     font-size: 17px;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
   }
   /* The two secondaries under PLAY, on the finale action row's proportions.
      Both halves are the same fixed height, the seed field included, so opening
      the field cannot move the button beside it. */
   .under {
-    display: grid;
     /* minmax(0,·), not 1fr: an auto floor lets the seed field's content widen
        its own track and steal width from the button beside it, which is the
        same jump under the thumb, sideways. */
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 9px;
     margin-top: 9px;
   }
   .under > * {
     min-height: 48px;
   }
+  /* Cell shape, glyph gap and the all-caps optical correction come from
+     `.btnrow .btn` in app.css — the same row the finale's three actions are.
+     Only the one thing that is this row's own stays here. */
   .ubtn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    padding: 7px 8px;
-    font-size: 13px;
     white-space: nowrap;
   }
   /* Nothing finished yet, or the last game was quit: the button stays in the
@@ -642,7 +650,7 @@
     margin-top: 20px;
   }
   .book {
-    border: 2.5px solid var(--ink);
+    border: 2.5px solid var(--line);
     border-radius: 12px;
     background: var(--card);
     padding: 10px 12px 11px;

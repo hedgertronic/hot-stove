@@ -44,7 +44,7 @@
     gap: 7px;
   }
   .yearbtn {
-    border: 2px solid var(--ink);
+    border: 2px solid var(--line);
     border-radius: 9px;
     background: var(--card);
     font-family: inherit;

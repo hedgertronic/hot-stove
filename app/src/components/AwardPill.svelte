@@ -50,7 +50,7 @@
     height: 15.5px;
     font-size: 9px;
     font-weight: 800;
-    border: 1.5px solid var(--ink);
+    border: 1.5px solid var(--line);
     border-radius: 999px;
     /* The asymmetry is app.css's optical centering rule, nothing more: the
        label and the ×N are all-caps and digits, so the target is the cap band's

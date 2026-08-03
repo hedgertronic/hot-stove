@@ -81,7 +81,7 @@
      container would park it at the top — the leftover space belongs half
      above, half below. */
   .cell {
-    border: 2.5px solid var(--ink);
+    border: 2.5px solid var(--line);
     border-radius: 9px;
     background: var(--card);
     text-align: center;
@@ -217,7 +217,7 @@
     grid-column: 1;
     grid-row: 1 / 3;
     width: 52px;
-    border: 2.5px solid var(--ink);
+    border: 2.5px solid var(--line);
     border-radius: 9px;
     writing-mode: sideways-lr;
     text-align: center;
