@@ -623,8 +623,10 @@ export interface PassportItem {
    * every stamp is already found, so the flag would mark all of them. */
   fresh: boolean;
   /** Never been fielded at all — a slot rather than a stamp. The board in the
-   * trophy case shows every country there is, so an unvisited one is drawn
-   * grayed out with its flag and its name and no number. */
+   * trophy case shows every country there is, so an unvisited one is drawn with
+   * its tier fill held back, a dashed border, its flag in grayscale and no
+   * number. The name is not drawn on any stamp, visited or not; it is the
+   * stamp's accessible name and its tooltip. */
   locked: boolean;
   /** Hover/assistive detail. Null draws no title attribute at all. */
   title: string | null;

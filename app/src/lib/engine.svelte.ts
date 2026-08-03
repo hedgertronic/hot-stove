@@ -5,7 +5,7 @@ import { track } from "./analytics";
 import { earnedBadges } from "./badges";
 import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadSpecials, ownerFor } from "./data";
-import { eligibleTypes } from "./eligibility";
+import { eligibleTypes, visiblePlayers } from "./eligibility";
 import { recordFromTotal, type WarTier } from "./format";
 import { appendHistory, earnedBadgeKeys } from "./history";
 import { Rng, randomSeed } from "./rng";
@@ -587,20 +587,10 @@ export class Game {
     return this.openSlotsFor(p).length > 0 ? "open" : "dead";
   }
 
-  /** Card players the list actually shows: below-replacement (negative WAR)
-   * rows are hidden, EXCEPT the best player at any position that would
-   * otherwise vanish entirely — a roster hunting a C or RP always has at
-   * least one candidate. Career sheets (Prime Time) are unaffected. */
+  /** Card players the list actually shows. The rule is eligibility.ts's — the
+   * dream-team solver reads the same function, and it has to. */
   get visiblePlayers(): CardPlayer[] {
-    if (!this.card) return [];
-    const ps = this.card.players;
-    const rescued = new Set<string>();
-    for (const pos of new Set(ps.map((p) => p.pos))) {
-      const atPos = ps.filter((p) => p.pos === pos);
-      if (atPos.some((p) => p.war >= 0)) continue;
-      rescued.add(atPos.reduce((a, b) => (b.war > a.war ? b : a)).id);
-    }
-    return ps.filter((p) => p.war >= 0 || rescued.has(p.id));
+    return this.card ? visiblePlayers(this.card.players) : [];
   }
 
   /** Whether a listed row is tappable right now — the single gate the UI

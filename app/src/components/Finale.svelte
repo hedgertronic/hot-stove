@@ -639,7 +639,11 @@ import { track } from "../lib/analytics";
        Nothing renders at all for a club whose log holds no country — every save
        written before the field existed, and every restored finale older than
        it. -->
-  <div class="clubpass">
+  <!-- `disp` because Passport sets no font of its own — it inherits, so the
+       same stamp renders in Nunito inside the trophy sheet and would have
+       dropped to system sans out here the moment it left the `.squad disp`
+       block it used to sit in. -->
+  <div class="clubpass disp">
     <Passport stamps={clubCountries} label="Countries fielded" />
   </div>
 {/if}
@@ -972,7 +976,7 @@ import { track } from "../lib/analytics";
   .tamt.elite {
     /* Brighter than --war-elite on purpose: at 54px/900 the token's #c98a08
        reads brown; true gold needs the extra chroma at stamp size. */
-    color: #e0a010;
+    color: var(--record-elite);
   }
   /* The exact points, quiet and tabular under the record — it reconciles the
      ledger (rows sum to this, not to the rounded record) and tells 162.5

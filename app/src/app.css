@@ -196,6 +196,13 @@
      ROY and MOY pills it sits beside on the finale's badge row, and the
      anti-trophy stops reading as a citation. The red-8 ring carries the
      negative register; the fill only has to stay out of the way. */
+  /* The record stamp's gold, one rung brighter than --war-elite. A 24px-plus
+     numeral carries color that a 13px chip border cannot, and --gold-8 at that
+     size reads brown; this is the one place the elite rung is allowed to
+     brighten. Held as a token because the home screen's record book and the
+     finale's stamp are the same number in two places and had the same hex
+     written into each of them. */
+  --record-elite: #e0a010;
   --brick-wash: #f2ded7;
   --amber: #fff4d6;
   --dash: #d5cdb6;

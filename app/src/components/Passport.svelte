@@ -34,7 +34,9 @@
       class="stamp {s.rarity ?? ''}"
       class:locked={s.locked}
       role="listitem"
-      aria-label="{s.country}{s.count !== null ? `, ${s.count}` : ''}{s.title ? `. ${s.title}` : ''}"
+      aria-label="{s.fresh ? 'New. ' : ''}{s.country}{s.count !== null
+        ? `, ${s.count}`
+        : ''}{s.title ? `. ${s.title}` : ''}"
       title={s.title ? `${s.country} — ${s.title}` : s.country}
     >{#if s.fresh}<span class="new">NEW</span>{/if}{#if s.flag}<span
           class="flag">{s.flag}</span
@@ -147,11 +149,14 @@
   .count {
     opacity: 0.7;
   }
-  /* First time ever fielded, and the same chip the finale's badge pills spend —
-     real text rather than a glow or a ring, so a screen reader reads "NEW" in
-     the stamp's own order and the cue costs no extra aria. The fill and the
-     border are both spent on rarity here exactly as they are on a pill, so a
-     chip is the one channel left that borrows nothing. */
+  /* First time ever fielded, and the same chip the finale's badge pills spend.
+     The fill and the border are both spent on rarity here exactly as they are
+     on a pill, so a chip is the one channel left that borrows nothing.
+     It is announced from the stamp's `aria-label` rather than read off this
+     text: an aria-label REPLACES everything inside the element it sits on, so
+     once the country's name moved there — which it had to, the stamp being a
+     bare flag — this chip stopped reaching a screen reader on its own. The
+     label leads with it, the way the eye does. */
   .new {
     border-radius: 999px;
     background: var(--ink);

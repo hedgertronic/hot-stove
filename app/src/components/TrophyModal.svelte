@@ -170,7 +170,10 @@
          No count. The stamps are the answer and a total would only rank it. -->
     <div class="band">
       <div class="psep">PASSPORT</div>
-      <Passport stamps={items} label="Countries fielded" />
+      <!-- NOT "countries fielded" — this board is the whole table, and most of
+           it is countries nobody has been to. The finale's passport carries
+           that label because there it is true. -->
+      <Passport stamps={items} label="Passport — countries fielded and still to visit" />
     </div>
   </div>
 </Sheet>

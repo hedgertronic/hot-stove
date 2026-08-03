@@ -174,43 +174,33 @@
     background: var(--war-neg-fill);
     border-color: var(--war-neg);
   }
-  .srow.war-neg .val {
-    color: var(--war-neg);
-  }
   .srow.war-low {
     background: var(--war-low-fill);
     border-color: var(--war-low);
-  }
-  .srow.war-low .val {
-    color: var(--war-low);
   }
   .srow.war-mid {
     background: var(--war-mid-fill);
     border-color: var(--war-mid);
   }
-  .srow.war-mid .val {
-    color: var(--war-mid);
-  }
   .srow.war-high {
     background: var(--war-high-fill);
     border-color: var(--war-high);
-  }
-  .srow.war-high .val {
-    color: var(--war-high);
   }
   .srow.war-star {
     background: var(--war-star-fill);
     border-color: var(--war-star);
   }
-  .srow.war-star .val {
-    color: var(--war-star);
-  }
   .srow.war-elite {
     background: var(--war-elite-fill);
     border-color: var(--war-elite);
   }
-  .srow.war-elite .val {
-    color: var(--war-elite);
+  /* Ink, on every rung. app.css's rule for type on a rung-2 fill is ink, and
+     these rows are that fill: the numeral used to be tinted to match its own
+     wash, which runs 2.17:1 to 3.77:1 where ink runs 9.52:1 at worst. The rung
+     is already said twice on the row, by the fill and by the frame. Same
+     correction the finale's seats and the ballpark chip took. */
+  .srow[class*="war-"] .val {
+    color: var(--ink);
   }
   .srow:active {
     transform: translate(-1px, -1px);

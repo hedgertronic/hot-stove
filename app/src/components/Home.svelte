@@ -311,8 +311,13 @@
     outline: 3px solid var(--blue);
     outline-offset: 2px;
   }
+  /* Punched: the dash closes and the tile becomes plain filled cardstock, so
+     the line becomes the structural one. The UNpunched border stays ink — it is
+     dashed, which is the armed/choosable channel, and that is the one place ink
+     still belongs. */
   .row.on {
     border-style: solid;
+    border-color: var(--line);
     background: var(--card);
     color: var(--ink);
   }
@@ -527,10 +532,6 @@
   .ubtn:disabled:active {
     transform: none;
   }
-  .bic {
-    font-size: 17px;
-    line-height: 1;
-  }
   /* The seed button's # carries the same quiet mono voice as the finale's
      GAME #XXXX chip, which is where a code is copied from. */
   .shash {
@@ -717,7 +718,7 @@
   .brec.elite {
     /* Brighter than --war-elite, matching the finale stamp: at heavy stamp
        weight the token's #c98a08 reads brown; true gold needs the chroma. */
-    color: #e0a010;
+    color: var(--record-elite);
   }
   /* The exact points, quiet and tabular under the record — the finale's
      .tpts voice sized down to the miniature. */

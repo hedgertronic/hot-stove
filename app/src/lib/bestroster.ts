@@ -116,7 +116,7 @@
  * Deterministic throughout: stable iteration order, strict-improvement
  * updates, fixed λ schedule and a fixed branch order, so two runs of the same
  * seed always print the same club. */
-import { eligibleTypes } from "./eligibility";
+import { eligibleTypes, visiblePlayers } from "./eligibility";
 import {
   AWARD_POINTS,
   BUDGET_BONUS_MAX,
@@ -335,22 +335,14 @@ function clubOf(chosen: Chosen[], budgetM: number, dup: number): Club {
   };
 }
 
-/** The market the player actually saw on this card: below-replacement rows are
- * hidden, EXCEPT the best player at any position that would otherwise vanish
- * entirely. Mirrors Game.visiblePlayers — a dream club built out of rows the
- * card never listed is not a club anyone could have drafted, and the payroll
- * term makes expensive washouts tempting (they soak up bankroll), so this
- * filter matters more here than it did under a WAR-max objective. */
-function visible(card: Card): CardPlayer[] {
-  const ps = card.players;
-  const rescued = new Set<string>();
-  for (const pos of new Set(ps.map((p) => p.pos))) {
-    const atPos = ps.filter((p) => p.pos === pos);
-    if (atPos.some((p) => p.war >= 0)) continue;
-    rescued.add(atPos.reduce((a, b) => (b.war > a.war ? b : a)).id);
-  }
-  return ps.filter((p) => p.war >= 0 || rescued.has(p.id));
-}
+/** The market the player actually saw on this card. It is eligibility.ts's
+ * `visiblePlayers`, which `Game.visiblePlayers` also calls — not a mirror of
+ * it. A dream club built out of rows the card never listed is not a club anyone
+ * could have drafted, and the payroll term makes expensive washouts tempting
+ * (they soak up bankroll), so this filter matters more here than it did under a
+ * WAR-max objective. That is exactly why it cannot be a second copy: the two
+ * were byte-identical and one comment away from drifting. */
+const visible = (card: Card): CardPlayer[] => visiblePlayers(card.players);
 
 /** Every item one card can supply, in stable order: its visible players (each
  * eligible slot type) then its skipper. Nothing is dropped for being weak — a
