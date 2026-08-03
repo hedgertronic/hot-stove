@@ -1439,3 +1439,73 @@ SILVER, because the champion was NPB and the runner-up was Team USA.
 The forecast was an order of magnitude high. The Python playtest moves the
 mean score 54.5 → 54.6 and 86.3 → 86.4, about +0.2%, against a predicted
 1–3%. Roughly 6% of drafts sign a medalist and 16% are offered one.
+
+### Seven badges, and one that was not added
+
+2️⃣ RE2PECT is Derek Jeter, on 18 of the 1,188 cards and a top-5-WAR seat on 8
+of them — meaningfully more frequent than any rare, so uncommon. 🎆 THE
+WALK-OFF is the three men who ended a World Series with a hit: Carter 1993,
+Rentería 1997, Gonzalez 2001, one card each. Identical supply to 💥 THE CHASE
+and strictly harder, because the chase seasons carry 6.5/7.5/11.9 WAR against
+the walk-off men's 7.9/2.0/0.9 — nobody drafts Joe Carter's 1993 for the
+baseball. `renteri01` is pinned OFF the table in badges-supply: Rick Rentería
+is one character from Édgar and also played for the 1993 Marlins.
+
+🌠 THE DREAM TEAM is nine of nine, legendary and silhouetted. It carries one
+structural caveat worth knowing: it needs `dreamSeats === 9`, and under Clean
+House the dream club buys an owner and a ballpark before it seats anybody, so
+it needs ten distinct cards. A completed Clean House club makes eleven
+commitments and a spin yields at most two, so a finished game has always seen
+ten — reachable, but exactly at the floor. A solve that cost one more pick
+would remove the legendary from the default bank silently, so a test pins it.
+
+🧠 BEAT THE DREAM TEAM sits at a measured 2.5%, and the measurement names its
+own mechanism: five of five winners used 🏠 Homegrown, and with the discount
+disabled the rate is zero. The solver models ✌️ and ⭐ but prices every man at
+list, so the discount is the one powerup that can beat it. About 0.5pp of that
+rate is search slack rather than play — one no-powerup beat sat entirely
+inside the solver's model, which means `REFINE_PAIRS`, `DOUBLE_PAIRS` or
+`MAX_NODES` missed it. Anyone widening those constants makes this badge rarer
+for reasons unrelated to anybody's draft.
+
+🎮 CHEAT CODES is the Konami code and does nothing else. 🪑 THE INTERIM and
+🙈 DIDN'T ASK THE PRICE are anti-trophies for leaving the dugout and the bank
+to the last spin. 🙈 is 🕶️ FLYING BLIND's exact complement — same `ownerLast`,
+same full roster, same positive budget, split on one comparison — so the pair
+can never both fire and say opposite things about one payroll.
+
+A seventh axis, `meta`, holds the badges that are facts about the app rather
+than about baseball: the walk-out, the two seed jokes, and the cheat code. The
+file had already named those three as its members if the axis ever existed.
+
+**No badge was added for off-field criminal conduct**, 🎲's list was not
+extended to reach it, and the men in question are named nowhere in the code.
+🎲 covers baseball's betting rules and that is the whole of the right scope. A
+badge is a reward, and there is no framing under which rewarding a roster
+choice about those cases is defensible.
+
+### The powerups combine, and mostly already did
+
+⭐ browsing is no longer gated by 🏠. Homegrown filters the LANDED CARD's
+market; a career sheet is a different market, at list prices. That was the
+user's literal example and it was genuinely broken — an armed Homegrown shrank
+an armed Primetime to debut-eligible rows.
+
+⭐ browsing still requires reachability: an open seat, or an armed 🔁 with an
+occupied one it may vacate. Dropping that half reopens the dead end where the
+career sheet opens and every season in it is gray. ⭐ with 🔁 and no open seat
+now completes as a trade, spending both, vacating the lowest-WAR eligible seat
+— vacating is destructive where filling is not, so it picks the cheapest loss.
+An open seat always beats the swap inside the sheet, and 🔁 stays ready when
+unused, which is the opposite of the row-level rule, because closing the sheet
+disarms ⭐ and not 🔁.
+
+⭐ + 🏠 commits at LIST price and leaves Homegrown unspent. Round 5 settled
+that discount pricing does not travel, and `endSpin` returns the powerup to
+ready.
+
+What did not change: an armed powerup claims a market row's tap, so SIGN and
+TRADE FOR do not render beside an armed ⭐. That is Round 17's one-voice rule,
+disarming is one tap, and the Trade Deadline swap completes one screen later
+anyway. Making the confirm pills co-available is a product decision that would
+break the precedent, and it is deferred rather than taken.
