@@ -52,19 +52,27 @@
     font-weight: 800;
     border: 1.5px solid var(--ink);
     border-radius: 999px;
-    /* The top-only nudge is the descender: the label is all caps, so the box a
-       line centers is taller than the ink it holds and the letters ride high by
-       the space kept for the tails they don't have. Measured, not guessed —
-       1.5px here and 0.5px at the small size put the cap band's center on the
-       pill's center to within a tenth of a pixel. */
-    padding: 1.5px 6px 0;
+    /* The asymmetry is app.css's optical centering rule, nothing more: the
+       label and the ×N are all-caps and digits, so the target is the cap band's
+       center, and Nunito puts that 0.0235em above the middle of its own line
+       box. 0.047 × 9px = 0.42px of extra clearance up top, which the fixed
+       height absorbs, so neither pill changes size.
+       The medal pills are the case that decides the rounding. 🥇🥈🥉 come from
+       Apple Color Emoji, whose ascent/descent (1.0 / 0.3125em) differ from
+       Nunito's, so a medal label's line box stands 9.133px rather than 9px and
+       its Nunito baseline sits 0.133px lower inside it. That works out to
+       0.066px of disagreement between a 🥇MVP pill and a bare GG one — small
+       enough that one number serves both, and the reason the number is 0.4
+       rather than the plain-text 0.42. */
+    padding: 0.4px 6px 0;
     line-height: 1;
     white-space: nowrap;
   }
   .qb.small {
     height: 14.75px;
     font-size: 8.5px;
-    padding: 0.5px 5px 0;
+    /* Same rule, and 0.047 × 8.5 = 0.40 rounds to the same figure. */
+    padding: 0.4px 5px 0;
   }
   /* One hue per award, each on its own line rung — the same pairing the WAR
      chips and the rarity pills wear. */
@@ -101,7 +109,15 @@
   }
   /* A flex item of its own, so the multiplier is centered on the pill's axis
      rather than hung off the label's baseline — at 8px inside a 9px pill the
-     baseline drop is most of what made the ×N look like it was falling out. */
+     baseline drop is most of what made the ×N look like it was falling out.
+     Being an item is also what makes it inherit the fix above for free:
+     `align-items: center` centers it in the same content box the label sits in,
+     and the correction the box carries is 0.047 × 9 while the ×N would want
+     0.047 × 8, a 0.024px difference. So the ledger's "🥇MVP ×5" now reads as
+     one line of type rather than a label with a superscript sliding off it.
+     "×5" is measured as a unit: the multiplication sign alone rides the math
+     axis, but the digit beside it spans the full cap band and sets the eye's
+     line. */
   .mult {
     font-size: 8px;
     margin-left: 2px;

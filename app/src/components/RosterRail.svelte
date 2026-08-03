@@ -188,16 +188,17 @@
   .rwar {
     display: none;
   }
-  /* The seat wears its WAR bucket on its BORDER — the channel the tinting rule
-     opens up, and the one that costs nothing here. Three things had to hold at
-     once and this is the only arrangement that gets all three:
+  /* Every seat wears its WAR bucket on its BORDER — the channel the tinting
+     rule opens up, and the one that costs nothing here. Three things have to
+     hold at once and this is the only arrangement that gets all three:
 
-       * The FILL stays free. A seat's fill is its state: card-white at rest,
-         amber when the release picker has armed it. A tinted fill takes that
-         away — an armed 5.2-WAR seat can then say "tappable" or "5.2-WAR guy"
-         but not both, which was the original objection to a wash and is still
-         true. The border says the tier, the fill says the state, and neither
-         has to give anything up.
+       * A PLAYER seat's FILL stays free. Those eight cells spend their fill on
+         state: card-white at rest, amber when the release picker has armed
+         them. A tinted fill takes that away — an armed 5.2-WAR seat could then
+         say "tappable" or "5.2-WAR guy" but not both. The border says the tier,
+         the fill says the state, and neither has to give anything up. (The
+         manager's chair has no armed state, which is what frees ITS fill for
+         the tier as well; see .mgr.filled below.)
        * The DASH survives. Dashed still means armed-or-empty at every hue,
          because the dash and the color are different properties of the same
          line: a tappable elite seat is a dashed gold rectangle, an empty seat
@@ -305,11 +306,16 @@
     line-height: 1.3;
     overflow: hidden;
   }
+  /* The sub-lines run one rung darker than the player seats' do. Those sit on
+     card white, a single known ground; these sit on whichever of six washes the
+     skipper's rung supplies, and violet-2 is the darkest of them — --muted
+     measures 3.39:1 there against 4.37:1 for --muted-2, on 8.5–9px type. One
+     token, chosen for the worst rung, so the label reads the same on all six. */
   .mgr b {
     display: block;
     font-size: 9px;
     letter-spacing: 0.07em;
-    color: var(--muted);
+    color: var(--muted-2);
   }
   .mgr span {
     display: block;
@@ -324,22 +330,55 @@
     display: block;
     font-style: normal;
     font-size: 8.5px;
-    color: var(--muted);
+    color: var(--muted-2);
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-height: 100%;
   }
-  /* The hired manager is pink, matching the finale's MGR row — and the pink
-     STAYS. Dropping it for a tier fill would buy nothing and cost the seat its
-     identity: it would become a ninth chair that happens to say MGR, and you
-     would have to read the label to find your skipper. The fill says WHO,
-     which is the fill's job here as on every other seat; the border says HOW
-     GOOD, on the very same ladder the eight chairs beside it use. The two
-     never collide because one is a wash and one is a line. */
+  /* The hired skipper's chair is the one seat in the rail whose FILL is free,
+     and it spends that freedom on the same rung its frame already draws. Fill
+     and frame are then the tinting rule's own pair — the hue at rung 2 inside
+     the hue at rung 8 — which is the object the game has been teaching since
+     the first WAR chip. A +14.0 W skipper is a gold seat rather than a pink
+     seat with a gold hairline you have to hunt for at 2.61:1.
+     WHY THIS SEAT AND NOT THE EIGHT BESIDE IT. A player cell can be armed by
+     the release picker and turns amber to say so, so its fill is a state
+     channel and cannot also be a value channel. The manager's chair is never a
+     pick target — hiring happens in the FRONT OFFICE row, not here — so it has
+     no state to announce and the fill is idle. Identity does not need the fill
+     either: the chair is the only sideways cell in the grid, it spans both
+     rows, it holds column one, and it says MGR.
+     WHAT EYE TEST SEES. The rule below is the fallback, and it is the honest
+     one: with no rung to draw the seat is card-white, exactly like the eight
+     filled player seats. The tier classes are gated on `showWar` upstream, so
+     the wash cannot leak a read the mode hides — the same gate the border and
+     the numeral answer to, now with a third thing riding on it. */
   .mgr.filled {
-    background: var(--pink);
+    background: var(--card);
+  }
+  /* Placed after .mgr.filled deliberately: both selectors weigh the same, so
+     source order is what lets a rung paint over the card-white fallback. The
+     BORDER half of each rung lives up with the player seats' — the line
+     register is shared by every chair, and only the wash is the manager's. */
+  .mgr.filled.war-neg {
+    background: var(--war-neg-fill);
+  }
+  .mgr.filled.war-low {
+    background: var(--war-low-fill);
+  }
+  .mgr.filled.war-mid {
+    background: var(--war-mid-fill);
+  }
+  .mgr.filled.war-high {
+    background: var(--war-high-fill);
+  }
+  .mgr.filled.war-star {
+    background: var(--war-star-fill);
+  }
+  .mgr.filled.war-elite {
+    background: var(--war-elite-fill);
   }
   .mgr.empty {
     border-style: dashed;

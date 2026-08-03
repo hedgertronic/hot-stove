@@ -53,13 +53,23 @@
 
   function tap(p: CardPlayer, e: MouseEvent) {
     e.stopPropagation();
-    // One gate for everything: signing, Trade Deadline swaps, and Prime Time
-    // browsing all follow the same gray-out rules.
-    if (!game.rowPlayable(p)) return;
-    if (game.primeArmed) {
+    // ⭐ PRIMETIME IS ASKED FIRST, AND WITH ITS OWN GATE. Browsing a career is
+    // not a market action: `primeBrowsable` asks only "is there a career here
+    // to look at" — armed, landed, a choice left, and a man the club does not
+    // already hold — while `rowPlayable` asks whether THIS SEASON can be
+    // bought right now. Two rows separate the questions. A man whose landed
+    // season fits nowhere is unplayable and still worth browsing, because a
+    // different season of his career carries different slot eligibility and
+    // the sheet grays the ones that fit nothing. And an armed 🏠 Homegrown
+    // grays every row that did not debut with this franchise, which is a
+    // filter on the market the reel landed on — a career sheet sells seasons
+    // off cards the reel never landed on, so the discount has no claim there.
+    // Gating ⭐ on `rowPlayable` handed both of those to the wrong predicate.
+    if (game.primeBrowsable(p)) {
       game.primeTapPlayer(p);
       return;
     }
+    if (!game.rowPlayable(p)) return;
     // An armed Trade Deadline claims the tap even when the player also has
     // an open seat — disarm to sign plainly into the open seat instead.
     if (game.tdCandidate(p)) {
@@ -89,13 +99,15 @@
     {@const playable = game.rowPlayable(p)}
     {@const open = game.playerState(p) === "open"}
     {@const swappable = playable && game.tdCandidate(p)}
-    {@const primeable = game.primeArmed && playable}
+    <!-- The row's affordance reads the same predicate its tap does, or the
+         two disagree and a row looks dead while it is still tappable. -->
+    {@const primeable = game.primeBrowsable(p)}
     {@const discounted = game.discountEligible(p)}
     {@const price = game.priceFor(p)}
     {@const plabel = posLabel(p)}
     <button
       class="prow"
-      class:dead={!playable}
+      class:dead={!playable && !primeable}
       class:swap={swappable && !primeable}
       class:prime={primeable}
       onclick={(e) => tap(p, e)}
@@ -115,9 +127,16 @@
           <span class="confirm hint">↑ PICK A SLOT</span>
         {:else if game.releasePick === p.id}
           <span class="confirm hint">↑ TAP WHO TO TRADE</span>
-        {:else if confirmKey === `p:${p.id}` && open && !swappable && !game.primeArmed}
+        <!-- A pending confirm is suppressed on a row ⭐ has claimed, not on
+             every row while ⭐ is armed. The tap opens the career sheet there,
+             so no confirm can be raised on it — but `confirmKey` survives the
+             arming, and an armed ⭐ must not leave a live SIGN pill sitting on
+             a row whose tap now goes somewhere else. Rows ⭐ cannot browse (a
+             man already on the club) keep their own pill, which is what makes
+             the suppression match the routing exactly. -->
+        {:else if confirmKey === `p:${p.id}` && open && !swappable && !primeable}
           <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSign(p); }} onkeydown={(e) => e.key === "Enter" && commitSign(p)}>SIGN {money(price)}</span>
-        {:else if confirmKey === `t:${p.id}` && swappable && !game.primeArmed}
+        {:else if confirmKey === `t:${p.id}` && swappable && !primeable}
           <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => e.key === "Enter" && commitTrade(p)}>TRADE FOR {money(price)}</span>
         {:else}
           {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
@@ -134,8 +153,21 @@
 </div>
 
 <style>
+  /* minmax(0, …) for the same reason SpecialRows and the finale's `.ledger`
+     carry it: an `auto` track floors at its items' min-content, and a row's
+     min-content runs through the nowrap `.pname`. The market's longest name,
+     "Christian Encarnacion-Strand", measures 195px at 14px/800; with the 38px
+     position tag, two 9px gaps, the 105px WAR-chip-and-price column, 20px of
+     padding and 5px of border the row floors at 381px, against the 347px a
+     375px phone has to spend. The track grew to fit and took every row with it.
+     Narrower than the FRONT OFFICE rows' blowout by 70px, which is why this one
+     needs the longest name in a 6,375-name corpus to show and the other needs
+     only a Kansas City card — but it is the same bug and the same one-line fix.
+     A zero floor lets the track take the width it is given; `.prow > .mid`
+     already carries `min-width: 0`, so the name ellipsizes inside it. */
   .plist {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 6px;
     padding-bottom: 10px;
   }
@@ -306,7 +338,10 @@
   }
   /* Pinned to 24px (12 text + 8 pad + 4 border) so the pill fits the row's
      content box at both padding tiers — an unconstrained line box made
-     tapping grow the row. */
+     tapping grow the row. The 8px splits 4.28 / 3.72, which is app.css's
+     optical centering rule at 12px type (0.047 × 12 = 0.56px), paid out of the
+     padding so the 24px total holds. Same numbers as the FRONT OFFICE rows'
+     confirm, which is the same pill on the same ladder of type sizes. */
   .confirm {
     border: 2px solid var(--ink);
     border-radius: 999px;
@@ -315,7 +350,7 @@
     font-weight: 800;
     font-size: 12px;
     line-height: 1;
-    padding: 4px 12px;
+    padding: 4.28px 12px 3.72px;
     white-space: nowrap;
   }
   /* Pending pick: the next tap belongs to the rail, not this row — the pill

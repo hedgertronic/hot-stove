@@ -1,7 +1,7 @@
 <script lang="ts">
   import { loadSpecials } from "../lib/data";
   import type { Game } from "../lib/engine.svelte";
-  import { signed } from "../lib/format";
+  import { signed, warTier } from "../lib/format";
   import { MANAGER_PER_NET_WIN } from "../lib/scoring";
   import type { SpecialSeason } from "../lib/types";
   import AwardPill from "./AwardPill.svelte";
@@ -23,6 +23,12 @@
     moty: boolean;
     /** Right-edge win value ("+4.8 W"; empty in Eye Test). */
     val: string;
+    /** Rung of the WAR ladder this season's win value lands on, or "" when the
+     * mode hides it. One class drives the row's wash AND the value's color, so
+     * the two can never disagree about which rung a season is. The `war-`
+     * prefix matches the roster rail's, and for the same reason: a test can
+     * assert Eye Test emits no `war-` token at all. */
+    tier: string;
     /** The landed card's own season — hire it the normal way. */
     here: boolean;
   }
@@ -50,7 +56,14 @@
             year: s.year,
             rec: game.scout ? "" : `${s.w}–${s.l}`,
             moty: game.showAwards && s.moty === true,
+            // One mapping, imported, never re-derived: net wins × the scoring
+            // module's own per-win rate, read through format.ts's warTier —
+            // the exact expression the roster rail's MGR seat uses. A skipper's
+            // contribution is measured in wins and the ladder is the game's one
+            // scale for "how good is this", which is why the share string has
+            // always printed the manager cell in the players' own six hues.
             val: game.scout ? "" : `${signed((s.w - s.l) * MANAGER_PER_NET_WIN)} W`,
+            tier: game.showWar ? `war-${warTier((s.w - s.l) * MANAGER_PER_NET_WIN)}` : "",
             here: s.team === c.team && s.year === c.year,
           }));
       } catch {
@@ -68,9 +81,13 @@
   }
 </script>
 
-<Sheet {onclose} label="Pick a season of this manager's career">
-  <div class="sheet-h">⭐ PRIME TIME — 🧢 {skipper}</div>
-  <div class="sheet-sub">Hire any season of the career, at that season's record</div>
+<Sheet
+  {onclose}
+  label="Pick a season of this manager's career"
+  title="⭐ PRIMETIME — 🧢 {skipper}"
+  subtitle="Hire any season of the career, at that season's record"
+  confirmLabel="CANCEL"
+>
   {#if failed}
     <div class="note">Couldn't load the career. Try again.</div>
   {:else if rows === null}
@@ -83,12 +100,12 @@
         <!-- The card's own manager row, one field swapped: the FRONT OFFICE
              row leads with the skipper's name, and here the person is fixed
              while the season varies, so the lead is year + team code. Every
-             other beat matches SpecialRows' skipper row — full pink card,
-             bare 🧢 in the fixed-width type column, muted W–L riding right
-             beside the label, MOY pill after it, win value at the right edge.
+             other beat matches SpecialRows' skipper row — bare 🧢 in the
+             fixed-width type column, muted W–L riding right beside the label,
+             MOY pill after it, win value at the right edge.
              Every season fits (this sheet only opens on an open manager
              seat), so only the landed card's own year grays out. -->
-        <button class="srow" disabled={row.here} onclick={() => pick(row)}>
+        <button class="srow {row.tier}" disabled={row.here} onclick={() => pick(row)}>
           <span class="ic">🧢</span>
           <span class="mid">
             <span class="who">{row.year} {row.team}</span>
@@ -100,23 +117,9 @@
       {/each}
     </div>
   {/if}
-  <button class="btn cancel" onclick={onclose}>Cancel</button>
 </Sheet>
 
 <style>
-  .sheet-h {
-    text-align: center;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-  }
-  .sheet-sub {
-    text-align: center;
-    font-size: 10.5px;
-    font-weight: 700;
-    color: var(--muted);
-    margin: 2px 0 10px;
-  }
   .note {
     text-align: center;
     font-size: 12px;
@@ -124,20 +127,22 @@
     color: var(--muted);
     padding: 18px 0;
   }
+  /* No bottom margin: the shell owns the gap between the scrolling body and
+     the CANCEL button it draws, so a margin here would double it. */
   .list {
     display: grid;
     gap: 6px;
-    margin-bottom: 12px;
   }
-  /* The whole card carries the skipper's pink, exactly like the FRONT OFFICE
-     manager row — the tint is what makes a manager row read as a manager row,
-     and a lone tinted tag on a white card broke that language. */
+  /* Card-white is the resting state and the Eye Test state: with the win value
+     withheld there is no rung to draw, and a career of identical blank rows is
+     the honest picture of what that mode knows. The tinting rule's pair paints
+     over it below. */
   .srow {
     display: flex;
     align-items: center;
     gap: 9px;
-    background: var(--pink);
-    border: 2.5px solid var(--red-8);
+    background: var(--card);
+    border: 2.5px solid var(--ink);
     border-radius: 11px;
     padding: 6px 10px;
     cursor: pointer;
@@ -148,12 +153,73 @@
     width: 100%;
     min-height: 48px;
   }
+  /* A season is worth a number of wins and the game has exactly one scale for
+     that, so every row here is the tinting rule's pair at the rung its own
+     record earns: the hue's wash for the card, the hue's line for the border,
+     and the same line color on the win value at the right edge. This is the
+     roster rail's hired-manager seat, one screen earlier — browse the career in
+     the same colors the chair will wear once the season is hired, and a 108-win
+     year is legible as gold before the number is read.
+     THE ROW, NOT THE VALUE, CARRIES THE WASH. Coloring "+9.2 W" alone was the
+     smaller change and it does not survive contrast: the rung-8 hues on the old
+     pink card run 1.93:1 at the low rung. Against their own rung-2 wash the
+     same six run 2.17–3.77:1, which is the register the rail's WAR numerals
+     have always used, and the wash does most of the reading anyway.
+     Pink is gone from this sheet for the same reason it left the MGR seat: it
+     was saying "manager", and 🧢 in the type column plus a header reading
+     "⭐ PRIMETIME — 🧢 {name}" already say it on every row.
+     Placed above the :disabled block on purpose — the two weigh the same, and
+     the landed card's own season must gray out whatever rung it earned. */
+  .srow.war-neg {
+    background: var(--war-neg-fill);
+    border-color: var(--war-neg);
+  }
+  .srow.war-neg .val {
+    color: var(--war-neg);
+  }
+  .srow.war-low {
+    background: var(--war-low-fill);
+    border-color: var(--war-low);
+  }
+  .srow.war-low .val {
+    color: var(--war-low);
+  }
+  .srow.war-mid {
+    background: var(--war-mid-fill);
+    border-color: var(--war-mid);
+  }
+  .srow.war-mid .val {
+    color: var(--war-mid);
+  }
+  .srow.war-high {
+    background: var(--war-high-fill);
+    border-color: var(--war-high);
+  }
+  .srow.war-high .val {
+    color: var(--war-high);
+  }
+  .srow.war-star {
+    background: var(--war-star-fill);
+    border-color: var(--war-star);
+  }
+  .srow.war-star .val {
+    color: var(--war-star);
+  }
+  .srow.war-elite {
+    background: var(--war-elite-fill);
+    border-color: var(--war-elite);
+  }
+  .srow.war-elite .val {
+    color: var(--war-elite);
+  }
   .srow:active {
     transform: translate(-1px, -1px);
   }
-  /* Unavailable rows speak the taken-tile language from the draft screen:
-     the whole card drops to gray and goes monochrome. There is no hidden
-     tier to whisper here — a manager season is a record, not a WAR chip. */
+  /* Unavailable rows speak the taken-tile language from the draft screen: the
+     whole card drops to gray and goes monochrome, rung and all. The tier is not
+     whispered through the way a dead market row keeps its WAR chip's hue —
+     there is exactly one unavailable season here, the landed card's own, and it
+     is the season already on offer in the FRONT OFFICE row at full color. */
   .srow:disabled {
     background: var(--gray-bg);
     border-color: var(--gray-ink);
@@ -206,10 +272,5 @@
     font-weight: 800;
     font-size: 14px;
     white-space: nowrap;
-  }
-  .cancel {
-    width: 100%;
-    font-size: 13px;
-    padding: 8px;
   }
 </style>

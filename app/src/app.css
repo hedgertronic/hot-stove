@@ -34,7 +34,31 @@
    warm gray pair, and --gold-8. One more is held in place: the payroll meter's
    fill stays saturated --green, because green-2 against the white track is
    1.26:1 and a bar that can't be seen is not a bar. The meter's BORDER carries
-   the tinting instead, and turns orange when the payroll does. */
+   the tinting instead, and turns orange when the payroll does.
+
+   ---------- THE OPTICAL CENTERING RULE ----------
+
+   Nunito's em box is not centered on its capitals, so a chip with symmetric
+   padding renders with its type sitting visibly high. The bundled file reports
+   ascent 1.011em, descent 0.353em, cap height 0.705em. That puts a line box's
+   content area at 1.364em and the center of the cap band at 0.6585em below the
+   line box's top edge — 0.0235em ABOVE the box's own middle. Doubling that gap
+   gives the one correction every all-caps chip in the game carries:
+
+       (border-top + padding-top) − (padding-bottom + border-bottom)
+           = 0.047 × font-size
+
+   ≈0.4px at 8.5–9px type, ≈0.56px at 12px, ≈0.64px at 13.5px. It is small, it
+   is the same number every time, and it is why these paddings are asymmetric to
+   a hundredth of a pixel instead of round. Every pill that pins a HEIGHT pays
+   the correction out of that height rather than on top of it, because the
+   heights are load-bearing elsewhere.
+
+   IT APPLIES TO ALL-CAPS TEXT AND DIGITS ONLY. Both sit in one band —
+   measured out of the file, flat caps run 0 to 705, round caps and digits
+   overshoot to −8/713, so the band's center lands on cap-height/2 either way.
+   A mixed-case label (the .btn row, a player's name) has real descenders, and
+   for those the box's own middle is already the honest target. */
 
 /* Bundled rounded display face: ui-rounded is Safari-only (Chrome would fall
    back to Hiragino Maru Gothic), so every browser gets the same Nunito file. */
@@ -235,8 +259,17 @@ button {
   border-radius: 9px;
   font-weight: 800;
   font-size: 13.5px;
-  line-height: 1.65;
-  padding: 0 5px;
+  /* The chip stands 26.275px tall and that number is load-bearing: PlayerList's
+     `.right` column reserves exactly it, so tapping a row and swapping the chip
+     for a confirm pill cannot move the card by a pixel. The optical correction
+     is therefore paid OUT OF the leading rather than added on top of it —
+     0.635px of top padding (0.047 × 13.5) comes off the line box, and
+     2 + 0.635 + 13.5 × 1.603 + 0 + 2 = 26.275 still. The numeral's cap band now
+     lands on the chip's center to within a thousandth of a pixel; it used to
+     ride 0.32px high. The small WAR unit keeps its own `vertical-align`, which
+     answers to the baseline and not to the leading, so it is untouched. */
+  line-height: 1.603;
+  padding: 0.635px 5px 0;
   color: var(--ink);
 }
 .warchip .unit {

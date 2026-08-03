@@ -146,8 +146,34 @@
 </div>
 
 <style>
+  /* minmax(0, …) is the whole fix for the long-name blowout, and it is the same
+     one the finale's `.ledger` carries for the same reason. An `auto` grid track
+     takes its MINIMUM from its items' min-content contribution, a row's
+     min-content runs through `.who`, and `.who` is `white-space: nowrap` — so
+     the track's floor is the entire owner name set on one line, and the track
+     grew past the screen and took every FRONT OFFICE row with it.
+     The corpus decides how far past. The longest name the game can DISPLAY is
+     Kansas City's 1993–2000 owner, "Greater Kansas City Community Foundation",
+     which measures 291.5px in the row's own 14px/800 Nunito (the stored string
+     runs 24 characters longer; `ownerFor` drops the trailing parenthetical, so
+     the display form is the one that sets the floor). Montreal's 2003–04 park,
+     "Stade Olympique/Hiram Bithorn Stadium", is 273.4px and carries a fans
+     count beside it. Add the 38px icon column, two 9px gaps, 20px of padding
+     and 5px of border and the resting owner row floors at 410px against the
+     347px a 375px phone has to spend; open its confirm pill and "HIRE $203.2M"
+     takes the floor to 482px, past even the 452px interior of the 480px shell.
+     That is the "occasionally" in the report — the wide state is one tap away
+     from the rest state.
+     A floor of zero lets the track take the width it is given instead. Nothing
+     downstream changes: `.mid` already carries `min-width: 0`, so once the row
+     is the shell's width the name shrinks and ellipsizes as designed. That
+     min-width was never the missing piece — clamping by a MINIMUM of zero can
+     only raise a size, never lower an intrinsic contribution, so it governs how
+     the row divides a width it has and says nothing about what width it asks
+     for. The ask is a track question and it is answered here. */
   .special {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 7px;
     margin-bottom: 10px;
   }
@@ -211,8 +237,17 @@
     font-weight: 600;
     flex: none;
   }
+  /* `flex: none` is what makes the price column structural rather than
+     incidental, matching the market rows' `.right`. Once a long name pushes the
+     row to its limit, flex hands the shortfall to whichever items can shrink;
+     the value is the one thing on the row that must not, or a 64-character
+     owner would buy back its own space out of "$203.2M" and the FRONT OFFICE
+     column would stop lining up with the PLAYERS column below it. The name
+     absorbs all of it, which is the right trade — it ellipsizes and the price
+     cannot. */
   .val {
     margin-left: auto;
+    flex: none;
     font-weight: 800;
     font-size: 14px;
     white-space: nowrap;
@@ -256,9 +291,15 @@
     color: var(--muted-2);
   }
   /* Pinned to 24px (12 text + 8 pad + 4 border) like the player rows'
-     confirm — an unconstrained line box made tapping change the row height. */
+     confirm — an unconstrained line box made tapping change the row height.
+     The 8px of padding splits 4.28 / 3.72 rather than evenly: that is app.css's
+     optical centering rule at 12px type (0.047 × 12 = 0.56px), and the 24px
+     total is untouched, so the row still cannot twitch. HIRE $203.2M is white
+     on ink, the highest-contrast type in the game, which is exactly where type
+     riding high is easiest to see. */
   .confirm {
     margin-left: auto;
+    flex: none;
     border: 2px solid var(--ink);
     border-radius: 999px;
     background: var(--ink);
@@ -266,7 +307,7 @@
     font-weight: 800;
     font-size: 12px;
     line-height: 1;
-    padding: 4px 12px;
+    padding: 4.28px 12px 3.72px;
     white-space: nowrap;
   }
 </style>

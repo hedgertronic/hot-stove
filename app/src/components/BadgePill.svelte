@@ -94,7 +94,13 @@
     font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.06em;
-    padding: 3px 12px;
+    /* app.css's optical centering rule: badge labels are all caps, so the cap
+       band's center is the target, and 0.047 × 10.5 = 0.49px of it has to sit
+       above the type rather than below. Split out of the 6px the pill already
+       spent (3.25 + 2.75), so the pill's height is exactly what it was. The
+       NEW chip rides the same content box, so correcting the pill re-centers
+       the chip with it. */
+    padding: 3.25px 12px 2.75px;
     white-space: nowrap;
   }
   /* When a pill opens with the NEW chip, the chip sits in an even well of paper
@@ -190,10 +196,17 @@
     letter-spacing: 0.1em;
     /* Its own line-height, not the page's 1.55: as a flex item the chip is a
        box, and an inherited factor would size that box off the paragraph
-       rhythm rather than off the chip. 1.2 plus symmetric padding is the whole
-       height, so the chip clears the pill's inner edge top and bottom. */
+       rhythm rather than off the chip. 1.2 plus 2px of padding is the whole
+       12.2px height, so the chip clears the pill's inner edge top and bottom.
+       The chip is the one place in the pill where the type has a hard edge of
+       its own to be centered against — an ink rectangle with no side bearing —
+       so app.css's optical centering rule is at its most visible here, and NEW
+       is the shortest, boldest, most-looked-at word on the finale. 0.047 × 8.5
+       = 0.40px of the 2px goes above the caps rather than below (1.2 / 0.8);
+       the total is unchanged, so the chip is the same size it was and only the
+       word inside it moved. */
     line-height: 1.2;
-    padding: 1px 5px;
+    padding: 1.2px 5px 0.8px;
   }
   /* LEGENDARY is the one inverted pill — an ink chip on an ink fill is
      invisible, so the chip inverts with it. */
