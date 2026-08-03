@@ -2,6 +2,7 @@
   import { BADGE_BY_KEY } from "../lib/badges";
   import { SLOT_TYPES } from "../lib/engine.svelte";
   import { costTier, money, signed, slotLabel, warTier } from "../lib/format";
+  import { BANKS } from "../lib/modes";
   import { MANAGER_PER_NET_WIN } from "../lib/scoring";
   import AwardPill from "./AwardPill.svelte";
   import BadgePill from "./BadgePill.svelte";
@@ -94,16 +95,43 @@
     return runs.map(([l, n]) => (n > 1 ? `${l} ×${n}` : l)).join(" · ");
   })();
 
+  /** The WAR ladder, one chip per rung. The label is written out; the COLOR is
+   * `warTier`'s, read off the number sitting beside it. A moved threshold moves
+   * the chip with it, so the sheet cannot end up teaching a rung the app no
+   * longer draws — the same rule the seats and the market row above follow.
+   *
+   * These are `.warchip`s, which wear a bare tier class (`elite`), while a rail
+   * seat's border wears the prefixed one (`war-elite`). Keeping them apart is
+   * what lets tests/help-specimens.test.ts still prove the manager chair's rung
+   * is derived: six rungs of ladder do not put `war-star` in the markup. */
+  const LADDER: [string, number][] = [
+    ["<0", -0.1],
+    ["0–2", 0],
+    ["2–4", 2],
+    ["4–6", 4],
+    ["6–8", 6],
+    ["8+", 8],
+  ];
+
   const EARNED = BADGE_BY_KEY.hundred;
   const SECRET = BADGE_BY_KEY.twoway;
 </script>
 
 <Sheet {onclose} label="How to play" tall title="HOW TO PLAY" confirmLabel="GOT IT">
+<!-- Every block below is a direct child of this one div, and the gaps between
+     them are set by the rhythm rule in the style block rather than block by
+     block. That is why the two PayrollBox specimens are wrapped: the rule
+     reaches elements this file owns, and a child component's root is not one. -->
+<div class="help">
   <div class="hsec">THE LOOP</div>
   <ul>
-    <li>The stove spins you a random team-season, 1985–2025.</li>
+    <li>The stove spins you a real team-season, 1985–2025.</li>
     <li>Take <b>one</b> thing per spin — sign a player, or make a hire.</li>
-    <li>Fill {SLOT_TYPES.length} seats — {SEAT_LINE} — plus a manager.</li>
+    <li>
+      Play until the club is finished: {SLOT_TYPES.length} seats — {SEAT_LINE} — plus a
+      manager. Clean House adds an owner and a ballpark.
+    </li>
+    <li>Then the season is scored. <b>162 points is a perfect season.</b></li>
   </ul>
 
   <div class="hsec">A PLAYER ROW</div>
@@ -132,7 +160,10 @@
       <span class="cost {costTier(MARKET_DEAD.cost)}">{money(MARKET_DEAD.cost)}</span>
     </span>
   </div>
-  <p class="cap">Tap a row to sign. Gray means that seat is already taken.</p>
+  <p class="cap">
+    Tap a row to sign him. Gray means that seat is already taken. Salaries read green
+    when they are cheap, orange when they are steep.
+  </p>
 
   <div class="hsec">YOUR SQUAD</div>
   <!-- The real seat component, the real rungs. -->
@@ -157,6 +188,12 @@
     {/each}
   </div>
   <p class="cap">A seat's border color is that player's WAR tier. Dashed is empty.</p>
+  <div class="ladder">
+    {#each LADDER as [label, war] (label)}
+      <span class="warchip {warTier(war)}">{label}</span>
+    {/each}
+  </div>
+  <p class="cap">Six rungs. Every WAR chip and every seat border wears one of them.</p>
   <ul>
     <li><b>Eight seats:</b> {SEAT_LINE}.</li>
     <li><b>UTIL</b> takes any position player — the flexible one.</li>
@@ -165,35 +202,44 @@
   </ul>
 
   <div class="hsec">YOUR PAYROLL</div>
-  <PayrollBox
-    bank="classic"
-    budget={96.7}
-    spend={88}
-    ownerName="Ted Turner"
-    ownerBudget={92.1}
-    parkName="Turner Field"
-    parkMult={1.05}
-  />
+  <div class="spec">
+    <PayrollBox
+      bank="classic"
+      budget={96.7}
+      spend={88}
+      ownerName="Ted Turner"
+      ownerBudget={92.1}
+      parkName="Turner Field"
+      parkMult={1.05}
+    />
+  </div>
   <p class="cap">Owner × ballpark sets your payroll. The bar is what you've spent.</p>
-  <PayrollBox
-    bank="classic"
-    budget={96.7}
-    spend={111}
-    ownerName="Ted Turner"
-    ownerBudget={92.1}
-    parkName="Turner Field"
-    parkMult={1.05}
-  />
-  <p class="cap">You <i>can</i> overspend — the luxury tax just eats your score.</p>
+  <div class="spec">
+    <PayrollBox
+      bank="classic"
+      budget={96.7}
+      spend={111}
+      ownerName="Ted Turner"
+      ownerBudget={92.1}
+      parkName="Turner Field"
+      parkMult={1.05}
+    />
+  </div>
+  <p class="cap">
+    You can go over. The luxury tax then takes 1 point for every $1M, with no cap on
+    it.
+  </p>
   <ul>
     <li>
       <b>💼 Clean House</b> — you have <b>no payroll at all</b> until you hire an
-      owner, so every dollar spent before that is a dollar over. Draft an owner
-      for a budget, then a ballpark: the ballpark multiplies it, 0.85× to 1.15×.
-      Both come off the same spins your players do.
+      owner. Hire one for a budget, then a ballpark to multiply it, 0.85× to
+      1.15×. Both cost a spin, the same as a player does.
     </li>
-    <li><b>⚾ Moneyball</b> — skip the hiring, take a fixed $51.5M. The 2002 A's.</li>
-    <li><b>💸 Blank Check</b> — skip it and take $203.2M. The 2005 Yankees.</li>
+    <li>
+      <b>⚾ Moneyball</b> — a fixed {BANKS.moneyball.cash}. No owner, no ballpark. The 2002
+      A's.
+    </li>
+    <li><b>💸 Blank Check</b> — a fixed {BANKS.blankcheck.cash}. The 2005 Yankees.</li>
   </ul>
 
   <div class="hsec">BALL KNOWLEDGE</div>
@@ -202,9 +248,10 @@
     <li>
       <b>🔭 Eye Test</b> — no WAR, no awards. Name, position, price, your call.
     </li>
+    <li>Hidden hardware still scores. The mode changes what you see, not what you get.</li>
   </ul>
 
-  <div class="hsec">POWERUPS — ONCE PER GAME</div>
+  <div class="hsec">POWERUPS — ONE USE EACH</div>
   <!-- The three states a pill moves through, side by side. Same geometry as
        the row under the spin banner, so the sheet is naming things the player
        can already see. -->
@@ -228,18 +275,31 @@
        combination can then DO is narrower than "they stack" would promise —
        ⭐ and 🏠 arm together, but an armed ⭐ browses only the rows 🏠 has
        left live. Help copy that overshoots the engine is worse than none. -->
-  <p class="cap">More than one can be armed on the same spin.</p>
+  <p class="cap">
+    More than one can be armed on the same spin. A powerup never costs you a spin.
+  </p>
 
   <div class="hsec">SCORING</div>
   <ul>
-    <li><b>Wins:</b> 50 base + roster WAR + manager (W−L) × 0.2.</li>
-    <li><b>Payroll:</b> up to +10 for spending it all; −1 per $1M over.</li>
+    <li><b>Wins:</b> 50 base + roster WAR + manager (W−L) × {MANAGER_PER_NET_WIN}.</li>
     <li>
-      <b>Trophy case:</b> MVP +3 · Cy Young +3 · ROY +2 · 🥈 +2 / 🥉 +1 ·
-      All-Star, Gold Glove, Silver Slugger +1 each · your skipper's MOY +2.
+      <b>Payroll:</b> −10 for spending nothing, 0 at half your payroll, +10 right at it.
+      Over it the bonus is gone and the luxury tax runs instead.
     </li>
-    <li><b>Ring chasing:</b> 💍 +3 / 🚩 +1 per player from a title or pennant year.</li>
-    <li><b>Scouting:</b> +1 per signing who makes the dream team.</li>
+    <li>
+      <b>Trophy case:</b> MVP +3 · Cy Young +3 · ROY +2 · 🥈 second on either ballot +2 /
+      🥉 third +1 · All-Star, Gold Glove, Silver Slugger +1 each · your skipper's MOY +2.
+    </li>
+    <li>
+      <b>Ring chasing:</b> per player, +3 a 💍 World Series ring, +1 a 🚩 pennant, +2 a
+      World Baseball Classic gold, +1 a silver. One man can carry both a ring and a
+      medal, and both count.
+    </li>
+    <li><b>Scouting:</b> +1 per signing the dream team also wanted.</li>
+    <li>
+      <b>The dream team</b> is the best club the finale can build out of the same cards
+      you were dealt. It is what your score is measured against.
+    </li>
   </ul>
 
   <div class="hsec">THE TROPHY CASE</div>
@@ -249,21 +309,65 @@
   </div>
   <div class="lgnd two"><span>earned — tap to see why</span><span>go find it</span></div>
   <p class="cap">Tap 🏆 any time. One lifetime collection, across every mode.</p>
+
+  <div class="hsec">WHERE THE NUMBERS COME FROM</div>
+  <!-- Named source by source, and no license claimed: the repo records what
+       each file supplied (pipeline/fetch.py, data/owners.json's `source`,
+       data/wbc.json's `_source`) and states no terms for any of them. -->
+  <ul class="src">
+    <li>
+      <b>The Lahman Baseball Database</b> — rosters, records, salaries, awards, All-Star
+      teams, managers, the Hall of Fame, ballparks and attendance.
+    </li>
+    <li><b>Baseball-Reference</b> — WAR, and the salaries Lahman doesn't carry.</li>
+    <li><b>SABR and Wikipedia</b> — who owned which club, and when.</li>
+    <li><b>Wikipedia</b> — the World Baseball Classic rosters.</li>
+  </ul>
+  <p class="cap">Names and numbers only. No logos, no photographs.</p>
+</div>
 </Sheet>
 
 <style>
+  /* ---------- the vertical rhythm ----------
+     Three values, and every gap on the sheet is one of them:
+
+         16px  opens a section — the space above a .hsec rule
+          8px  between blocks inside a section
+          4px  ties a label to the specimen it names (.cap, .lgnd)
+
+     Written once over the children rather than as a margin per block, because
+     a margin per block is how this sheet ended up with a caption touching the
+     payroll box beneath it: `.cap` carried `margin: 6px 0 0` and the pairs that
+     needed a gap were spelled out one adjacency at a time (`.cap + .cap`,
+     `.cap + ul`). Any pair nobody wrote down got nothing, and `.cap` followed
+     by a PayrollBox was one — 0px, the only zero gap on the sheet. A rule over
+     the children has no adjacencies to forget.
+
+     It reaches elements this file owns, since a child component's root does not
+     carry this file's scope class. That is what the `.spec` wrappers around the
+     two PayrollBox specimens are for, and why a new specimen needs one. */
+  .help > * + * {
+    margin-top: 8px;
+  }
+  .help > .hsec {
+    margin-top: 16px;
+  }
+  /* The first heading closes up against Sheet's header. */
+  .help > .hsec:first-child {
+    margin-top: 0;
+  }
+  .help > .cap,
+  .help > .lgnd {
+    margin-top: 4px;
+  }
+
   .hsec {
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.08em;
     color: var(--muted);
-    border-bottom: 2px solid var(--ink);
+    border-bottom: 2px solid var(--line);
     padding-bottom: 3px;
-    margin: 14px 0 6px;
-  }
-  /* The first heading closes up against Sheet's header. */
-  .hsec:first-child {
-    margin-top: 0;
   }
   ul {
     list-style: none;
@@ -279,16 +383,19 @@
   li b {
     font-weight: 800;
   }
-  /* One line under a specimen, saying the one thing the picture cannot. */
-  .cap {
-    margin: 6px 0 0;
+  /* The credit, in the caption's register rather than the body's — it is the
+     last thing on the sheet and the least of it. */
+  .src li {
     font-size: 11px;
     line-height: 1.4;
     color: var(--muted);
   }
-  .cap + .cap,
-  .cap + ul {
-    margin-top: 8px;
+  /* One line under a specimen, saying the one thing the picture cannot. */
+  .cap {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--muted);
   }
   /* The part names, sitting under the specimen on the columns they name. The
      ticks point up at the row rather than relying on horizontal luck alone. */
@@ -299,7 +406,6 @@
        gap, the flexible name group, 42px chip + 7px gap, 56px price. */
     grid-template-columns: 47px 1fr 49px 56px;
     padding: 0 10px;
-    margin: 3px 0 8px;
     font-size: 8.5px;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -321,13 +427,22 @@
     grid-template-columns: repeat(3, 1fr);
   }
 
+  /* The ladder as six of the app's own chips. `.warchip` is global, so these
+     rungs ARE the market's and cannot drift from it — the same reasoning that
+     put the seats and the pills into components of their own. */
+  .ladder {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
   /* ---------- specimen: a market row (PlayerList's anatomy) ---------- */
   .prow {
     display: flex;
     align-items: center;
     gap: 9px;
     background: var(--card);
-    border: 2.5px solid var(--ink);
+    border: 2.5px solid var(--line);
     border-radius: 11px;
     padding: 6px 10px;
     min-height: 46px;
@@ -353,7 +468,7 @@
     border-radius: 7px;
     background: var(--card);
     color: var(--ink);
-    border: 2px solid var(--ink);
+    border: 2px solid var(--line);
     display: grid;
     place-content: center;
     text-align: center;
