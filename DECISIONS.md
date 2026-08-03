@@ -1509,3 +1509,227 @@ TRADE FOR do not render beside an armed ⭐. That is Round 17's one-voice rule,
 disarming is one tap, and the Trade Deadline swap completes one screen later
 anyway. Making the confirm pills co-available is a product decision that would
 break the precedent, and it is deferred rather than taken.
+
+## Round 23 — a payroll of zero, one page for the case, and the era question answered (2026-08-03)
+
+### A club with no owner has a payroll of $0
+
+Round 22 shipped a pre-owner box that read `$???` for the payroll and then, on
+the first signing, printed the same figure twice — `SPENT $44.1M` beside
+`$44.1M OVER` — in two different visual languages. It implemented what was
+asked and it looked broken, which was flagged at the time as the judgment call
+most likely to come back.
+
+The fix is not a label. It is reading the empty chair as a **payroll of zero**,
+which is what it actually is: the chair is where a payroll comes from, so an
+unhired one is not an unknown number, it is no number. Every register then
+agrees without a rule of its own — the product chip says `$0M` (still dashed,
+because one is coming), `$0M` is what is LEFT, and the first dollar committed
+is a dollar over. The duplicate figure survives and is now explained by the
+chip two lines above it: spent and over ARE the same number when there is no
+payroll for any of it to be inside of.
+
+The bar goes with it. Over $0 is over, so a pre-owner club that has signed
+anybody wears the orange overrun alarm rather than a neutral hatch implying
+nothing is wrong — and that leaves the gray drifting hatch holding exactly one
+state, nothing hired and nothing spent, which is what it always meant.
+
+Still a DISPLAY rule and only a display rule. `effectiveBudget` still falls
+back to the league-minimum floor, the luxury tax and the payroll bonus are
+computed from it unchanged, and nothing here can move a point. The finale
+cannot contradict it either: a classic club is not complete without an owner,
+so the finale never renders this state.
+
+### All three bars drift
+
+The drift used to mean "unsettled" and belonged to the two unresolved states.
+The trouble with that reading is that it made the calm state the odd one out:
+a green bar sitting perfectly still beside two that crawl reads as a different
+component, and stillness becomes the anomaly rather than the reassurance.
+
+What separates the three was never the motion. It is the **cut edge** — green
+has one and its position is the quantity; the overrun has none because the bar
+is full and then some; the blank state has none and prints `$0M SPENT`, which
+no full green bar ever does. So all three drift at the same 10.9px/s and hue
+says which one it is, the same division of labor the rest of the box runs on.
+
+`--green-6` (#40c057) is a new token, one rung below the fill, chosen so
+green's stripe step is the same size orange's 5→6 step is. Green's stripes sit
+ON the green-5 fill rather than replacing it, at the widest period of the
+three, because a one-rung contrast needs a coarser pattern to stay legible —
+and the calm bar should be the faintest thing the box draws. Loud stripes on
+an under-payroll club would make being under payroll look like a problem.
+
+### The finale's two manager rows wear the rung they earned
+
+Round 22 tinted the skipper's fill and frame from `warTier` and left the
+numeral on `.qwar`'s default green, so a +14.0 W skipper sat in a gold seat
+reading a green number. The dream club's skipper had the identical defect while
+the eight player rows above it were already correct. Both now pass the tier.
+`.qwar`'s bare green is now a fallback nothing reaches, kept as the one honest
+default for a value with no rung.
+
+### The drafted players' seats are still not tinted, and here is why
+
+Asked directly, and the answer is not readability. **A player seat's fill is a
+STATE channel**: card-white at rest, amber when the release picker has armed
+it. A tinted fill takes that away — an armed 5.2-WAR seat could then say
+"tappable" or "5.2-WAR guy" but not both. The manager's chair has no armed
+state (hiring happens in the front office row), and that is precisely what
+freed ITS fill for the tier in Round 22. The border carries the rung on every
+seat; the fill carries state on eight of nine.
+
+The finale rejected the same thing two rounds earlier for a second reason that
+still holds: eight tinted rows are eight competing fills, and the skipper is
+the one row whose value has nowhere else to live.
+
+### Two badges retired, and the pill row uncapped
+
+2️⃣ RE2PECT and 🎆 THE WALK-OFF are gone with `CAPTAIN`, `WALK_OFF_SEASONS`,
+`isWalkOff` and eleven tests. Both shipped, so real saves hold both keys —
+`badgeCase()` drops any key the table no longer defines at ingestion, and a
+test now seeds a history of *nothing but* retired keys, because a reader that
+only survives a mixed history would pass a weaker one.
+
+`bragRow`'s cap is gone. Four pills and a cut meant a club that earned six was
+shown a club that earned four, and a badge cut for space is indistinguishable
+from a badge not earned — while the share string was already uncapped, so the
+pill row was the one surface understating the result. `cap` survives as an
+optional argument defaulting to `Infinity`, because the tests that pin the
+fresh-first ORDER need a cut to observe it against. The stagger is counted off
+a `--i` index on a `display: contents` seat instead of one hand-written rule
+per pill, so nine badges deal in sequence rather than six arriving together.
+
+The trophy case dropped `12 OF 58`. A fraction over a collection answers "how
+much is left", which is the one question a souvenir should not be pressing; the
+ladder below already shows what is missing by drawing it. The reader still
+computes `earned`/`total` — the sheet just stopped printing it.
+
+### The passport is a board, on one page with the badges
+
+Two reversals, both deliberate, both recorded against the comments that argued
+the other way.
+
+**One page, no tabs.** Round 22 put the passport behind a tab because a panel
+under six bands and fifty-eight pills is a screen and a half of scrolling away.
+That is true and it is the wrong problem to solve with navigation: a tab hides
+the passport from everyone who does not press it, which is worse than a scroll.
+The sheet is one object — a lifetime record of what a career turned up — and it
+now reads as one, badges then countries, separated by the app's own dashed rule.
+
+**Every country, with the unvisited ones grayed.** The old rule was "found
+stamps only, never a checklist", on the reasoning that nothing in the game
+shows a birth country so a grid of gray slots points at a hunt with no tools
+for it. That reasoning was about INVITATION and it still holds — a slot names
+no player, and no move a player can make produces a Lithuanian. What it got
+wrong is what the empty slots are FOR: a player who has fielded eleven
+countries has no way to know whether that is most of them or a tenth, and a
+souvenir with no scale is a souvenir you cannot tell a story about. The board
+answers that and invites nothing. The unvisited half runs commonest first,
+which is the honest order for a thing nobody chases — the countries a few more
+seasons will turn up on their own sit at the top, and 🇱🇹 at the bottom.
+
+The finale shows the whole passport rather than tonight's slice, with the
+career's player counts and a NEW chip on what tonight added. A new stamp is
+only legible against the ones already there, and a club that added nothing new
+gets a souvenir anyway. No grayed slots there: the empty half is context for a
+collection being browsed, and a finale is a scoreboard.
+
+Both surfaces run `passportItems()` in settings.ts, so no figure on a stamp can
+disagree between them — the exact drift the tab version was already one edit
+away from. NEW is still derived from `visits <= 1` on tonight's countries
+rather than from a date comparison: dates are day-granular and two games in one
+day would flag the earlier one's countries.
+
+### The help sheet shows the real seat and the real pill
+
+Both were hand-copied markup, on the stated grounds that `RosterRail` and
+`PowerupRow` take a `Game`. That is a reason to extract, not a reason to copy.
+`RailSeat.svelte` and `PowerupPill.svelte` now take plain values and both
+screens render them.
+
+Every one of the forty seat rules moved **verbatim** — selectors and
+declarations diffed rule-by-rule against the old file — so the live rail's
+phone and desktop geometry is byte-identical to what shipped. The pill gained
+`color: inherit`, because it renders as a `<span>` when given no `onclick`: a
+focusable control that does nothing promises an action a help sheet cannot
+deliver.
+
+One real bug fell out of the extraction and is worth recording. `RailSeat`
+turns itself into a full-width row at 760px, and the help sheet's specimen grid
+is two narrow columns — so on desktop every name clipped. The specimen now
+switches to the rail's own flex column at the same breakpoint, which is
+correct on its own terms: a help sheet has to teach the screen the reader is
+about to be looking at. `PowerupPill`'s container query has the same shape of
+contract, and both callers declare `container-type: inline-size`.
+
+The eight seats are counted off `SLOT_TYPES` rather than written out, in the
+loop section and the new one under the squad — copy drifts the way markup does.
+The payroll section now says what Clean House actually asks: no payroll at all
+until an owner is hired.
+
+### 2020's ballparks are correct, and now they are pinned
+
+Every club drew zero in 2020, so `ranks.index(0)` returns 0 for all thirty and
+every 2020 park lands on the 0.85 floor. **That is not a bug.** The floor is
+what a park with nobody in it is worth, and 2020 is the one season the whole
+league earned it; tie-breaking the zeros by any rule at all would invent a gate
+ranking out of thirty identical empty stadiums.
+
+A 0.0 multiplier was considered as an easter egg and rejected. It would
+multiply an owner's budget down to no payroll, which is not a joke — it is a
+card that ends the game for whoever buys it. The floor punishes; zero forfeits.
+Three tests now pin all of this, because the shape invites a fix.
+
+### Study 16: the era gap is real and does not reach the score
+
+The 1980s WAR-per-dollar deficit reported in Round 22 was attributed to the
+$1M price floor meeting a moving salary minimum. **That mechanism was wrong.**
+The normalized minimum is flat across forty years ($1.0–1.6M) and aggregate
+WAR per dollar is nearly flat too (0.131 in 1985 to 0.155 in 2025). The real
+gap is DISPERSION at the top of the market: the best bargains in 1985–89 return
+1.97 WAR/$M against 4.81 in 2015–19, because median salary is $8.1M in 1985 and
+$1.4M in 2025 — before arbitration there was no long tail of minimum-salary
+seasons with real WAR in them.
+
+Which is genuine history, so the question is only whether it costs anybody a
+season. Study 16 says no, twice, over 1,200 vanilla classic games:
+
+- By decile of mean roster year, totals run 110.3–113.7 with no trend, and the
+  oldest decile scores 2.88 points **higher** than the newest — the sign is
+  backwards from what the ratio predicts.
+- By seats drafted before 1995 (the sharper cut, because a mean of eight years
+  regresses to the middle of the window), totals run 110.7–113.1 across zero
+  through four old seats, and roster WAR barely moves at all (37.0–37.9).
+
+The one term that does move is the payroll bonus at four old seats: 5.83
+against ~7.0. An old club spends more of its cap on fewer men and misses "spent
+it all" slightly more often. That is the mechanism working, not failing.
+
+**So nothing changes.** Dollars are already normalized for LEVEL (share of
+league-average slot-8 payroll × $160M); what is left is distribution SHAPE, and
+flattening that means rank-mapping each year's salaries onto a canonical curve,
+which deletes the compressed pre-arbitration structure the prices currently
+teach. Adjusting owner budgets does not reach it either — the payroll bonus
+caps at +10 however large the cap is. The study is the tripwire: if a data
+regen or an economy change ever turns the curiosity into a handicap, it fails
+and names which term moved.
+
+### Deferred from this round
+
+1. **The locked stamps' flags are grayscaled to 50% opacity.** Legible as
+   flags, not identifiable as countries — which is intentional (the name is
+   printed on every one) but is the one number here that was picked by eye
+   rather than measured.
+2. **`bragRow`'s `cap` argument now has no production caller.** It is kept for
+   the order tests and for a future width-budgeted surface. If neither
+   materializes it should go.
+3. **The help sheet's market row is still hand-drawn.** `PlayerList` is a list
+   of buttons wired to signings and pickers, and there is no presentation layer
+   to lift out of it that would not be the whole component. It is the one
+   specimen that can still drift.
+4. **Everything deferred in Round 22 (items 1–8) stands**, including the
+   missing parity-fixture generator — `scoring.test.ts` points at a generator
+   that is not in `git log`, so those fixtures can no longer be regenerated
+   from the Python source of truth. That remains the highest-value item on the
+   list.

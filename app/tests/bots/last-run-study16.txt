@@ -1,0 +1,25 @@
+=== Study 16: era vs score — 1200 vanilla classic games ===
+
+--- 1. Deciles of mean roster year ---
+  d1  year 1998.6  total 113.16  WAR 38.55  spend 110.1  cap 119.5  bonus 6.89  seats 8.00
+  d2  year 2001.2  total 111.10  WAR 36.79  spend 111.4  cap 121.7  bonus 6.65  seats 8.00
+  d3  year 2002.7  total 112.41  WAR 37.85  spend 105.8  cap 114.9  bonus 7.07  seats 8.00
+  d4  year 2003.9  total 110.46  WAR 37.31  spend 106.4  cap 115.0  bonus 6.43  seats 8.00
+  d5  year 2004.9  total 113.26  WAR 37.73  spend 105.7  cap 119.7  bonus 7.05  seats 8.00
+  d6  year 2005.9  total 113.47  WAR 38.18  spend 105.4  cap 115.5  bonus 7.26  seats 8.00
+  d7  year 2007.0  total 113.33  WAR 37.94  spend 108.2  cap 115.8  bonus 7.64  seats 8.00
+  d8  year 2008.3  total 111.36  WAR 37.40  spend 106.3  cap 117.1  bonus 6.80  seats 8.00
+  d9  year 2009.8  total 113.66  WAR 37.57  spend 108.0  cap 116.2  bonus 7.85  seats 8.00
+  d10  year 2012.5  total 110.28  WAR 36.86  spend 102.4  cap 114.8  bonus 6.44  seats 8.00
+
+--- 2. By seats drafted before 1995 ---
+  0 old seats  n= 154  total 110.90  WAR 37.00  bonus 7.07
+  1 old seat   n= 348  total 113.08  WAR 37.88  bonus 7.30
+  2 old seats  n= 386  total 112.72  WAR 37.65  bonus 7.03
+  3 old seats  n= 212  total 111.36  WAR 37.42  bonus 6.98
+  4 old seats  n=  85  total 110.74  WAR 37.41  bonus 5.83
+
+--- 3. Top decile minus bottom decile ---
+  newest−oldest total: -2.88 pts
+  newest−oldest WAR:   -1.69
+  newest−oldest bonus: -0.45
