@@ -152,8 +152,8 @@ describe("the badge table itself", () => {
     expect(COLLECTIBLE).toHaveLength(BADGES.filter((b) => !b.ironic).length);
   });
 
-  /** Six tiers, and the top one holds exactly the two badges that mean "you
-   * maxed out an axis". Anything that enumerates rarities — the trophy case's
+  /** Six tiers, and the top one holds exactly the badges that mean "you maxed
+   * out an axis". Anything that enumerates rarities — the trophy case's
    * section order, the lab's ladder, the pill styles — is reading this set, so
    * a seventh tier or a third legendary is a change that has to be made on
    * purpose. */
@@ -177,7 +177,7 @@ describe("the badge table itself", () => {
     expect(RARITY_ORDER.at(-1)).toBe("ironic");
   });
 
-  it("keeps the ladder six tiers deep, with legendary holding the two maxima", () => {
+  it("keeps the ladder six tiers deep, with legendary holding the axis maxima", () => {
     const tiers = new Set(BADGES.map((b) => b.rarity));
     expect([...tiers].sort()).toEqual([
       "common",
@@ -187,9 +187,16 @@ describe("the badge table itself", () => {
       "ultra",
       "uncommon",
     ]);
+    // One per axis it is possible to max out: the top of the on-field ladder,
+    // the goal itself, and a perfect scouting match. A fourth legendary is a
+    // claim that some fourth axis has a top, and that has to be argued rather
+    // than typed.
     expect(
       BADGES.filter((b) => b.rarity === "legendary").map((b) => b.key),
-    ).toEqual(["crown", "perfect"]);
+    ).toEqual(["crown", "perfect", "dreamteam"]);
+    expect(
+      BADGES.filter((b) => b.rarity === "legendary").map((b) => b.axis),
+    ).toEqual(["onfield", "goal", "scout"]);
   });
 
   /** The claim badges.ts makes when it sends 🧓/🍼 to `ultra` rather than

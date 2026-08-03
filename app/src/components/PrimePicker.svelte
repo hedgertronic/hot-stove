@@ -48,7 +48,11 @@
                   team: card.team,
                   year: card.year,
                   p,
-                  fits: game.openSlotsFor(p).length > 0,
+                  // The engine decides, because reachability is now two rules:
+                  // an open seat, or an armed 🔁 with an occupied one it may
+                  // vacate. A second copy here would gray the seasons the
+                  // swap branch is able to sign.
+                  fits: game.primeFits(p),
                   here: card.team === game.card?.team && card.year === game.card?.year,
                 }
               : null;

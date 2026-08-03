@@ -13,6 +13,7 @@
   import SpinBanner from "./components/SpinBanner.svelte";
   import TeamPicker from "./components/TeamPicker.svelte";
   import YearPicker from "./components/YearPicker.svelte";
+  import { track } from "./lib/analytics";
   import { loadColors, loadIndex, loadMeta, loadOwners } from "./lib/data";
   import {
     Game,
@@ -108,6 +109,11 @@
     clearStoredFinale();
     restoredFinale = false;
     game = new Game(deps.meta, deps.index, deps.owners, seed, config);
+    track("game_start", { difficulty: config.difficulty, bank: config.bank });
+    // One event with a boolean rather than two names: `seed` is undefined off
+    // the PLAY button and a parsed number off PLAY A SEED, so the flag answers
+    // "typed in" and "rolled fresh" from the same row.
+    track("seed_played", { typed: seed !== undefined });
     screen = "game";
   }
 
@@ -162,6 +168,9 @@
       // badges are read off a finished season and this path produces none, so
       // it is written straight into the log as an unscored row.
       recordQuit();
+      // The confirmed tap only, matching recordQuit: arming the ✕ and thinking
+      // better of it is not a quit and must not be counted as one.
+      track("game_quit");
       Game.clearSave();
       goHome();
       return;
@@ -196,10 +205,72 @@
   $effect(() => {
     const phase = game?.phase;
     if (phase === "spinning" || phase === "finale") window.scrollTo({ top: 0 });
+    // The engine sets `phase = "finale"` once, inside finishGame, so this is
+    // the one moment a season ends. A finale reopened from storage is excluded:
+    // it is the same season being looked at again, not a second result.
+    if (phase === "finale" && !restoredFinale && game?.finale) {
+      track("game_finish", {
+        wins: game.finale.wins,
+        // Rounded so the parameter is an integer in GA4's reports; the ladder
+        // the finale prints is already rounded to the same place.
+        total: Math.round(game.finale.parts.total),
+        over_payroll: game.finale.spend > game.finale.budget,
+      });
+    }
   });
+
+  /* ---- the code ----
+   *
+   * ↑↑↓↓←→←→BA on a physical keyboard earns 🎮 CHEAT CODES and does nothing
+   * else — no spin, no powerup, no price, no number the finale prints. A code
+   * that changed the game would make every score after it incomparable, and a
+   * shareable result is the one social artifact this game has.
+   *
+   * Bound to a LIVE GAME only, and that is forced rather than stylistic: the
+   * fact is stored on the `Game` so it survives the reload iOS Safari inflicts
+   * on a backgrounded tab, and the home screen has no Game to store it on. A
+   * keystroke there would be silently lost across the very eviction the
+   * persistence exists to survive. `markKonami` refuses the finale for the
+   * matching reason — that season's badges are already resolved.
+   *
+   * The matcher is a rolling window of the last ten keys rather than an index
+   * that advances and resets, and the sequence's own shape is why. It opens
+   * with two identical keys, so ↑↑↑↓↓←→←→BA is a real entry with one false
+   * start in front of it — and an index that resets on a miss gets that case
+   * wrong however carefully the reset is written, because the miss happens
+   * three keys in and the correct fallback is a prefix of what was already
+   * typed. Comparing the trailing ten keys is the whole rule and has no
+   * fallback to get wrong.
+   *
+   * Events whose target is a text field are ignored outright, so typing a seed
+   * code into the home screen's input can neither advance the window nor
+   * disturb one already part-filled. */
+  const KONAMI = [
+    "arrowup",
+    "arrowup",
+    "arrowdown",
+    "arrowdown",
+    "arrowleft",
+    "arrowright",
+    "arrowleft",
+    "arrowright",
+    "b",
+    "a",
+  ];
+  let konamiKeys: string[] = [];
+
+  function onKey(e: KeyboardEvent) {
+    const tag = (e.target as HTMLElement | null)?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    konamiKeys = [...konamiKeys, e.key.toLowerCase()].slice(-KONAMI.length);
+    if (konamiKeys.every((k, i) => k === KONAMI[i]) && konamiKeys.length === KONAMI.length) {
+      konamiKeys = [];
+      game?.markKonami();
+    }
+  }
 </script>
 
-<svelte:window onclick={() => (confirmKey = null)} />
+<svelte:window onclick={() => (confirmKey = null)} onkeydown={onKey} />
 
 {#if LabComp}
   <LabComp />

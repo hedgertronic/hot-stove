@@ -1,8 +1,15 @@
 <script lang="ts">
   import { BADGES, RARITY_ORDER, type BadgeDef, type Rarity } from "../lib/badges";
-  import { badgeCase, passport, takeOpenedBadgeCue } from "../lib/settings";
+  import {
+    badgeCase,
+    passport,
+    takeOpenedBadgeCue,
+    type PassportItem,
+    type PassportStamp,
+  } from "../lib/settings";
   import BadgePill from "./BadgePill.svelte";
   import BadgeSlot from "./BadgeSlot.svelte";
+  import Passport from "./Passport.svelte";
   import Sheet from "./Sheet.svelte";
 
   /** The lifetime trophy case, as a modal. The board is the whole set — earned
@@ -90,15 +97,98 @@
    * pointing a player at a hunt they have no way to run. What is here is what
    * they have already been to.
    *
-   * Empty is not rendered at all. A "PASSPORT · 0 COUNTRIES" heading over an
-   * empty box is the checklist wearing a different hat; a panel that simply
-   * appears the first time a country lands is the happy accident it is
-   * supposed to be.
+   * Empty is not rendered at all, and neither is its tab. A "PASSPORT · 0
+   * COUNTRIES" heading over an empty box is the checklist wearing a different
+   * hat; a panel that simply appears the first time a country lands is the
+   * happy accident it is supposed to be.
    *
    * It sits outside the progress fraction by construction rather than by a
    * filter: that number is `trophies.earned` of `trophies.total`, both counted
    * from the badge table, and a country is not a badge. */
   const stamps = passport();
+
+  /** Two panels behind two tabs, rather than a passport appended below the
+   * ladder or moved to a sheet of its own.
+   *
+   * Appended was where it started and it buried the thing. The ladder is six
+   * bands and fifty-eight pills, so a panel under it is a screen and a half of
+   * scrolling away — findable only by a player who already knew to look, which
+   * is the one kind of player a souvenir does not need help reaching. A second
+   * modal fixes that and costs a second entry point and a second dismissal for
+   * an object the trophy case already owns: both are lifetime, both are global
+   * across mode, both are collections of what a career turned up.
+   *
+   * A tab is one tap and no new sheet. It also does not make the passport a
+   * checklist — the constraint is about denominators and empty slots, not about
+   * navigation, and nothing behind this tab enumerates a country the player has
+   * not been to.
+   *
+   * The bar does not exist until the first stamp lands, so a player with no
+   * countries sees exactly the case they saw before: no tabs, no hint that a
+   * second panel is being withheld. */
+  let tab = $state<"trophies" | "passport">("trophies");
+  const tabbed = stamps.length > 0;
+
+  /** Left/right across the bar, the one keyboard affordance a tablist owes
+   * beyond its buttons. Both tabs stay in the tab order rather than taking the
+   * roving-tabindex half of the pattern: roving without arrow keys strands the
+   * second tab, and arrow keys plus two tabbable buttons is strictly more
+   * operable than either half alone.
+   *
+   * The handler sits on the BUTTONS rather than on the bar. A keyboard handler
+   * on the `tablist` element itself would make a div with an interactive role
+   * take a tabindex, which puts a focus stop on a container that has nothing to
+   * do — the two buttons inside it are the things being operated. */
+  let tabsEl = $state<HTMLElement | null>(null);
+  function tabKey(e: KeyboardEvent) {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    tab = tab === "trophies" ? "passport" : "trophies";
+    e.preventDefault();
+    tabsEl?.querySelector<HTMLElement>(`#tab-${tab}`)?.focus();
+  }
+
+  /** What one stamp says on hover, and to a screen reader.
+   *
+   * It spells out the two numbers the stamp itself cannot: which of the games
+   * behind a country actually named the people in it, and how many seasons
+   * those were. A stamp with `counted === 0` says so in words rather than
+   * showing a zero — a country nobody is counted for is a gap in the log, not a
+   * club with nobody in it. */
+  function stampTitle(s: PassportStamp): string {
+    const when = s.first ? `First fielded ${s.first}. ` : "";
+    const seasons = `${s.visits} ${s.visits === 1 ? "season" : "seasons"}`;
+    if (s.counted === 0) return `${when}${seasons}, none carrying a roster.`;
+    const players = `${s.players} ${s.players === 1 ? "player" : "players"}`;
+    if (s.counted === s.visits) return `${when}${players} across ${seasons}.`;
+    return `${when}${players} across ${s.counted} of ${seasons}.`;
+  }
+
+  /** The stamps as the panel draws them. The number on a stamp is unique
+   * PLAYERS, so a man rostered in four seasons counts once and two different
+   * Venezuelans count twice — and it is shown at one as readily as at four,
+   * which breaks the badge pills' "only mark above one" convention on purpose.
+   * A blank has to mean exactly one thing here, and the thing it means is "no
+   * season on record named anybody". */
+  const items: PassportItem[] = stamps.map((s) => ({
+    country: s.country,
+    flag: s.flag,
+    rarity: s.rarity,
+    count: s.counted > 0 ? s.players : null,
+    fresh: false,
+    title: stampTitle(s),
+  }));
+
+  /** The player count is not backfillable and the panel says so out loud.
+   *
+   * A history row records badges, countries and a record and has never recorded
+   * a roster, so a season played before the roster was logged cannot be made to
+   * give up its players. Those seasons keep their stamp and their date and
+   * carry no number. A tooltip alone would hide that on a phone, where nothing
+   * hovers, so the panel prints one muted line: the first sentence says what a
+   * number means, the second admits which seasons have none. Neither appears
+   * before there is a number on screen to explain. */
+  const anyCounted = items.some((i) => i.count !== null);
+  const anyMissing = stamps.some((s) => s.counted < s.visits);
 
   /** The one opened badge, by key. Only an EARNED pill is a button, so only an
    * earned badge can ever land here — a locked slot has nothing to open, and
@@ -112,98 +202,156 @@
   }
 </script>
 
-<Sheet {onclose} label="Trophy case" tall>
-  <div class="sheet-h">
-    TROPHY CASE · {trophies.earned} OF {trophies.total}
-    <button class="x" onclick={onclose} aria-label="Close">✕</button>
+<!-- The header line carries the badge fraction only while the badges are the
+     thing on screen. On the passport tab it drops to the sheet's plain name:
+     "12 OF 58" sitting three lines above a row of country stamps is a
+     denominator the panel spent its whole design refusing, and a reader has no
+     way to know it belongs to the tab they are not looking at. -->
+<Sheet
+  {onclose}
+  label="Trophy case"
+  tall
+  title={tab === "trophies"
+    ? `TROPHY CASE · ${trophies.earned} OF ${trophies.total}`
+    : "TROPHY CASE"}
+  confirmLabel="CLOSE"
+>
+  {#if tabbed}
+    <!-- The bar scrolls with the panel rather than pinning under the header.
+         Sheet owns the frame — header and CLOSE button hold still, the body
+         scrolls — and holding a third thing still is a change to Sheet, which
+         five other callers share. A two-tab bar at the top of a body is cheap
+         to scroll back to. -->
+    <div class="tabs" role="tablist" aria-label="Trophy case sections" bind:this={tabsEl}>
+      <button
+        id="tab-trophies"
+        class="tab"
+        class:on={tab === "trophies"}
+        role="tab"
+        aria-selected={tab === "trophies"}
+        aria-controls="panel-trophies"
+        onkeydown={tabKey}
+        onclick={() => (tab = "trophies")}>TROPHIES</button
+      >
+      <button
+        id="tab-passport"
+        class="tab"
+        class:on={tab === "passport"}
+        role="tab"
+        aria-selected={tab === "passport"}
+        aria-controls="panel-passport"
+        onkeydown={tabKey}
+        onclick={() => (tab = "passport")}>PASSPORT</button
+      >
+    </div>
+  {/if}
+
+  <!-- Both panels stay in the DOM and the inactive one carries `hidden`, which
+       is what a tabpanel is supposed to do: the roles and the labelling only
+       exist while there is a bar to own them, so a case with no passport is
+       plain content rather than a tablist of one. -->
+  <div
+    id="panel-trophies"
+    role={tabbed ? "tabpanel" : undefined}
+    aria-labelledby={tabbed ? "tab-trophies" : undefined}
+    hidden={tabbed && tab !== "trophies"}
+  >
+    {#if trophies.tiles.length === 0}
+      <p class="caseempty">No badges yet — play a season.</p>
+    {/if}
+
+    {#each sections as s (s.rarity)}
+      <div class="band">
+        <div class="psep">{s.rarity.toUpperCase()}</div>
+        <!-- No tabindex: the band wraps rather than scrolls, so every pill is
+             on screen and reachable by tabbing the buttons themselves. The
+             scrollable-region pattern WCAG 2.1.1 asks for only applies to a
+             container that hides content, and this one no longer does.
+
+             BadgeSlot emits the button and, when open, the reveal — both as
+             children of this row, which is how the trigger lands on its own
+             line directly under the pill that was tapped. -->
+        <div class="bandrow" role="group" aria-label="{s.rarity} badges">
+          {#each s.items as slot (slot.def.key)}
+            {#if slot.locked}
+              <BadgePill badge={slot.def} locked />
+            {:else}
+              <BadgeSlot
+                badge={slot.def}
+                count={slot.count}
+                fresh={slot.fresh}
+                open={opened === slot.def.key}
+                ontoggle={() => toggle(slot.def.key)}
+              />
+            {/if}
+          {/each}
+        </div>
+      </div>
+    {/each}
   </div>
 
-  {#if trophies.tiles.length === 0}
-    <p class="caseempty">No badges yet — play a season.</p>
-  {/if}
-
-  {#each sections as s (s.rarity)}
-    <div class="band">
-      <div class="psep">{s.rarity.toUpperCase()}</div>
-      <!-- No tabindex: the band wraps rather than scrolls, so every pill is on
-           screen and reachable by tabbing the buttons themselves. The
-           scrollable-region pattern WCAG 2.1.1 asks for only applies to a
-           container that hides content, and this one no longer does.
-
-           BadgeSlot emits the button and, when open, the reveal — both as
-           children of this row, which is how the trigger lands on its own line
-           directly under the pill that was tapped. -->
-      <div class="bandrow" role="group" aria-label="{s.rarity} badges">
-        {#each s.items as slot (slot.def.key)}
-          {#if slot.locked}
-            <BadgePill badge={slot.def} locked />
-          {:else}
-            <BadgeSlot
-              badge={slot.def}
-              count={slot.count}
-              fresh={slot.fresh}
-              open={opened === slot.def.key}
-              ontoggle={() => toggle(slot.def.key)}
-            />
-          {/if}
-        {/each}
-      </div>
-    </div>
-  {/each}
-
-  {#if stamps.length > 0}
-    <!-- Its own panel, below the ladder: the bands answer "what have I
-         collected", this answers "where have I been". The heading counts what
-         is there and stops — no "of 39", because a denominator would turn a
-         souvenir into an errand. -->
-    <div class="band">
-      <div class="psep">
-        PASSPORT · {stamps.length}
-        {stamps.length === 1 ? "COUNTRY" : "COUNTRIES"}
-      </div>
-      <div class="stamps" role="list" aria-label="Countries visited">
-        {#each stamps as s (s.country)}
-          <!-- Square-ish and hairline-bordered on purpose: a 999px pill on
-               this sheet means "badge", and a country is not one. -->
-          <span
-            class="stamp"
-            role="listitem"
-            title={s.first ? `First fielded ${s.first}` : undefined}
-          >
-            {s.country}{#if s.visits > 1}<span class="visits">×{s.visits}</span
-              >{/if}
-          </span>
-        {/each}
+  {#if tabbed}
+    <!-- The other panel: the bands answer "what have I collected", this answers
+         "where have I been". The heading counts what is there and stops — no
+         "of 39", because a denominator would turn a souvenir into an errand. -->
+    <div
+      id="panel-passport"
+      role="tabpanel"
+      aria-labelledby="tab-passport"
+      hidden={tab !== "passport"}
+    >
+      <div class="band">
+        <div class="psep">
+          PASSPORT · {stamps.length}
+          {stamps.length === 1 ? "COUNTRY" : "COUNTRIES"}
+        </div>
+        <Passport stamps={items} label="Countries visited" />
+        {#if anyCounted}
+          <p class="note">
+            A number is how many different players you have fielded from that
+            country.
+            {#if anyMissing}Seasons that recorded no roster carry none.{/if}
+          </p>
+        {/if}
       </div>
     </div>
   {/if}
-
-  <button class="btn cancel" onclick={onclose}>CLOSE</button>
 </Sheet>
 
 <style>
-  .sheet-h {
-    text-align: center;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
+  /* Two words on one line, each a plain label under a rule — the sheet already
+     spends its ink on the pills, and a pair of filled segmented buttons at the
+     top of it would outweigh everything they switch between. The selected tab
+     takes ink type and an ink rule; the other stays muted over the dashed rule
+     the whole app uses for a section edge. */
+  .tabs {
+    display: flex;
+    gap: 18px;
+    justify-content: center;
     margin-bottom: 10px;
-    position: relative;
   }
-  .x {
-    position: absolute;
-    right: 0;
-    top: -2px;
-    border: 2px solid var(--ink);
-    border-radius: 999px;
-    background: var(--card);
-    color: var(--muted);
+  .tab {
+    background: none;
+    border: 0;
+    border-bottom: 2px dashed var(--dash);
+    border-radius: 0;
     font-family: inherit;
+    font-size: 11px;
     font-weight: 800;
-    font-size: 10px;
-    line-height: 1;
-    padding: 4px 8px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    /* 44px of tap target on a 20px label, grown into the sheet's own padding
+       rather than into the first band below it. */
+    padding: 11px 12px 9px;
     cursor: pointer;
+  }
+  .tab.on {
+    color: var(--ink);
+    border-bottom: 2px solid var(--ink);
+  }
+  .tab:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
   }
   .caseempty {
     margin: 0;
@@ -237,42 +385,15 @@
        sheet a horizontal scrollbar as well. */
     position: relative;
   }
-  /* The passport wraps and centers like a band, so the two panels share one
-     rhythm down the sheet and the passport does not read as a different
-     screen bolted on. */
-  .stamps {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px;
-  }
-  /* A stamp, not a pill. The badge pills on this sheet are 999px capsules with
-     an ink border and a rarity wash; a country wears a small radius, a gray
-     hairline and paper — the same quiet register `.brag.common` uses for the
-     floor of the ladder, one step below the ink every collectible gets. It is
-     not a rarity, so it must not borrow a rarity's fill. */
-  .stamp {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    border: 2px solid var(--gray-ink);
-    border-radius: 4px;
-    background: var(--card);
-    color: var(--muted-2);
-    font-size: 10.5px;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 3px 8px;
-    white-space: nowrap;
-  }
-  .visits {
-    opacity: 0.7;
-  }
-  .cancel {
-    width: 100%;
-    font-size: 13px;
-    padding: 8px;
-    margin-top: 14px;
+  /* The one line of prose on the sheet, and it is there to keep a blank stamp
+     from reading as a broken one. Centered under the stamps at the size the
+     rest of the sheet's small print runs. */
+  .note {
+    margin: 8px 0 0;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.45;
+    color: var(--muted);
   }
 </style>

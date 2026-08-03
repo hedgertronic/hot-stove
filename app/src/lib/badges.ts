@@ -226,6 +226,19 @@ export interface BadgeFacts {
   stamp?: { wins: number; losses: number };
   /** Final points — 🏆 fires at the 162 goal. */
   total: number;
+  /** The season outscored the dream club solved off its own cards — strictly
+   * more points than the ceiling the finale prints, not a tie.
+   *
+   * Resolved in the engine because the comparison is between two numbers only
+   * the engine holds at once: `parts.total` and the solver's own unclamped
+   * answer. The finale's `bestPossibleTotal` is already `max(solved, total)`,
+   * so it can never be below the played club and cannot answer this on its own
+   * — the raw solve is the only honest side of the comparison.
+   *
+   * Optional for the `age` reason, and it fails safe: absent reads as "did not
+   * beat it", which is also what a game whose dream solve could not run should
+   * report. */
+  beatDream?: boolean;
   spendM: number;
   budgetM: number;
   /** `ScoreParts.budgetBonus`; 💵 wants it near its 10-point ceiling. */
@@ -243,8 +256,17 @@ export interface BadgeFacts {
    * is carried rather than assumed at nine for the same reason `powerups`
    * carries its own total: a partial solve is a real state, and a badge that
    * hard-codes the full one silently rewards the thin reel it was built to
-   * exclude. */
-  dreamSeats: number;
+   * exclude.
+   *
+   * Optional for the `age` reason — a fact set assembled before the field
+   * existed, a forged fixture, a restored save — and the direction of the
+   * default is the whole point. It fails SAFE: the trigger asks
+   * `dreamSeats === 9` on the nose, so absent, zero, and every partial solve
+   * alike withhold 🌠 and leave 🔮 CRYSTAL BALL exactly as it was. A
+   * permissive default here would be the `stampWins` trap again — an optional
+   * fact whose absence turned a gate into dead code — and the shape of that
+   * bug is that nothing ever fails. */
+  dreamSeats?: number;
   /** Filled roster slots only — empty seats are simply absent, so a partial
    * club can never earn a "every player …" badge by vacancy. */
   roster: BadgeRosterEntry[];
@@ -1154,6 +1176,46 @@ export const BADGES: BadgeDef[] = [
     axis: "goal",
     freq: 1.01,
     how: "A full 162 points.",
+  },
+  /* The other badge keyed to the TOTAL rather than to the club that produced
+   * it, which is what `goal` collects. The axis stacks, so a 162-point season
+   * that also outscored the solver earns both — they are different claims and
+   * a season can honestly make both.
+   *
+   * It is deliberately NOT on `scout`. That axis is exclusive and asks how
+   * many of the dream club's picks you found; this asks whether your club
+   * SCORED more than theirs, which a club that matched almost none of their
+   * picks can do. 🌠 and 🔮 measure agreement, this measures the result.
+   *
+   * Not `secret`, unlike 🌠 above it. The finale already prints the ceiling as
+   * a number on screen, so the target is not a secret to give away — naming
+   * the badge is the direction the case owes a player who has seen that number
+   * and wondered whether it can be passed.
+   *
+   * Measured at 200 games per arm, and the arms are the argument: 2.50% with
+   * every powerup, 0.00% with the same arm and 🏠 Homegrown disabled, 3.50%
+   * with overspending allowed, 0.50% with no powerups at all. Every winner in
+   * the two Homegrown arms used 🏠. That is causal rather than correlational —
+   * the solver models ✌️ Double Play and ⭐ Prime Time but prices every player
+   * at list, and 🏠 is the one powerup that keeps a season's wins while
+   * cutting what it costs. So this is a Homegrown badge in everything but the
+   * trigger.
+   *
+   * The caveat belongs to whoever tunes the solver next. About 0.5pp of the
+   * 2.50% is search slack rather than play: the lone no-powerup beat (seed
+   * 3517525175, margin 6.20 over eleven cards, one pick each, no repeats and
+   * no off-reel season) sits entirely inside the model the solver searches, so
+   * the solver missed it through its own shortlist heuristics or node budget.
+   * Widening REFINE_PAIRS, DOUBLE_PAIRS or MAX_NODES makes this badge rarer
+   * for a reason that has nothing to do with how anyone played. */
+  {
+    key: "beatdream",
+    emoji: "🧠",
+    label: "BEAT THE DREAM TEAM",
+    rarity: "rare",
+    axis: "goal",
+    freq: 2.5,
+    how: "Outscored the dream team the finale solved off your own cards.",
   },
 
   // ---- payroll: exactly one fires ----
@@ -2100,6 +2162,9 @@ export function earnedBadges(f: BadgeFacts): string[] {
   else if (floor.losses >= 100) out.push("skull");
 
   if (f.total >= GOAL_POINTS) out.push("perfect");
+  // Stacks with 🏆 on purpose: one says the season hit the game's stated goal,
+  // the other says it beat the best club those same cards could have built.
+  if (f.beatDream === true) out.push("beatdream");
 
   // Four faces of one axis, ordered from busted to stingiest.
   if (f.spendM - f.budgetM >= FARM_TAX_M) out.push("farm");
@@ -2116,6 +2181,11 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // match IS a seven-or-better match, so 🌠 takes the slot and 🔮 keeps the
   // near misses. The nine-seat gate on the DREAM club is what stops a thin
   // reel — five cards, five dream seats, five hits — from reading as perfect.
+  //
+  // Both halves are exact equalities rather than floors, so every way of not
+  // knowing the denominator fails the same way: an absent `dreamSeats`, a zero
+  // from a solve that never ran, and a genuine partial club all miss, and 🔮
+  // catches whatever the hits alone earn.
   if (f.dreamSeats === DREAM_SEATS && f.scoutHits === DREAM_SEATS)
     out.push("dreamteam");
   else if (f.scoutHits >= CRYSTAL_HITS) out.push("crystal");

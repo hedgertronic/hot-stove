@@ -18,10 +18,12 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   BADGES,
+  CAPTAIN,
   CROWN_WINS,
   GAMBLERS,
   MATCHED,
   SUSPENDED,
+  WALK_OFF_SEASONS,
   WORST_WINS,
 } from "../src/lib/badges";
 
@@ -36,6 +38,9 @@ interface CardPlayerRow {
   posG?: { c?: number; if?: number; of?: number };
   /** In the Hall of Fame as a player. */
   hof?: boolean;
+  /** Wore a World Series ring that season — the fact 🎆 THE WALK-OFF's three
+   * seasons all have to keep carrying. */
+  ws: boolean;
   /** Birth country, as the pipeline normalizes it. */
   bc?: string;
 }
@@ -540,6 +545,112 @@ describe("the birth-country supply", () => {
     for (const stale of ["West Germany", "British Honduras", "South Vietnam"]) {
       expect(names.has(stale), `${stale} should be normalized away`).toBe(false);
     }
+  });
+});
+
+/** 2️⃣ and 🎆 are the two newest badges keyed to hard-coded Baseball-Reference
+ * ids, and they fail the same silent way 🏦 does: an id that no longer appears
+ * on a card leaves a badge that renders forever and can never fire. 🎆 keys the
+ * SEASON as well, so both halves have to survive a regen — and its tier was
+ * argued from a card count, which is a number that can move under it.
+ *
+ * The collision trap is real rather than hypothetical: `renteri01` is Rick
+ * Renteria, FLA 1993, a draftable man one character away from the Édgar
+ * Rentería the badge names — the same shape as the Pedro Borbón Jr. trap on
+ * 🚧 and the two on 💊. */
+describe("the walk-off seasons and the captain are still dealable", () => {
+  const seasonsOf = (id: string) =>
+    CARDS.filter((c) => c.players.some((p) => p.id === id));
+
+  it("still deals the captain the eighteen cards his tier was read off", () => {
+    const where = seasonsOf(CAPTAIN).map((c) => `${c.team} ${c.year}`);
+    expect(where.length).toBe(18);
+    // One club, every season — which is why the trigger keys the man alone
+    // and has no club half to check.
+    expect(new Set(seasonsOf(CAPTAIN).map((c) => c.team))).toEqual(
+      new Set(["NYY"]),
+    );
+    // The exposure half of the `uncommon` argument: on eight of the eighteen
+    // he is one of the card's five best seasons by WAR, which is the proxy 💊's
+    // note uses for "a draft that reads numbers takes him".
+    const top5 = seasonsOf(CAPTAIN).filter((c) =>
+      [...c.players]
+        .sort((a, b) => b.war - a.war)
+        .slice(0, 5)
+        .some((p) => p.id === CAPTAIN),
+    );
+    expect(top5.length).toBe(8);
+  });
+
+  it("still holds all three World Series-ending seasons", () => {
+    const pairs = Object.entries(WALK_OFF_SEASONS).flatMap(([id, years]) =>
+      years.map((year) => [id, year] as const),
+    );
+    expect(pairs).toHaveLength(3);
+    const found = pairs.map(([id, year]) => {
+      const hits = CARDS.filter(
+        (c) => c.year === year && c.players.some((p) => p.id === id),
+      );
+      // One card each: the season is unique to the club that won with it,
+      // which is what lets the table key on id and year alone.
+      expect(hits.length, `${id} ${year}`).toBe(1);
+      return `${hits[0].team} ${year}`;
+    });
+    expect(found.sort()).toEqual(["ARI 2001", "FLA 1997", "TOR 1993"]);
+  });
+
+  it("keeps every walk-off season a championship season", () => {
+    // The badge claims a hit that ENDED a World Series. If a card ever stopped
+    // carrying the ring, the label would be making a claim the data denies.
+    for (const [id, years] of Object.entries(WALK_OFF_SEASONS)) {
+      for (const year of years) {
+        const c = CARDS.find(
+          (c) => c.year === year && c.players.some((p) => p.id === id),
+        )!;
+        expect(c.ws, `${c.team} ${year}`).toBe(true);
+        expect(
+          c.players.find((p) => p.id === id)!.ws,
+          `${id} ${year} ring`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("keeps Rick Renteria off the walk-off table", () => {
+    expect(WALK_OFF_SEASONS["renteri01"]).toBeUndefined();
+    expect(WALK_OFF_SEASONS["renteed01"]).toEqual([1997]);
+    // …and both are still real, distinct, draftable men, which is what makes
+    // the trap a trap rather than a typo.
+    expect(seasonsOf("renteri01").length).toBeGreaterThan(0);
+    expect(seasonsOf("renteed01").length).toBeGreaterThan(0);
+    const names = new Set(
+      ["renteri01", "renteed01"].map(
+        (id) =>
+          CARDS.flatMap((c) => c.players).find((p) => p.id === id)!.name,
+      ),
+    );
+    expect(names.size).toBe(2);
+  });
+
+  it("keeps the two supply counts the tiers were argued from", () => {
+    // 🎆 rides three cards, the same supply as 💥 THE CHASE — and is a tier
+    // above it because only one of the three seasons is a WAR a draft would
+    // take on its own. If a regen moves either number, the tiers need
+    // re-deciding rather than sliding.
+    const walkCards = Object.entries(WALK_OFF_SEASONS).flatMap(([id, years]) =>
+      CARDS.filter(
+        (c) => years.includes(c.year) && c.players.some((p) => p.id === id),
+      ),
+    );
+    expect(walkCards).toHaveLength(3);
+    const wars = Object.entries(WALK_OFF_SEASONS)
+      .flatMap(([id, years]) =>
+        CARDS.filter(
+          (c) => years.includes(c.year) && c.players.some((p) => p.id === id),
+        ).map((c) => c.players.find((p) => p.id === id)!.war),
+      )
+      .sort((a, b) => a - b);
+    expect(wars).toEqual([0.9, 2.0, 7.9]);
   });
 });
 

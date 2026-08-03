@@ -52,6 +52,25 @@ export interface HistoryEntry {
    * club carried no country at all. Both read as "this season contributed no
    * stamps", which is the conservative answer. */
   countries?: string[];
+  /** Player IDS by birth country — `{ "Venezuela": ["cabremi01", "altuvjo01"] }`
+   * — distinct within a country, as the cards spell the country and as the
+   * corpus spells the id.
+   *
+   * The passport counts unique PEOPLE across a career, so a man rostered in
+   * three separate seasons has to be recognizable as the same man three times.
+   * Ids are the only thing that can do that: names collide and a count cannot
+   * be unioned. `countries` remains the list of which countries a club held,
+   * and these are the same countries with their rosters attached — either field
+   * alone is enough to stamp, which is what lets the two be read
+   * independently.
+   *
+   * ABSENT ON EVERY ROW WRITTEN BEFORE THE FIELD EXISTED, AND THERE IS NO WAY
+   * TO BACKFILL IT. A history row records badges, countries and a record and
+   * has never recorded a roster, so which players an already-played season held
+   * is not recoverable from anything the app still has. Those rows keep their
+   * stamp and their first-seen date and contribute nothing to the count;
+   * `PassportStamp.counted` is what makes that visible instead of silent. */
+  countryPlayers?: Record<string, string[]>;
 }
 
 /** Every row ever written, oldest first. A corrupt or absent store reads as

@@ -1,12 +1,15 @@
 <script lang="ts">
   import { bragRow } from "../lib/badges";
+import { track } from "../lib/analytics";
   import { ownerFor } from "../lib/data";
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
   import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, warTier } from "../lib/format";
   import { GAMES, MANAGER_PER_NET_WIN, MARINERS_WINS } from "../lib/scoring";
   import { shareText as shareResult } from "../lib/share";
+  import { countryDef, passport, type PassportItem } from "../lib/settings";
   import AwardPill from "./AwardPill.svelte";
   import BadgeSlot from "./BadgeSlot.svelte";
+  import Passport from "./Passport.svelte";
   import PayrollBox, { FIXED_CAP_CLUB } from "./PayrollBox.svelte";
 
   let {
@@ -39,8 +42,10 @@
     why?: string;
     /** Award pills / emoji chips rendered inline beside the label. */
     chips?: { code: string; n: number }[];
-    /** Miniature spend/payroll bar rendered inline beside the label. */
-    meter?: { pct: number; over: boolean };
+    /** Miniature spend/payroll bar rendered inline beside the label — the club
+     * itself, not a precomputed share, because PayrollBox draws it and
+     * PayrollBox is what decides how a payroll looks. */
+    meter?: { budget: number; spend: number };
     amt: string;
     cls: "plus" | "minus" | "zero";
   }
@@ -72,7 +77,7 @@
       why: overCap
         ? `${money(fin.spend - fin.budget)} over`
         : `${Math.round(spendPct)}% used`,
-      meter: { pct: Math.min(spendPct, 100), over: overCap },
+      meter: { budget: fin.budget, spend: fin.spend },
       amt: overCap ? `−${p.luxuryTax.toFixed(1)}` : signed(p.budgetBonus),
       cls: overCap
         ? p.luxuryTax > 0
@@ -297,6 +302,7 @@
   let shareTimer: ReturnType<typeof setTimeout> | undefined;
   async function share() {
     const text = buildShare();
+    track("share");
     // Optional chaining, not a try: navigator.clipboard is undefined outside a
     // secure context (a phone hitting the dev server over plain http).
     const writing =
@@ -369,6 +375,64 @@
   const ceilUnsound = $derived(
     fin.playedTheCeiling === true && (solved == null || fin.parts.total - solved > 0.05),
   );
+
+  /* ---- THE PASSPORT: where this club came from.
+   *
+   * The only place in the game a birth country is ever printed while a club is
+   * on screen, and the one place the no-hunting rule relaxes. Nothing in the
+   * market, the rail or the pickers shows where a man was born, precisely so a
+   * country can never be shopped for; here the season is finished and no pick
+   * can be made in response, so naming what the club turned out to hold costs
+   * nothing and is the moment the souvenir is actually earned.
+   *
+   * A country nobody has ever fielded before wears the same NEW chip a
+   * first-ever badge wears and leads the row the same way, because it is the
+   * same claim about the same kind of object and a second vocabulary for
+   * "this one is new" would be one to learn for nothing.
+   *
+   * NEW is read out of the lifetime passport rather than handed over by the
+   * engine, which means it is true the moment this component renders instead of
+   * waiting on a field the engine does not write yet. `recordHistory` runs
+   * before the finale is shown, so this game is already in the log: a country
+   * with ONE visit is a country this club is the only record of, which is
+   * exactly "never fielded before". A restored finale reads the same, since the
+   * row is still there and still the only one.
+   *
+   * It fails toward celebrating rather than withholding, twice. A history row
+   * that never landed — a full or disabled localStorage — leaves the country
+   * unknown to the passport, and an unknown country reads as new. And a season
+   * played before history rows carried countries at all contributes no visit,
+   * so a country first met back then reads as new the next time it appears.
+   * Neither is recoverable: the log holds no roster and never has. Both name a
+   * real country the club really held, which is the whole content of the
+   * panel — only the chip can be generous.
+   *
+   * No numbers here. The count on a passport stamp is unique players across a
+   * career, and this is one club on one night. */
+  const clubCountries = $derived.by((): PassportItem[] => {
+    const visits = new Map(passport().map((s) => [s.country, s.visits]));
+    const items: PassportItem[] = [];
+    const seen = new Set<string>();
+    for (const s of game.slots) {
+      const raw = s?.bc;
+      if (typeof raw !== "string") continue;
+      const country = raw.trim();
+      if (country === "" || seen.has(country)) continue;
+      seen.add(country);
+      const def = countryDef(country);
+      items.push({
+        country,
+        flag: def?.flag ?? "",
+        rarity: def?.rarity ?? null,
+        count: null,
+        fresh: (visits.get(country) ?? 1) <= 1,
+        title: null,
+      });
+    }
+    // The new ones lead, the same order `bragRow` puts the badge pills in and
+    // for the same reason: the flagged one is what the player is here to see.
+    return items.sort((a, b) => Number(b.fresh) - Number(a.fresh));
+  });
 
   /** The front office a club ran, or null under a fixed cap — where payroll is
    * a constant and there is no owner to hire or ballpark to buy. */
@@ -467,13 +531,18 @@
         </span>
       {/if}
       {#if row.meter}
-        <span class="minimeter" class:mover={row.meter.over}>
-          <span
-            class="minifill"
-            class:mzero={row.meter.pct <= 0}
-            style:width="{row.meter.over ? 100 : row.meter.pct}%"
-          ></span>
-        </span>
+        <!-- The payroll box's own bar, at ledger scale. The budget row is the
+             payroll story in one line, and the bar it shows has to be the bar
+             the player read all game — a lookalike built here is the copy that
+             drifted last time. -->
+        <div class="minimeter">
+          <PayrollBox
+            mini
+            bank={game.config.bank}
+            budget={row.meter.budget}
+            spend={row.meter.spend}
+          />
+        </div>
       {/if}
       {#if row.why}
         <span class="why">{row.why}</span>
@@ -552,7 +621,7 @@
     {/if}
   {/each}
   {#if game.manager}
-    <div class="qrow skiprow">
+    <div class="qrow skiprow war-{warTier(fin.parts.managerWins)}">
       <span class="qpos">MGR</span>
       <span class="qmid">
         <span class="qname"
@@ -577,6 +646,19 @@
        fields, so this renders on a finale of any age. -->
   {@render payroll(myFront, fin.budget, fin.spend)}
 </div>
+
+{#if clubCountries.length > 0}
+  <!-- Its own short block under the squad it describes, and not a column in the
+       roster rows: a birth country belongs to a man, but the thing being shown
+       is a property of the CLUB, and eight rows each carrying a flag would read
+       as eight facts instead of one. Nothing renders at all for a club whose
+       men carry no country — every save written before the field existed, and
+       every restored finale older than it. -->
+  <div class="squad disp">
+    <div class="psep">PASSPORT</div>
+    <Passport stamps={clubCountries} label="Countries this club came from" />
+  </div>
+{/if}
 
 {#if fin.best}
   <div class="squad disp">
@@ -779,39 +861,12 @@
     line-height: 1.5;
     letter-spacing: 0.1em;
   }
-  /* Miniature of the BankBox meter — same colors/hatch, same rule: the fill is
-     a quantity and holds its saturated green, and the TRACK's border carries
-     the state, turning orange the moment the payroll goes over. */
+  /* The slot the payroll bar sits in. Only the width is decided here — how
+     wide a bar this row can spare — because everything inside it is PayrollBox
+     drawing the same bar it draws on the board. */
   .minimeter {
-    display: block;
     width: 96px;
     flex: none;
-    height: 8px;
-    border: 1.5px solid var(--green-8);
-    border-radius: 999px;
-    background: var(--card);
-    overflow: hidden;
-  }
-  .minimeter.mover {
-    border-color: var(--orange-8);
-  }
-  .minifill {
-    display: block;
-    height: 100%;
-    background: var(--green);
-    border-right: 1.5px solid var(--green-deep);
-  }
-  .minifill.mzero {
-    border-right: 0;
-    background: transparent;
-  }
-  .minimeter.mover .minifill {
-    background: repeating-linear-gradient(
-      -45deg,
-      var(--orange) 0 8px,
-      var(--orange-deep) 8px 16px
-    );
-    border-right: 0;
   }
   .amt {
     margin-left: auto;
@@ -1035,12 +1090,59 @@
   .qwar.mid {
     color: var(--war-mid);
   }
-  .skiprow {
-    background: var(--pink);
-    border-color: var(--red-8);
+  /* The hired skipper's row wears the rung its wins earned, fill and frame
+     together — the hue at rung 2 inside the hue at rung 8, which is the pair
+     every WAR chip in the game has been teaching. It is the same seat, the same
+     rung and the same tokens `RosterRail` paints its manager chair with, so the
+     board and the finale describe one manager the same way instead of two.
+     The eight player rows above keep card white and carry their rung on the
+     numeral alone: eight tinted rows would be eight competing fills, and the
+     skipper is the one row whose value has nowhere else to live — its "+14.0 W"
+     is on a different scale from the WAR beside it and cannot be read against
+     them.
+     `.qrow.dreamhit` below outweighs nothing here: no row is ever both, since
+     the squad list owns `skiprow` and the dream list owns `dreamhit`. */
+  .qrow.skiprow.war-neg {
+    background: var(--war-neg-fill);
+    border-color: var(--war-neg);
   }
+  .qrow.skiprow.war-low {
+    background: var(--war-low-fill);
+    border-color: var(--war-low);
+  }
+  .qrow.skiprow.war-mid {
+    background: var(--war-mid-fill);
+    border-color: var(--war-mid);
+  }
+  .qrow.skiprow.war-high {
+    background: var(--war-high-fill);
+    border-color: var(--war-high);
+  }
+  .qrow.skiprow.war-star {
+    background: var(--war-star-fill);
+    border-color: var(--war-star);
+  }
+  .qrow.skiprow.war-elite {
+    background: var(--war-elite-fill);
+    border-color: var(--war-elite);
+  }
+  /* Ink on a rung-2 fill, which is app.css's own rule for text on these six
+     washes and not a rule about this row: the worst pair measures 9.52:1 and
+     the best 13.41:1. Tinting the numeral to match its fill is the alternative
+     and it runs 2.17:1 to 3.77:1 on 13px type. The rung is already said twice
+     on this row, by the fill and by the frame; the numeral's job is the
+     number. */
   .skiprow .qwar {
     color: var(--ink);
+  }
+  /* One rung darker than the player rows' sub-lines take. Those sit on card
+     white, a single known ground; these sit on whichever of six washes the
+     skipper's rung supplies, and violet-2 is the darkest — --muted measures
+     3.39:1 there against 4.37:1 for --muted-2. One token, chosen for the worst
+     rung, so the line reads the same on all six. */
+  .skiprow .qpos,
+  .skiprow .qname i {
+    color: var(--muted-2);
   }
   /* The dream team's only "you found this one" cue is the green tint; the
      matching squad row carries the ⭐ — one cue per list, no repetition. */

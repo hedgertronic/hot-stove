@@ -74,8 +74,8 @@ describe("badgeCase", () => {
   it("pins the collectible denominator to the badge table", () => {
     // The summary line prints this denominator; it lives in badges.ts, and a
     // table edit must move the fraction here rather than silently anywhere.
-    expect(COLLECTIBLE.length).toBe(49);
-    expect(BADGES.length).toBe(58);
+    expect(COLLECTIBLE.length).toBe(54);
+    expect(BADGES.length).toBe(65);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 
@@ -156,6 +156,18 @@ describe("the trophy case sheet", () => {
     const body = modal();
     expect(body).toContain("TROPHY CASE");
     expect(body).toContain(`2 OF ${COLLECTIBLE.length}`);
+  });
+
+  it("takes its header and its exits from the sheet, exactly once each", () => {
+    // Sheet draws the title, the corner ✕ and the bottom button from `title`
+    // and `confirmLabel`. A caller that also drew its own would render two of
+    // each, which is the shape that produced two payroll boxes — and the
+    // duplication is invisible in a screenshot of the top of the sheet.
+    seed(game(["crystal"]));
+    const body = modal();
+    expect((body.match(/aria-label="Close"/g) ?? []).length).toBe(1);
+    expect((body.match(/>CLOSE</g) ?? []).length).toBe(1);
+    expect((body.match(/TROPHY CASE/g) ?? []).length).toBe(1);
   });
 
   it("keeps the case off the home screen — it opens from the trophy button", () => {

@@ -60,6 +60,8 @@ const EXCLUSIVE: Record<string, string[]> = {
   hardware: ["nohardware", "noallstars"],
   // Spent none vs spent all, both gated on there being powerups to spend.
   powerups: ["hardway", "toolbox"],
+  // Matching the dream club exactly supersedes merely finding seven of it.
+  scout: ["dreamteam", "crystal"],
 };
 
 const codePoints = (s: string) => [...s].length;
@@ -600,7 +602,7 @@ describe("line width budget", () => {
   const MAX_LEN = lineBadge(BADGES.map((b) => b.key));
 
   it("pins the worst case the triggers allow", () => {
-    // 49 badges — 4 group representatives + 45 stackers — on their own line.
+    // 49 badges — 5 group representatives + 44 stackers — on their own line.
     // The number is asserted so a badge added without thought shows up as a
     // failing width rather than a silently longer share string.
     expect(MAXIMAL).toHaveLength(49);
@@ -611,7 +613,7 @@ describe("line width budget", () => {
   });
 
   it("keeps every line inside the absolute budget at worst case", () => {
-    expect(MAX_LEN).toBe(83);
+    expect(MAX_LEN).toBe(84);
     const s = shareText({
       ...BASE,
       total: 104.3,

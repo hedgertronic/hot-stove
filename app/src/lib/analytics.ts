@@ -67,7 +67,7 @@ export function track(
   if (typeof window === "undefined" || typeof window.gtag !== "function") return;
 
   // Guard (2): local dev server — localhost and 127.0.0.1 both suppress.
-  // The try/catch is defence against any environment where `location` is
+  // The try/catch is defense against any environment where `location` is
   // syntactically present but throws on access (sandboxed iframes, etc.).
   try {
     const h = location.hostname;

@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eligibleTypes } from "../src/lib/eligibility";
 import { recordFromTotal } from "../src/lib/format";
-import { GAMES, MARINERS_WINS } from "../src/lib/scoring";
+import {
+  GAMES,
+  MARINERS_WINS,
+  WBC_CHAMPION_POINTS,
+  WBC_RUNNERUP_POINTS,
+} from "../src/lib/scoring";
 import {
   Game,
   HOMEGROWN_PRICE_M,
@@ -1804,13 +1809,26 @@ describe("the dream-club ceiling", () => {
   const POS_OF = { c: 0, if: 0, of: 100, dh: 0 };
   const POS_C = { c: 100, if: 0, of: 0, dh: 0 };
   const NO_POS = { c: 0, if: 0, of: 0, dh: 0 };
+  const CEILING_CARDS = 11;
 
-  /** Six spun cards, each stacked with a star at every position. One pick per
-   * card means the dream club can still only be six deep (plus the ✌️ Double
-   * Play second pick), but every one of those picks beats the 3-WAR fillers the
-   * roster below settles for. */
-  function spinSixStackedCards(): void {
-    for (let i = 0; i < 6; i++) {
+  /** Eleven spun cards, each stacked with a star at every position. One pick per
+   * card, and every one of those picks beats the 3-WAR fillers the roster below
+   * settles for.
+   *
+   * ELEVEN is the number, not six, and the reason is what the dream club has to
+   * buy. Clean House spends a card on the owner and a card on the ballpark
+   * before it seats anybody, so a reel of N cards yields N − 2 roster picks plus
+   * the ✌️ Double Play second pick. Nine seats therefore need ten cards, and a
+   * six-card reel cannot field a complete club at all — it ties the fillers
+   * rather than beating them, which is a true statement about six cards and not
+   * the thing this fixture exists to test.
+   *
+   * That floor is real rather than an artifact of the fixture: the solver may
+   * not leave a seat open, because the game may not. A completed Clean House
+   * club makes eleven commitments and a spin yields at most two, so a finished
+   * game has always seen at least ten cards. */
+  function spinStackedCards(): void {
+    for (let i = 0; i < CEILING_CARDS; i++) {
       fetchCards[`CE${i}_2010`] = card(
         [
           player({ id: `c${i}`, pos: "C", posG: POS_C, war: 9, cost: 20 }),
@@ -1835,9 +1853,12 @@ describe("the dream-club ceiling", () => {
   }
 
   async function finishedGame(): Promise<Game> {
-    spinSixStackedCards();
+    spinStackedCards();
     const g = landedGame(fetchCards.CE0_2010);
-    g.seen = [0, 1, 2, 3, 4, 5].map((i) => ({ team: `CE${i}`, year: 2010 }));
+    g.seen = Array.from({ length: CEILING_CARDS }, (_, i) => ({
+      team: `CE${i}`,
+      year: 2010,
+    }));
     fillSlots(g); // eight 3-WAR fillers at $10M — a club the cards easily beat
     g.owner = { name: "x", budget: 100, franchise: "CE0", year: 2010, teamName: "Ceiling 0" };
     g.stadium = { park: "y", mult: 1, franchise: "CE0", year: 2010 };
@@ -1891,5 +1912,913 @@ describe("the dream-club ceiling", () => {
     expect(f.best).toBeNull();
     expect(f.bestPossibleTotal).toBeNull();
     expect(f.bestPossibleRecord).toBeNull();
+  });
+});
+
+/** World Baseball Classic medals reach the score, or the whole feature is
+ * inert.
+ *
+ * The failure this file exists to catch is the quiet one: `scoring.ts` takes
+ * `wbcChampions` / `wbcRunnersUp` as OPTIONAL arguments defaulting to zero, and
+ * 67 card files already carry the `wbc` field. A `score()` call that simply
+ * omits the two counts type-checks, runs, and produces the identical number it
+ * always did — every existing test passes and the medals are worth nothing.
+ * The assertions below are exact deltas rather than "the score went up",
+ * because a coarse assertion cannot tell a wired feature from a lucky one. */
+describe("World Baseball Classic medals", () => {
+  /** One club, twice: the SP seat signed off the card, everything else
+   * identical filler. `wbc` rides the card player through `makeSigned`, so the
+   * only difference between two runs is the medal. */
+  async function medalClub(wbc?: number): Promise<Game> {
+    const g = landedGame(
+      card([
+        player({
+          pos: "SP",
+          gs: 30,
+          posG: { c: 0, if: 0, of: 0, dh: 0 },
+          war: 5,
+          cost: 5,
+          wbc,
+        }),
+      ]),
+    );
+    for (let i = 0; i < 8; i++) {
+      if (i === 5) continue;
+      g.slots[i] = filler(i);
+    }
+    hiredManager(g);
+    g.owner = {
+      name: "x",
+      budget: 100,
+      franchise: "CHC",
+      year: 2016,
+      teamName: "Cubs",
+    };
+    g.stadium = { park: "y", mult: 1, franchise: "CHC", year: 2016 };
+    g.powerups.tradeDeadline = "spent";
+    g.signPlayer(g.card!.players[0]);
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    return g;
+  }
+
+  it("counts a champion and a runner-up off the signed club", async () => {
+    const champ = await medalClub(WBC_CHAMPION_POINTS);
+    expect(champ.pedigree.wbcChampions).toBe(1);
+    expect(champ.pedigree.wbcRunnersUp).toBe(0);
+
+    const second = await medalClub(WBC_RUNNERUP_POINTS);
+    expect(second.pedigree.wbcChampions).toBe(0);
+    expect(second.pedigree.wbcRunnersUp).toBe(1);
+  });
+
+  it("pays a champion exactly WBC_CHAMPION_POINTS more than no medal", async () => {
+    const plain = await medalClub();
+    const champ = await medalClub(WBC_CHAMPION_POINTS);
+    expect(champ.finale!.parts.ringPoints - plain.finale!.parts.ringPoints).toBe(
+      WBC_CHAMPION_POINTS,
+    );
+    expect(champ.finale!.parts.total - plain.finale!.parts.total).toBeCloseTo(
+      WBC_CHAMPION_POINTS,
+      5,
+    );
+    // The medal is Ring-chasing points and nothing else — it must not leak
+    // into the win column or the trophy case.
+    expect(champ.finale!.parts.expectedWins).toBeCloseTo(
+      plain.finale!.parts.expectedWins,
+      5,
+    );
+    expect(champ.finale!.parts.awardPoints).toBe(plain.finale!.parts.awardPoints);
+  });
+
+  it("pays a runner-up exactly WBC_RUNNERUP_POINTS more", async () => {
+    const plain = await medalClub();
+    const second = await medalClub(WBC_RUNNERUP_POINTS);
+    expect(
+      second.finale!.parts.ringPoints - plain.finale!.parts.ringPoints,
+    ).toBe(WBC_RUNNERUP_POINTS);
+    expect(second.finale!.parts.total - plain.finale!.parts.total).toBeCloseTo(
+      WBC_RUNNERUP_POINTS,
+      5,
+    );
+  });
+
+  it("stacks a medal with a World Series ring rather than replacing it", async () => {
+    // 2017 Alex Bregman is the real case: the Classic in March and the Series
+    // in October are two tournaments and he won both.
+    const plain = await medalClub();
+    const both = landedGame(
+      card([
+        player({
+          pos: "SP",
+          gs: 30,
+          posG: { c: 0, if: 0, of: 0, dh: 0 },
+          war: 5,
+          cost: 5,
+          wbc: WBC_CHAMPION_POINTS,
+          ws: true,
+        }),
+      ]),
+    );
+    for (let i = 0; i < 8; i++) {
+      if (i === 5) continue;
+      both.slots[i] = filler(i);
+    }
+    hiredManager(both);
+    both.owner = {
+      name: "x",
+      budget: 100,
+      franchise: "CHC",
+      year: 2016,
+      teamName: "Cubs",
+    };
+    both.stadium = { park: "y", mult: 1, franchise: "CHC", year: 2016 };
+    both.powerups.tradeDeadline = "spent";
+    both.signPlayer(both.card!.players[0]);
+    await vi.waitFor(() => expect(both.phase).toBe("finale"));
+    // RING_POINTS is 3 in scoring.ts; the medal adds on top of it, not instead.
+    expect(
+      both.finale!.parts.ringPoints - plain.finale!.parts.ringPoints,
+    ).toBe(3 + WBC_CHAMPION_POINTS);
+  });
+
+  it("reads a save written before the field as no medal at all", async () => {
+    // Every `filler()` is a pre-wbc Signed: no field, and the tally has to
+    // treat that as no medal rather than as an unknown that pads it.
+    const g = new Game(meta, index, owners, 42);
+    fillSlots(g);
+    expect(g.slots.every((s) => s?.wbc === undefined)).toBe(true);
+    expect(g.pedigree.wbcChampions).toBe(0);
+    expect(g.pedigree.wbcRunnersUp).toBe(0);
+
+    // …and it survives the round trip that way rather than acquiring one.
+    g.phase = "preSpin";
+    g.save();
+    const back = await Game.restore(meta, index, owners);
+    expect(back!.pedigree.wbcChampions).toBe(0);
+    expect(back!.pedigree.wbcRunnersUp).toBe(0);
+  });
+
+  it("leaves rings and pennants meaning exactly what they meant", async () => {
+    // 💍 RING BEARERS counts World Series rings, and bestroster / share / the
+    // badge table all read these two fields. A medal must not touch either.
+    const g = new Game(meta, index, owners, 42);
+    for (let i = 0; i < 8; i++)
+      g.slots[i] = filler(i, {
+        ws: i < 2,
+        pen: i === 2,
+        wbc: WBC_CHAMPION_POINTS,
+      });
+    expect(g.pedigree.rings).toBe(2);
+    expect(g.pedigree.pennants).toBe(1);
+    expect(g.pedigree.wbcChampions).toBe(8);
+  });
+});
+
+/** 🎮 CHEAT CODES survives the reload iOS Safari inflicts.
+ *
+ * The badge is earned by a keystroke and resolved at the finale, which can be
+ * many spins later — so the fact has to live on the Game and ride `save()`.
+ * A flag kept in a component would be erased by exactly the background-tab
+ * eviction the whole persistence layer exists to survive, and the symptom
+ * would be a badge that works in testing and vanishes on a phone. */
+describe("the Konami code", () => {
+  const SAVE_KEY = "hotstove.current";
+  const saved = () => JSON.parse(store.get(SAVE_KEY) ?? "{}");
+
+  it("starts unset", () => {
+    expect(new Game(meta, index, owners, 42).konami).toBe(false);
+  });
+
+  it("records, saves, and restores", async () => {
+    const g = new Game(meta, index, owners, 42);
+    g.phase = "preSpin";
+    g.markKonami();
+    expect(g.konami).toBe(true);
+    // Written straight away rather than at the next mutation: the next thing
+    // that happens may be the eviction.
+    expect(saved().konami).toBe(true);
+
+    const back = await Game.restore(meta, index, owners);
+    expect(back!.konami).toBe(true);
+  });
+
+  it("reads a save written before the field as not entered", async () => {
+    const g = new Game(meta, index, owners, 42);
+    g.phase = "preSpin";
+    g.save();
+    const raw = saved();
+    delete raw.konami;
+    store.set(SAVE_KEY, JSON.stringify(raw));
+    const back = await Game.restore(meta, index, owners);
+    expect(back!.konami).toBe(false);
+  });
+
+  it("is idempotent — a second entry is not a second anything", () => {
+    const g = new Game(meta, index, owners, 42);
+    g.phase = "preSpin";
+    g.markKonami();
+    store.delete(SAVE_KEY);
+    g.markKonami();
+    expect(g.konami).toBe(true);
+    // No second write, because there was no second change.
+    expect(store.has(SAVE_KEY)).toBe(false);
+  });
+
+  it("is refused at the finale, where nothing could read it", () => {
+    const g = new Game(meta, index, owners, 42);
+    g.phase = "finale";
+    g.markKonami();
+    expect(g.konami).toBe(false);
+  });
+
+  it("grants nothing", () => {
+    // The badge is the entire effect. Every number a spin reads is untouched.
+    const g = landedGame(card([player({})]));
+    const before = JSON.stringify({
+      powerups: g.powerups,
+      choicesLeft: g.choicesLeft,
+      choicesUsed: g.choicesUsed,
+      spinCount: g.spinCount,
+      slots: g.slots,
+      rng: g.rng.state,
+    });
+    g.markKonami();
+    expect(
+      JSON.stringify({
+        powerups: g.powerups,
+        choicesLeft: g.choicesLeft,
+        choicesUsed: g.choicesUsed,
+        spinCount: g.spinCount,
+        slots: g.slots,
+        rng: g.rng.state,
+      }),
+    ).toBe(before);
+  });
+});
+
+/** 🪑 THE INTERIM's moment: the dugout left to the final spin.
+ *
+ * `managerHiredLast` is recorded AS THE HIRE HAPPENS for the reason
+ * `ownerHiredLast` is — by the finale a full club with a skipper in it looks
+ * identical whichever order the chairs filled, so there is nothing left to
+ * derive it from. */
+describe("the manager hired last", () => {
+  function readyToHire(): Game {
+    const g = landedGame(card([player({})]));
+    fillSlots(g);
+    g.owner = {
+      name: "x",
+      budget: 100,
+      franchise: "CHC",
+      year: 2016,
+      teamName: "Cubs",
+    };
+    g.stadium = { park: "y", mult: 1, franchise: "CHC", year: 2016 };
+    return g;
+  }
+
+  it("starts false", () => {
+    expect(new Game(meta, index, owners, 42).managerHiredLast).toBe(false);
+  });
+
+  it("records the hire that completes the club", () => {
+    const g = readyToHire();
+    expect(g.otherSeatsFull).toBe(true);
+    g.hireManager();
+    expect(g.managerHiredLast).toBe(true);
+  });
+
+  it("does not record a hire taken with a seat still open", () => {
+    const g = landedGame(card([player({})]));
+    fillSlots(g, [5]); // the second SP chair stays empty
+    g.owner = {
+      name: "x",
+      budget: 100,
+      franchise: "CHC",
+      year: 2016,
+      teamName: "Cubs",
+    };
+    g.stadium = { park: "y", mult: 1, franchise: "CHC", year: 2016 };
+    expect(g.otherSeatsFull).toBe(false);
+    g.hireManager();
+    expect(g.managerHiredLast).toBe(false);
+  });
+
+  it("does not record a hire taken with the front office still empty", () => {
+    // Clean House needs the owner and the park too — a club with eight bats
+    // and no owner has more spins coming, so its skipper is not the last hire.
+    const g = landedGame(card([player({})]));
+    fillSlots(g);
+    expect(g.otherSeatsFull).toBe(false);
+    g.hireManager();
+    expect(g.managerHiredLast).toBe(false);
+  });
+
+  it("counts a fixed-cap club complete without an owner or a park", () => {
+    // Moneyball and Blank Check have no owner seat at all, so the roster plus
+    // the dugout IS the whole club there.
+    const g = landedGame(card([player({})]));
+    g.config = { difficulty: "standard", bank: "moneyball" };
+    fillSlots(g);
+    expect(g.otherSeatsFull).toBe(true);
+    g.hireManager();
+    expect(g.managerHiredLast).toBe(true);
+  });
+
+  it("is not written by a Trade Deadline swap of the skipper", () => {
+    // That path requires the chair to be taken already, and a club that had a
+    // manager all along never left the dugout empty however late it changed
+    // him — the same rule that keeps `hireOwner` the only writer of its twin.
+    const g = readyToHire();
+    g.manager = {
+      name: "Early Hire",
+      wins: 60,
+      losses: 102,
+      year: 2003,
+      team: "CHC",
+      teamName: "Cubs",
+      ws: false,
+      pen: false,
+    };
+    g.powerups.tradeDeadline = "armed";
+    g.tdTapSpecial("manager");
+    expect(g.manager!.name).toBe("Joe Maddon");
+    expect(g.managerHiredLast).toBe(false);
+  });
+});
+
+/** Powerups in combination.
+ *
+ * The arming toggles were already permissive — nothing has ever stopped two
+ * pills being lit at once — so every question here is about how an armed
+ * COMBINATION resolves, which is where the gaps were. */describe("powerups combine", () => {
+  const C_POS = { c: 90, if: 0, of: 0, dh: 0 };
+  const IF_POS = { c: 0, if: 100, of: 0, dh: 0 };
+  const NO_POS = { c: 0, if: 0, of: 0, dh: 0 };
+
+  /** A one-player career card under a code no other test uses.
+   *
+   * `loadCard` memoizes by team and year for the whole process, so two tests
+   * that register different rosters under one code get whichever ran first —
+   * silently, and only in the second test's assertions. Every case below owns
+   * its own code. */
+  function career(code: string, p: CardPlayer): void {
+    fetchCards[`${code}_2014`] = card([p], {
+      year: 2014,
+      team: code,
+      franchise: code,
+      name: "Prime City",
+    });
+  }
+  const catcher = (over: Partial<CardPlayer> = {}) =>
+    player({ id: "star", pos: "C", posG: C_POS, ...over });
+  const reliever = (over: Partial<CardPlayer> = {}) =>
+    player({ pos: "RP", posG: NO_POS, relIP: 60, ...over });
+  const starter = (over: Partial<CardPlayer> = {}) =>
+    player({ pos: "SP", posG: NO_POS, gs: 30, ...over });
+
+  it("arms all four toggles at once", () => {
+    const g = landedGame(card([player({})]));
+    g.toggleDoublePlay();
+    g.toggleTradeDeadline();
+    g.togglePrime();
+    g.toggleHometown();
+    expect(g.powerups.doublePlay).toBe("armed");
+    expect(g.powerups.tradeDeadline).toBe("armed");
+    expect(g.powerups.prime).toBe("armed");
+    expect(g.powerups.hometown).toBe("armed");
+    expect(g.choicesLeft).toBe(2); // ✌️ is the only one that adds a pick
+  });
+
+  // ---- ⭐ Prime Time + 🏠 Homegrown ----
+
+  it("lets an armed Prime browse a career an armed Homegrown grayed out", () => {
+    // The user's own example. 🏠 filters the LANDED CARD'S market; a career
+    // sheet is a different market at list prices, so the filter has no claim
+    // on it. Routing Prime through rowPlayable shrank it to debut players.
+    const away = player({ debut: "SEA" });
+    const g = landedGame(card([away]));
+    g.toggleHometown();
+    g.togglePrime();
+    expect(g.rowPlayable(away)).toBe(false); // still grayed for a plain sign
+    expect(g.primeBrowsable(away)).toBe(true); // …and still browsable
+    g.primeTapPlayer(away);
+    expect(g.primePick).toBe(away.id);
+  });
+
+  it("charges a Primed season list price and leaves Homegrown ready", async () => {
+    // Discount pricing does not travel (DECISIONS round 5): 🏠 is a claim
+    // about the card's own market. Unspent, it comes back ready at spin end.
+    const local = catcher({ debut: "CHC", cost: 3, war: 2 });
+    career("PRA", catcher({ war: 7, cost: 12, debut: "CHC" }));
+    const g = landedGame(card([local]));
+    g.toggleHometown();
+    g.togglePrime();
+    expect(g.discountEligible(local)).toBe(true); // the card row IS discounted
+    g.primeTapPlayer(local);
+    expect(await g.applyPrime("PRA", 2014)).toBe(true);
+    expect(g.slots[0]).toMatchObject({ costPaid: 12, hero: false });
+    expect(g.powerups.prime).toBe("spent");
+    expect(g.powerups.hometown).toBe("ready"); // returned, never spent
+  });
+
+  // ---- 🔁 Trade Deadline + 🏠 Homegrown (DECISIONS gap rule 8) ----
+
+  it("makes only debut-eligible rows swap targets, and charges the discount", () => {
+    // Relievers, so the incoming man has exactly one eligible chair and the
+    // swap completes without the release picker.
+    const local = reliever({ debut: "CHC", cost: 20 });
+    const away = reliever({ debut: "SEA", cost: 20 });
+    const g = landedGame(card([local, away]));
+    fillSlots(g);
+    g.toggleTradeDeadline();
+    g.toggleHometown();
+    expect(g.tdCandidate(local)).toBe(true);
+    expect(g.tdCandidate(away)).toBe(false);
+    expect(g.priceFor(local)).toBeCloseTo(HOMEGROWN_PRICE_M);
+
+    g.tdTapPlayer(local);
+    const signed = g.slots.find((s) => s?.id === local.id);
+    expect(signed?.costPaid).toBeCloseTo(HOMEGROWN_PRICE_M);
+    expect(signed?.hero).toBe(true);
+    // "a swap-in commits at the discounted price and spends both"
+    expect(g.powerups.tradeDeadline).toBe("spent");
+    expect(g.powerups.hometown).toBe("spent");
+    expect(g.choicesUsed).toBe(1);
+  });
+
+  // ---- 🔁 Trade Deadline + ⭐ Prime Time ----
+
+  it("completes a Primed season as a trade when no seat is open", async () => {
+    // Armable, the row lights up as Prime-able, and before the swap branch
+    // every season in the sheet was dead — a state the player could enter and
+    // could not resolve.
+    const now = catcher({ war: 2, cost: 3 });
+    const then = catcher({ war: 7, cost: 12 });
+    career("PRB", then);
+    const g = landedGame(card([now]));
+    fillSlots(g); // every chair taken, including C
+    g.toggleTradeDeadline();
+    g.togglePrime();
+    expect(g.openSlotsFor(then)).toEqual([]);
+    expect(g.primeFits(then)).toBe(true); // the swap is the fit
+    g.primeTapPlayer(now);
+    expect(await g.applyPrime("PRB", 2014)).toBe(true);
+    expect(g.slots[0]).toMatchObject({ id: "star", year: 2014, costPaid: 12 });
+    expect(g.powerups.prime).toBe("spent");
+    expect(g.powerups.tradeDeadline).toBe("spent");
+    expect(g.spinLog.at(-1)).toMatchObject({ kind: "swap" });
+  });
+
+  it("refuses the same season with Trade Deadline unarmed", async () => {
+    const now = catcher({ war: 2, cost: 3 });
+    career("PRC", catcher({ war: 7, cost: 12 }));
+    const g = landedGame(card([now]));
+    fillSlots(g);
+    g.togglePrime();
+    expect(g.primeFits(catcher({ war: 7 }))).toBe(false);
+    // …and the row does not open a sheet it could not sell anything from.
+    expect(g.primeBrowsable(now)).toBe(false);
+    g.primeTapPlayer(now);
+    expect(g.primePick).toBe(null);
+    expect(await g.applyPrime("PRC", 2014)).toBe(false);
+    expect(g.powerups.prime).toBe("armed"); // nothing spent on a refusal
+  });
+
+  it("prefers an open seat over a swap, and leaves Trade Deadline ready", async () => {
+    // Inside the career sheet there is no exit that disarms 🔁 — closing it
+    // disarms ⭐ — so letting the swap win would vacate a chair the club did
+    // not need to vacate, and spend a powerup it did not need to spend.
+    const now = catcher({ war: 2, cost: 3 });
+    career("PRD", catcher({ war: 7, cost: 12 }));
+    const g = landedGame(card([now]));
+    fillSlots(g, [0]); // the C chair is open
+    g.toggleTradeDeadline();
+    g.togglePrime();
+    g.primeTapPlayer(now);
+    expect(await g.applyPrime("PRD", 2014)).toBe(true);
+    expect(g.slots[0]).toMatchObject({ id: "star", year: 2014 });
+    expect(g.powerups.tradeDeadline).toBe("ready");
+    expect(g.spinLog.at(-1)).toMatchObject({ kind: "sign" });
+  });
+
+  it("trades away the weakest chair the incoming season could take", async () => {
+    // Vacating is destructive in a way filling an empty seat is not, so the
+    // auto-resolution picks the least damaging deterministic answer.
+    const now = player({ id: "star", pos: "2B", posG: IF_POS, war: 2, cost: 3 });
+    career("PRE", player({ id: "star", pos: "2B", posG: IF_POS, war: 7, cost: 12 }));
+    const g = landedGame(card([now]));
+    fillSlots(g);
+    g.slots[1] = filler(1, { war: 6 });
+    g.slots[2] = filler(2, { war: 1 }); // the weak infield chair
+    g.toggleTradeDeadline();
+    g.togglePrime();
+    g.primeTapPlayer(now);
+    expect(await g.applyPrime("PRE", 2014)).toBe(true);
+    expect(g.slots[1]!.id).toBe("f1"); // the 6-WAR man keeps his chair
+    expect(g.slots[2]!.id).toBe("star");
+  });
+
+  // ---- all three: 🔁 + ⭐ + 🏠 ----
+
+  it("resolves all three armed at once", async () => {
+    const now = catcher({ war: 2, cost: 3, debut: "CHC" });
+    career("PRF", catcher({ war: 7, cost: 12, debut: "CHC" }));
+    const g = landedGame(card([now]));
+    fillSlots(g);
+    g.toggleTradeDeadline();
+    g.togglePrime();
+    g.toggleHometown();
+    g.primeTapPlayer(now);
+    expect(await g.applyPrime("PRF", 2014)).toBe(true);
+    // ⭐ and 🔁 were both used and are both spent; 🏠 was not, so it comes back.
+    expect(g.powerups.prime).toBe("spent");
+    expect(g.powerups.tradeDeadline).toBe("spent");
+    expect(g.powerups.hometown).toBe("ready");
+    expect(g.slots[0]).toMatchObject({ costPaid: 12, hero: false });
+  });
+
+  // ---- ✌️ Double Play with each of them (DECISIONS item 6) ----
+
+  it("counts a Trade Deadline swap as one of Double Play's two picks", () => {
+    const in1 = reliever({ debut: "SEA", cost: 20 });
+    const in2 = starter({});
+    const g = landedGame(card([in1, in2]));
+    fillSlots(g, [5]); // the second SP chair is open, the RP chair is not
+    g.toggleDoublePlay();
+    g.toggleTradeDeadline();
+    expect(g.choicesLeft).toBe(2);
+    g.tdTapPlayer(in1);
+    expect(g.powerups.tradeDeadline).toBe("spent");
+    expect(g.choicesUsed).toBe(1);
+    expect(g.choicesLeft).toBe(1); // the second pick survives the swap
+    expect(g.powerups.doublePlay).toBe("armed"); // …and is not spent until it lands
+    g.signPlayer(in2);
+    expect(g.choicesUsed).toBe(2);
+    expect(g.powerups.doublePlay).toBe("spent");
+  });
+
+  it("counts a Homegrown signing as one of Double Play's two picks", () => {
+    const local = reliever({ debut: "CHC", cost: 20 });
+    const other = starter({});
+    const g = landedGame(card([local, other]));
+    fillSlots(g, [5, 7]);
+    g.toggleDoublePlay();
+    g.toggleHometown();
+    g.signPlayer(local);
+    expect(g.slots[7]).toMatchObject({ hero: true });
+    expect(g.powerups.hometown).toBe("spent");
+    expect(g.choicesLeft).toBe(1);
+    // Spent, so the second pick is at list price — the discount is one use.
+    expect(g.priceFor(other)).toBe(other.cost);
+    g.signPlayer(other);
+    expect(g.choicesUsed).toBe(2);
+    expect(g.powerups.doublePlay).toBe("spent");
+  });
+
+  it("counts a Primed signing as one of Double Play's two picks", async () => {
+    const now = catcher({ war: 2, cost: 3 });
+    career("PRG", catcher({ war: 7, cost: 12 }));
+    const other = starter({});
+    const g = landedGame(card([now, other]));
+    fillSlots(g, [0, 5]);
+    g.toggleDoublePlay();
+    g.togglePrime();
+    g.primeTapPlayer(now);
+    expect(await g.applyPrime("PRG", 2014)).toBe(true);
+    expect(g.choicesUsed).toBe(1);
+    expect(g.choicesLeft).toBe(1);
+    expect(g.powerups.doublePlay).toBe("armed");
+    g.signPlayer(other);
+    expect(g.choicesUsed).toBe(2);
+    expect(g.powerups.doublePlay).toBe("spent");
+  });
+
+  it("counts a Primed TRADE as one of Double Play's two picks", async () => {
+    const now = catcher({ war: 2, cost: 3 });
+    career("PRH", catcher({ war: 7, cost: 12 }));
+    const other = starter({});
+    const g = landedGame(card([now, other]));
+    fillSlots(g, [5]); // no C chair open, so Prime has to trade for it
+    g.toggleDoublePlay();
+    g.toggleTradeDeadline();
+    g.togglePrime();
+    g.primeTapPlayer(now);
+    expect(await g.applyPrime("PRH", 2014)).toBe(true);
+    expect(g.powerups.prime).toBe("spent");
+    expect(g.powerups.tradeDeadline).toBe("spent");
+    expect(g.choicesLeft).toBe(1);
+    g.signPlayer(other);
+    expect(g.choicesUsed).toBe(2);
+    expect(g.powerups.doublePlay).toBe("spent");
+  });
+
+  it("hands back every toggle the pick did not use", () => {
+    // Three armed, one spent: a discounted sign uses 🏠 and neither of the
+    // others, so the other two come back ready at spin end.
+    const local = reliever({ debut: "CHC", cost: 20 });
+    const g = landedGame(card([local]));
+    fillSlots(g, [7]);
+    g.toggleTradeDeadline();
+    g.togglePrime();
+    g.toggleHometown();
+    g.signPlayer(local);
+    expect(g.slots[7]).toMatchObject({ hero: true });
+    expect(g.powerups.hometown).toBe("spent");
+    expect(g.powerups.tradeDeadline).toBe("ready");
+    expect(g.powerups.prime).toBe("ready");
+  });
+});
+
+/** 🌠 THE DREAM TEAM, end to end.
+ *
+ * The trigger is pinned over forged facts in new-badges.test.ts. What only a
+ * real finale can show is whether the engine ever HANDS it a denominator:
+ * `dreamSeats` is optional on `BadgeFacts`, so a `finishGame` that omitted it
+ * would type-check, run, and quietly make the badge unreachable forever — the
+ * exact shape of the `stampWins` gate that shipped inert. So this drives the
+ * whole path and asserts the key comes out of `finishGame` itself. */
+describe("the dream team, resolved by the engine", () => {
+  const POS_C = { c: 100, if: 0, of: 0, dh: 0 };
+  const POS_IF = { c: 0, if: 100, of: 0, dh: 0 };
+  const POS_OF = { c: 0, if: 0, of: 100, dh: 0 };
+  const NO_POS = { c: 0, if: 0, of: 0, dh: 0 };
+
+  /** Nine cards, each with exactly one pick worth taking: eight one-player
+   * clubs that match the eight seats one-for-one, and a ninth that carries
+   * only a skipper. One pick per card then forces the solver into precisely
+   * one nine-seat answer, which is the club the player below holds. */
+  const SEATS: Partial<CardPlayer>[] = [
+    { pos: "C", posG: POS_C },
+    { pos: "SS", posG: POS_IF },
+    { pos: "2B", posG: POS_IF },
+    { pos: "CF", posG: POS_OF },
+    { pos: "DH", posG: NO_POS },
+    { pos: "SP", posG: NO_POS, gs: 30 },
+    { pos: "SP", posG: NO_POS, gs: 30 },
+    { pos: "RP", posG: NO_POS, relIP: 60 },
+  ];
+
+  function dreamGame(): Game {
+    SEATS.forEach((seat, i) => {
+      fetchCards[`DR${i}_2010`] = card(
+        [player({ id: `dr${i}`, war: 8, cost: 5, ...seat })],
+        {
+          team: `DR${i}`,
+          franchise: `DR${i}`,
+          year: 2010,
+          name: `Dream ${i}`,
+          manager: null, // only the ninth card can supply a skipper
+          budget: 400,
+          stadiumMult: 1,
+        },
+      );
+    });
+    fetchCards.DR8_2010 = card(
+      [player({ id: "scrub", war: -5, cost: 1, pos: "DH", posG: NO_POS })],
+      {
+        team: "DR8",
+        franchise: "DR8",
+        year: 2010,
+        name: "Dream 8",
+        manager: "Skip Dream",
+        wins: 100,
+        losses: 62,
+        budget: 400,
+        stadiumMult: 1,
+      },
+    );
+
+    const g = landedGame(fetchCards.DR8_2010);
+    // Blank Check, so the club is the roster plus the dugout and nothing else.
+    // Clean House would make the dream solve spend two of its nine picks on an
+    // owner and a ballpark — a nine-seat club needs eleven cards there, and the
+    // badge is about the nine seats rather than about the front office.
+    g.config = { difficulty: "standard", bank: "blankcheck" };
+    g.seen = SEATS.map((_, i) => ({ team: `DR${i}`, year: 2010 })).concat([
+      { team: "DR8", year: 2010 },
+    ]);
+    SEATS.forEach((_, i) => {
+      g.slots[i] = filler(i, {
+        id: `dr${i}`,
+        war: 8,
+        year: 2010,
+        team: `DR${i}`,
+        franchise: `DR${i}`,
+        costPaid: 5,
+      });
+    });
+    g.powerups.tradeDeadline = "spent";
+    return g;
+  }
+
+  it("earns the badge on a nine-seat club matched nine ways", async () => {
+    const g = dreamGame();
+    g.hireManager(); // the ninth seat, and the pick that ends the game
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    const f = g.finale!;
+    expect(f.best!.dreamSeats).toBe(9);
+    expect(f.scoutHits).toBe(9);
+    expect(f.managerHit).toBe(true);
+    expect(f.badges).toContain("dreamteam");
+    // The axis is exclusive: the exact match takes the slot rather than
+    // sharing it with the near miss.
+    expect(f.badges).not.toContain("crystal");
+  });
+
+  /** Clean House needs TEN seen cards before the dream club can hold nine
+   * seats, and the number is a property of the mode rather than of the badge.
+   * The solve buys one thing per card (plus the one ✌️ Double Play second pick
+   * it models), and Clean House gives it four kinds of thing to buy — eight
+   * roster seats, a skipper, an owner and a ballpark — while `dreamSeats`
+   * counts only the nine that are seats. Eleven picks are needed and ten cards
+   * supply them; nine cards supply ten picks, and the two that go to the front
+   * office come out of the roster.
+   *
+   * Ten is also the floor a completed Clean House game cannot go under: the
+   * club takes eleven picks to finish, and one spin can yield at most two. So
+   * the legendary is reachable in the default bank, exactly at the floor —
+   * which is why the number is pinned rather than assumed. A change that made
+   * the solve cost one more pick would take 🌠 out of Clean House entirely,
+   * and nothing else in the suite would notice. */
+  function cleanHouseCards(): void {
+    for (const code of ["DR9", "DRA"]) {
+      fetchCards[`${code}_2010`] = card(
+        [player({ id: `${code}scrub`, war: -5, cost: 1, pos: "DH", posG: NO_POS })],
+        {
+          team: code,
+          franchise: code,
+          year: 2010,
+          name: `Front Office ${code}`,
+          manager: null,
+          budget: 400,
+          stadiumMult: 1,
+        },
+      );
+    }
+  }
+
+  it("needs ten cards in Clean House, where the front office costs picks", async () => {
+    const nine = dreamGame();
+    nine.config = { difficulty: "standard", bank: "classic" };
+    nine.owner = { name: "x", budget: 400, franchise: "DR8", year: 2010, teamName: "Dream 8" };
+    nine.stadium = { park: "y", mult: 1, franchise: "DR8", year: 2010 };
+    nine.hireManager();
+    await vi.waitFor(() => expect(nine.phase).toBe("finale"));
+    // Two of the nine picks went to the owner and the ballpark.
+    expect(nine.finale!.best!.dreamSeats).toBe(8);
+    expect(nine.finale!.badges).not.toContain("dreamteam");
+
+    const ten = dreamGame();
+    ten.config = { difficulty: "standard", bank: "classic" };
+    cleanHouseCards();
+    ten.seen = [...ten.seen, { team: "DR9", year: 2010 }];
+    ten.owner = { name: "x", budget: 400, franchise: "DR8", year: 2010, teamName: "Dream 8" };
+    ten.stadium = { park: "y", mult: 1, franchise: "DR8", year: 2010 };
+    ten.hireManager();
+    await vi.waitFor(() => expect(ten.phase).toBe("finale"));
+    expect(ten.finale!.best!.dreamSeats).toBe(9);
+  });
+
+  /** The other three facts `finishGame` assembles for the new badges, proved
+   * through the engine rather than against forged facts. All three are
+   * optional on `BadgeFacts`, so a call site that omitted one would type-check,
+   * run, and leave its badge unreachable with nothing failing anywhere. */
+  it("carries the last-spin manager hire and his record into 🪑", async () => {
+    fetchCards.DRL_2010 = card(
+      [player({ id: "lscrub", war: -5, cost: 1, pos: "DH", posG: NO_POS })],
+      {
+        team: "DRL",
+        franchise: "DRL",
+        year: 2010,
+        name: "Loser",
+        manager: "Skip Loser",
+        wins: 62,
+        losses: 100,
+        budget: 400,
+        stadiumMult: 1,
+      },
+    );
+    const g = dreamGame();
+    g.card = fetchCards.DRL_2010;
+    g.seen = [...g.seen, { team: "DRL", year: 2010 }];
+    expect(g.otherSeatsFull).toBe(true); // Blank Check: the dugout is the last chair
+    g.hireManager();
+    expect(g.managerHiredLast).toBe(true);
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    expect(g.finale!.badges).toContain("interim");
+  });
+
+  it("carries the Konami flag into 🎮", async () => {
+    const g = dreamGame();
+    g.markKonami();
+    g.hireManager();
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    expect(g.finale!.badges).toContain("cheatcodes");
+  });
+
+  it("leaves 🎮 and 🪑 off a game that earned neither", async () => {
+    const g = dreamGame();
+    g.hireManager(); // Skip Dream is 100–62, and nothing touched a keyboard
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    expect(g.finale!.badges).not.toContain("cheatcodes");
+    expect(g.finale!.badges).not.toContain("interim");
+  });
+
+  it("falls back to the near miss when one seat is wrong", async () => {
+    const g = dreamGame();
+    // Swap the catcher for somebody the solver never wanted.
+    g.slots[0] = filler(0, {
+      id: "nobody",
+      war: 1,
+      year: 2010,
+      team: "DR0",
+      franchise: "DR0",
+    });
+    g.hireManager();
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    const f = g.finale!;
+    expect(f.best!.dreamSeats).toBe(9);
+    expect(f.scoutHits).toBe(8);
+    expect(f.badges).not.toContain("dreamteam");
+    expect(f.badges).toContain("crystal");
+  });
+});
+
+/** The passport's raw material, written by the finished game.
+ *
+ * `countries` says which countries a club held; `countryPlayers` says WHICH
+ * MEN, because the passport counts unique people across a career and a count
+ * cannot be unioned across games. Both are written by `recordHistory`, and
+ * the reader forges its own rows — so this is the only test that can tell a
+ * live feature from a compiling one. */
+describe("the history row's countries", () => {
+  const HISTORY_KEY = "hotstove.history";
+  const lastRow = () => JSON.parse(store.get(HISTORY_KEY) ?? "[]").at(-1);
+
+  async function finishWith(slots: Partial<Signed>[]): Promise<void> {
+    const g = landedGame(
+      card([
+        player({ pos: "SP", gs: 30, posG: { c: 0, if: 0, of: 0, dh: 0 }, cost: 1 }),
+      ]),
+    );
+    for (let i = 0; i < 8; i++) {
+      if (i === 5) continue;
+      g.slots[i] = filler(i, slots[i] ?? {});
+    }
+    hiredManager(g);
+    g.owner = {
+      name: "x",
+      budget: 400,
+      franchise: "CHC",
+      year: 2016,
+      teamName: "Cubs",
+    };
+    g.stadium = { park: "y", mult: 1, franchise: "CHC", year: 2016 };
+    g.powerups.tradeDeadline = "spent";
+    g.signPlayer(g.card!.players[0]);
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+  }
+
+  it("writes both fields, agreeing about which countries the club held", async () => {
+    await finishWith([
+      { id: "a1", bc: "Curaçao" },
+      { id: "b1", bc: "Dominican Republic" },
+      { id: "b2", bc: "Dominican Republic" },
+    ]);
+    const row = lastRow();
+    expect(row.countries).toEqual(["Curaçao", "Dominican Republic"]);
+    expect(row.countryPlayers).toEqual({
+      "Curaçao": ["a1"],
+      "Dominican Republic": ["b1", "b2"],
+    });
+    // The two fields are one fact read two ways, so they can never diverge.
+    expect(Object.keys(row.countryPlayers).sort()).toEqual(row.countries);
+  });
+
+  it("counts a man rostered twice in one club once", async () => {
+    // A season is not a person. ⭐ Prime Time and 🔁 Trade Deadline both put a
+    // second season of somebody on the board, and the passport counts people.
+    await finishWith([
+      { id: "same01", bc: "Japan", year: 2018 },
+      { id: "same01", bc: "Japan", year: 2021 },
+      { id: "other1", bc: "Japan" },
+    ]);
+    expect(lastRow().countryPlayers["Japan"]).toEqual(["other1", "same01"]);
+  });
+
+  it("contributes nothing for a seat with no country", async () => {
+    // Every `filler()` is pre-`bc`, which is what a restored older save holds:
+    // no country, and no invented one either.
+    await finishWith([{ id: "known", bc: "Venezuela" }, { id: "blank" }]);
+    const row = lastRow();
+    expect(row.countries).toEqual(["Venezuela"]);
+    expect(row.countryPlayers).toEqual({ Venezuela: ["known"] });
+  });
+
+  it("writes an empty map rather than nothing when no seat has a country", async () => {
+    await finishWith([]);
+    expect(lastRow().countries).toEqual([]);
+    expect(lastRow().countryPlayers).toEqual({});
   });
 });

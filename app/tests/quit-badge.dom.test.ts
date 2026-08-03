@@ -196,3 +196,101 @@ describe("the ✕ in a live game", () => {
     expect(quitBadges()).toHaveLength(2);
   });
 });
+
+/** The Konami listener, which only a mounted App can show.
+ *
+ * `markKonami` and its save/restore round trip are pinned in engine.test.ts.
+ * What lives here is the half that is App's: the sequence matcher, the text-
+ * field exemption, and the fact that the keystroke reaches a live game's save
+ * rather than a variable that a reload throws away.
+ *
+ * The game is reached by RESTORING a save for the same reason the quit tests
+ * are — boot lands straight in a live game with nothing animating. */
+const CODE = [
+  "ArrowUp",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowLeft",
+  "ArrowRight",
+  "b",
+  "a",
+];
+
+function press(keys: string[], target?: EventTarget) {
+  for (const key of keys) {
+    const e = new window.KeyboardEvent("keydown", { key, bubbles: true });
+    (target ?? window).dispatchEvent(e);
+  }
+  flushSync();
+}
+
+const savedKonami = () =>
+  JSON.parse(localStorage.getItem("hotstove.current") ?? "{}").konami === true;
+
+describe("the Konami code in a live game", () => {
+  it("earns 🎮 and writes it into the save", async () => {
+    await inGame();
+    expect(savedKonami()).toBe(false);
+    press(CODE);
+    expect(savedKonami()).toBe(true);
+  });
+
+  it("takes the sequence in the right order only", async () => {
+    await inGame();
+    press(["ArrowUp", "ArrowDown", "ArrowUp", "ArrowUp", "b", "a"]);
+    expect(savedKonami()).toBe(false);
+  });
+
+  it("survives a false start on the repeated opening key", async () => {
+    // The sequence opens ↑↑, so a miss must reset to "one ↑ seen" rather than
+    // to zero — otherwise a third ↑ eats the real first key and the rest fails.
+    await inGame();
+    press(["ArrowUp", ...CODE]);
+    expect(savedKonami()).toBe(true);
+  });
+
+  it("recovers after a wrong key mid-sequence", async () => {
+    await inGame();
+    press(["ArrowUp", "ArrowUp", "ArrowDown", "x"]);
+    expect(savedKonami()).toBe(false);
+    press(CODE);
+    expect(savedKonami()).toBe(true);
+  });
+
+  it("takes the letters in either case", async () => {
+    await inGame();
+    press([...CODE.slice(0, 8), "B", "A"]);
+    expect(savedKonami()).toBe(true);
+  });
+
+  it("ignores keys typed into a text field", async () => {
+    // The home screen's PLAY A SEED input is a real text field on this app,
+    // and a code typed into one is somebody entering a seed.
+    await inGame();
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    press(CODE, input);
+    expect(savedKonami()).toBe(false);
+    input.remove();
+    // …and the ignored keys did not advance the matcher either, so the same
+    // sequence on the window still has to be entered whole.
+    press(CODE);
+    expect(savedKonami()).toBe(true);
+  });
+
+  it("leaves the run exactly where it was", async () => {
+    // 🎮 grants nothing: same phase, same spin count, same powerups.
+    const ui = await inGame();
+    const before = localStorage.getItem("hotstove.current")!;
+    press(CODE);
+    const after = JSON.parse(localStorage.getItem("hotstove.current")!);
+    const wasSaved = JSON.parse(before);
+    delete after.konami;
+    delete wasSaved.konami;
+    expect(after).toEqual(wasSaved);
+    expect(ui.saved()).toBe(true);
+  });
+});

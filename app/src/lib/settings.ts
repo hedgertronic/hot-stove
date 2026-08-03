@@ -1,7 +1,13 @@
 /** Mode selection persists across visits (BUILD.md: localStorage
  * `hotstove.settings`), as do the two corner-button attention cues
  * (`hotstove.cues`). */
-import { BADGE_BY_KEY, BADGES, COLLECTIBLE, RARITY_ORDER } from "./badges";
+import {
+  BADGE_BY_KEY,
+  BADGES,
+  COLLECTIBLE,
+  RARITY_ORDER,
+  type Rarity,
+} from "./badges";
 import {
   DEFAULT_CONFIG,
   type Bank,
@@ -305,17 +311,192 @@ export function badgeCase(): {
 
 /* ---------- the passport ---------- */
 
-/** One country the player has been to: where, when they first went, and how
- * many clubs since have carried someone born there. */
+/** What one country is worth as a STAMP: the flag it prints, the tier that
+ * flag wears, and the measured chance of ever seeing it. */
+export interface CountryDef {
+  /** The flag, as a single emoji. See COUNTRIES for what "single" costs. */
+  flag: string;
+  /** The collection ladder's own tier, from lib/badges. The passport uses the
+   * four middle rungs and no others: `legendary` is the top of a badge axis
+   * and a country is not an axis, and `ironic` is an anti-trophy, which no
+   * birthplace is. */
+  rarity: Rarity;
+  /** Percent of eight-man clubs that hold at least one player born here,
+   * measured over data/cards: `100 × (1 − (1 − share)^8)`, where `share` is
+   * the country's slice of the corpus's 35,720 player-seasons.
+   *
+   * This is the rarity of a STAMP rather than of a PLAYER, which is the only
+   * measure the panel can honestly wear — a stamp is what the player collects,
+   * and one Venezuelan and three Venezuelans are the same stamp. The two
+   * numbers are far apart at the top: USA is 76% of player-seasons and 100% of
+   * clubs.
+   *
+   * It lives beside the definition, the way `freq` lives beside a BadgeDef, so
+   * it cannot go stale in a comment somewhere else — and tests/passport.test.ts
+   * recomputes every one of them off data/cards, so a data regen that moves the
+   * supply fails the table rather than quietly outdating it.
+   *
+   * Eight independent draws is an approximation of the draft, not a simulation
+   * of it: a real club comes off ~11 cards under position constraints. It is
+   * close enough to place a country in a band and is not used for anything
+   * else. */
+  freq: number;
+}
+
+/** Every birth country in the corpus, with its flag, its tier and its measured
+ * rate. Keyed by the country string EXACTLY as the cards spell it, because
+ * that string is what the engine copies onto a signing and writes into the
+ * history row — no normalization anywhere in between. "Curaçao" is NFC in the
+ * data (one U+00E7), and so is the key here.
+ *
+ * ---- The tiers decorate; they never invite ----
+ *
+ * A country is not collectible. Nothing in the game shows a birth country
+ * before the finale, so a tier here is a fact about a stamp the player already
+ * has, never a target — which is why this table is a lookup and never a list
+ * the panel enumerates. `passport()` returns found stamps and reads their
+ * decoration out of here; nothing ever walks these keys to render a slot.
+ *
+ * The bands are the badge ladder's own, one rung per order of magnitude of
+ * club rate: 20%+ common, 5–20% uncommon, 1–5% rare, under 1% ultra. The split
+ * lands cleanly — Puerto Rico at 21.65 and Cuba at 10.32 sit well clear of the
+ * 20% line, and Nicaragua at 1.58 clears 1% by half a band.
+ *
+ * ---- What a flag does when it cannot render ----
+ *
+ * Every flag here is either a regional-indicator pair (🇯🇵 = two letters) or
+ * one of the two subdivision tag sequences, 🏴󠁧󠁢󠁥󠁮󠁧󠁿 and 🏴󠁧󠁢󠁳󠁣󠁴󠁿. The tag sequences
+ * do not render everywhere, and the failure is not tofu: tag characters are
+ * default-ignorable, so a platform that does not know the sequence draws the
+ * base 🏴 and drops the rest. A black flag beside the word ENGLAND is a poorer
+ * stamp than a perfect one and is still a stamp; the name is printed on every
+ * one of them, so no stamp is ever ambiguous about which country it is. This
+ * is a phone-first game, and iOS renders both.
+ *
+ * A country this table does not know — a data regen that adds a fortieth —
+ * degrades to no flag and no tier: the stamp renders its name on the plain
+ * paper an untiered stamp wears. `countryDef` returns null and every caller
+ * treats null as "no decoration", which is why an unknown country costs a row
+ * its color rather than costing the panel its row. */
+export const COUNTRIES: Record<string, CountryDef> = {
+  // ---- common: a fifth of clubs or more ----
+  USA: { flag: "🇺🇸", rarity: "common", freq: 100.0 },
+  "Dominican Republic": { flag: "🇩🇴", rarity: "common", freq: 52.94 },
+  Venezuela: { flag: "🇻🇪", rarity: "common", freq: 33.12 },
+  "Puerto Rico": { flag: "🇵🇷", rarity: "common", freq: 21.65 },
+  // ---- uncommon: one club in ten to one in five ----
+  Cuba: { flag: "🇨🇺", rarity: "uncommon", freq: 10.32 },
+  Mexico: { flag: "🇲🇽", rarity: "uncommon", freq: 9.3 },
+  Canada: { flag: "🇨🇦", rarity: "uncommon", freq: 8.55 },
+  Japan: { flag: "🇯🇵", rarity: "uncommon", freq: 6.38 },
+  // ---- rare: one club in twenty to one in a hundred ----
+  Panama: { flag: "🇵🇦", rarity: "rare", freq: 4.22 },
+  Colombia: { flag: "🇨🇴", rarity: "rare", freq: 2.57 },
+  "South Korea": { flag: "🇰🇷", rarity: "rare", freq: 2.42 },
+  "Curaçao": { flag: "🇨🇼", rarity: "rare", freq: 2.15 },
+  Germany: { flag: "🇩🇪", rarity: "rare", freq: 1.89 },
+  Australia: { flag: "🇦🇺", rarity: "rare", freq: 1.78 },
+  Nicaragua: { flag: "🇳🇮", rarity: "rare", freq: 1.58 },
+  // ---- ultra: under one club in a hundred. Twenty-four countries, and 15 of
+  // them have exactly one draftable man in the whole corpus. ----
+  Jamaica: { flag: "🇯🇲", rarity: "ultra", freq: 0.87 },
+  Aruba: { flag: "🇦🇼", rarity: "ultra", freq: 0.69 },
+  Taiwan: { flag: "🇹🇼", rarity: "ultra", freq: 0.67 },
+  Netherlands: { flag: "🇳🇱", rarity: "ultra", freq: 0.45 },
+  "U.S. Virgin Islands": { flag: "🇻🇮", rarity: "ultra", freq: 0.42 },
+  Brazil: { flag: "🇧🇷", rarity: "ultra", freq: 0.42 },
+  England: { flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", rarity: "ultra", freq: 0.4 },
+  Honduras: { flag: "🇭🇳", rarity: "ultra", freq: 0.27 },
+  Vietnam: { flag: "🇻🇳", rarity: "ultra", freq: 0.27 },
+  Bahamas: { flag: "🇧🇸", rarity: "ultra", freq: 0.16 },
+  Peru: { flag: "🇵🇪", rarity: "ultra", freq: 0.16 },
+  France: { flag: "🇫🇷", rarity: "ultra", freq: 0.13 },
+  "Saudi Arabia": { flag: "🇸🇦", rarity: "ultra", freq: 0.13 },
+  Philippines: { flag: "🇵🇭", rarity: "ultra", freq: 0.11 },
+  China: { flag: "🇨🇳", rarity: "ultra", freq: 0.09 },
+  Lithuania: { flag: "🇱🇹", rarity: "ultra", freq: 0.07 },
+  "South Africa": { flag: "🇿🇦", rarity: "ultra", freq: 0.07 },
+  Belize: { flag: "🇧🇿", rarity: "ultra", freq: 0.04 },
+  Afghanistan: { flag: "🇦🇫", rarity: "ultra", freq: 0.04 },
+  Guam: { flag: "🇬🇺", rarity: "ultra", freq: 0.04 },
+  Scotland: { flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", rarity: "ultra", freq: 0.02 },
+  Spain: { flag: "🇪🇸", rarity: "ultra", freq: 0.02 },
+  Indonesia: { flag: "🇮🇩", rarity: "ultra", freq: 0.02 },
+  Portugal: { flag: "🇵🇹", rarity: "ultra", freq: 0.02 },
+};
+
+/** A Map rather than a plain lookup on COUNTRIES, because the key comes out of
+ * localStorage: `COUNTRIES["constructor"]` on the object resolves up the
+ * prototype chain and hands back a function, and a Map has no chain to walk. */
+const COUNTRY_BY_NAME = new Map(Object.entries(COUNTRIES));
+
+/** A country's decoration, or null for one the table does not know. Null is
+ * "no flag, no tier" and never a default tier: guessing `common` for an
+ * unrecognized country would print a rarity the data never measured. */
+export function countryDef(country: string): CountryDef | null {
+  return COUNTRY_BY_NAME.get(country) ?? null;
+}
+
+/** One country the player has been to: where, when they first went, how many
+ * clubs since have carried someone born there, and how many different people
+ * those clubs turned out to be. */
 export interface PassportStamp {
   /** Birth country as the cards spell it — "Dominican Republic", "Curaçao". */
   country: string;
+  /** The flag, or an empty string for a country the table does not know. */
+  flag: string;
+  /** The tier the stamp wears, or null for a country the table does not
+   * know. */
+  rarity: Rarity | null;
+  /** The measured club rate, or null for a country the table does not know. */
+  freq: number | null;
   /** The `date` of the first game whose club held a player born there, or an
    * empty string on a row that carries no parseable date. Display only. */
   first: string;
   /** Games, not players. A club with three Venezuelans is one visit, the same
    * way a history row naming a badge three times is one earn. */
   visits: number;
+  /** Different PEOPLE born here that the player has ever rostered, counted by
+   * player id across every game. A man signed in three separate seasons is one;
+   * two different Venezuelans are two.
+   *
+   * Counted only from rows that carry `countryPlayers`, and that is a
+   * degradation with a hard floor under it: a history row records badges,
+   * countries and a record, never a roster, so there is NO way to recover which
+   * players an already-played season held. Older rows keep their stamp, keep
+   * their first-seen date, and contribute nothing here. Zero therefore means
+   * "no season on record named anybody", which is a different claim from "you
+   * have fielded nobody" — `counted` is what tells the two apart, and the panel
+   * renders no number at all rather than a zero. */
+  players: number;
+  /** How many of `visits` carried at least one player id. Always `<= visits`,
+   * and zero exactly when `players` is zero.
+   *
+   * This is the honesty channel. `counted === visits` means the player count is
+   * complete; `0 < counted < visits` means it covers part of the history;
+   * `counted === 0` means nothing is known and no number is shown. */
+  counted: number;
+}
+
+/** The per-country player ids one history row carries, cleaned.
+ *
+ * A country key survives with an EMPTY id list, because the key itself is
+ * evidence the club held that country and the stamp should exist either way.
+ * The caller is what refuses to count an empty list toward `counted`, which is
+ * what keeps `players === 0` and `counted === 0` the same statement. */
+function rowPlayers(entry: unknown): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  const raw = (entry as { countryPlayers?: unknown } | null)?.countryPlayers;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return out;
+  for (const [key, list] of Object.entries(raw as Record<string, unknown>)) {
+    const country = key.trim();
+    if (country === "" || !Array.isArray(list)) continue;
+    out.set(
+      country,
+      list.filter((id): id is string => typeof id === "string" && id.trim() !== ""),
+    );
+  }
+  return out;
 }
 
 /** The lifetime passport: every birth country the player has ever fielded, in
@@ -323,18 +504,22 @@ export interface PassportStamp {
  *
  * A SOUVENIR, never a checklist, and that is a design constraint rather than a
  * presentation choice. Nothing anywhere in the game shows a player's birth
- * country — not the market rows, not the roster rail, not the finale — so a
- * country is something a club turns out to have contained, never something a
- * player can go looking for. The dataset makes that worse rather than better:
- * of the 39 countries in it, 23 have five or fewer draftable men and 15 have
- * exactly one. A panel that showed the 39 and grayed out the 27 you have not
- * met would be inviting a hunt the interface gives no tools for.
+ * country — not the market rows, not the roster rail, not the finale until the
+ * season is over and nothing can be chosen in response to it — so a country is
+ * something a club turns out to have contained, never something a player can go
+ * looking for. The dataset makes that worse rather than better: of the 39
+ * countries in it, 23 have five or fewer draftable men and 15 have exactly one.
+ * A panel that showed the 39 and grayed out the 27 you have not met would be
+ * inviting a hunt the interface gives no tools for.
  *
  * So this returns only what has been FOUND. There is no total, no denominator,
  * and no entry for a country never fielded — a caller has nothing to render an
- * empty slot from. TrophyModal hides the panel outright until the first stamp
- * lands, which is also what keeps it out of the case's `N OF M` fraction:
- * that number is counted from COLLECTIBLE, and no country is a badge.
+ * empty slot from. TrophyModal hides the panel and its tab outright until the
+ * first stamp lands, which is also what keeps it out of the case's `N OF M`
+ * fraction: that number is counted from COLLECTIBLE, and no country is a badge.
+ *
+ * The tiers on the stamps decorate what is already here for the same reason.
+ * They say how lucky a stamp was AFTER it landed; they name nothing to go get.
  *
  * 🌎 THE WORLD TOUR is the badge and stays one. It asks for five countries in
  * ONE club, which is a season; this is every country across every season,
@@ -347,29 +532,91 @@ export interface PassportStamp {
  * makes the discovery ORDER and the first-seen DATE free, which is what lets
  * this render as stamps rather than as a list of names.
  *
+ * A row establishes a country through EITHER of the two fields that can name
+ * one — the `countries` list or a key of `countryPlayers` — so a row that
+ * carries only ids still stamps, and a row that carries only names still
+ * stamps without a player count.
+ *
  * Rows are read with the same suspicion the rest of this file reads storage
  * with: an absent field, a non-array, a non-string member and an empty string
  * all contribute nothing, and a corrupt store resolves to an empty passport
  * through `loadHistory()`. */
 export function passport(): PassportStamp[] {
   const stamps = new Map<string, PassportStamp>();
+  /** Ids per country, live alongside `stamps` — the stamp carries the SIZE of
+   * these sets, and the sets themselves are what make a player rostered in
+   * four seasons count once. */
+  const people = new Map<string, Set<string>>();
   for (const e of loadHistory()) {
-    if (!Array.isArray(e?.countries)) continue;
-    const date = typeof e.date === "string" ? e.date : "";
+    const date = typeof e?.date === "string" ? e.date : "";
+    const ids = rowPlayers(e);
     // One visit per GAME per country, so a club with three men from one
     // country — or a row that names it three times — still counts once.
     const seen = new Set<string>();
-    for (const raw of e.countries) {
-      if (typeof raw !== "string") continue;
-      const country = raw.trim();
-      if (country === "" || seen.has(country)) continue;
-      seen.add(country);
-      const stamp = stamps.get(country);
-      if (stamp) stamp.visits += 1;
-      else stamps.set(country, { country, first: date, visits: 1 });
+    if (Array.isArray(e?.countries)) {
+      for (const raw of e.countries) {
+        if (typeof raw !== "string") continue;
+        const country = raw.trim();
+        if (country !== "") seen.add(country);
+      }
+    }
+    // Already trimmed and non-empty by `rowPlayers`.
+    for (const country of ids.keys()) seen.add(country);
+    for (const country of seen) {
+      let stamp = stamps.get(country);
+      if (stamp) {
+        stamp.visits += 1;
+      } else {
+        const def = countryDef(country);
+        stamp = {
+          country,
+          flag: def?.flag ?? "",
+          rarity: def?.rarity ?? null,
+          freq: def?.freq ?? null,
+          first: date,
+          visits: 1,
+          players: 0,
+          counted: 0,
+        };
+        stamps.set(country, stamp);
+        people.set(country, new Set<string>());
+      }
+      const list = ids.get(country);
+      if (list === undefined || list.length === 0) continue;
+      const set = people.get(country)!;
+      for (const id of list) set.add(id);
+      stamp.counted += 1;
+      stamp.players = set.size;
     }
   }
   // `loadHistory` is oldest first, so insertion order IS discovery order.
-  // Reversed, because the newest stamp is the one worth looking at.
+  // Reversed, because the newest stamp is the one worth looking at. Rarity
+  // deliberately does not re-sort this: a list ordered rarest-first is a ladder,
+  // and a ladder is a thing to climb.
   return [...stamps.values()].reverse();
 }
+
+/** One stamp as a surface draws it. Both the trophy case and the finale render
+ * countries, and they render the same object for different reasons — a career's
+ * worth of them in the case, one club's worth at the finale — so the shape they
+ * hand `Passport.svelte` lives here, beside the table the decoration comes out
+ * of. */
+export interface PassportItem {
+  country: string;
+  /** Empty for a country the table does not know; the stamp then shows its
+   * name alone. */
+  flag: string;
+  /** Null for a country the table does not know; the stamp then wears plain
+   * paper instead of a tier. */
+  rarity: Rarity | null;
+  /** Different players fielded from here, or null when no season on record
+   * names anybody. Null renders no number — never a zero, which would read as
+   * "you have fielded nobody from a country you have a stamp for". */
+  count: number | null;
+  /** First time this country has ever been fielded. Finale only: in the case
+   * every stamp is already found, so the flag would mark all of them. */
+  fresh: boolean;
+  /** Hover/assistive detail. Null draws no title attribute at all. */
+  title: string | null;
+}
+

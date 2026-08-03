@@ -1,6 +1,7 @@
 /** Game state machine. Implements SPEC.md's rules, DECISIONS.md's gap fills.
  * All gameplay randomness flows through `this.rng` (one mulberry32 stream per
  * seed). The displayed record is deterministic (rounded expected wins). */
+import { track } from "./analytics";
 import { earnedBadges } from "./badges";
 import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadSpecials, ownerFor } from "./data";
@@ -8,7 +9,14 @@ import { eligibleTypes } from "./eligibility";
 import { recordFromTotal, type WarTier } from "./format";
 import { appendHistory, earnedBadgeKeys } from "./history";
 import { Rng, randomSeed } from "./rng";
-import { GAMES, MARINERS_WINS, displayRecord, score } from "./scoring";
+import {
+  GAMES,
+  MARINERS_WINS,
+  WBC_CHAMPION_POINTS,
+  WBC_RUNNERUP_POINTS,
+  displayRecord,
+  score,
+} from "./scoring";
 import { SLOT_TYPES } from "./types";
 import type {
   Card,
@@ -91,6 +99,13 @@ export interface Signed {
   /** In the Hall of Fame, elected as a player. Career-level, so it rides every
    * season of his. Optional on the same terms as `bc`. */
   hof?: boolean;
+  /** World Baseball Classic medal for this exact season, already in Ring-
+   * chasing points (2 champion, 1 losing finalist). Copied onto the signing
+   * rather than looked up at the finale for `age`'s reason — a ⭐ Prime Time
+   * signing comes from a card that never enters `seen`. Optional, so a save
+   * written before the field restores as no medal rather than as an unknown
+   * that pads the tally. */
+  wbc?: number;
 }
 
 export interface OwnerPick {
@@ -355,6 +370,35 @@ export class Game {
   ownerHiredLast = $state(false);
   stadium = $state<StadiumPick | null>(null);
   manager = $state<ManagerPick | null>(null);
+  /** Every OTHER seat was already filled when the skipper was hired — the club
+   * built, the dugout left to the final spin, which is 🪑 THE INTERIM.
+   *
+   * A moment rather than a fact about the finished club, for `ownerHiredLast`'s
+   * reason exactly: at the finale a full club with a manager in it looks the
+   * same whichever order the chairs filled. "Every other seat" is the roster
+   * plus, in Clean House, the owner and the ballpark — the game ends the spin
+   * the club completes, so a hire made with everything else filled IS the hire
+   * made on the last spin.
+   *
+   * Two paths write it, not one: `hireManager` (the FRONT OFFICE row) and
+   * `applyPrimeSpecial` (⭐ Prime Time's manager career sheet) are both
+   * first-hire paths and both return early once the chair is taken. The Trade
+   * Deadline swap does not write it, because that path REQUIRES the chair to
+   * be taken already, and a club that had a skipper all along never left the
+   * dugout empty however late it changed him. */
+  managerHiredLast = $state(false);
+  /** The Konami code was entered on a physical keyboard during this game.
+   *
+   * State on the Game rather than a module variable in App.svelte because it
+   * has to survive a reload: iOS Safari evicts background tabs, and a badge
+   * earned by a keystroke that the eviction erased is worse than no badge. It
+   * rides `save()` with everything else and restores with everything else.
+   *
+   * It changes NOTHING about play. No spin, no powerup, no price, no number
+   * the finale prints — the badge is the entire effect, deliberately, because
+   * a code that altered the game would make every score after it
+   * incomparable. */
+  konami = $state(false);
   powerups = $state<Record<PowerupKey, PowerupState>>({
     seasonTicket: "ready",
     relocate: "ready",
@@ -451,18 +495,48 @@ export class Game {
     );
   }
 
+  /** Every seat except the dugout is filled — `complete` with the manager
+   * taken out of it. A hire made while this holds is the hire that completes
+   * the club, which is what makes it the hire made on the final spin, which is
+   * what 🪑 THE INTERIM asks about. */
+  get otherSeatsFull(): boolean {
+    return (
+      this.rosterFull &&
+      (this.fixedCap || (this.owner !== null && this.stadium !== null))
+    );
+  }
+
   get totalWar(): number {
     return this.slots.reduce((sum, s) => sum + (s?.war ?? 0), 0);
   }
 
-  /** 💍/🚩 season counts across the signed club, manager included — the one
-   * tally scoring, the finale chips, and the share string all read. */
-  get pedigree(): { rings: number; pennants: number } {
+  /** Everything the club won: 💍/🚩 October counts, manager included, plus the
+   * March medals from the World Baseball Classic. One tally, read by scoring,
+   * the finale chips, and the share string.
+   *
+   * `rings` and `pennants` keep their exact meaning and their exact arithmetic
+   * — bestroster.ts, share.ts and badges.ts all read them, and 💍 RING BEARERS
+   * counts World Series rings, not medals. The Classic counts are two more
+   * fields beside them rather than a term folded into either.
+   *
+   * The medal counts carry NO manager term, unlike the rings. The curated
+   * medal roster is players only: a Classic manager is not on it, so adding
+   * `this.manager?.wbc` would be reading a field nothing ever writes. */
+  get pedigree(): {
+    rings: number;
+    pennants: number;
+    wbcChampions: number;
+    wbcRunnersUp: number;
+  } {
     return {
       rings:
         this.slots.filter((s) => s?.ws).length + (this.manager?.ws ? 1 : 0),
       pennants:
         this.slots.filter((s) => s?.pen).length + (this.manager?.pen ? 1 : 0),
+      wbcChampions: this.slots.filter((s) => s?.wbc === WBC_CHAMPION_POINTS)
+        .length,
+      wbcRunnersUp: this.slots.filter((s) => s?.wbc === WBC_RUNNERUP_POINTS)
+        .length,
     };
   }
 
@@ -713,7 +787,7 @@ export class Game {
       (c) => c.franchise === this.card!.franchise && c.year === year,
     );
     if (!entry) return;
-    this.powerups.seasonTicket = "spent";
+    this.spendPowerup("seasonTicket");
     this.disarmToggles();
     this.spinCount -= 1; // same spin, new card
     this.beginSpin(entry, "year");
@@ -734,7 +808,7 @@ export class Game {
       (c) => c.year === this.card!.year && c.team === team,
     );
     if (!entry) return;
-    this.powerups.relocate = "spent";
+    this.spendPowerup("relocate");
     this.disarmToggles();
     this.spinCount -= 1;
     this.beginSpin(entry, "team");
@@ -807,9 +881,38 @@ export class Game {
     this.save();
   }
 
+  /** Whether an armed ⭐ Prime Time claims this row's tap — i.e. whether
+   * tapping it opens the career sheet.
+   *
+   * Deliberately NOT `rowPlayable`, and the difference is 🏠 Homegrown. The
+   * discount filters the LANDED CARD'S MARKET: it grays every row that did not
+   * debut with this franchise, because those rows are what it reprices and
+   * those are the rows it can sell. A career sheet is a different market — it
+   * sells seasons off a card the reel never landed on, at list price, with no
+   * discount travelling — so the filter has no claim on it. Routing Prime
+   * through `rowPlayable` made an armed 🏠 silently shrink Prime to the debut
+   * players, which is the pair the player is most likely to arm together.
+   *
+   * Reachability is still asked, just not the 🏠 filter: there has to be a
+   * chair this man could take — an open seat, or an armed 🔁 Trade Deadline and
+   * an occupied one. Dropping that half as well would open a sheet in which
+   * every season grays, which is the dead end the swap branch exists to close.
+   *
+   * The listed season stands in for the whole career, which is a proxy and can
+   * be wrong: a man listed at catcher may have outfield years that would fit a
+   * seat his catching year cannot. Loading a career to decide whether the
+   * career is worth loading is not an option, and graying a row whose other
+   * years might have fit is a smaller failure than opening a sheet with
+   * nothing in it. */
+  primeBrowsable(p: CardPlayer): boolean {
+    if (this.phase !== "landed" || this.choicesLeft === 0) return false;
+    if (!this.primeArmed || this.isRostered(p)) return false;
+    return this.primeSlotFor(p) !== null;
+  }
+
   /** Armed Prime, tap a listed player: browse their whole career. */
   primeTapPlayer(p: CardPlayer): void {
-    if (!this.primeArmed || this.isRostered(p)) return;
+    if (!this.primeBrowsable(p)) return;
     this.primePick = p.id;
   }
 
@@ -825,11 +928,67 @@ export class Game {
     this.primeSpecial = which;
   }
 
+  /** The seat a ⭐ Prime Time signing lands in, or null when the browsed season
+   * fits nowhere. The career sheet reads it through `primeFits` to gray the
+   * rows it cannot sell.
+   *
+   * An OPEN seat always wins over a 🔁 Trade Deadline swap, which is the
+   * opposite of `tdCandidate`'s rule on the market rows — and the asymmetry is
+   * the escape hatch, not an inconsistency. On a market row an armed TD claims
+   * the tap even when a seat is open, because disarming the pill and signing
+   * plainly is one tap away. Inside the career sheet that exit does not exist:
+   * closing the sheet disarms ⭐, not 🔁. Letting the swap win there would
+   * vacate a chair the club did not need to vacate, with nothing to undo it —
+   * and it would spend Trade Deadline on a trade that was never required.
+   *
+   * Both branches auto-resolve specialist-first, because "no nested picker
+   * inside the career sheet" is the rule the open-seat path has always
+   * followed. The swap branch resolves further, to the LOWEST-WAR eligible
+   * occupied seat (ties to the earliest), because vacating a chair is
+   * destructive in a way that filling an empty one is not: the least damaging
+   * deterministic answer is to trade away the weakest man the incoming season
+   * could replace, which is what a trade is for. */
+  private primeSlotFor(p: CardPlayer): number | null {
+    const open = this.openSlotsFor(p);
+    if (open.length > 0) {
+      const specialist = open.filter((i) => SLOT_TYPES[i] !== "FLEX");
+      return specialist.length > 0 ? specialist[0] : open[0];
+    }
+    if (this.powerups.tradeDeadline !== "armed") return null;
+    const taken = this.occupiedSlotsFor(p);
+    if (taken.length === 0) return null;
+    const specialist = taken.filter((i) => SLOT_TYPES[i] !== "FLEX");
+    const pool = specialist.length > 0 ? specialist : taken;
+    return pool.reduce((a, b) =>
+      (this.slots[b]?.war ?? 0) < (this.slots[a]?.war ?? 0) ? b : a,
+    );
+  }
+
+  /** Whether a browsed career season can be signed right now — an open seat
+   * fits it, or an armed 🔁 Trade Deadline can clear one for it. The career
+   * sheet grays every row this rejects. */
+  primeFits(p: CardPlayer): boolean {
+    return this.primeSlotFor(p) !== null;
+  }
+
   /** Sign a DIFFERENT season of the browsed player's career, at that season's
-   * real cost. Consumes both the powerup and the spin's choice. Slot ambiguity
-   * auto-resolves (first open specialist seat, else first open seat) — no
-   * nested picker inside the career sheet. The browsed card does not count as
-   * scouted (`seen`): only cards the reel landed on do. */
+   * real cost. Consumes the powerup and the spin's choice. Slot ambiguity
+   * auto-resolves (see `primeSlotFor`) — no nested picker inside the career
+   * sheet. The browsed card does not count as scouted (`seen`): only cards the
+   * reel landed on do.
+   *
+   * The price is the browsed season's list price and `hero` is false, even
+   * with 🏠 Homegrown armed: discount pricing does not travel (DECISIONS.md
+   * round 5). The discount is a claim about the LANDED card's market, and a
+   * career sheet is a different market — so an armed 🏠 is neither charged nor
+   * spent here, and `endSpin` hands it back ready.
+   *
+   * 🔁 Trade Deadline armed and no seat open is the one combination that
+   * resolves here rather than being refused: the season takes an occupied
+   * chair and spends Trade Deadline, on gap rule 8's precedent that an armed
+   * pair resolves and spends both. Without it the pair is armable, the row
+   * lights up as Prime-able, the sheet opens, and every season in it is dead —
+   * a state the player can enter and cannot resolve. */
   async applyPrime(team: string, year: number): Promise<boolean> {
     if (this.powerups.prime !== "armed" || this.primePick === null)
       return false;
@@ -839,14 +998,14 @@ export class Game {
     const card = await loadCard(team, year);
     const p = card.players.find((pl) => pl.id === id);
     if (!p) return false;
-    const open = this.openSlotsFor(p);
-    if (open.length === 0) return false;
-    const specialist = open.filter((i) => SLOT_TYPES[i] !== "FLEX");
-    const idx = specialist.length > 0 ? specialist[0] : open[0];
+    const idx = this.primeSlotFor(p);
+    if (idx === null) return false;
+    const trade = this.slots[idx] !== null;
     this.slots[idx] = this.makeSigned(card, p, p.cost, false);
-    this.powerups.prime = "spent";
+    this.spendPowerup("prime");
+    if (trade) this.spendPowerup("tradeDeadline");
     this.primePick = null;
-    this.consumeChoice({ kind: "sign", war: p.war });
+    this.consumeChoice({ kind: trade ? "swap" : "sign", war: p.war });
     return true;
   }
 
@@ -872,6 +1031,12 @@ export class Game {
     const idx = this.index.cards.find(
       (c) => c.team === team && c.year === year,
     );
+    // Read BEFORE the hire lands, the same way `hireOwner` reads its own
+    // moment: this pick can be the one that completes the club, and the
+    // question is what the rest of the club looked like walking in. ⭐ Prime
+    // Time is a first-hire path exactly like the FRONT OFFICE row above it, so
+    // both write the flag.
+    this.managerHiredLast = this.otherSeatsFull;
     this.manager = {
       name: entry.mgr,
       wins: entry.w,
@@ -884,10 +1049,25 @@ export class Game {
       moty: entry.moty === true,
       hof: entry.hof === true,
     };
-    this.powerups.prime = "spent";
+    this.spendPowerup("prime");
     this.primeSpecial = null;
     this.consumeChoice({ kind: "manager" });
     return true;
+  }
+
+  /** Burn a powerup, and report it.
+   *
+   * Every one of the six is spent through here so the analytics event has one
+   * emitter rather than eight. Spending is the only powerup transition worth
+   * counting — arming and disarming are browsing, and a pill armed and thought
+   * better of is not a use — and routing it through the state change means a
+   * seventh powerup is reported by construction instead of by remembering.
+   *
+   * `track()` is a no-op without gtag, on localhost, and on the ?lab route, so
+   * this costs a function call in tests and in the harness. */
+  private spendPowerup(key: PowerupKey): void {
+    this.powerups[key] = "spent";
+    track("powerup_used", { key });
   }
 
   private disarmToggles(): void {
@@ -935,6 +1115,7 @@ export class Game {
       age: p.age,
       bc: p.bc,
       hof: p.hof,
+      wbc: p.wbc,
     };
   }
 
@@ -943,7 +1124,7 @@ export class Game {
     this.choicesLeft -= 1;
     // Double Play burns only when its second pick lands.
     if (this.powerups.doublePlay === "armed" && this.choicesUsed >= 2)
-      this.powerups.doublePlay = "spent";
+      this.spendPowerup("doublePlay");
     this.spinLog = [...this.spinLog, entry];
     this.clearTransients();
     if (this.choicesLeft === 0 || !this.anyActionable()) this.endSpin();
@@ -1012,7 +1193,7 @@ export class Game {
       this.priceFor(p),
       discounted,
     );
-    if (discounted) this.powerups.hometown = "spent";
+    if (discounted) this.spendPowerup("hometown");
     this.consumeChoice({ kind: "sign", war: p.war });
   }
 
@@ -1077,6 +1258,9 @@ export class Game {
       return;
     const c = this.card;
     if (c.manager == null) return;
+    // The moment 🪑 THE INTERIM reads, recorded as it happens for the reason
+    // beside `managerHiredLast`.
+    this.managerHiredLast = this.otherSeatsFull;
     this.manager = {
       name: c.manager,
       wins: c.wins,
@@ -1126,8 +1310,8 @@ export class Game {
       this.priceFor(p),
       discounted,
     );
-    if (discounted) this.powerups.hometown = "spent";
-    this.powerups.tradeDeadline = "spent";
+    if (discounted) this.spendPowerup("hometown");
+    this.spendPowerup("tradeDeadline");
     this.consumeChoice({ kind: "swap", war: p.war });
   }
 
@@ -1171,8 +1355,26 @@ export class Game {
         hof: c.managerHof === true,
       };
     }
-    this.powerups.tradeDeadline = "spent";
+    this.spendPowerup("tradeDeadline");
     this.consumeChoice({ kind: "swap" });
+  }
+
+  // ---------- the code ----------
+
+  /** Record the Konami code, and persist it immediately.
+   *
+   * Idempotent and side-effect-free beyond the flag: entering the sequence a
+   * second time is not a second badge and not a second write. The finale is
+   * refused because a finished game has already resolved its badges and
+   * `save()` refuses to write a finale into the in-progress key — a keystroke
+   * there would be recorded nowhere and read by nobody.
+   *
+   * It grants nothing. See the `konami` field above and the 🎮 definition in
+   * lib/badges. */
+  markKonami(): void {
+    if (this.phase === "finale" || this.konami) return;
+    this.konami = true;
+    this.save();
   }
 
   // ---------- finale ----------
@@ -1270,6 +1472,8 @@ export class Game {
         : null,
       scoutHits,
       managerMoty: this.manager?.moty === true,
+      wbcChampions: this.pedigree.wbcChampions,
+      wbcRunnersUp: this.pedigree.wbcRunnersUp,
     });
     const [wins, losses] = displayRecord(parts.expectedWins);
     // 🗺️ reads the alignment each player's OWN season played in, off the index
@@ -1290,15 +1494,28 @@ export class Game {
     // whether it held — so this has to be built from the same call
     // `Finale.svelte` renders from or the badge and the screen can disagree.
     const stamp = recordFromTotal(parts.total, GAMES, MARINERS_WINS);
+    // 🧠's fact, and it reads the solver's RAW answer rather than the ceiling
+    // the finale prints. `bestPossibleTotal` below is `max(solved, total)` —
+    // the played club is a proven-reachable incumbent, so the printed ceiling
+    // can never sit under it — which means only `best.total` can say whether
+    // the club actually passed the solve. Strictly greater: a tie is
+    // `playedTheCeiling`, not a win.
+    const solvedTotal = best?.total ?? null;
+    const beatDream = solvedTotal !== null && parts.total > solvedTotal;
     const badges = earnedBadges({
       baselineWins: wins,
       baselineLosses: losses,
       stamp: { wins: stamp.wins, losses: stamp.losses },
       total: parts.total,
+      beatDream,
       spendM: this.spend,
       budgetM: this.effectiveBudget,
       budgetBonus: parts.budgetBonus,
       scoutHits,
+      // 🌠's denominator. Zero when the dream solve could not run at all
+      // (offline mid-game), which is the same answer as a partial club as far
+      // as the badge is concerned — it asks for nine on the nose.
+      dreamSeats: best?.dreamSeats ?? 0,
       roster: players.map((p) => ({
         id: p.id,
         name: p.name,
@@ -1316,6 +1533,13 @@ export class Game {
       })),
       managerHof: this.manager?.hof === true,
       ownerLast: this.ownerHiredLast,
+      managerLast: this.managerHiredLast,
+      // The skipper's own net, never the club's stamp — 🪑 is a verdict on the
+      // chair. Absent dugout reads as zero, which is not under .500.
+      managerNetWins: this.manager
+        ? this.manager.wins - this.manager.losses
+        : 0,
+      konami: this.konami,
       managerTeam: this.manager?.team ?? null,
       managerYear: this.manager?.year ?? null,
       managerName: this.manager?.name ?? null,
@@ -1343,9 +1567,12 @@ export class Game {
     // Double Play taking two picks off one card, or the reel landing on one card
     // twice), and printing "your best was worse than what you did" would be a
     // bug on screen either way.
-    const solved = best?.total ?? null;
+    // `solvedTotal` is the raw solve read above for 🧠; the ceiling is that
+    // clamped up to the played club.
     const bestPossibleTotal =
-      best === null || solved === null ? null : Math.max(solved, parts.total);
+      best === null || solvedTotal === null
+        ? null
+        : Math.max(solvedTotal, parts.total);
     this.finale = {
       parts,
       wins,
@@ -1412,6 +1639,18 @@ export class Game {
 
   private recordHistory(): void {
     if (!this.finale) return;
+    // Player ids by birth country. The passport counts unique PEOPLE across a
+    // career, so a man rostered in three separate seasons has to be recognizable
+    // as the same man three times — names collide and a count cannot be unioned,
+    // so it is ids or nothing.
+    const countryPlayers: Record<string, string[]> = {};
+    for (const p of this.slots) {
+      if (!p || typeof p.bc !== "string" || p.bc === "") continue;
+      const ids = (countryPlayers[p.bc] ??= []);
+      if (!ids.includes(p.id)) ids.push(p.id);
+    }
+    // Sorted so two identical clubs write identical rows.
+    for (const ids of Object.values(countryPlayers)) ids.sort();
     appendHistory({
       v: 2, // two-rung ladder era; disambiguates "scout" from the old stats mode
       date: new Date().toISOString().slice(0, 10),
@@ -1427,13 +1666,10 @@ export class Game {
       // Distinct, so the row says which countries the club held rather than how
       // many men came from each — the passport counts one visit per season per
       // country. Sorted so two identical clubs write identical rows.
-      countries: [
-        ...new Set(
-          this.slots
-            .map((p) => p?.bc)
-            .filter((c): c is string => typeof c === "string" && c !== ""),
-        ),
-      ].sort(),
+      // Derived from the map's own keys rather than gathered a second time, so
+      // the two fields cannot disagree about which countries a club held.
+      countries: Object.keys(countryPlayers).sort(),
+      countryPlayers,
     });
   }
 
@@ -1460,6 +1696,8 @@ export class Game {
           ownerHiredLast: this.ownerHiredLast,
           stadium: this.stadium,
           manager: this.manager,
+          managerHiredLast: this.managerHiredLast,
+          konami: this.konami,
           powerups: this.powerups,
           choicesLeft: this.choicesLeft,
           choicesUsed: this.choicesUsed,
@@ -1567,6 +1805,12 @@ export class Game {
       game.ownerHiredLast = s.ownerHiredLast === true;
       game.stadium = s.stadium;
       game.manager = s.manager;
+      // Both absent on a save written before their fields, and both read the
+      // conservative way for the reason `ownerHiredLast` does: an unrecorded
+      // moment is not a moment, and an unrecorded keystroke is not a keystroke.
+      // A badge is withheld, never invented.
+      game.managerHiredLast = s.managerHiredLast === true;
+      game.konami = s.konami === true;
       game.powerups = s.powerups;
       game.choicesLeft = s.choicesLeft;
       game.choicesUsed = s.choicesUsed;
