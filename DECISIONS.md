@@ -1757,3 +1757,203 @@ stagger is a `delay` NUMBER on BadgePill now — no wrapper, no selector countin
 siblings (which the panel would break anyway by inserting itself into the row).
 Verified in the browser rather than argued: seven pills at 0→0.72s, panel
 `offsetParent` `.brags`, fenced inside the row.
+
+## Round 24 — one line color, every seat on its rung, and the fixtures come back (2026-08-03)
+
+### The structural line stops being ink
+
+`--line: #57534a` now draws every plain white box in the game: market rows, the
+ledger, the bank box, buttons, chips, picker tiles. Thirty-three borders moved.
+
+app.css used to argue the other way, in as many words — that ink on the ground
+is 14.09:1 against 2.2–6.2:1 for every tinted border, so ink was "the only thing
+left holding the page's structure" and softening it "would leave nothing hard on
+the page." The measurement was right and the conclusion was too strong. At
+7.53:1 on card the line still outranks the strongest tinted border, so the
+hierarchy the tinting rule depends on survives intact; what changes is that a
+colored surface can hold its own beside a plain one instead of being fenced by
+it. WCAG 1.4.11 asks 3:1 of a meaningful boundary, so this is a stylistic
+setting with real headroom, not a contrast budget being spent.
+
+Ink keeps the two jobs that were never structure — the armed dash and a
+committed solid fill (the SIGN pill, the confirm pill). Those are now the
+hardest marks on the page, which is the correct order: the thing you can act on
+should outrank the box it sits in. The two saturated team chips (OAK green, NYY
+navy) keep their ink line for the reason already recorded beside them: a fill
+that dark has no rung 2 to drop to, so there is no pair to make.
+
+### Every seat on the finale wears its rung, which is what fixed the skipper
+
+The manager's row kept being reported as "still bright green." It was not
+broken. `warTier(2.6)` is `mid`, `--war-mid-fill` IS green-2, and the row was
+correctly wearing the rung its wins earned. The problem was that it was the only
+tinted row on a page of white ones, so a correct mid rung read as a highlight.
+
+A cue that is right and unreadable is a design bug, not a data bug, and the fix
+is to stop making the skipper the exception. All eight player rows now tint too,
+in both lists and for both skippers. The column reads gold-gold-violet-blue down
+its edge and the shape of a club is legible before a single number is.
+
+Round 23 had rejected exactly this, on the grounds that eight tinted rows would
+be "eight competing fills." That is true of eight fills chosen for variety and
+false of eight drawn from one ordered ladder — the ladder is the point, and
+seeing it is what the finale is for.
+
+Consequences, all forced:
+
+- The numeral goes ink on every row. That is app.css's rule for type on a rung-2
+  fill (9.52:1 at worst, 13.41 at best) against 2.17–3.77:1 for a numeral tinted
+  to match its own fill. The rung is said twice already, by fill and by frame.
+- Both sub-lines go `--muted-2`. They now sit on whichever of six washes the row
+  supplies rather than on card white, and violet-2 is the darkest of them.
+- The dream team's "you found this one" green tint is gone, replaced by the star
+  the squad list already uses. Against a tinted column the green tint had become
+  indistinguishable from a mid-rung row. One cue used in both lists is more
+  consistent than two cues used once each.
+
+**The one live objection.** The `low` rung is the warm gray pair, and a tinted
+`low` row reads a little like the `taken` state on the draft screen, which uses
+the same tokens plus a grayscale filter. No finale row is ever `taken`, so
+nothing collides in fact — but a 1.9-WAR reliever now looks faintly disabled.
+Left alone: it is the honest bottom of a color ladder, and inventing a seventh
+hue for it would break the ladder to fix a resemblance.
+
+### The passport is a board of flags
+
+The flag IS the stamp. Thirty-nine spelled-out country names is a list; a field
+of flags is a collection, and the second is what a passport is. The name moves
+to the stamp's accessible name and its tooltip rather than disappearing — a
+screen reader gets "Dominican Republic, 3" and the tests now look it up there,
+which is a strictly better contract than reading it off a `>Japan<` text node. A
+country whose flag the table does not know still prints its name, because then
+the name is the only mark there is.
+
+An unvisited country keeps its rarity fill. A country's tier is a fact about the
+COUNTRY — true before anyone has been there — so showing it turns the board from
+a checklist into a map: the gold squares are visibly the hard ones the first
+time the case is opened. What a slot loses is the solid border, the count, and
+the flag's color.
+
+Held at 0.62 opacity, and that number is doing real work. Most of the table is
+`ultra` — the long tail of one-player countries is the bulk of it — so a board
+drawn at full strength came out a wall of gold in which an earned USA (common,
+warm gray) was the quietest thing on screen. That inverts the whole point: the
+stamps you HAVE are the souvenir and the slots are context.
+
+The prose note under the stamps is gone. A passport that needs a caption is not
+a passport, and both facts it carried (what a number counts, which seasons have
+none) are already on each stamp's own title, attached to the country being asked
+about rather than to the board.
+
+**A spacing bug, found by moving it.** The passport band was a sibling of the
+wrapper holding the rarity bands, not a member of it, so `.band + .band` never
+reached it and its separator rode closer to the stamps above than any other
+separator on the sheet. It is inside the wrapper now and the rhythm is uniform.
+
+### The buttons were two controls pretending to be one
+
+`.bic` (the button glyph) and the action row's cell shape both lived twice,
+privately, in Home and Finale. That is how the two surfaces came to disagree
+about them: PLAY's flame was loose text inheriting its label's 17px while every
+other glyph in the game was pinned at 19px, and the finale read `Modes / Replay
+/ Share` in Title Case two taps from home's `PLAY / LAST GAME / PLAY A SEED` in
+caps. Both are now `.bic` and `.btnrow` in app.css, all-caps everywhere, with
+the optical centering correction the caps now require (0.047 × font-size).
+
+**"Replay" was the wrong word and is now PLAY AGAIN.** The button calls
+`newGame()`, which starts a fresh season in the same mode on a NEW random seed.
+It replays nothing. The seed chip directly beneath it is the thing that actually
+replays a game, so the page had the word attached to the wrong control — which
+matters more now that per-game finale history is on the table.
+
+### Five badges, each measured before it shipped
+
+🫡 FEARLESS LEADER (8.95%), 🚒 THE FIREMAN (1.4%), 🧤 THE FIELD GENERAL (7.7%),
+🪙 LEAGUE MINIMUM (10.15%) and 💳 THE BILL CAME DUE (0%). Study 17 plays 4,000
+games across three populations and reports what each candidate would fire at, so
+every rarity is the tier a player actually hits.
+
+Two things the study settled that argument could not:
+
+**"The skipper beat the whole roster" is a badge that can never fire.** Framed
+as beating every individual seat it lands at ~9%; framed as beating the roster's
+TOTAL WAR it is 0.00% in 6,000 games. The first framing shipped because the
+second one is dead code with a nice name.
+
+**💳 fires in 0.05% of games, and ships anyway.** A baseline good enough for a
+rung that the luxury tax then stamps away is a genuine hole in the on-field
+axis — `onFieldBadge` vetoes the rung and awards nothing in its place — but it
+turns out clubs that spend enough to be taxed that hard are also carrying the
+WAR to survive it. Shipping it at `freq: 0` is consistent rather than a
+compromise: 👔, 📉, 💀, 🧾, 🕸️ and 🏖️ all carry a measured 0 already. That is
+what an anti-trophy is here — reachable, never accidental.
+
+### The help sheet was implying six things it never said
+
+Not a copy pass. The gaps, in order of what a player loses by not knowing:
+
+1. The payroll bonus is a **−10 to +10 swing**, described as "up to +10" — half
+   a 20-point axis was invisible.
+2. The luxury tax is **uncapped**, never stated.
+3. **162 points is a perfect season** was never stated at all, though badges.ts
+   asserts "the game's stated goal, which the help sheet already states."
+4. The sheet claimed a seat's border color IS its WAR tier and showed no key.
+5. World Baseball Classic medals score, on a row whose chips only ever draw
+   💍/🚩, so those points arrived from nowhere.
+6. The dream team was scored against and never defined.
+
+Spacing is now one rhythm over the sheet's children rather than adjacency rules
+written a pair at a time — which is how a payroll caption came to sit at 0px
+against the box below it, the only zero gap on the page.
+
+### The parity fixtures can be regenerated again
+
+`scoring.test.ts` told anyone regenerating its 31 fixtures to use "the snippet
+in the repo history." No such snippet was ever committed — confirmed by
+searching every tree in every commit. So for most of this project's life a
+balance change in `scoring.py` could be mirrored into `scoring.ts` wrongly, or
+not at all, and nothing would fail.
+
+`pipeline/gen_fixtures.py` closes it. Run against the current `scoring.py` it
+reproduces `scoring-fixtures.json` byte for byte, which is simultaneously its
+own smoke test and a live proof that the two implementations are in parity right
+now rather than presumed to be.
+
+**BUILD.md was the third copy, and it is the one that rotted.** It restated the
+formulas in prose with no test under it, and by now had replacement wins, ring
+points, the skipper's per-net-win rate and the record's derivation all wrong,
+with Manager of the Year, the Classic and the scouting bonus missing entirely.
+The Py↔TS pair, which has a test between them, stayed exact. That is the whole
+argument about duplication in one file: the copy nobody executes is the copy
+that lies. It now describes the shape and points at the module for every number.
+
+### Open, with the reasoning so far
+
+**Scouting at 0.5 instead of 1.0** — unresolved. It needs the same treatment the
+badges got (a study, then a decision), and it is now cheap to do correctly
+because changing it means regenerating fixtures, which is finally possible.
+
+**The payroll bonus is not a 10-point axis, it is a 20-point one**, and there is
+a cliff at the cap: `+10` at exactly the budget, `0` one dollar over, plus an
+uncapped tax from there. Worth deciding deliberately rather than trimming the
+ceiling on the assumption it runs 0→+10.
+
+**~9.2 MB of the 16 MB deploy is droppable** and none of it is on the critical
+path. `wbc.json` (23.5 KB) ships and is never fetched; minifying the card JSON
+alone is 2.2 MB with no schema change; twelve fields are dead across every card.
+Untouched this round because it is a pipeline change that cannot be verified
+without a full rebuild.
+
+**`statLine()` is a finished, tested, unused feature.** `bat` and `pit` are on
+every player and their only consumer is `format.ts:statLine`, which no component
+imports. Eye Test's own blurb ("No stats · no awards") implies the trad line was
+meant to render in the other modes — so this is plausibly a regression to fix
+rather than data to delete, and the two branches lead opposite ways.
+
+**History cannot simply be capped.** `appendHistory` is unbounded and fails
+silently at quota, which looks like a bug wanting a `slice`. It is not: the
+trophy case and the passport are lifetime UNIONS over that log, so dropping the
+oldest row deletes a badge the player earned. The correct fix is compaction —
+fold a dropped row's badges and countries into a retained summary — and it is
+not urgent at ~420 bytes a row (about 12,000 games). It becomes urgent
+immediately if per-game finales are stored, at ~5.4 KB each.
