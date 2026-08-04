@@ -38,13 +38,13 @@ export interface BankInfo {
 }
 
 export const BANKS: Record<Bank, BankInfo> = {
-  /* "Clean House" is the empty-front-office start: no owner, no stadium, no
-   * skipper, and a payroll nobody knows until you hire one. It's the only
-   * bank where those rows exist at all (Game.fixedCap gates them off for the
-   * two fixed-cap banks), and it shares a register with its siblings — three
-   * baseball-business idioms rather than one label and two nicknames. The key
-   * stays `classic`: saves and the record book index on it. */
-  classic: { emoji: "💼", name: "Clean House", cash: "$ · · ·", team: "", cls: "open" },
+  /* "From the Ground Up" is the empty-front-office start: no owner, no
+   * stadium, no skipper, and a payroll nobody knows until you hire one — the
+   * name says the premise before the help sheet does. It's the only bank
+   * where those rows exist at all (Game.fixedCap gates them off for the two
+   * fixed-cap banks). Displayed as "Clean House" through v0.x; the key stays
+   * `classic` regardless: saves and the record book index on it. */
+  classic: { emoji: "💼", name: "From the Ground Up", cash: "$ · · ·", team: "", cls: "open" },
   moneyball: {
     emoji: "⚾",
     name: "Moneyball",

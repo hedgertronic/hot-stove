@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { lockScroll } from "../lib/scrolllock";
+  import CloseGlyph from "./CloseGlyph.svelte";
 
   /** The modal shell every sheet shares: dimmed backdrop (tap to close),
    * bottom sheet on phones, centered cardstock modal at wide.
@@ -106,7 +107,7 @@
     {#if title !== null}
       <div class="head">
         <span class="title">{title}</span>
-        <button class="x" onclick={onclose} aria-label="Close">✕</button>
+        <button class="x" onclick={onclose} aria-label="Close"><CloseGlyph /></button>
       </div>
       {#if subtitle !== null}<div class="sub">{subtitle}</div>{/if}
     {/if}

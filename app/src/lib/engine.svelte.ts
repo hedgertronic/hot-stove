@@ -452,7 +452,7 @@ export class Game {
    * A moment rather than a fact about the finished club, for `ownerHiredLast`'s
    * reason exactly: at the finale a full club with a manager in it looks the
    * same whichever order the chairs filled. "Every other seat" is the roster
-   * plus, in Clean House, the owner and the ballpark — the game ends the spin
+   * plus, in From the Ground Up, the owner and the ballpark — the game ends the spin
    * the club completes, so a hire made with everything else filled IS the hire
    * made on the last spin.
    *

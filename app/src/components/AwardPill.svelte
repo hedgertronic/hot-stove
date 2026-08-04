@@ -56,6 +56,23 @@
     /* Same rule, and 0.047 × 8.5 = 0.40 rounds to the same figure. */
     padding: 0.4px 5px 0;
   }
+  /* Where the engine can trim a line box to the cap band, centering stops
+     being font arithmetic at all: trim-both cuts the box at the caps' top and
+     the baseline, so `align-items: center` centers the visible letters
+     themselves. That retires the 0.4px estimate above (it double-corrects
+     once the box is exact) AND the cross-engine drift the estimate could
+     never fix — Chrome and Safari disagree on which ascent/descent metrics a
+     line box uses, which is why these pills sat a hair differently per
+     browser. The emoji medals keep painting outside the trimmed box, exactly
+     as they overhang the em box today. Engines without text-box keep the
+     0.4px path. */
+  @supports (text-box: trim-both cap alphabetic) {
+    .qb,
+    .qb.small {
+      text-box: trim-both cap alphabetic;
+      padding-top: 0;
+    }
+  }
   /* One hue per award, each on its own line rung — the same pairing the WAR
      chips and the rarity pills wear. */
   .qb.mvp {

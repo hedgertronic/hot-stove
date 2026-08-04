@@ -244,6 +244,15 @@
   .help:active {
     transform: translate(-1px, -1px);
   }
+  /* The undo pill dips on the tap that ACTS, not the tap that asks — arming
+     already answers with the costume change (arrow → UNDO? in confirm
+     orange), so the resting pill holds still and only the armed confirm
+     dips. The quit ✕ splits its taps the same way (App.svelte .quit). The ?
+     and the trophy have no confirm step: their one tap is the act and keeps
+     the dip above. */
+  .undo:not(.armed):active {
+    transform: none;
+  }
   /* The HUD is a centered flex row and hands the pills their vertical position;
      the home screen is a plain block, so there they pin to its top edge. */
   .help.home {

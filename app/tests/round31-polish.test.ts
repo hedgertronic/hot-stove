@@ -16,10 +16,24 @@ const read = (f: string) =>
 describe("the HUD ✕ presses like its corner twins", () => {
   const app = read("App.svelte");
 
-  it("carries the transition and the :active dip", () => {
+  it("carries the transition, and dips only on the tap that acts", () => {
     const quit = app.match(/\n  \.quit \{[^}]*\}/)?.[0] ?? "";
     expect(quit).toContain("transition: transform 0.08s");
-    expect(app).toContain(".quit:active {\n    transform: translate(-1px, -1px);");
+    // The dip belongs to the armed confirm (and the finale's confirm-less
+    // ✕ via .instant) — a bare `.quit:active` would dip the arming tap too.
+    expect(app).toContain(
+      ".quit.armed:active,\n  .quit.instant:active {\n    transform: translate(-1px, -1px);",
+    );
+    expect(app).not.toMatch(/\n  \.quit:active \{/);
+  });
+
+  it("the undo pill splits its taps the same way", () => {
+    const corner = read("components/CornerButtons.svelte");
+    expect(corner).toContain(".undo:not(.armed):active {\n    transform: none;");
+  });
+
+  it("the finale ✕ knows it has no confirm step", () => {
+    expect(app).toContain('class:instant={game.phase === "finale"}');
   });
 });
 
@@ -119,7 +133,9 @@ describe("orange is the armed voice, and only the armed voice", () => {
     // red-2 WAR chip.
     const css = read("app.css");
     expect(css).toContain("--pink-2: #ffdeeb;");
-    expect(css).toContain("--pink-8: #c2255c;");
+    // OC pink-6, off-scale like the fill: pink-8 carried a red-8's darkness
+    // and sat heavy against its own pale wash.
+    expect(css).toContain("--pink-8: #e64980;");
   });
 
   it("the seed row seats GO concentric with the capsule", () => {

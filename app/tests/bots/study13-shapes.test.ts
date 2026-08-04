@@ -138,7 +138,7 @@ describe("study 13: roster shapes", () => {
       const full = rows.filter((r) => r.full);
 
       const L: string[] = [];
-      L.push("=== Study 13: roster shapes (Clean House + all powerups) ===");
+      L.push("=== Study 13: roster shapes (From the Ground Up + all powerups) ===");
       L.push(`n=${N} games, ${f2(wall)}s wall clock. Full clubs: ${full.length} (${f2(pct(full.length, N))}%).`);
       L.push("");
 

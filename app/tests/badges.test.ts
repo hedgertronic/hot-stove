@@ -972,7 +972,7 @@ describe("roster shape", () => {
     ).not.toContain("division");
   });
 
-  /** 🕶️ is the one badge about the ORDER a club was built in. Clean House hides
+  /** 🕶️ is the one badge about the ORDER a club was built in. From the Ground Up hides
    * the payroll until an owner is hired, so eight signings made first are eight
    * bets — and the badge wants the bet to have come off. */
   describe("flying blind", () => {

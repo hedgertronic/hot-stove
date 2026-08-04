@@ -16,10 +16,10 @@
  * shipped trigger could answer "does 5 fire often" and never "would 4".
  *
  * Three arms, in study 11's and study 14's shape:
- *   - reference: Clean House bank + all six powerups, cap treated as a hard
+ *   - reference: From the Ground Up bank + all six powerups, cap treated as a hard
  *     feasibility gate. This is the population `BadgeDef.freq` documents
  *     itself against, so it is the arm quoted.
- *   - vanilla: Clean House, no powerups. Context, and the arm that answers the
+ *   - vanilla: From the Ground Up, no powerups. Context, and the arm that answers the
  *     one question the reference cannot — 🏠 Homegrown pays a flat $1M, so the
  *     reference arm's cheap seats are partly a powerup click rather than a
  *     bargain anyone found.
@@ -186,8 +186,8 @@ describe("study 17: the five candidate badges", () => {
       const wall = (Date.now() - t0) / 1000;
 
       const arms: { label: string; rows: Row[] }[] = [
-        { label: `reference (Clean House + all powerups, n=${ref.length})`, rows: ref },
-        { label: `vanilla (Clean House, no powerups, n=${van.length})`, rows: van },
+        { label: `reference (From the Ground Up + all powerups, n=${ref.length})`, rows: ref },
+        { label: `vanilla (From the Ground Up, no powerups, n=${van.length})`, rows: van },
         { label: `overspend (all powerups, crosses the cap, n=${over.length})`, rows: over },
       ];
       const rate = (rows: Row[], f: (r: Row) => boolean): string =>

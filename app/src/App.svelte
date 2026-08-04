@@ -1,5 +1,6 @@
 <script lang="ts">
   import BankBox from "./components/BankBox.svelte";
+  import CloseGlyph from "./components/CloseGlyph.svelte";
   import CornerButtons from "./components/CornerButtons.svelte";
   import Finale from "./components/Finale.svelte";
   import Home from "./components/Home.svelte";
@@ -345,11 +346,12 @@
     <button
       class="quit"
       class:armed={quitArmed}
+      class:instant={game.phase === "finale"}
       class:pushed={undoArmed}
       bind:this={quitEl}
       onclick={tapQuit}
     >
-      {quitArmed ? "QUIT?" : "✕"}
+      {#if quitArmed}QUIT?{:else}<CloseGlyph />{/if}
     </button>
   </header>
 
@@ -454,7 +456,15 @@
        app.css kills the transition for reduced-motion readers. */
     transition: transform 0.08s;
   }
-  .quit:active {
+  /* The dip belongs to the tap that ACTS, not the tap that asks: arming
+     already answers with the pill's whole costume change (✕ → QUIT? in
+     confirm orange), and dipping both taps made the ask feel like the act.
+     So the resting ✕ holds still, the armed confirm dips — and on the
+     finale, where there is nothing to abandon and no confirm step, the one
+     tap IS the act and dips (`.instant`, set off the phase). Same split as
+     the undo pill's (CornerButtons). */
+  .quit.armed:active,
+  .quit.instant:active {
     transform: translate(-1px, -1px);
   }
   /* Armed, the pill carries a word ("QUIT?") — it may outgrow the twin width,
@@ -508,11 +518,17 @@
     align-items: center;
     gap: 8px;
   }
-  /* Emoji-only chip, scaled to sit beside the ?/✕ pills. */
+  /* Emoji-only chip, scaled to sit beside the ?/✕ pills — and dressed as
+     their sibling: plain cardstock in --line, the corner-pill uniform. It
+     wore --amber for a while, which stopped meaning "mode" the day amber
+     became the trophy register (award chips, the record-book shelf) — a
+     gold-filled pill in the header read as something earned rather than
+     something chosen. The emoji is the whole signal; the pill just seats
+     it. */
   .modechip {
     border: 2px solid var(--line);
     border-radius: 999px;
-    background: var(--amber);
+    background: var(--card);
     padding: 2px 8px;
     font-size: 11px;
     line-height: 1.4;

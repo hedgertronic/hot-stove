@@ -444,5 +444,19 @@
     line-height: 1;
     padding: 4.28px 12px 3.72px;
     white-space: nowrap;
+    /* CHIP INSET RULE, box-against-box arm: the confirm is a drawn pill
+       ending a drawn row, so it takes the same 6px seat the skipper's wins
+       chip does — the player rows' confirm sits inside their `.right` column
+       and inherits the identical pull, and the two columns' confirm pills
+       must land on one right edge. */
+    margin-right: -4px;
+  }
+  @media (min-width: 760px) {
+    /* Declared after the base rule — media queries add no specificity, so
+       source order is the only thing letting −8 win at width (the same trap
+       PlayerList's .right documents). */
+    .confirm {
+      margin-right: -8px;
+    }
   }
 </style>

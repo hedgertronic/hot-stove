@@ -308,7 +308,7 @@
     font-variant-numeric: tabular-nums;
   }
   /* Which modes the season was played under. The bank shows on EVERY row,
-     including Clean House, rather than following the HUD chip's "nothing for
+     including From the Ground Up, rather than following the HUD chip's "nothing for
      the defaults" convention: the HUD describes the one game you are in, and
      this is a comparison surface where a blank would have to be read as "the
      default" by someone who already knows what the default is. The ladder keeps

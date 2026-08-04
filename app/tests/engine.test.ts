@@ -1465,7 +1465,7 @@ describe("finale", () => {
       g.slots[i] = filler(i);
     }
     hiredManager(g);
-    // Clean House is the default bank, so the club is not complete until the
+    // From the Ground Up is the default bank, so the club is not complete until the
     // front office is filled too.
     g.owner = {
       name: "x",
@@ -1903,7 +1903,7 @@ describe("the dream-club ceiling", () => {
    * settles for.
    *
    * ELEVEN is the number, not six, and the reason is what the dream club has to
-   * buy. Clean House spends a card on the owner and a card on the ballpark
+   * buy. From the Ground Up spends a card on the owner and a card on the ballpark
    * before it seats anybody, so a reel of N cards yields N − 2 roster picks plus
    * the ✌️ Double Play second pick. Nine seats therefore need ten cards, and a
    * six-card reel cannot field a complete club at all — it ties the fillers
@@ -1911,7 +1911,7 @@ describe("the dream-club ceiling", () => {
    * the thing this fixture exists to test.
    *
    * That floor is real rather than an artifact of the fixture: the solver may
-   * not leave a seat open, because the game may not. A completed Clean House
+   * not leave a seat open, because the game may not. A completed From the Ground Up
    * club makes eleven commitments and a spin yields at most two, so a finished
    * game has always seen at least ten cards. */
   function spinStackedCards(): void {
@@ -2292,7 +2292,7 @@ describe("the manager hired last", () => {
   });
 
   it("does not record a hire taken with the front office still empty", () => {
-    // Clean House needs the owner and the park too — a club with eight bats
+    // From the Ground Up needs the owner and the park too — a club with eight bats
     // and no owner has more spins coming, so its skipper is not the last hire.
     const g = landedGame(card([player({})]));
     fillSlots(g);
@@ -2697,7 +2697,7 @@ describe("the dream team, resolved by the engine", () => {
 
     const g = landedGame(fetchCards.DR8_2010);
     // Blank Check, so the club is the roster plus the dugout and nothing else.
-    // Clean House would make the dream solve spend two of its nine picks on an
+    // From the Ground Up would make the dream solve spend two of its nine picks on an
     // owner and a ballpark — a nine-seat club needs eleven cards there, and the
     // badge is about the nine seats rather than about the front office.
     g.config = { difficulty: "standard", bank: "blankcheck" };
@@ -2732,20 +2732,20 @@ describe("the dream team, resolved by the engine", () => {
     expect(f.badges).not.toContain("crystal");
   });
 
-  /** Clean House needs TEN seen cards before the dream club can hold nine
+  /** From the Ground Up needs TEN seen cards before the dream club can hold nine
    * seats, and the number is a property of the mode rather than of the badge.
    * The solve buys one thing per card (plus the one ✌️ Double Play second pick
-   * it models), and Clean House gives it four kinds of thing to buy — eight
+   * it models), and From the Ground Up gives it four kinds of thing to buy — eight
    * roster seats, a skipper, an owner and a ballpark — while `dreamSeats`
    * counts only the nine that are seats. Eleven picks are needed and ten cards
    * supply them; nine cards supply ten picks, and the two that go to the front
    * office come out of the roster.
    *
-   * Ten is also the floor a completed Clean House game cannot go under: the
+   * Ten is also the floor a completed From the Ground Up game cannot go under: the
    * club takes eleven picks to finish, and one spin can yield at most two. So
    * the legendary is reachable in the default bank, exactly at the floor —
    * which is why the number is pinned rather than assumed. A change that made
-   * the solve cost one more pick would take 🌠 out of Clean House entirely,
+   * the solve cost one more pick would take 🌠 out of From the Ground Up entirely,
    * and nothing else in the suite would notice. */
   function cleanHouseCards(): void {
     for (const code of ["DR9", "DRA"]) {
@@ -2764,7 +2764,7 @@ describe("the dream team, resolved by the engine", () => {
     }
   }
 
-  it("needs ten cards in Clean House, where the front office costs picks", async () => {
+  it("needs ten cards in From the Ground Up, where the front office costs picks", async () => {
     const nine = dreamGame();
     nine.config = { difficulty: "standard", bank: "classic" };
     nine.owner = { name: "x", budget: 400, franchise: "DR8", year: 2010, teamName: "Dream 8" };

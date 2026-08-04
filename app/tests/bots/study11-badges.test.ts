@@ -4,9 +4,9 @@
  * plus the 116 record rung, 👑 at 117+, and 💯 as the ≥100 fallback.
  *
  * Measures three arms:
- *   - reference: Clean House bank (`classic`) + all six powerups — the
+ *   - reference: From the Ground Up bank (`classic`) + all six powerups — the
  *     population `BadgeDef.freq` is quoted against.
- *   - baseline: Clean House, no powerups — the floor a player starts from.
+ *   - baseline: From the Ground Up, no powerups — the floor a player starts from.
  *   - Blank Check: uncapped bank + all powerups, for context.
  *
  * `GameResult` carries only scalars, so the badge list would be discarded with
@@ -151,15 +151,15 @@ describe("study 11: badge frequencies", () => {
       const wall = (Date.now() - t0) / 1000;
 
       const arms: { label: string; rows: Capture[] }[] = [
-        { label: `reference (Clean House + all powerups, n=${N_REF})`, rows: ref },
-        { label: `baseline (Clean House, no powerups, n=${N_CTX})`, rows: base },
+        { label: `reference (From the Ground Up + all powerups, n=${N_REF})`, rows: ref },
+        { label: `baseline (From the Ground Up, no powerups, n=${N_CTX})`, rows: base },
         { label: `Blank Check (+ all powerups, n=${N_CTX})`, rows: bc },
       ];
 
       const L: string[] = [];
       L.push("=== Study 11: badge fire rates, rebuilt on-field ladder ===");
       L.push(
-        `Population: bot play through the real engine. reference = Clean House ` +
+        `Population: bot play through the real engine. reference = From the Ground Up ` +
           `bank + all six powerups, n=${N_REF}. Context arms n=${N_CTX}.`,
       );
       L.push(`Wall clock: ${wall.toFixed(1)}s for ${N_REF + 2 * N_CTX} games.`);

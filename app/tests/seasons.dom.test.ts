@@ -134,7 +134,7 @@ describe("which rows appear", () => {
     season("g0", { bank: "moneyball", difficulty: "scout" });
     season("g1", { bank: "classic", difficulty: "standard" });
     const ui = open();
-    // Clean House shows its emoji too: a blank in a comparison list would have
+    // From the Ground Up shows its emoji too: a blank in a comparison list would have
     // to be read as "the default" by someone who knows what the default is.
     expect(ui.rows()[0].querySelector(".mode")!.textContent).toBe("💼");
     expect(ui.rows()[1].querySelector(".mode")!.textContent).toBe("⚾ 🔭");
@@ -357,7 +357,7 @@ describe("the record book shelf", () => {
     const ui = open();
     const best = ui.shelf()[0];
     expect(best.classList.contains("best")).toBe(true);
-    expect(best.getAttribute("aria-label")).toMatch(/^Best Clean House season\./);
+    expect(best.getAttribute("aria-label")).toMatch(/^Best From the Ground Up season\./);
     best.click();
     expect(ui.onopen).toHaveBeenCalledOnce();
     expect(ui.onopen.mock.calls[0][0].id).toBe("g0");

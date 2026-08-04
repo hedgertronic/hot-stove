@@ -153,7 +153,7 @@ describe("study 14: the stamped-record gate on the on-field rungs", () => {
 
       const L = [
         "=== Study 14: the stamped-record gate on the on-field rungs ===",
-        `Clean House bank + all six powerups. Wall clock ${wall.toFixed(1)}s ` +
+        `From the Ground Up bank + all six powerups. Wall clock ${wall.toFixed(1)}s ` +
           `for ${2 * N} games.`,
         `Gate: rung picked at ${HUNDRED_WINS}/exact/${CROWN_WINS}+ baseline wins,`,
         "kept only if the stamped record clears the same mark.",

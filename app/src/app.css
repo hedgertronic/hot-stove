@@ -210,13 +210,19 @@
      browsable-target rows that now share it), and a resting stadium row in
      the action color read as something asking to be tapped. Pink is off the
      WAR ladder — the ladder's red is OC red, one family over — and off every
-     action channel. The fill is OFF-SCALE at Open Color pink-1, one step
-     lighter than the rule's rung 2: at pink-2 the tile sat close enough to a
-     red-2 WAR chip to read as its big sibling, and the lighter, cooler wash
-     is what buys the distance. The ring stays pink-8. NOT the legacy bare
-     --pink below, which IS red-2 and belongs to the ROY/MotY award chips. */
+     action channel. BOTH stops are OFF-SCALE, for the same enemy: the WAR
+     ladder's red chips. The fill is Open Color pink-1, one step lighter than
+     the rule's rung 2 — at pink-2 the tile sat close enough to a red-2 chip
+     to read as its big sibling. The ring is OC pink-6, two steps lighter
+     than the rule's rung 8 — at pink-8 (#c2255c) the ring carried nearly a
+     red-8's darkness, so the row's outline still whispered "red" and sat
+     heavy against its own pale wash; pink-6 keeps the magenta unmistakably
+     off the ladder AND weights the ring to the fill it actually rings. The
+     token names keep the -2/-8 ROLES (wash / ring), not the OC rungs. NOT
+     the legacy bare --pink below, which IS red-2 and belongs to the ROY/MotY
+     award chips. */
   --pink-2: #ffdeeb;
-  --pink-8: #c2255c;
+  --pink-8: #e64980;
   /* OFF-SCALE, deliberately. Open Color's grays are cool; the cardstock ground
      is warm, so the app carries its own warm pair — and it is already exactly
      what the rule asks for, a fill plus the same family darker. Left alone. */

@@ -159,7 +159,10 @@ describe("the ✕ in a live game", () => {
     // of it has not quit, and must not be filed as having quit.
     await new Promise((r) => setTimeout(r, 2700));
     flushSync();
-    expect(ui.quit.textContent!.trim()).toBe("✕");
+    // Disarmed: the word gives way to the drawn ✕ (CloseGlyph's svg — the
+    // glyph is line art, so the disarmed state is "no QUIT? text, X present").
+    expect(ui.quit.textContent!.trim()).toBe("");
+    expect(ui.quit.querySelector("svg")).not.toBeNull();
     expect(ui.saved()).toBe(true);
     expect(quitBadges()).toHaveLength(0);
 
