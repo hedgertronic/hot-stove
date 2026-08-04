@@ -423,6 +423,21 @@ export class Game {
   spinCount = $state(0);
   spinLog = $state<SpinLogEntry[]>([]);
   spinKind = $state<SpinKind>("full");
+  /** Which spin the reel is on — a counter, bumped by every `beginSpin` and by
+   * every `undo`, and never anything but a tiebreaker between an in-flight
+   * async result and the state it was meant for.
+   *
+   * `spinCount` cannot do this job: 🎟️/🚚/the cold-stove respin all decrement
+   * it (same spin, new card) and `hydrate` restores it wholesale, so it repeats
+   * values and a stale land could match one. This only ever counts up, and a
+   * rewind counts it up too, which is exactly what makes the two sides differ.
+   *
+   * Reactive because SpinBanner keys its reel on it: the banner has to start a
+   * reel per spin, ignore the re-runs its own `display` writes provoke, and
+   * still start cleanly on the spin AFTER a mid-reel rewind — one boolean
+   * "running" flag could do the first two but latched on forever on the third,
+   * leaving the reel frozen. */
+  spinEpoch = $state(0);
   /** Every distinct card this game has landed on — the scouting yardstick. */
   seen = $state<{ team: string; year: number }[]>([]);
   /** Sign-time slot ambiguity: rail becomes a slot picker for this player. */
@@ -503,9 +518,17 @@ export class Game {
    * proxy is idempotent, so re-storing an already-proxied card yields the same
    * object, which undo.dom.test.ts pins. Raw is the cheaper and more honest
    * declaration, not a bug fix.) */
-  private undoPoint = $state.raw<{ state: string; card: Card | null } | null>(
-    null,
-  );
+  private undoPoint = $state.raw<{
+    state: string;
+    card: Card | null;
+    /** The phase the point was taken in, which is what says whether it holds a
+     * MOVE. "landed" is a pick, a swap, a hire, a 🎟️/🚚 re-pick, a cold-stove
+     * respin — things the player did on a card. "preSpin" is the automatic
+     * roll and nothing else: the stove spins itself, so a point taken there
+     * has no tap behind it. `canUndo` reads it to decide what a mid-reel
+     * rewind is allowed to reach. */
+    phase: Phase;
+  } | null>(null);
 
   constructor(
     meta: Meta,
@@ -788,6 +811,7 @@ export class Game {
   }
 
   private beginSpin(entry: IndexEntry, kind: SpinKind): void {
+    this.spinEpoch += 1;
     this.phase = "spinning";
     // The reel is leaving; whatever the resume notice had to say has been said.
     this.resumedForfeit = false;
@@ -806,15 +830,30 @@ export class Game {
     this.pendingCard = loadCard(this.pendingEntry.team, this.pendingEntry.year);
   }
 
+  /** Resolve the spin in flight onto the reel.
+   *
+   * Nothing is written until the fetch has come back AND the epoch still
+   * matches the one this call started on. The await is the whole reason: a
+   * rewind taken mid-reel (see `canUndo`) restores the position underneath a
+   * promise that is still outstanding, and a land that wrote its card after
+   * that would overwrite the rewind with the spin it took back. Clearing
+   * `pendingCard` in `undo()` covers the land that has not started; the epoch
+   * covers the one already parked on the await, which nothing else can reach. */
   async land(): Promise<void> {
-    if (!this.pendingCard) return;
+    const pending = this.pendingCard;
+    if (!pending) return;
+    const epoch = this.spinEpoch;
+    let landing: Card;
     try {
-      this.card = await this.pendingCard;
+      landing = await pending;
     } catch {
+      if (epoch !== this.spinEpoch) return;
       this.pendingCard = null;
       this.loadFailed = true;
       return;
     }
+    if (epoch !== this.spinEpoch) return;
+    this.card = landing;
     this.pendingCard = null;
     this.phase = "landed";
     this.choicesLeft = 1;
@@ -1808,14 +1847,28 @@ export class Game {
    *
    * The finale is refused on `save()`'s boundary exactly — a finished season
    * has resolved its badges and written its history row, and there is nothing
-   * left that a rewind could mean. "spinning" is refused too: the reel is mid
-   * animation with a card fetch already in flight, and `land()` would overwrite
-   * whatever was restored the moment it resolved. */
+   * left that a rewind could mean.
+   *
+   * MID-REEL IS ALLOWED, and it is the only window that matters. The stove
+   * never idles: committing a pick drops `choicesLeft` to zero and SpinBanner
+   * spins on the next turn of the event loop, so "landed" and "preSpin" are
+   * both gone within a millisecond of the tap that earned the point. A rule
+   * that stopped there left the pill dead for the two seconds a player spends
+   * looking at the pick he just regretted, and live only once the NEXT card had
+   * already landed on top of it. The reel is exactly when a player wants out.
+   *
+   * What makes it safe is `spinEpoch`: `undo()` bumps it, and `land()` writes
+   * nothing once the epoch it started on has moved, so the fetch still in
+   * flight cannot land on top of the rewind.
+   *
+   * Mid-reel reaches a MOVE only — a point taken at "landed". A point taken at
+   * "preSpin" belongs to the automatic roll, which no tap asked for and which
+   * would re-deal the identical card (the cursor rewinds with everything else),
+   * so taking it back spends the one rewind a game gets on nothing at all. */
   get canUndo(): boolean {
-    return (
-      this.undoPoint !== null &&
-      (this.phase === "preSpin" || this.phase === "landed")
-    );
+    if (this.undoPoint === null) return false;
+    if (this.phase === "preSpin" || this.phase === "landed") return true;
+    return this.phase === "spinning" && this.undoPoint.phase === "landed";
   }
 
   /** Hold the position, for `undo()` to put back.
@@ -1830,6 +1883,7 @@ export class Game {
     this.undoPoint = {
       state: JSON.stringify(this.serialize()),
       card: this.card,
+      phase: this.phase,
     };
   }
 
@@ -1841,6 +1895,17 @@ export class Game {
     const point = this.undoPoint!;
     this.undoPoint = null;
     this.undoUsed = true;
+    // The reel in flight is abandoned here, before a single field moves.
+    // Dropping the pending fetch stops a `land()` that has not started; the
+    // epoch stops the one already parked on the await, which has its own
+    // reference to the promise and cannot be reached any other way. Both are
+    // needed, and the epoch is the one that closes the race. `loadFailed` goes
+    // with them: a rewind out of a stranded SIGNAL LOST spin must not leave the
+    // retry notice up over a position that has no fetch to retry.
+    this.spinEpoch += 1;
+    this.pendingCard = null;
+    this.pendingEntry = null;
+    this.loadFailed = false;
     const s = JSON.parse(point.state);
     this.hydrate(s);
     // The card object itself rather than its reference: `undo` is synchronous

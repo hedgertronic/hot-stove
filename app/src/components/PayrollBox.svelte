@@ -155,7 +155,7 @@
         <span class="chip eff">💸 {money(budget)} BLANK CHECK</span>
       {:else if math || pending}
         {#if ownerBudget != null}
-          <span class="chip">💰 {money(ownerBudget)}</span>
+          <span class="chip own">💰 {money(ownerBudget)}</span>
         {:else}
           <span class="chip ghost">💰</span>
         {/if}
@@ -244,9 +244,20 @@
     background: var(--blue-2);
     border-color: var(--blue-8);
   }
-  .chip.eff {
+  /* The owner's own hue — the same pair the FRONT OFFICE owner tile wears
+     (`SpecialRows .srow` default: --yellow fill, --gold-8 ring). The chip and
+     the tile it was born from are the same object; they must read as one. */
+  .chip.own {
     background: var(--yellow);
     border-color: var(--gold-8);
+  }
+  /* The total-payroll result chip. Neutral cardstock keeps it from colliding
+     with either input: the owner chip is gold, the stadium chip is blue, and
+     the product chip is the plain surface both inputs sit on — the math reads
+     as an equation rather than as three competing categories. */
+  .chip.eff {
+    background: var(--card);
+    border-color: var(--line);
   }
   .chip.ghost {
     border-style: dashed;

@@ -14,6 +14,12 @@
    * never reach this picker. */
   const skipper = $derived(game.primeSpecial !== null ? (game.card?.manager ?? "") : "");
 
+  /** The chip's number: a negative keeps its minus, a positive drops the plus —
+   * the WINS unit beside it is what says which scale this is. */
+  function mgrVal(wins: number): string {
+    return wins < 0 ? signed(wins) : wins.toFixed(1);
+  }
+
   interface Row {
     team: string;
     year: number;
@@ -21,7 +27,10 @@
     rec: string;
     /** Manager of the Year season (award visibility: Box Score only). */
     moty: boolean;
-    /** Right-edge win value ("+4.8 W"; empty in Eye Test). */
+    /** Right-edge win value, bare ("4.8", "−8.4"; empty in Eye Test). The chip
+     * appends its WINS unit in the markup, the way the player market chips
+     * append WAR — positive values drop the plus because the unit now says
+     * which scale this is, and a negative keeps its minus. */
     val: string;
     /** Rung of the WAR ladder this season's win value lands on as a bare word
      * (`elite`, `mid`, …), or "" when the mode hides it. One field, spelled two
@@ -64,7 +73,7 @@
             // contribution is measured in wins and the ladder is the game's one
             // scale for "how good is this", which is why the share string has
             // always printed the manager cell in the players' own six hues.
-            val: game.scout ? "" : `${signed((s.w - s.l) * MANAGER_PER_NET_WIN)} W`,
+            val: game.scout ? "" : mgrVal((s.w - s.l) * MANAGER_PER_NET_WIN),
             tier: game.showWar ? warTier((s.w - s.l) * MANAGER_PER_NET_WIN) : "",
             here: s.team === c.team && s.year === c.year,
           }));
@@ -86,8 +95,7 @@
 <Sheet
   {onclose}
   label="Pick a season of this manager's career"
-  title="⭐ PRIMETIME — 🧢 {skipper}"
-  subtitle="Hire any season of the career, at that season's record"
+  title="⭐ PRIMETIME: 🧢 {skipper}"
   confirmLabel="CANCEL"
 >
   {#if failed}
@@ -118,7 +126,7 @@
             {#if row.rec}<span class="meta">{row.rec}</span>{/if}
             {#if row.moty}<AwardPill code="MOY" small />{/if}
           </span>
-          {#if row.val}<span class="val warchip {row.tier}">{row.val}</span>{/if}
+          {#if row.val}<span class="val warchip {row.tier}">{row.val}<span class="unit">WINS</span></span>{/if}
         </button>
       {/each}
     </div>
@@ -229,7 +237,7 @@
     flex: none;
   }
   /* The chip owns its own type, border and wash — everything the row adds is
-     the right edge and a promise not to wrap "−8.4 W" across two lines. */
+     the right edge and a promise not to wrap "−8.4 WINS" across two lines. */
   .val {
     margin-left: auto;
     flex: none;

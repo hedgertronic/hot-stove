@@ -28,6 +28,9 @@
     /** Manager of the Year pill (award visibility: Box Score only). */
     moty?: boolean;
     val: string;
+    /** Small unit after the value ("WINS" on the skipper), styled like the WAR
+     * unit on the player market chips. Empty for the unitless values. */
+    unit?: string;
     verb: string;
   }
 
@@ -62,6 +65,10 @@
       // exactly the quantified signals the mode hides, and a "?" placeholder
       // would just advertise the hole. The stadium ×mult stays: it's
       // mechanical (it sets your payroll), not a scouting stat.
+      // The win value reads "7.2 WINS", the same value-then-unit shape as the
+      // player chips' "5.2 WAR" — the unit says which scale this is, so a
+      // positive drops the plus and a negative keeps its minus.
+      const wins = (c.wins - c.losses) * MANAGER_PER_NET_WIN;
       out.push({
         key: "manager",
         cls: "skip",
@@ -69,7 +76,8 @@
         who: c.manager,
         meta: game.scout ? "" : `${c.wins}–${c.losses}`,
         moty: game.showAwards && c.managerMoty === true,
-        val: game.scout ? "" : `${signed((c.wins - c.losses) * MANAGER_PER_NET_WIN)} W`,
+        val: game.scout ? "" : wins < 0 ? signed(wins) : wins.toFixed(1),
+        unit: game.scout ? "" : "WINS",
         verb: "HIRE",
       });
     }
@@ -135,11 +143,11 @@
         {#if row.moty}<AwardPill code="MOY" small />{/if}
       </span>
       {#if confirmKey === `s:${row.key}` && !taken && !primeBlocked}
-        <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commit(row.key); }} onkeydown={(e) => e.key === "Enter" && commit(row.key)}>{row.val ? `${row.verb} ${row.val}` : row.verb}</span>
+        <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commit(row.key); }} onkeydown={(e) => e.key === "Enter" && commit(row.key)}>{row.val ? `${row.verb} ${row.val}${row.unit ? ` ${row.unit}` : ""}` : row.verb}</span>
       {:else if confirmKey === `w:${row.key}` && swappable}
         <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSwap(row.key); }} onkeydown={(e) => e.key === "Enter" && commitSwap(row.key)}>🔁 TRADE IN</span>
       {:else}
-        <span class="val">{row.val}</span>
+        <span class="val">{row.val}{#if row.val && row.unit}<span class="unit">{row.unit}</span>{/if}</span>
       {/if}
     </button>
   {/each}
@@ -251,6 +259,18 @@
     font-weight: 800;
     font-size: 14px;
     white-space: nowrap;
+  }
+  /* The skipper's WINS unit, in the exact register the player chips give WAR
+     (.warchip .unit in app.css): same size, tracking, weight-by-inheritance,
+     opacity and baseline ride. Restated here because this value is not a chip
+     — the FRONT OFFICE tiles wear identity hues, and a rung chip on one would
+     put an identity fill and a rung fill side by side. */
+  .val .unit {
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    opacity: 0.85;
+    margin-left: 2.5px;
+    vertical-align: 1px;
   }
   .srow.stad {
     background: var(--sky);

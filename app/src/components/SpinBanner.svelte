@@ -10,7 +10,24 @@
   let tmEl: HTMLElement | undefined = $state();
   let display = $state<{ yr: string; tm: string; color: string } | null>(null);
   let landedAnim = $state(false);
-  let running = false;
+  /** The spin this banner has already started a reel for, so the reel effect
+   * runs once per spin however often it re-runs — its first tick writes
+   * `display`, which swaps the idle banner for the real one and rebinds the two
+   * elements `pulse` reads.
+   *
+   * A plain `running` boolean did that job and could not do this one: undo is
+   * live mid-reel, and an abandoned reel leaves the flag up until its own land
+   * resolves seconds later. The spin the player takes straight after a rewind
+   * arrives inside that window, is refused as "already running", and shows no
+   * reel at all — a still banner until a leftover timer from the abandoned spin
+   * drops the card in at a time that belongs to neither. Keyed on
+   * `game.spinEpoch`, a stale reel finishing says nothing about the one now in
+   * flight. -1 is "no reel yet"; the engine's epoch starts at 0.
+   *
+   * Plain, not `$state`, for the reason `running` was plain: the reel effect
+   * both reads and writes it, and a reactive field would retrigger the effect
+   * it is there to gate. */
+  let reelEpoch = -1;
 
   const reduced =
     typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -79,14 +96,21 @@
   // Season Ticket and Relocate skip the reel entirely — the chosen card lands
   // instantly with one pulse on the half that changed.
   $effect(() => {
-    if (game.phase !== "spinning" || running) return;
-    running = true;
+    const epoch = game.spinEpoch;
+    if (game.phase !== "spinning" || reelEpoch === epoch) return;
+    reelEpoch = epoch;
     landedAnim = false;
     const kind = game.spinKind;
+    // Every deferred step of this reel is gated on the epoch it started with.
+    // Undo is live mid-reel and bumps the epoch, so a rewound spin's timers,
+    // flicker ticks and parked land all find their spin gone and say nothing —
+    // the engine refuses their writes, and these refuse to animate over a card
+    // the player has already come back to.
+    const current = () => game.spinEpoch === epoch;
     const land = async () => {
       const prevName = game.card?.name;
       await game.land();
-      running = false;
+      if (!current()) return;
       // Fetch failed (connection dropped): the reel freezes and the retry
       // button takes over — retry() re-runs this landing, not the effect.
       if (game.loadFailed) return;
@@ -108,13 +132,14 @@
     let delay = 50;
     let total = 320;
     for (let d = delay; d < 320; d *= 1.16) total += d;
-    // Each reel owns the handles it opens (see reelTimers). A reel can only
-    // start with `running` false — the previous card has landed — so anything
-    // still booked from it is a throttled tick with nothing left to say.
+    // Each reel owns the handles it opens (see reelTimers). Anything still
+    // booked when a new reel starts belongs to a spin that has landed, been
+    // rewound, or been throttled past its own end — none of them have anything
+    // left to say.
     cancelReel();
     reelTimers.push(setTimeout(() => void land(), total));
     const step = () => {
-      if (game.phase !== "spinning") return;
+      if (game.phase !== "spinning" || !current()) return;
       const e = cosmetic.pick(pool);
       display = { yr: String(e.year), tm: e.name, color: accentFor(colors, e.franchise) };
       pulse(delay, "full");
@@ -125,8 +150,15 @@
   });
 
   async function retry() {
+    // The reel effect's own epoch check, in the one place outside it that
+    // awaits a land. Undo is live on a stranded SIGNAL LOST spin and clears
+    // `loadFailed` with everything else, so without this a rewind taken while
+    // the retry fetch is in flight would thunk the banner over the card the
+    // player has already come back to.
+    const epoch = game.spinEpoch;
     game.retrySpin();
     await game.land();
+    if (game.spinEpoch !== epoch) return;
     if (game.loadFailed) return; // still offline — the button stays
     landedAnim = true;
   }

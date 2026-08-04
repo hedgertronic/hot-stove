@@ -704,7 +704,7 @@ import { track } from "../lib/analytics";
   <div class="psep">YOUR SQUAD</div>
   {#each game.slots as slot, i}
     {#if slot}
-      <div class="qrow war-{warTier(slot.war)}">
+      <div class="qrow">
         <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
         <span class="qmid">
           <span class="qname"
@@ -736,12 +736,12 @@ import { track } from "../lib/analytics";
               >{/if}
           </span>
         </span>
-        <span class="qwar">{slot.war.toFixed(1)}</span>
+        <span class="warchip sm {warTier(slot.war)}">{slot.war.toFixed(1)}</span>
       </div>
     {/if}
   {/each}
   {#if game.manager}
-    <div class="qrow war-{warTier(fin.parts.managerWins)}">
+    <div class="qrow">
       <span class="qpos">MGR</span>
       <span class="qmid">
         <span class="qname"
@@ -757,7 +757,9 @@ import { track } from "../lib/analytics";
             >{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
         >
       </span>
-      <span class="qwar">{signed(fin.parts.managerWins)} W</span>
+      <!-- Bare and signed, like the rail's MGR chip: no room for a WINS unit
+           in the chip's small cut, and the sign already says wins, not WAR. -->
+      <span class="warchip sm {warTier(fin.parts.managerWins)}">{signed(fin.parts.managerWins)}</span>
     </div>
   {/if}
   <!-- The payroll this club ran, closing the list. A footer, not a header: the
@@ -795,18 +797,15 @@ import { track } from "../lib/analytics";
          saying nothing ABOUT itself — no tagline, no near-miss callout, no
          consolation — and a legend has to read as a key rather than as the
          beginning of one. -->
-    <div class="dtkey">TINTED = SIGNED · PLAIN = UNSIGNED</div>
-    <!-- DRAFTED vs NOT, and app.css's rung rule already draws it — no new
-         device, and specifically not a dashed border, which is the ARMED
-         channel every tappable seat in the game spends. A season the player
-         actually signed is COMMITTED, so it wears its rung as fill and frame
-         the way YOUR SQUAD's rows above do. A season they never had was never
-         committed to anything, so it gets the market treatment: white cardstock
-         in --line with its WAR moved out onto a .warchip. That is the same pair
-         of surfaces the draft screen ran all game — the club you own is tinted,
-         the men you are still choosing between are chips in a column — so the
-         dream team reads as "here is what you took and here is what was on the
-         board" without teaching anything new.
+    <div class="dtkey">SOLID = SIGNED · DASHED = MISSED</div>
+    <!-- DRAFTED vs NOT. Every row is the one player-row look — white cardstock
+         with the WAR on a chip — and the rows the player never signed carry
+         two quiet marks on top of it: the chip's color fades and the row's
+         outline goes dashed. A signed season is the normal row, identical to
+         YOUR SQUAD's above. The dash is safe here and only here — nothing at
+         the finale is tappable or armed, so the ARMED channel it serves
+         everywhere in play has no traffic on this screen to collide with (see
+         app.css, WHERE THE RUNG IS WORN).
          The ⭐ stays. It marks the same seats, and it is the mark the scouting
          ledger row counts, so removing it would leave that row pointing at
          nothing. -->
@@ -814,7 +813,7 @@ import { track } from "../lib/analytics";
       {@const mine =
         pick != null &&
         game.slots.some((s) => s && s.id === pick.id && s.year === pick.year && s.team === pick.team)}
-      <div class="qrow {pick && mine ? `war-${warTier(pick.war)}` : ''}">
+      <div class="qrow" class:missed={pick != null && !mine}>
         <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
         {#if pick}
           <!-- Awards show WHY the solver chose this season — they count in
@@ -833,11 +832,7 @@ import { track } from "../lib/analytics";
                 >{:else if pick.wbc === WBC_RUNNERUP_POINTS}<span class="emo">🎌</span>{/if}
             </span>
           </span>
-          {#if mine}
-            <span class="qwar">{pick.war.toFixed(1)}</span>
-          {:else}
-            <span class="warchip {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
-          {/if}
+          <span class="warchip sm {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
         {:else}
           <span class="qname empty">—</span>
         {/if}
@@ -845,7 +840,10 @@ import { track } from "../lib/analytics";
     {/each}
     {#if fin.bestManager}
       {@const bestWins = fin.bestManager.netWins * MANAGER_PER_NET_WIN}
-      <div class="qrow war-{warTier(bestWins)}">
+      <!-- The skipper answers to the same key as the seats: ⭐/solid when the
+           player's own hire IS the dream skipper, dashed-and-faded when the
+           dream club found a better one. -->
+      <div class="qrow" class:missed={!fin.managerHit}>
         <span class="qpos">MGR</span>
         <span class="qmid">
           <span class="qname"
@@ -862,7 +860,7 @@ import { track } from "../lib/analytics";
               >{:else if fin.bestManager.pen}<span class="emo">🚩</span>{/if}</span
           >
         </span>
-        <span class="qwar">{signed(bestWins)} W</span>
+        <span class="warchip sm {warTier(bestWins)}">{signed(bestWins)}</span>
       </div>
     {/if}
     <!-- The payroll the dream club would have run, in the same place and the
@@ -1189,11 +1187,8 @@ import { track } from "../lib/analytics";
     padding: 5px 9px;
     margin-bottom: 6px;
   }
-  /* --muted-2 rather than --muted, on both sub-lines: these sit on whichever
-     of six washes the row's rung supplies rather than on card white, and
-     violet-2 is the darkest of them — --muted measures 3.39:1 there against
-     4.37:1 for --muted-2. One token, chosen for the worst rung, so the line
-     reads the same on all six. */
+  /* --muted-2 on both sub-lines — the same token the rail's seats use, so the
+     two roster surfaces read identically. */
   .qpos {
     width: 36px;
     font-size: 9.5px;
@@ -1244,55 +1239,12 @@ import { track } from "../lib/analytics";
   .qstar {
     margin-right: 4px;
   }
-  /* Ink, on every row, because every row is now tinted. app.css's rule for
-     type on a rung-2 fill is ink and this is that rule rather than one about
-     these rows: the worst pair measures 9.52:1 and the best 13.41:1, where a
-     numeral tinted to match its own fill runs 2.17:1 to 3.77:1 at 13px. The
-     rung is said twice already, by the fill and by the frame; the numeral's
-     job is the number. */
-  .qwar {
-    margin-left: auto;
-    font-weight: 800;
-    font-size: 13px;
-    color: var(--ink);
-    flex: none;
-  }
-  /* EVERY seat wears the rung it earned, fill and frame together — the hue at
-     rung 2 inside the hue at rung 8, the pair every WAR chip in the game has
-     been teaching, and the same tokens `RosterRail` paints its chairs with. So
-     the board and the finale describe one club the same way instead of two.
-     Both lists, both skippers: a row is a row.
-     This used to be the skipper's row alone, on the reasoning that eight
-     tinted rows would be eight competing fills. What that actually produced was
-     one row shouting on a page of white ones — and because the mid rung IS
-     green, a +2.6 W skipper read as a highlight rather than as a rung. Tinting
-     all of them turns the column into the ladder it was always describing: the
-     eye reads gold-gold-violet-blue down the edge and the club's shape is
-     legible before a single number is. */
-  .qrow.war-neg {
-    background: var(--war-neg-fill);
-    border-color: var(--war-neg);
-  }
-  .qrow.war-low {
-    background: var(--war-low-fill);
-    border-color: var(--war-low);
-  }
-  .qrow.war-mid {
-    background: var(--war-mid-fill);
-    border-color: var(--war-mid);
-  }
-  .qrow.war-high {
-    background: var(--war-high-fill);
-    border-color: var(--war-high);
-  }
-  .qrow.war-star {
-    background: var(--war-star-fill);
-    border-color: var(--war-star);
-  }
-  .qrow.war-elite {
-    background: var(--war-elite-fill);
-    border-color: var(--war-elite);
-  }
+  /* EVERY row is white cardstock with the rung on its chip — app.css's one
+     player-row look, the same anatomy as the market rows the club was drafted
+     from and the rail it was built on. Full-row tint was tried here and
+     retired: eight competing washes buried the comparison the column exists
+     for, while the chips align down the right edge and the eye reads
+     gold-gold-violet-blue off them just the same. */
   /* Tucked to the badge row above it rather than spaced as a section of its
      own — same column, same idea, one beat apart. The bottom margin is the
      gap to the actions; it collapses against theirs, and both are 14 so the
@@ -1318,16 +1270,23 @@ import { track } from "../lib/analytics";
     letter-spacing: 0.08em;
     color: var(--muted);
   }
-  /* An unsigned dream seat's WAR, in the market's own chip. `.qwar` is the
-     committed rows' numeral and this is the other half of the same pair, so it
-     is a different element rather than the same one reclassed: the chip's
-     26.275px height and 13.5px type are measured in app.css and `.qwar`'s
-     scoped 13px would out-specify them and quietly undo that.
-     `flex: none` because the row is a flex line — the chip's 42px minimum
-     would otherwise be shrunk away by a long name beside it. */
+  /* Every row's WAR rides the chip's small cut (app.css's .warchip.sm — a
+     modifier on the one chip, sized for these tighter rows). Only layout facts
+     live here. `flex: none` because the row is a flex line — the chip's
+     minimum width would otherwise be shrunk away by a long name beside it. */
   .qrow .warchip {
     margin-left: auto;
     flex: none;
+  }
+  /* A dream seat the player never signed: the chip's rung washes out and the
+     row's outline goes dashed — the two marks the SOLID/DASHED key above
+     names. Dashed is safe on this screen because nothing here is tappable;
+     see app.css, WHERE THE RUNG IS WORN. */
+  .qrow.missed {
+    border-style: dashed;
+  }
+  .qrow.missed .warchip {
+    opacity: 0.5;
   }
   .qname.empty {
     color: var(--gray-ink);

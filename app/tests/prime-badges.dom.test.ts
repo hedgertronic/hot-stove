@@ -179,7 +179,9 @@ describe("SpecialPrimePicker manager rows", () => {
     const mid = row!.querySelector(".mid")!;
     expect(mid.textContent).toContain("2015 CHN");
     expect(mid.textContent).toContain("97–65");
-    expect(row!.querySelector(".val")!.textContent).toBe("+6.4 W");
+    // "6.4 WINS" on the chip — bare value (a positive drops its plus), the
+    // unit in its own small span, so textContent runs them together.
+    expect(row!.querySelector(".val")!.textContent).toBe("6.4WINS");
     expect(row!.querySelector(".val")!.textContent).not.toContain("97–65");
     await done();
   });

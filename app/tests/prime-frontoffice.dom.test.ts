@@ -178,23 +178,26 @@ describe("front-office rows under the corpus's longest names", () => {
  *
  * The mapping is net wins × MANAGER_PER_NET_WIN through `warTier`, which is a
  * different arithmetic from a player's raw WAR, so the fixture spans the
- * ladder rather than sampling it: 116–46 is +14.0 W (elite), 90–72 is +3.6 W
- * (mid), 81–81 is +0.0 W (low) and 60–102 is −8.4 W (neg). One rung asserted
- * alone passes on a constant.
+ * ladder rather than sampling it: 116–46 is 14.0 WINS (elite), 90–72 is 3.6
+ * WINS (mid), 81–81 is 0.0 WINS (low) and 60–102 is −8.4 WINS (neg). One rung
+ * asserted alone passes on a constant.
  *
- * The token is also the only carrier — one class drives the row's wash, its
- * border and the win value's color — so a row emitting two would take whichever
- * the stylesheet listed last and the three would stop agreeing.
+ * The token is also the only carrier — the row's `war-*` class sets the pair
+ * the season's WINS chip wears — so a row emitting two would hand the chip
+ * whichever pair the stylesheet listed last.
  *
  * And Eye Test must emit none of it. That mode already withholds the record and
  * the win value; a row washed gold would hand back the whole read the
  * withholding bought. */
 describe("the manager career sheet colors every season by its rung", () => {
+  /** [year, w, l, row token, the chip's bare value]. The chip's textContent is
+   * the value with its WINS unit run together — jsdom textContent has no space
+   * between the number and the unit span. */
   const CAREER: [number, number, number, string, string][] = [
-    [2001, 116, 46, "war-elite", "+14.0 W"],
-    [2002, 90, 72, "war-mid", "+3.6 W"],
-    [2003, 81, 81, "war-low", "+0.0 W"],
-    [2004, 60, 102, "war-neg", "−8.4 W"],
+    [2001, 116, 46, "war-elite", "14.0"],
+    [2002, 90, 72, "war-mid", "3.6"],
+    [2003, 81, 81, "war-low", "0.0"],
+    [2004, 60, 102, "war-neg", "−8.4"],
   ];
 
   const specials: SpecialsIndex = {
@@ -245,11 +248,16 @@ describe("the manager career sheet colors every season by its rung", () => {
     const seasons = [...el.querySelectorAll<HTMLButtonElement>("button.srow")];
     expect(seasons).toHaveLength(CAREER.length);
     seasons.forEach((row, i) => {
-      const [year, , , token, plusW] = CAREER[i];
+      const [year, , , token, value] = CAREER[i];
       expect(row.textContent).toContain(String(year));
       expect(row.className).toContain(token);
       expect(row.className.match(/war-/g)).toHaveLength(1);
-      expect(row.querySelector(".val")?.textContent).toBe(plusW);
+      // The value rides the chip: bare number (minus kept, plus dropped) with
+      // the WINS unit beside it in the player chips' own unit register.
+      const chip = row.querySelector(".val.warchip");
+      expect(chip).not.toBeNull();
+      expect(chip!.textContent).toBe(`${value}WINS`);
+      expect(chip!.querySelector(".unit")?.textContent).toBe("WINS");
     });
     close();
   });

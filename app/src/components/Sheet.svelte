@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { lockScroll } from "../lib/scrolllock";
 
   /** The modal shell every sheet shares: dimmed backdrop (tap to close),
    * bottom sheet on phones, centered cardstock modal at wide.
@@ -83,6 +84,11 @@
    * powerup pills underneath an open modal. */
   let sheetEl = $state<HTMLElement | null>(null);
   $effect(() => sheetEl?.focus());
+
+  /** Lock page scroll while this sheet is mounted; unlock on teardown.
+   * The lock is reference-counted so stacked modals don't unlock each other
+   * early — the last one closed is the one that restores scroll. */
+  $effect(() => lockScroll());
 </script>
 
 <div class="backdrop" onclick={onclose} role="presentation">
@@ -134,6 +140,12 @@
     max-height: calc(88svh - env(safe-area-inset-top));
     max-height: calc(88dvh - env(safe-area-inset-top));
     overflow-y: auto;
+    /* Contain rubber-band scroll within the sheet on iOS Safari 16+, so touch
+       momentum does not propagate to the page behind the backdrop. On iOS
+       Safari ≤15 the body `overflow: hidden` lock is still imperfect; a
+       `position: fixed` body lock with scroll-position restoration would fix
+       it but is fragile and not implemented here. */
+    overscroll-behavior: contain;
   }
   .sheet.tall {
     padding: 14px 16px calc(14px + env(safe-area-inset-bottom));

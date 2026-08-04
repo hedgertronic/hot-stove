@@ -265,8 +265,7 @@
       name="Cox"
       meta="1995 ATL"
       tier={warTier(MGR_WINS)}
-      war="{signed(MGR_WINS)} W"
-      mgw
+      war={signed(MGR_WINS)}
     />
     {#each SEATS as s (s.label)}
       <RailSeat
@@ -278,13 +277,13 @@
       />
     {/each}
   </div>
-  <p class="cap">A seat's border color is that player's WAR tier. Dashed is empty.</p>
+  <p class="cap">A seat's chip color is that player's WAR tier. Dashed is empty.</p>
   <div class="ladder">
     {#each LADDER as [label, war] (label)}
       <span class="warchip {warTier(war)}">{label}</span>
     {/each}
   </div>
-  <p class="cap">Six rungs. Every WAR chip and every seat border wears one.</p>
+  <p class="cap">Six rungs. Every WAR chip in the game wears one.</p>
   <ul>
     <li><b>Eight seats:</b> {SEAT_LINE}.</li>
     <li><b>UTIL:</b> any position player.</li>

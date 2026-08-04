@@ -1,12 +1,15 @@
 <script lang="ts">
   import { loadStoredFinale, type Bank, type StoredFinale } from "../lib/engine.svelte";
   import { recordFromTotal, seedCode } from "../lib/format";
-  import { ARCHIVE_CAP, loadArchive, loadHistory } from "../lib/history";
+  import { loadArchive, loadHistory } from "../lib/history";
   import { BANKS, DIFFICULTIES } from "../lib/modes";
   import Sheet from "./Sheet.svelte";
 
   /** Every season a career has finished, newest first, as a modal — the way
-   * back into any one of them, not just the last.
+   * back into any one of them, not just the last. It is also the record book:
+   * the shelf at the top of the sheet holds the best season in every mode combo
+   * a career has played, so the two things a player asks a list of seasons —
+   * "what is my best" and "let me back into that one" — are one surface.
    *
    * Read once at mount, like the trophy case: the component is created fresh
    * per open, which is what keeps it current, and the ~270KB archive parse
@@ -99,31 +102,88 @@
         (typeof e.id === "string" ? archive.get(e.id) : undefined) ??
         (i === newest ? lastFinale : null);
       return {
+        // The mode combo this season was played under, and the key the shelf
+        // below groups on. It is the PAIR — ladder and bank — because that is
+        // what `bestFor` scopes a record book by, and a shelf that grouped on
+        // the bank alone would print a different "best Moneyball season" than
+        // the number the home screen shows for the same words.
+        combo: `${scout ? "scout" : "standard"}|${bank}`,
+        total: e.total!,
         wins: r.wins,
         losses: r.losses,
         tier: r.tier,
+        modes,
         bank: BANKS[bank].emoji,
         scout,
         seed,
         date,
         rec: rec ?? null,
-        // The row's five zones read as one sentence, with the modes spelled out
-        // rather than left as the emoji the eye gets. A row that is not a door
-        // says so: the visual difference is a missing chevron and a fade, and
-        // neither of those reaches a screen reader on its own.
+        // The row's four zones read as one sentence, in the order they are
+        // drawn, with the modes spelled out rather than left as the emoji the
+        // eye gets. A row that is not a door says so: the visual difference is
+        // a fade, and a fade does not reach a screen reader.
         aria:
-          `${r.wins}–${r.losses}, ${modes}` +
-          `${seed === "" ? "" : `, seed ${seed.slice(1)}`}, ${date}` +
+          `${date}, ${modes}` +
+          `${seed === "" ? "" : `, seed ${seed.slice(1)}`}, ${r.wins}–${r.losses}` +
           `${rec ? "" : " — no longer available to reopen"}`,
       };
     })
     .reverse();
 
-  /** At least one season cannot be reopened, so the sheet owes an explanation.
-   * Drawn only when it is true: a player whose every season is a door never
-   * needs to be told a cap exists. */
-  const anyClosed = rows.some((r) => r.rec === null);
+  /** The record book: the best season in every combo the career has played,
+   * best first. Modes never played are simply absent — an empty rung is not a
+   * record, and a shelf of dashes for combos someone has no interest in is
+   * noise on the one surface that is supposed to be their highlight reel.
+   *
+   * Computed from the rows already built rather than from six `bestFor` calls:
+   * that function re-parses the whole log per call, and — the reason that
+   * matters more than the parse — deriving both halves of this sheet from one
+   * normalization is what guarantees the shelf's row is literally a row from
+   * the list beneath it, tier color, seed, date and door alike.
+   *
+   * Ties go to the season already held, which is the NEWER one: `rows` is
+   * newest first, so the first row seen for a combo wins a tie. The newer of
+   * two identical bests is the one more likely to still be a door. */
+  const shelf = (() => {
+    const best = new Map<string, (typeof rows)[number]>();
+    for (const r of rows) {
+      const held = best.get(r.combo);
+      if (held === undefined || r.total > held.total) best.set(r.combo, r);
+    }
+    return [...best.values()].sort((a, b) => b.total - a.total);
+  })();
 </script>
+
+<!-- One markup path for every row on this sheet, shelf and list alike, and
+     `disabled` is what separates a door from a season that is only a record —
+     the app's own dead-control language, the same one LAST GAME spent when
+     there was nothing to go back to. A season the archive no longer holds is
+     still a real season with a real record; it is just not a door.
+
+     The zones read left to right as when · what · how it went: the date
+     indexes the row, the mode emojis say which game it was, and the value —
+     the tier-colored record, the only place a value may show on a market row —
+     lands on the right edge where the eye scans a column of them. The seed
+     rides just ahead of the record in the quiet mono voice, because it is a
+     thing to be copied rather than a thing to be compared. -->
+{#snippet row(r: (typeof rows)[number], best: boolean)}
+  <button
+    class="row"
+    class:best
+    disabled={r.rec === null}
+    aria-label={best ? `Best ${r.modes} season. ${r.aria}` : r.aria}
+    onclick={() => {
+      if (r.rec) onopen(r.rec);
+    }}
+  >
+    <span class="date">{r.date}</span>
+    <span class="mode" aria-hidden="true"
+      >{r.bank}{r.scout ? ` ${DIFFICULTIES.scout.emoji}` : ""}</span
+    >
+    <span class="seed">{r.seed}</span>
+    <span class="rec {r.tier}">{r.wins}–{r.losses}</span>
+  </button>
+{/snippet}
 
 <Sheet
   {onclose}
@@ -137,43 +197,26 @@
       <p class="empty">No seasons yet — play one.</p>
     {/if}
 
+    {#if shelf.length > 0}
+      <!-- The record book, pinned above the log it is drawn from. Keyed by the
+           combo, which is unique by construction and stable across a mount. -->
+      <div class="cap">RECORD BOOK</div>
+      <div class="shelf">
+        {#each shelf as r (r.combo)}
+          {@render row(r, true)}
+        {/each}
+      </div>
+      <div class="cap">ALL SEASONS</div>
+    {/if}
+
     <div class="rows">
       <!-- Index-keyed: the list is built once at mount and never reordered, and
            a log row is not guaranteed anything unique of its own (the id
            arrived with the archive, and older rows have none). -->
       {#each rows as r, i (i)}
-        <!-- One markup path for both states, and `disabled` is what separates
-             them — the app's own dead-control language, the same one LAST GAME
-             spent when there was nothing to go back to. A season the archive
-             no longer holds is still a real season with a real record; it is
-             just not a door. -->
-        <button
-          class="row"
-          disabled={r.rec === null}
-          aria-label={r.aria}
-          onclick={() => {
-            if (r.rec) onopen(r.rec);
-          }}
-        >
-          <span class="rec {r.tier}">{r.wins}–{r.losses}</span>
-          <span class="mode" aria-hidden="true">{r.bank}{r.scout ? ` ${DIFFICULTIES.scout.emoji}` : ""}</span>
-          <span class="seed">{r.seed}</span>
-          <span class="date">{r.date}</span>
-          <span class="go" aria-hidden="true">{r.rec ? "›" : ""}</span>
-        </button>
+        {@render row(r, false)}
       {/each}
     </div>
-
-    {#if anyClosed}
-      <!-- "Up to", not "the last N": a season played before the archive existed
-           has no record either, so the cap is a ceiling on what can be reopened
-           rather than a promise about which rows are doors. The second sentence
-           is the one that matters — it says what a dimmed row still is. -->
-      <p class="note">
-        Up to {ARCHIVE_CAP} seasons stay reopenable. The rest keep their badges,
-        their stamps and their place in the record book.
-      </p>
-    {/if}
   </div>
 </Sheet>
 
@@ -186,9 +229,26 @@
     color: var(--gray-ink);
     padding: 6px 0 2px;
   }
-  .rows {
+  .rows,
+  .shelf {
     display: grid;
     gap: 7px;
+  }
+  /* The two section eyebrows, in the home screen's own separator voice — the
+     one that names PAYROLL and RECORD BOOK there. They only ever appear as a
+     pair, so neither has to explain the other. */
+  .cap {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    padding: 0 2px 6px;
+  }
+  /* The gap between the two sections, hung off the shelf it follows rather
+     than off "not the first one": the caption's spacing then depends on what is
+     actually above it and not on what else the sheet happens to have drawn. */
+  .shelf + .cap {
+    padding-top: 16px;
   }
   /* A market row: you are choosing among these, so it is white cardstock on the
      structural line and the value rides the record, never the row. */
@@ -198,7 +258,9 @@
     gap: 8px;
     width: 100%;
     min-height: 48px;
-    padding: 6px 8px 6px 11px;
+    /* Heavier on the right, where the record now lands: the value wants the
+       same breathing room off the edge it had when it led the row. */
+    padding: 6px 11px 6px 9px;
     border: 2.5px solid var(--line);
     border-radius: 11px;
     background: var(--card);
@@ -225,6 +287,15 @@
   }
   .row:disabled:active {
     transform: none;
+  }
+  /* A shelf row is the same card on warmer stock behind a gold line — the
+     trophy-case register, one step up from the white cardstock of a row you
+     are only browsing. No extra glyph and no extra zone: the caption above the
+     shelf already says what these are, and the rows have to stay comparable
+     with the ones below them to be read as the same object twice. */
+  .row.best {
+    background: var(--amber);
+    border-color: var(--gold-8);
   }
   /* The finale's total stamp shrunk to row scale, tier-colored. The six rules
      below are a hand copy of the ladder Home's record book carries, and app.css
@@ -273,7 +344,9 @@
     letter-spacing: 0.02em;
   }
   /* The seed in the quiet mono voice the finale's GAME #XXXX chip uses — this
-     is where a code gets copied from. */
+     is where a code gets copied from. `margin-left: auto` is the row's only
+     gap: everything ahead of it hugs the left edge and this carries the seed
+     and the record it rides ahead of over to the right. */
   .seed {
     margin-left: auto;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -290,33 +363,12 @@
     color: var(--gray-ink);
     white-space: nowrap;
   }
-  /* The door. A fixed box whether or not the chevron is in it, so every row's
-     content ends on the same vertical line and an unopenable one is short of a
-     mark rather than shifted. */
-  .go {
-    flex: none;
-    width: 9px;
-    text-align: center;
-    font-size: 15px;
-    font-weight: 800;
-    line-height: 1;
-    color: var(--muted);
-  }
-  /* The cap, said out loud, in the two prose sheets' voice. */
-  .note {
-    margin: 12px 2px 0;
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 1.5;
-    color: var(--muted);
-    text-align: center;
-  }
-  /* Narrowest phones: the row is five zones across ~276px of sheet. Everything
+  /* Narrowest phones: the row is four zones across ~276px of sheet. Everything
      tightens by a step and the date drops its tracking; nothing wraps. */
   @media (max-width: 359px) {
     .row {
       gap: 6px;
-      padding: 6px 7px 6px 9px;
+      padding: 6px 9px 6px 7px;
     }
     .rec {
       font-size: 17px;

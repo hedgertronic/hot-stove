@@ -29,39 +29,39 @@
    ---------- WHERE THE RUNG IS WORN ----------
 
    The tinting rule says what a colored surface looks like. This says WHICH
-   surfaces get one, and it has no exceptions:
+   surfaces get one, and it has one answer:
 
-     * A MARKET row — anything still being chosen between — is white cardstock
-       in --line, and its value rides a separate .warchip. A market is a
-       COMPARISON surface: the chips align in a column and the eye runs down
-       them, which a wall of six competing washes actively prevents.
-     * A COMMITTED row — signed, hired, or already on the club — wears the rung
-       as its own fill and frame, and its numeral goes --ink.
-
-   That single line settles four things that used to be settled separately:
-
-     - The finale is entirely committed rows, so it is entirely tinted.
-     - The rail is committed rows, so a filled seat is tinted — the manager's
-       chair is not a special case, it was merely the first one converted.
-     - On the finale's dream team, the seats the player actually drafted are
-       committed and the rest never were, so drafted-vs-not needs no new device:
-       it is the rule already running. Do NOT reach for a dashed border here.
-       The dash is the ARMED channel and spending it on "you drafted this" would
-       collide with every tappable seat in the game.
-     - FRONT OFFICE tiles (owner gold, ballpark blue, skipper red) are market
+     * EVERY player row, everywhere — a market row, a drafted seat in the rail,
+       the drafted-team overview, both finale squads — is white cardstock in
+       --line, and its value rides a separate .warchip. The chip is the ONLY
+       surface that wears a rung as fill and frame. Full-row rung tint is
+       retired: it was tried on committed rows, and live it turned each roster
+       into a wall of competing washes exactly the way it had already been shown
+       to wreck a market. Every roster is a COMPARISON surface — the chips align
+       in a column and the eye runs down them — so every roster gets the same
+       treatment, at every breakpoint. The phone rail is not an exception: one
+       system, phone and wide alike.
+     * The finale's DREAM TEAM tells drafted from not with two quiet marks on
+       the rows the player never signed: the chip's color FADES (a washed rung,
+       via opacity) and the row's outline goes DASHED. A signed row is the
+       normal white + chip. The dash is safe HERE and only here: nothing at the
+       finale is tappable or armed, so the ARMED channel — which the dash serves
+       everywhere in play — has no traffic to collide with on that screen.
+     * FRONT OFFICE tiles (owner gold, ballpark blue, skipper red) are market
        rows whose hue is a CATEGORY, not a value — they say what the chair is,
        not how good the hire would be. Those three identity hues are the same
        hexes as three WAR rungs, and that is safe precisely because the rule
-       keeps them apart: nothing in a market is ever rung-tinted, so an identity
-       fill and a rung fill can never appear side by side.
+       keeps them apart: no ROW anywhere is ever rung-tinted, so an identity
+       fill and a rung fill can never appear at the same scale side by side.
 
    The rung is applied through --rung-fill / --rung-line rather than by
    repeating the ladder in every component. A .war-* class sets the pair and
-   nothing else; each surface then spends them in ONE declaration and decides
-   for itself whether it takes the fill, the line, or both. Custom properties
-   inherit and carry no specificity, so a component's own scoped rule can never
-   lose a cascade fight to the ladder — which is exactly what four hand-copied
-   ladders were quietly risking.
+   nothing else; the chip then spends both in ONE declaration. A row-level
+   `war-*` class is a FACT-CARRIER: it says which rung the row's season earned,
+   sets the pair for the chip inside to inherit, and paints nothing on the row
+   itself. Custom properties inherit and carry no specificity, so a component's
+   own scoped rule can never lose a cascade fight to the ladder — which is
+   exactly what four hand-copied ladders were quietly risking.
 
    Absent the class, both fall back: no --war-* class means no tint, which is
    what keeps Eye Test honest. Tier color is withheld from every in-play surface
@@ -398,6 +398,19 @@ button {
   margin-left: 2.5px;
   vertical-align: 1px;
 }
+/* The chip's small cut, for the tight rows: rail seats, the finale squads and
+   the drafted-team overview. A MODIFIER, not a second chip — same anatomy, same
+   ladder, only the scale changes, so a ladder edit still lands once. The
+   asymmetric padding is the optical centering rule at 11px type
+   (0.047 × 11 = 0.517px), paid out of the leading like the full-size chip's. */
+.warchip.sm {
+  min-width: 36px;
+  font-size: 11px;
+  border-width: 2px;
+  border-radius: 8px;
+  line-height: 1.5;
+  padding: 0.517px 4px 0;
+}
 /* ---------- the rung, as a pair of custom properties ----------
    The ONLY place the six tiers are enumerated. Every surface that wears a rung
    — the chip below, the rail seats, the manager's chair, both finale squads,
@@ -411,8 +424,10 @@ button {
    none to fight over: the component's own single declaration does the painting,
    so the ladder cannot win a fight it should not be in.
 
-   TWO SPELLINGS, one ladder. A chip wears the bare tier (`elite`); everything
-   that tints a ROW wears the prefixed one (`war-elite`). That split is not
+   TWO SPELLINGS, one ladder. A chip wears the bare tier (`elite`); a ROW that
+   carries the rung as a fact — a rail seat, a manager career season — wears
+   the prefixed one (`war-elite`), which sets the pair for the chip inside to
+   inherit and paints nothing on the row. That split is not
    untidiness, it is load-bearing, and tests/help-specimens.test.ts is what it
    is holding up: that file proves the help sheet's manager chair derives its
    rung from Bobby Cox's real 1995 record rather than hard-coding a rung that

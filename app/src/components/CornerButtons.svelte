@@ -29,15 +29,26 @@
    *
    * `game` is the live run, and it is what the undo pill needs. The pill is
    * drawn only where there is a game to rewind, so the home screen keeps its
-   * pair in the left corner and the in-game HUD gains a third beside the ✕. */
+   * pair in the left corner and the in-game HUD gains a third beside the ✕.
+   *
+   * `pushed` and `onconfirm` are the two halves of one arrangement: the undo
+   * pill and the ✕ are neighbours drawn by different components, and each one's
+   * confirm state has to reach the other. The host says "my ✕ is armed, step
+   * back" with `pushed`; this component says "mine is armed" with `onconfirm`,
+   * and the host steps the ✕ and the wordmark back the same way. Neither pill
+   * owns the pair, so neither can be moved without the other hearing about it. */
   let {
     home = false,
     newBadges = null,
     game = null,
+    pushed = false,
+    onconfirm,
   }: {
     home?: boolean;
     newBadges?: string[] | null;
     game?: Game | null;
+    pushed?: boolean;
+    onconfirm?: (armed: boolean) => void;
   } = $props();
 
   let cues = $state(loadCues());
@@ -77,13 +88,54 @@
     trophyOpen = true;
   }
 
+  /** Two-tap undo, the ✕'s rule and the ✕'s 2500ms — one destructive control in
+   * the corner cannot ask for a confirm while its neighbour takes a thumb tap
+   * and spends the only rewind the game gives.
+   *
+   * Lapsing rather than dismissing, exactly as quit does: the confirm expires
+   * on its own and nothing else takes it down. A player who meant something
+   * else taps that something else and the pill goes quiet behind him. */
+  const CONFIRM_MS = 2500;
+  let undoArmed = $state(false);
+  let undoTimer: ReturnType<typeof setTimeout> | undefined;
+
   // stopPropagation for the pair's reason above: the pill sits over click
   // handling tied to the landed card, and the tap that rewinds a move must not
   // also reach the market it rewound.
   function tapUndo(e: MouseEvent) {
     e.stopPropagation();
-    game?.undo();
+    clearTimeout(undoTimer);
+    if (undoArmed) {
+      undoArmed = false;
+      game?.undo();
+      return;
+    }
+    undoArmed = true;
+    undoTimer = setTimeout(() => (undoArmed = false), CONFIRM_MS);
   }
+
+  // The rewind can go away underneath an armed pill — the reel lands, the club
+  // completes, the run is quit — and a "UNDO?" left sitting on a dead control
+  // is asking for a second tap that would do nothing at all.
+  $effect(() => {
+    if (game?.canUndo) return;
+    clearTimeout(undoTimer);
+    undoArmed = false;
+  });
+
+  // The host dims the ✕ and the wordmark while this confirm is up, so it has to
+  // hear every change including the one the timeout makes with no tap behind it.
+  // Braces, not a bare arrow: an expression body hands the callback's return
+  // value to svelte as this effect's teardown.
+  $effect(() => {
+    onconfirm?.(undoArmed);
+  });
+
+  // The confirm outlives this component otherwise: quitting mid-confirm unmounts
+  // the HUD with the timer still booked, and it fires into a component that is
+  // gone. Teardown reads nothing, so it runs once and its teardown is the
+  // unmount (SpinBanner's cancelReel is here for the same reason).
+  $effect(() => () => clearTimeout(undoTimer));
 </script>
 
 <button
@@ -115,12 +167,14 @@
 {#if game}
   <button
     class="help undo"
+    class:armed={undoArmed}
+    class:pushed={pushed && !undoArmed}
     disabled={!game.canUndo}
     onclick={tapUndo}
-    aria-label="Undo last move"
-    ><svg class="tico" viewBox="0 0 14 14" aria-hidden="true"
-      ><path d="M11 11.5V8.5A4 4 0 0 0 7 4.5H2.5 M5.5 2 2.5 4.5l3 2.5" /></svg
-    ></button
+    aria-label={undoArmed ? "Undo last move — tap again to confirm" : "Undo last move"}
+    >{#if undoArmed}UNDO?{:else}<svg class="tico" viewBox="0 0 14 14" aria-hidden="true"
+        ><path d="M11 11.5V8.5A4 4 0 0 0 7 4.5H2.5 M5.5 2 2.5 4.5l3 2.5" /></svg
+      >{/if}</button
   >
 {/if}
 
@@ -190,19 +244,58 @@
      37px of overlap at 320px, still 2px at 390px. `right: 32px` is clear
      everywhere but 320px-with-a-chip, where it grazes by 5px.
 
-     What this corner costs is the ✕'s armed state. `.quit.armed` drops the
-     twin width for `width: auto; padding: 0 8px` and grows "QUIT?" leftward to
-     about 55px — 35px of Nunito at 12px/800 plus padding and borders — which
-     covers 23 of this pill's 28px for the 2.5 seconds the confirm is up. That
-     is accepted rather than worked around: the overgrowth is deliberate and
-     documented beside `.quit.armed`, App.svelte renders the ✕ after this
-     component so the confirm paints on top and takes the tap, and a player who
-     has just armed a quit should be looking at the quit. A transient overlap
-     behind a modal-ish confirm beats a permanent one across the logo. */
+     What this corner costs is a confirm's armed state. Either pill armed drops
+     the twin width for `width: auto; padding: 0 8px` and grows its word
+     leftward — "QUIT?" to about 55px, "UNDO?" to about 62px — which is wider
+     than the 32px gap between the two anchors. So an armed pill WILL reach
+     across its neighbour, and the answer is that the neighbour gets out of the
+     way (see `.pushed`) rather than that the pill is stopped from growing.
+     Neither anchor moves: a confirm that slid this pill into the ✕'s corner
+     would put a rewind under the thumb aimed at a quit, and walk the quit
+     target 32px sideways when the confirm lapsed — the same hazard
+     `.undo:disabled` refuses below, arriving from the other direction. */
   .undo {
     left: auto;
     right: 32px;
+    /* Only the pill being confirmed is above its neighbour, whichever of the
+       two it is. Without this the ✕ decides it by document order — App.svelte
+       renders it after this component — and a ghosted ✕ would sit on top of the
+       "UNDO?" it is stepping back from. */
+    z-index: 1;
+    /* Arming and lapsing read as one motion rather than a jump; app.css kills
+       every transition for reduced-motion readers, who get the same end states
+       instantly. */
+    transition:
+      opacity 0.12s ease,
+      transform 0.12s ease;
   }
+  /* Armed, the pill carries a word ("UNDO?") in the ✕'s confirm colors — one
+     confirm language for the pair, so the second tap means the same thing
+     wherever it is asked for. */
+  .undo.armed {
+    background: var(--orange-2);
+    color: var(--ink);
+    border-color: var(--orange-8);
+    width: auto;
+    padding: 0 8px;
+    z-index: 2;
+  }
+  /* The neighbour of a live confirm, and the whole of request #3: while one
+     pill is asking for its second tap, everything beside it steps back — this
+     rule for this pill, the identical one in App.svelte for the ✕ and the
+     wordmark. Ghosted rather than hidden, so the corner keeps its shape and
+     nothing reflows under the thumb; left tappable, so the pair still behaves
+     as two controls and a player who armed the wrong one can simply tap the
+     right one (the confirm above it takes the taps that land on the overlap,
+     which is what `z-index` is deciding).
+     0.22 is deep enough that the covered pill reads as backdrop rather than as
+     a control clipped by a bug; it is a transient state on a control that has
+     been declared inactive for the duration, so the 3:1 a live graphical object
+     owes does not apply.
+     Written after `.undo:disabled` on purpose: the two carry the same property
+     at the same specificity, and the common case is a dead pill beside an armed
+     ✕. Stepping back is the state the player is being told about, so it is the
+     one that has to win. */
   /* Nothing to take back: the pill stays in the corner and goes flat, rather
      than disappearing. It sits directly inboard of ✕, and a control that comes
      and goes there walks the quit target 32px sideways between taps — the same
@@ -220,6 +313,11 @@
   .undo:disabled {
     opacity: 0.65;
     cursor: default;
+  }
+  .help.pushed {
+    opacity: 0.22;
+    transform: scale(0.92);
+    z-index: 0;
   }
   /* Line art rather than an emoji: the ?/✕ pills are 10px text glyphs, and a
      color emoji dropped into that geometry sits low and reads as a sticker on

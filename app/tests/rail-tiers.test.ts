@@ -1,14 +1,15 @@
-/** The in-play roster rail is a who/when card: name, season, and — on the
- * phone, where the WAR numeral doesn't fit — a tier band per seat. Two
- * contracts are load-bearing here.
+/** The in-play roster rail: white seats whose WAR rides a compact chip, at
+ * every width. Two contracts are load-bearing here.
  *
  * 1. No hardware in the rail. Players never wear their award pills in a seat,
  *    so the manager doesn't wear MOY either; the pill is finale-only. The
  *    manager's `moty` flag is display-suppressed, not dropped — the finale
  *    still reads it off the same object.
- * 2. The tier band obeys the difficulty ladder. It encodes the WAR bucket, so
- *    it is gated on `showWar` exactly like the numeral: Eye Test must emit no
- *    tier token at all, or the color leaks the talent read the mode hides.
+ * 2. The rung obeys the difficulty ladder. The seat's `war-*` class is the
+ *    fact-carrier that colors the chip (the class sets app.css's --rung pair;
+ *    the chip inherits and spends it), so it is gated on `showWar` exactly
+ *    like the chip's numeral: Eye Test must emit no tier token and no chip at
+ *    all, or the color leaks the talent read the mode hides.
  *
  * Same SSR-string approach as parity.test.ts / moy-parity.test.ts. */
 import { describe, expect, it } from "vitest";
@@ -104,10 +105,12 @@ describe("roster rail WAR tier bands", () => {
     expect(sct).not.toContain("war-");
   });
 
-  it("the WAR numeral follows the same gate as the band", () => {
+  it("the WAR value rides a chip, gated exactly like the tier token", () => {
     const { std, sct } = pair(RosterRail, seatTiers, railProps);
     expect(std).toContain("5.2");
+    expect(std).toContain("warchip"); // the value's carrier is the chip
     expect(sct).not.toContain("5.2");
+    expect(sct).not.toContain("warchip"); // Eye Test draws no chip at all
   });
 
   // The seats above hire nobody, so they cannot cover the manager's gate: with
@@ -129,46 +132,49 @@ describe("roster rail WAR tier bands", () => {
     };
   };
 
-  it("Box Score tiers the manager's seat and his +W on the players' ladder", () => {
+  it("Box Score tiers the manager's seat and his +wins on the players' ladder", () => {
     const { std } = pair(RosterRail, mgrElite, railProps);
     expect(std).toContain("war-elite");
-    expect(std).toContain("+14.0 W");
+    // Bare and signed on the chip — no W/WINS unit in the rail's small rows.
+    expect(std).toContain("+14.0");
+    expect(std).not.toContain("+14.0 W");
   });
 
-  it("Eye Test hides the manager's tier and his +W — both would leak the read", () => {
+  it("Eye Test hides the manager's tier and his +wins — both would leak the read", () => {
     const { sct } = pair(RosterRail, mgrElite, railProps);
     expect(sct).toContain("Piniella"); // the seat renders; only the tier is gone
     expect(sct).not.toContain("war-");
-    expect(sct).not.toContain("+14.0 W");
+    expect(sct).not.toContain("+14.0");
   });
 });
 
-/** The MGR seat's WASH, which the seat's single tier token now drives along
- * with its border. Three things follow from that and each gets an assertion.
+/** The MGR seat's rung, which the seat's single tier token drives — the class
+ * sets the --rung pair and the seat's CHIP is what inherits and wears it; the
+ * seat itself stays white cardstock. Three things follow from that and each
+ * gets an assertion.
  *
  * The token is the only carrier, so it has to be present exactly once and it
- * has to be the right rung — a seat that emitted two would take whichever fill
- * the stylesheet happened to list last, and fill and frame would stop agreeing.
+ * has to be the right rung — a seat that emitted two would hand the chip
+ * whichever pair the stylesheet happened to list last.
  *
  * The token has to move with the record. A skipper's rung comes from net wins
  * × MANAGER_PER_NET_WIN, which is a different arithmetic from a player's raw
  * WAR, so the rungs are pinned across the ladder rather than at one point:
- * 116–46 is +14.0 W (elite), 90–72 is +3.6 W (mid), 81–81 is 0.0 W (low), and
- * 60–102 is −8.4 W (neg). A ladder pinned only at the top passes on a constant.
+ * 116–46 is +14.0 (elite), 90–72 is +3.6 (mid), 81–81 is +0.0 (low), and
+ * 60–102 is −8.4 (neg). A ladder pinned only at the top passes on a constant.
  *
- * And Eye Test has to emit none of it. That gate was already load-bearing for
- * the border and the numeral; the wash is a third thing riding on it, and a
- * whole seat washed violet is a far louder leak than a hairline.
+ * And Eye Test has to emit none of it — no token, no chip. That gate was
+ * already load-bearing for the numeral; a colored chip is a louder leak.
  *
  * The colors themselves are not asserted: they are CSS, jsdom does not resolve
  * custom properties, and the look is a screenshot job. The class is what proves
  * the state. */
 describe("the hired manager's seat wears its rung", () => {
   const RUNGS: [string, number, number, string][] = [
-    ["elite", 116, 46, "+14.0 W"],
-    ["mid", 90, 72, "+3.6 W"],
-    ["low", 81, 81, "+0.0 W"],
-    ["neg", 60, 102, "−8.4 W"],
+    ["elite", 116, 46, "+14.0"],
+    ["mid", 90, 72, "+3.6"],
+    ["low", 81, 81, "+0.0"],
+    ["neg", 60, 102, "−8.4"],
   ];
 
   const hire = (wins: number, losses: number) => (g: Game) => {

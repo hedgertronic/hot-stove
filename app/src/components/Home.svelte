@@ -55,8 +55,10 @@
   // mounts a fresh one on the way back, so the read is current without any
   // reactivity of its own.
   //
-  // GLOBAL, unlike the record book below: every season ever played, whatever
-  // mode it was played in. The button opens the list, the book says BEST.
+  // GLOBAL, unlike the `best` card above it: every season ever played, whatever
+  // mode it was played in. It is both the record book card's footer count and
+  // the thing that decides whether that card is a door — a career with seasons
+  // only in another combo still has a book to open.
   //
   // Only the count is needed here — whether the list would have anything in it.
   // Which of those seasons can still be reopened is the modal's question, and
@@ -170,40 +172,25 @@
     {/each}
   </div>
 
-  <!-- The flame is a `.bic` like every other button glyph rather than loose
+  <!-- The two ways into a game, side by side: a fresh card sequence and a
+       shared one. PLAY A SEED sits IN LINE with PLAY rather than a row below
+       it, because it is the same decision at a different starting point, and
+       because the screen has one fewer row for it — SEASONS is gone from here,
+       consolidated into the record book card below.
+
+       The flame is a `.bic` like every other button glyph rather than loose
        text: inline it inherited the button's 17px and rendered visibly smaller
        than the 19px joystick and receipt on the rows around it, which is the
        one place in the game an icon changed size according to its label. -->
-  <button class="btn hot playbtn" onclick={() => onplay({ difficulty, bank })}
-    >PLAY <span class="bic">🔥</span></button
-  >
-
-  <!-- The two secondaries, side by side under PLAY: back into the seasons
-       already played, and into a shared seed. Equal halves on the finale's own
-       action-row proportions (48px tall, 13px display caps) — the one
-       equal-width button row this codebase already has.
-    -->
   <div class="btnrow under">
-    <!-- Always both halves, whatever storage holds. With nothing to go back to
-         the button is genuinely disabled rather than gone: a control that
-         appears and disappears directly under the primary action moves PLAY A
-         SEED across the screen between visits and shifts the thumb target of
-         the row above, which costs more than a dimmed label does. -->
-    <button class="btn ubtn" disabled={seasons === 0} onclick={() => (seasonsOpen = true)}
-      >SEASONS <span class="bic">🧾</span></button
+    <button class="btn hot playbtn" onclick={() => onplay({ difficulty, bank })}
+      >PLAY <span class="bic">🔥</span></button
     >
-    <!-- PLAY A SEED swaps ITS OWN half for the field rather than the row: the
-         cell keeps its height, so the button beside it never moves under the
-         thumb mid-tap. -->
+    <!-- PLAY A SEED swaps ITS OWN cell for the field rather than the row: the
+         cell keeps its height and its track width, so PLAY never moves under
+         the thumb mid-tap. -->
     {#if seedOpen}
       <div class="seedrow" class:bad={seedBad}>
-        <!-- The way back out, standing in the # slot rather than as a fourth
-             child beside GO: the row's leading slot either introduces the code
-             or dismisses it, which keeps the field's width within a few px of
-             what it had. ✕ is the app's one dismissal glyph (the header's quit
-             pill), and the swap is why the row can grow a cancel without
-             growing. -->
-        <button class="seedx" onclick={cancelSeed} aria-label="Cancel seed entry">✕</button>
         <!-- svelte-ignore a11y_autofocus -->
         <input
           class="seedin"
@@ -228,7 +215,15 @@
             else if (e.key === "Escape") cancelSeed();
           }}
         />
+        <!-- GO and its way back out, as a pair on the right of the field: two
+             pills of the same shape, the filled one committing the code and the
+             outlined one dismissing it. ✕ is the app's one dismissal glyph (the
+             header's quit pill, every Sheet's corner). It stands beside GO
+             rather than in the field's leading slot so that the row's actions
+             are in one place instead of on either side of the thing they act
+             on. -->
         <button class="seedgo" onclick={playSeed}>GO</button>
+        <button class="seedgo seedx" onclick={cancelSeed} aria-label="Cancel seed entry">✕</button>
       </div>
     {:else}
       <button class="btn ubtn" bind:this={seedBtn} onclick={() => (seedOpen = true)}
@@ -237,13 +232,28 @@
     {/if}
   </div>
 
-  <!-- The record book is a one-line card for the punched combo — the punched
-       rows above name WHICH combo, so the card carries no label of its own.
-       Two zones: G counts its games, box-score style; BEST SEASON is the
-       finale's total stamp in miniature — the tier-colored record the best
-       total resolves into, with the exact points quiet beneath. -->
+  <!-- The record book, and the door into every season ever played: one surface,
+       because they are one question asked twice. The card itself is the punched
+       combo's line — the punched rows above name WHICH combo, so it carries no
+       label of its own — and tapping it opens the full book, where the best
+       season in every mode played sits above the whole list.
+       Two zones: G counts this combo's games, box-score style; BEST SEASON is
+       the finale's total stamp in miniature — the tier-colored record the best
+       total resolves into, with the exact points quiet beneath.
+
+       Disabled on the LOG's count and never on `best.games`: a career whose
+       only seasons were played in another combo still has a book to open, and
+       a card that went dead every time the punch moved would be a door that
+       flickers. -->
   <div class="psep bestsep">RECORD BOOK</div>
-  <div class="book">
+  <button
+    class="book"
+    disabled={seasons === 0}
+    aria-label={seasons === 0
+      ? "Record book. No seasons yet"
+      : "Open the record book and every season played"}
+    onclick={() => (seasonsOpen = true)}
+  >
     <div class="btable">
       <div class="bcol">
         <div class="bcap">G</div>
@@ -259,7 +269,15 @@
         {/if}
       </div>
     </div>
-  </div>
+    <!-- The one thing the card gains by becoming a control: a footer that says
+         what is behind it, and counts what is there. -->
+    <div class="bmore">
+      {seasons === 0 ? "NO SEASONS YET" : seasons === 1 ? "1 SEASON · ALL MODES" : `${seasons} SEASONS · ALL MODES`}
+      <!-- Not a `.bic`: that class is the 19px glyph a button LABEL carries,
+           and this rides a 9px eyebrow. -->
+      <span class="bmic">🧾</span>
+    </div>
+  </button>
 
   {#if seasonsOpen}
     <!-- Created fresh on every open, which is what makes its read of the log
@@ -494,7 +512,6 @@
   .playbtn {
     width: 100%;
     min-height: 52px;
-    margin-top: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -503,18 +520,17 @@
     font-size: 17px;
     letter-spacing: 0.04em;
   }
-  /* The two secondaries under PLAY, on the finale action row's proportions.
-     Both halves are the same fixed height, the seed field included, so opening
-     the field cannot move the button beside it. */
+  /* PLAY and PLAY A SEED, equal halves. Both cells are the same fixed height,
+     the seed field included, so opening the field cannot move PLAY. */
   .under {
     /* minmax(0,·), not 1fr: an auto floor lets the seed field's content widen
        its own track and steal width from the button beside it, which is the
        same jump under the thumb, sideways. */
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    margin-top: 9px;
+    margin-top: 14px;
   }
   .under > * {
-    min-height: 48px;
+    min-height: 52px;
   }
   /* Cell shape, glyph gap and the all-caps optical correction come from
      `.btnrow .btn` in app.css — the same row the finale's three actions are.
@@ -566,34 +582,6 @@
       transform: translateX(4px);
     }
   }
-  /* A bare glyph, not a bordered pill like GO: it stands where the 9px # stood
-     and a boxed button would cost the field ~28px of the ~150px half at 320px,
-     which is width the placeholder cannot spare. The tap target is grown by an
-     invisible extension instead — PowerupRow's trick, so the box stays small
-     while the thumb target does not. */
-  .seedx {
-    position: relative;
-    flex: none;
-    border: none;
-    background: none;
-    padding: 0 2px;
-    font-family: inherit;
-    font-weight: 800;
-    font-size: 13px;
-    line-height: 1;
-    color: var(--muted);
-    cursor: pointer;
-  }
-  .seedx::after {
-    content: "";
-    position: absolute;
-    inset: -13px -6px;
-  }
-  .seedx:focus-visible {
-    outline: 3px solid var(--blue);
-    outline-offset: 2px;
-    border-radius: 6px;
-  }
   /* Fluid inside its half-cell: at 320px the pair is ~150px wide each, and a
      fixed field width would push GO out of the row.
      font-size is 16px — the floor below which Mobile Safari auto-zooms a
@@ -624,7 +612,11 @@
     border-style: solid;
     border-color: var(--ink);
   }
+  /* GO, and the ✕ beside it in the same shape: one filled pill for the commit
+     and one outlined pill for the dismissal, which is the app's primary /
+     secondary pair at pill scale. */
   .seedgo {
+    flex: none;
     border: 2px solid var(--ink);
     border-radius: 999px;
     background: var(--ink);
@@ -632,8 +624,22 @@
     font-family: inherit;
     font-weight: 800;
     font-size: 11px;
-    padding: 5px 12px;
+    line-height: 1;
+    padding: 5px 10px;
     cursor: pointer;
+  }
+  .seedgo:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
+  }
+  /* The secondary of the pair: same box, hollow, quiet type. It gives back
+     three of the pixels it costs the field by dropping to the glyph's own
+     width — a ✕ needs no side bearing the way two letters do. */
+  .seedgo.seedx {
+    background: transparent;
+    border-color: var(--gray-ink);
+    color: var(--muted);
+    padding: 5px 7px;
   }
   /* Narrowest phones: the field's half is ~141px. At 16px with base 0.08em
      tracking, a full seven-character seed code still fits, but horizontal
@@ -647,19 +653,66 @@
       padding: 2px 4px;
     }
     .seedgo {
-      padding: 5px 9px;
+      padding: 5px 7px;
+    }
+    .seedgo.seedx {
+      padding: 5px 5px;
     }
   }
   /* The separator carries the section's 8px bottom padding, like the others. */
   .bestsep {
     margin-top: 20px;
   }
+  /* The card is a control now, so it says so the way every other card-shaped
+     control in the app does: cardstock on the structural line, pressed by the
+     same 2px nudge, faded whole rather than dashed when there is nothing
+     behind it. */
   .book {
+    display: block;
+    width: 100%;
     border: 2.5px solid var(--line);
     border-radius: 12px;
     background: var(--card);
-    padding: 10px 12px 11px;
+    padding: 10px 12px 9px;
     text-align: center;
+    color: var(--ink);
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform 0.08s;
+  }
+  .book:active {
+    transform: translateY(2px);
+  }
+  .book:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
+  }
+  .book:disabled {
+    opacity: 0.65;
+    cursor: default;
+  }
+  .book:disabled:active {
+    transform: none;
+  }
+  /* What is behind the card, and how much of it. Sits on the dashed line the
+     book's two columns already share, so the footer reads as part of the same
+     ruled sheet rather than as a label stuck underneath one. */
+  .bmore {
+    margin-top: 9px;
+    padding-top: 7px;
+    border-top: 2px dashed var(--dash);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  .bmic {
+    font-size: 12px;
+    line-height: 1;
   }
   .btable {
     display: grid;

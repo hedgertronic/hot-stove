@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
-/** The seasons list: which rows appear, which of them are doors, and what a row
- * that is no longer a door looks like.
+/** The seasons list: which rows appear, in what order their zones are drawn,
+ * which of them are doors, and which of them the record-book shelf pins.
  *
  * The storage rules underneath it — the cap, the eviction, the log staying
  * whole — are asserted in archive.test.ts. What only a mounted component can
  * show is that a season the archive no longer holds reaches the DOM as a real
  * `disabled` attribute rather than a button that quietly does nothing, and that
- * the cap gets explained on screen the moment it costs the player something.
+ * the shelf holds one row per mode combo played and none for a combo that
+ * was not.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
@@ -56,8 +57,11 @@ function open(onopen = vi.fn()) {
   return {
     target,
     onopen,
-    rows: () => [...target.querySelectorAll(".row")] as HTMLButtonElement[],
-    note: () => target.querySelector(".note"),
+    // Scoped to the list container: the shelf above it draws the same `.row`
+    // markup, and an unscoped query would count the best seasons twice.
+    rows: () => [...target.querySelectorAll(".rows .row")] as HTMLButtonElement[],
+    shelf: () => [...target.querySelectorAll(".shelf .row")] as HTMLButtonElement[],
+    caps: () => [...target.querySelectorAll(".cap")].map((c) => c.textContent?.trim()),
     subtitle: () => target.querySelector(".sub")?.textContent ?? "",
     close: () => {
       unmount(app);
@@ -162,28 +166,19 @@ describe("which rows are doors", () => {
 
     expect(fresh.disabled).toBe(false);
     expect(aged.disabled).toBe(true);
-    // Different to look at, not merely unresponsive: the door mark is the one
-    // thing the aged row does not have.
-    expect(fresh.querySelector(".go")!.textContent).toBe("›");
-    expect(aged.querySelector(".go")!.textContent).toBe("");
+    // NO ARROW ON EITHER. Playability is carried by the fade alone now — an
+    // arrow on a row that is already un-grayed said the same thing twice. The
+    // fade is `opacity` on `.row:disabled`, which jsdom has no layout to
+    // compute, so `disabled` above is the assertion that can actually fail;
+    // the visual half is a screenshot job.
+    expect(fresh.querySelector(".go")).toBeNull();
+    expect(aged.querySelector(".go")).toBeNull();
     // Its record is still on screen, still tier-colored — the season counts.
     expect(aged.querySelector(".rec")!.textContent).toBe("120–42");
 
     aged.click();
     expect(ui.onopen).not.toHaveBeenCalled();
     ui.close();
-  });
-
-  it("says the cap out loud once, and only once it has cost something", () => {
-    season("g0");
-    const inside = open();
-    expect(inside.note()).toBeNull();
-    inside.close();
-
-    season("g1", {}, false);
-    const outside = open();
-    expect(outside.note()!.textContent).toContain("50");
-    outside.close();
   });
 
   it("treats an older row whose archive record went missing as aged out", () => {
@@ -227,6 +222,136 @@ describe("which rows are doors", () => {
     localStorage.removeItem("hotstove.finale"); // startGame()
     const ui = open();
     expect(ui.rows()[0].disabled).toBe(true);
+    ui.close();
+  });
+});
+
+describe("how a row is laid out", () => {
+  /** The zone each child carries, in DOM order — which is reading order, and
+   * the only part of the layout jsdom can actually see. Order ONLY: the tier
+   * class riding along on `.rec` is the subject of its own test above, and a
+   * layout assertion that also checked the color would pass or fail for two
+   * unrelated reasons. */
+  const ZONES = ["date", "mode", "seed", "rec"];
+  function zones(row: HTMLButtonElement): (string | undefined)[] {
+    return [...row.children].map((c) => ZONES.find((z) => c.classList.contains(z)));
+  }
+
+  it("runs date, then modes, then seed, then the record on the right", () => {
+    season("g0", { seed: 42, bank: "moneyball", difficulty: "scout" });
+    const ui = open();
+    expect(zones(ui.rows()[0])).toEqual(ZONES);
+    ui.close();
+  });
+
+  it("keeps the record last even when the season carries no seed", () => {
+    // A pre-seed row still has the zone, empty, so the record lands on the same
+    // vertical line in every row of the column.
+    season("g0", { seed: undefined });
+    const ui = open();
+    const row = ui.rows()[0];
+    expect(zones(row)).toEqual(ZONES);
+    expect(row.querySelector(".seed")!.textContent).toBe("");
+    expect(row.lastElementChild!.textContent).toBe("120–42");
+    ui.close();
+  });
+
+  it("names the row in reading order for a screen reader", () => {
+    season("g0", { seed: 42, bank: "moneyball", difficulty: "scout" });
+    const ui = open();
+    expect(ui.rows()[0].getAttribute("aria-label")).toBe(
+      "AUG 2 '26, Moneyball · Eye Test, seed 16, 120–42",
+    );
+    ui.close();
+  });
+
+  it("says so when a row is not a door, since the fade cannot be heard", () => {
+    season("g0", {}, false);
+    const ui = open();
+    expect(ui.rows()[0].getAttribute("aria-label")).toContain(
+      "no longer available to reopen",
+    );
+    ui.close();
+  });
+});
+
+describe("the record book shelf", () => {
+  it("pins the best season in each mode combo played, best first", () => {
+    season("g0", { total: 90, bank: "classic", difficulty: "standard" });
+    season("g1", { total: 160, bank: "classic", difficulty: "standard" });
+    season("g2", { total: 120, bank: "moneyball", difficulty: "standard" });
+    const ui = open();
+    const shelf = ui.shelf();
+    // Two combos played, so two shelf rows — the 90 loses its combo to the 160.
+    expect(shelf).toHaveLength(2);
+    expect(shelf.map((r) => r.querySelector(".rec")!.textContent)).toEqual([
+      "160–2",
+      "120–42",
+    ]);
+    // Every season is still in the list beneath it: the shelf is a pin, not a
+    // filter.
+    expect(ui.rows()).toHaveLength(3);
+    ui.close();
+  });
+
+  it("counts the ladder as part of the combo, the way the record book does", () => {
+    // Same bank, different ball knowledge — two record books, two shelf rows.
+    season("g0", { total: 120, bank: "moneyball", difficulty: "standard" });
+    season("g1", { total: 90, bank: "moneyball", difficulty: "scout" });
+    const ui = open();
+    expect(ui.shelf()).toHaveLength(2);
+    ui.close();
+  });
+
+  it("skips a mode never played rather than shelving a blank", () => {
+    season("g0", { bank: "classic", difficulty: "standard" });
+    const ui = open();
+    expect(ui.shelf()).toHaveLength(1);
+    expect(ui.shelf()[0].querySelector(".mode")!.textContent).toBe("💼");
+    ui.close();
+  });
+
+  it("draws nothing at all — shelf or captions — with no seasons logged", () => {
+    const ui = open();
+    expect(ui.shelf()).toHaveLength(0);
+    expect(ui.caps()).toEqual([]);
+    ui.close();
+  });
+
+  it("labels the two sections so the surface reads as one book", () => {
+    season("g0");
+    const ui = open();
+    expect(ui.caps()).toEqual(["RECORD BOOK", "ALL SEASONS"]);
+    ui.close();
+  });
+
+  it("marks its rows as the shelf's, and still opens them", () => {
+    season("g0", { total: 160 });
+    const ui = open();
+    const best = ui.shelf()[0];
+    expect(best.classList.contains("best")).toBe(true);
+    expect(best.getAttribute("aria-label")).toMatch(/^Best Clean House season\./);
+    best.click();
+    expect(ui.onopen).toHaveBeenCalledOnce();
+    expect(ui.onopen.mock.calls[0][0].id).toBe("g0");
+    ui.close();
+  });
+
+  it("shelves a best season the archive can no longer open, dead like any row", () => {
+    // The record still stands; the door is what aged out.
+    season("g0", { total: 160 }, false);
+    const ui = open();
+    expect(ui.shelf()).toHaveLength(1);
+    expect(ui.shelf()[0].disabled).toBe(true);
+    ui.close();
+  });
+
+  it("gives a tie to the newer season, which is likelier to still be a door", () => {
+    season("g0", { total: 120 }, false);
+    season("g1", { total: 120 });
+    const ui = open();
+    expect(ui.shelf()).toHaveLength(1);
+    expect(ui.shelf()[0].disabled).toBe(false);
     ui.close();
   });
 });

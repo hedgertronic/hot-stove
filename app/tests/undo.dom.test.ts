@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-/** The undo pill in the corner group: when it is drawn, and what it does with
- * nothing to do.
+/** The undo pill in the corner group: when it is drawn, what it does with
+ * nothing to do, and the two-tap confirm it asks for before spending the one
+ * rewind a game gets.
  *
  * The rule the mount is here to hold is DISABLED, NOT GONE. A control that
  * appears and disappears inside a group of fixed pills moves its neighbours
@@ -10,12 +11,15 @@
  * fade would satisfy a screenshot and still let a tap through.
  *
  * Geometry is not asserted here for home-under.dom.test.ts's reason: jsdom has
- * no layout, so a position assertion would pass on zeroes. The one geometric
- * question this feature raised — whether the ✕ arming into "QUIT?" would grow
- * over the pill — was settled off the font metrics and is recorded beside
- * `.undo` in the component.
+ * no layout, so a position assertion would pass on zeroes. The geometric
+ * question this feature raised — an armed pill growing its word across its
+ * neighbour, in both directions now that this one confirms too — was settled
+ * off the font metrics and is recorded beside `.undo` in the component. What
+ * reaches this file is the STATE that settlement is expressed in: the classes
+ * each pill carries while the other is confirming, and the report upward that
+ * lets the host push the ✕ and the wordmark back with them.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import CornerButtons from "../src/components/CornerButtons.svelte";
 import { Game, SLOT_TYPES } from "../src/lib/engine.svelte";
@@ -78,15 +82,26 @@ function landed(): Game {
   return g;
 }
 
-function open(game: Game | null) {
+function open(game: Game | null, pushed = false) {
   const target = document.createElement("div");
   document.body.appendChild(target);
-  const app = mount(CornerButtons, { target, props: { game } });
+  // The armed state the component reports upward, recorded as the host records
+  // it — App.svelte holds exactly this to step the ✕ and the wordmark back.
+  const confirms: boolean[] = [];
+  const app = mount(CornerButtons, {
+    target,
+    props: { game, pushed, onconfirm: (a: boolean) => confirms.push(a) },
+  });
   flushSync();
   return {
     target,
+    confirms,
     undo: () => target.querySelector(".undo") as HTMLButtonElement | null,
     pills: () => target.querySelectorAll("button.help").length,
+    tap: (btn: HTMLButtonElement) => {
+      btn.click();
+      flushSync();
+    },
     close: () => {
       unmount(app);
       target.remove();
@@ -118,7 +133,7 @@ describe("the undo pill", () => {
     ui.close();
   });
 
-  it("lights after a move, takes it back on the tap, and stays put afterward", () => {
+  it("lights after a move, takes it back on the second tap, and stays put afterward", () => {
     const game = landed();
     const ui = open(game);
     expect(ui.undo()!.disabled).toBe(true);
@@ -129,8 +144,17 @@ describe("the undo pill", () => {
     expect(game.owner).not.toBeNull();
     expect(ui.undo()!.disabled).toBe(false);
 
-    ui.undo()!.click();
-    flushSync();
+    // The first tap only asks. A rewind is the one move a game gets and it
+    // sits under the thumb beside the ✕, so it confirms exactly as the ✕ does.
+    ui.tap(ui.undo()!);
+    expect(game.owner).not.toBeNull();
+    expect(game.undoUsed).toBe(false);
+    expect(ui.undo()!.textContent!.trim()).toBe("UNDO?");
+    expect(ui.undo()!.getAttribute("aria-label")).toBe(
+      "Undo last move — tap again to confirm",
+    );
+
+    ui.tap(ui.undo()!);
     expect(game.owner).toBeNull();
     expect(game.undoUsed).toBe(true);
     // The card comes back as the SAME OBJECT the reel was already on — not a
@@ -152,6 +176,80 @@ describe("the undo pill", () => {
     expect(ui.undo()).not.toBeNull();
     expect(ui.undo()!.disabled).toBe(true);
     expect(ui.pills()).toBe(3);
+    ui.close();
+  });
+});
+
+describe("the confirm", () => {
+  it("lapses on its own after the ✕'s 2500ms, taking back nothing", () => {
+    vi.useFakeTimers();
+    const game = landed();
+    const ui = open(game);
+    game.hireOwner();
+    flushSync();
+
+    ui.tap(ui.undo()!);
+    expect(ui.undo()!.textContent!.trim()).toBe("UNDO?");
+    // 2500ms exactly, the ✕'s number — one confirm in the corner cannot expire
+    // on a different clock from the one beside it.
+    vi.advanceTimersByTime(2499);
+    flushSync();
+    expect(ui.undo()!.textContent!.trim()).toBe("UNDO?");
+    vi.advanceTimersByTime(1);
+    flushSync();
+    expect(ui.undo()!.textContent!.trim()).not.toBe("UNDO?");
+    // A confirm the player let lapse is not a rewind, and must not be counted
+    // as one — ↩️ SECOND THOUGHTS is earned by the second tap or not at all.
+    expect(game.owner).not.toBeNull();
+    expect(game.undoUsed).toBe(false);
+    ui.close();
+    vi.useRealTimers();
+  });
+
+  it("disarms when the rewind goes away underneath it", () => {
+    // The reel lands, the club completes, the run is quit: a "UNDO?" left on a
+    // control that has gone dead is asking for a tap that would do nothing.
+    const game = landed();
+    const ui = open(game);
+    game.hireOwner();
+    flushSync();
+    ui.tap(ui.undo()!);
+    expect(ui.undo()!.textContent!.trim()).toBe("UNDO?");
+
+    game.phase = "finale";
+    flushSync();
+    expect(ui.undo()!.disabled).toBe(true);
+    expect(ui.undo()!.textContent!.trim()).not.toBe("UNDO?");
+    ui.close();
+  });
+
+  it("reports its armed state to the host, which is what steps the ✕ back", () => {
+    const game = landed();
+    const ui = open(game);
+    game.hireOwner();
+    flushSync();
+
+    ui.tap(ui.undo()!);
+    expect(ui.confirms.at(-1)).toBe(true);
+    expect(ui.undo()!.classList.contains("armed")).toBe(true);
+    ui.tap(ui.undo()!);
+    expect(ui.confirms.at(-1)).toBe(false);
+    ui.close();
+  });
+
+  it("steps back for the ✕'s confirm, and stops doing so once it has one of its own", () => {
+    // Request #3 in one assertion: while either pill is asking for a second
+    // tap, the other one is backdrop. The pill that IS confirming never steps
+    // back, however the host has it flagged.
+    const game = landed();
+    const ui = open(game, true);
+    game.hireOwner();
+    flushSync();
+    expect(ui.undo()!.classList.contains("pushed")).toBe(true);
+
+    ui.tap(ui.undo()!);
+    expect(ui.undo()!.classList.contains("armed")).toBe(true);
+    expect(ui.undo()!.classList.contains("pushed")).toBe(false);
     ui.close();
   });
 });

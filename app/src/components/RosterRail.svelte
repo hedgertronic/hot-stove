@@ -38,14 +38,14 @@
   });
   const gapH = $derived(pickPlayer ? restH || railH : 0);
 
-  /** Seat sub-line: season identity only ("2013 OAK") — the rail is the
-   * roster's who/when, not a stat sheet; WAR lives on the list rows. */
+  /** Seat sub-line: season identity only ("2013 OAK") — the value rides the
+   * seat's own WAR chip, not this line. */
   function seatMeta(s: { year: number; team: string }): string {
     return `${s.year} ${s.team}`;
   }
 
   /** A filled seat's rung as a bare word, or "" when the mode hides WAR.
-   * `RailSeat` dresses both the frame and the numeral from this one value.
+   * `RailSeat` dresses the seat's WAR chip from this one value.
    * Gated on `showWar` — the very flag that gates the numeral — because a color
    * that encodes the WAR bucket leaks the talent read just as surely as the
    * digits do, and Eye Test's whole premise is that it can't be read. */
@@ -73,19 +73,19 @@
   <div class="rail">
     <!-- The manager's seat leads the card at both widths — on the phone it
          anchors the left edge spanning both rows, at width it is the first row.
-         One club, nine chairs, same visual language throughout. 🧢 labels it
-         where the players carry a position: the glyph says "different kind of
-         thing" in the column the eye already scans, and the manager career
-         sheet titles his seasons with the same cap. RailSeat gives it the
-         spoken name. -->
+         One club, nine chairs, same visual language throughout. MGR labels it
+         in the same tracked caps the players' position codes use; the sideways
+         geometry already marks the chair as a different kind of thing. The
+         chip's value is bare and signed — "+14.0", no W/WINS unit — because
+         these rows have no room for one and the sign already says "wins, not
+         WAR". -->
     <RailSeat
       chair="mgr"
-      label="🧢"
+      label="MGR"
       name={game.manager ? lastName(game.manager.name) : null}
       meta={game.manager ? `${game.manager.year} ${game.manager.team}` : null}
       tier={mgrTier}
-      war={game.manager && game.showWar ? `${signed(mgrWins)} W` : null}
-      mgw
+      war={game.manager && game.showWar ? signed(mgrWins) : null}
     />
     {#each game.slots as slot, i}
       <RailSeat

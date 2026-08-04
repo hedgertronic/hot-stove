@@ -39,6 +39,10 @@
   let teamPickerOpen = $state(false);
   let quitArmed = $state(false);
   let quitTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The undo pill's confirm is up, reported by CornerButtons. Held here only
+   * so the ✕ and the wordmark can step back for it — the pill owns its own
+   * two-tap state, timer and lapse, exactly as the ✕ owns those next door. */
+  let undoArmed = $state(false);
   /** This finale came out of storage rather than out of a game that just
    * ended. The trophy cue was already lit when the game finished, so a
    * re-entry must not re-light a case the player has since opened. */
@@ -145,6 +149,7 @@
     yearPickerOpen = false;
     teamPickerOpen = false;
     quitArmed = false;
+    undoArmed = false;
     // Leaving the finale (✕ or Modes) drops the boot claim: reloads land home
     // from now on. The archive survives so the home screen can walk back in —
     // dropping it here would delete the record before anything could read it.
@@ -297,10 +302,20 @@
       newBadges={game.phase === "finale" && !restoredFinale
         ? (game.finale?.newBadges ?? [])
         : null}
+      pushed={quitArmed}
+      onconfirm={(armed) => (undoArmed = armed)}
     />
-    <Logo />
-    {#if modeChip}<span class="modechip" title={modeTitle} aria-label={modeTitle}>{modeChip}</span>{/if}
-    <button class="quit" class:armed={quitArmed} onclick={tapQuit}>
+    <!-- The wordmark and its chip travel as one flex item so a live confirm can
+         step the whole brand back with a single rule. Two items dimmed
+         separately would drift apart the moment either gained a state of its
+         own, and an armed pill genuinely does reach the logo: "UNDO?" grows to
+         about 62px from a 32px anchor, which lands on the H of HOTSTOVE at
+         320px. -->
+    <span class="brand" class:pushed={quitArmed || undoArmed}>
+      <Logo />
+      {#if modeChip}<span class="modechip" title={modeTitle} aria-label={modeTitle}>{modeChip}</span>{/if}
+    </span>
+    <button class="quit" class:armed={quitArmed} class:pushed={undoArmed} onclick={tapQuit}>
       {quitArmed ? "QUIT?" : "✕"}
     </button>
   </header>
@@ -402,13 +417,46 @@
     align-items: center;
     justify-content: center;
   }
-  /* Armed, the pill carries a word ("QUIT?") — it may outgrow the twin width. */
+  /* Armed, the pill carries a word ("QUIT?") — it may outgrow the twin width,
+     and reaches across the undo pill 32px inboard. That overlap is intended:
+     the neighbour steps back for it (see `.pushed`), and the anchor never
+     moves, so the ✕ is in the same place on every tap. */
   .quit.armed {
     background: var(--orange-2);
     color: var(--ink);
     border-color: var(--orange-8);
     width: auto;
     padding: 0 8px;
+    z-index: 2;
+  }
+  /* Beside a live confirm — the undo pill's, since this is the ✕ and the
+     wordmark. The mirror of `.help.pushed` in CornerButtons, same numbers and
+     same reasoning: ghosted so the header keeps its shape and nothing reflows
+     under the thumb, still tappable, and the confirm sits above it. */
+  .quit.pushed,
+  .brand.pushed {
+    opacity: 0.22;
+    transform: scale(0.92);
+  }
+  /* Only the ✕ takes the z-index: it is the one that shares a corner with the
+     confirm. The wordmark is a static flex item and is painted under the
+     absolutely positioned pills already. */
+  .quit.pushed {
+    z-index: 0;
+  }
+  .quit,
+  .brand {
+    transition:
+      opacity 0.12s ease,
+      transform 0.12s ease;
+  }
+  /* The wordmark and its chip as one item, reproducing the two flex children
+     the header laid out directly before they were wrapped — the row's own
+     `gap: 8px` between them, centered on the same line. */
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
   }
   /* Emoji-only chip, scaled to sit beside the ?/✕ pills. */
   .modechip {

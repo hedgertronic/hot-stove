@@ -353,6 +353,73 @@ describe("one level, repeatable", () => {
     expect(g.choicesLeft).toBe(1);
   });
 
+  it("is offered mid-reel, and the spin it abandons cannot land on top of it", async () => {
+    // The window the feature is actually used in. Committing a pick drops
+    // `choicesLeft` to zero and SpinBanner spins on the next turn of the event
+    // loop, so by the time a player's thumb reaches the corner the game is
+    // already "spinning" — a rewind refused there is a rewind refused always,
+    // which is what made the pill light up only once the NEXT card had landed
+    // on top of the pick being regretted.
+    //
+    // What it costs is a race, and this test is the race: the fetch for the
+    // abandoned card is IN FLIGHT and its `land()` is parked on the await when
+    // the rewind runs. Nothing is awaited between the two lines below,
+    // deliberately — call `land()` after the undo instead and the engine's
+    // "no pending card" guard catches it, and the test passes with the epoch
+    // check ripped out.
+    const g = await spun();
+    const cursor = g.rng.state;
+    const before = JSON.stringify(g.slots);
+    const seenBefore = JSON.stringify(g.seen);
+    const spins = g.spinCount;
+
+    g.signPlayer(g.card!.players[0]);
+    const signedCard = g.card;
+    expect(g.choicesLeft).toBe(0);
+    // What the banner does on its own, unprompted, the instant the pick lands —
+    // and the player has not waited for it.
+    g.spin();
+    expect(g.phase).toBe("spinning");
+    expect(g.canUndo).toBe(true);
+
+    const landing = g.land();
+    g.undo();
+    // The rewind is complete and synchronous: the reel is back on the card the
+    // signing was made on, with the cursor that dealt it.
+    expect(JSON.stringify(g.slots)).toBe(before);
+    expect(g.card).toBe(signedCard);
+    expect(g.phase).toBe("landed");
+    expect(g.choicesLeft).toBe(1);
+    expect(g.rng.state).toBe(cursor);
+
+    // And it stays complete. The abandoned spin resolves here, into a game that
+    // has moved on without it: `seen` is the sharpest witness, because a land
+    // that got through appends the card it fetched whatever else looks right.
+    await landing;
+    expect(JSON.stringify(g.slots)).toBe(before);
+    expect(g.card).toBe(signedCard);
+    expect(g.phase).toBe("landed");
+    expect(g.choicesLeft).toBe(1);
+    expect(g.rng.state).toBe(cursor);
+    expect(JSON.stringify(g.seen)).toBe(seenBefore);
+    expect(g.spinCount).toBe(spins);
+    expect(g.loadFailed).toBe(false);
+    // One rewind per move, mid-reel like anywhere else — the point was consumed.
+    expect(g.canUndo).toBe(false);
+  });
+
+  it("refuses mid-reel the automatic roll no player asked for", async () => {
+    // The stove spins itself out of "preSpin", so the only point that can be
+    // standing during a reel with no move behind it is that roll's own. Taking
+    // it back would rewind the cursor and re-deal the identical card, spending
+    // the one rewind a game gets on nothing — so mid-reel reaches a MOVE only.
+    const g = new Game(meta, index, owners, 42);
+    g.spin();
+    expect(g.phase).toBe("spinning");
+    expect(g.canUndo).toBe(false);
+    await g.land();
+  });
+
   it("takes no point for arming a powerup, which the player reverses himself", async () => {
     const g = await spun();
     g.signPlayer(g.card!.players[0]);

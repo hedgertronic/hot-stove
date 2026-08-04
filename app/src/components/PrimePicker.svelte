@@ -83,8 +83,7 @@
 <Sheet
   {onclose}
   label="Pick a season of this player's career"
-  title="⭐ PRIMETIME — {listed?.name ?? ''}"
-  subtitle="Sign any year of the career, at that year's price"
+  title="⭐ PRIMETIME: {listed?.name ?? ''}"
   confirmLabel="CANCEL"
 >
     {#if failed}

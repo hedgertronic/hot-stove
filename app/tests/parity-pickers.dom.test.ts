@@ -108,7 +108,13 @@ describe("SpecialPrimePicker manager career rows", () => {
     const html = await mounted(SpecialPrimePicker, specialGame(CLASSIC));
     expect(html).toContain("2002 SEA");
     expect(html).toContain("93–69");
-    expect(html).toContain("+4.8 W");
+    // The chip reads "4.8 WINS" — the value bare (a positive drops its plus;
+    // the unit says the scale), the unit in the same small register the player
+    // chips give WAR. Not "+4.8 W", the spelling this replaced.
+    expect(html).toContain("4.8");
+    expect(html).toContain("WINS");
+    expect(html).not.toContain("+4.8");
+    expect(html).not.toContain("4.8 W<");
     expect(html).toContain("MOY"); // 2002 fixture season's pill
   });
 
@@ -116,7 +122,8 @@ describe("SpecialPrimePicker manager career rows", () => {
     const html = await mounted(SpecialPrimePicker, specialGame(SCOUT));
     expect(html).toContain("2002 SEA");
     expect(html).not.toContain("93–69");
-    expect(html).not.toContain("+4.8");
+    expect(html).not.toContain("4.8");
+    expect(html).not.toContain("WINS");
     expect(html).not.toContain("MOY");
   });
 });
@@ -210,8 +217,8 @@ describe("the help sheet teaches with the real parts", () => {
     expect(h).toContain("Pedro Martínez");
     // A dead row beside the live one — the market's gray, shown not described.
     expect(ui.target.querySelector(".prow.dead")).not.toBeNull();
-    // Rail seats: filled ones wear their WAR tier on the border, empty ones
-    // are the dashed invitation.
+    // Rail seats: filled ones carry their WAR tier on the seat's chip, empty
+    // ones are the dashed invitation.
     expect(ui.target.querySelector(".cell.filled")).not.toBeNull();
     expect(ui.target.querySelector(".cell.empty")).not.toBeNull();
     // All three payroll faces, through the real PayrollBox: no owner yet, under,

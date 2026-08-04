@@ -163,13 +163,16 @@ describe("PlayerList parity", () => {
 // ---------- front office rows ----------
 
 describe("SpecialRows parity", () => {
-  // mkCard: Lou Piniella, 116–46 → (116−46) × 0.2 = "+14.0 W".
+  // mkCard: Lou Piniella, 116–46 → (116−46) × 0.2 = "14.0 WINS" (a positive
+  // drops its plus; the unit says the scale).
   it("Eye Test withholds the manager record and win value; the stadium ×mult stays", () => {
     const { std, sct } = pair(SpecialRows, (g) => (g.card = mkCard()), listProps);
     expect(std).toContain("116–46");
-    expect(std).toContain("+14.0 W");
+    expect(std).toContain("14.0");
+    expect(std).toContain("WINS");
     expect(sct).not.toContain("116–46");
-    expect(sct).not.toContain("+14.0");
+    expect(sct).not.toContain("14.0");
+    expect(sct).not.toContain("WINS");
     for (const body of [std, sct]) {
       expect(body).toContain("Lou Piniella");
       expect(body).toContain("×1.05"); // mechanical payroll multiplier
@@ -181,9 +184,9 @@ describe("SpecialRows parity", () => {
     const props = (g: Game) => ({ game: g, confirmKey: "s:manager", setConfirm: () => {} });
     const gs = forgeGame(CLASSIC, (g) => (g.card = mkCard()));
     const gc = forgeGame(SCOUT, (g) => (g.card = mkCard()));
-    expect(ssr(SpecialRows, props(gs))).toContain("HIRE +14.0 W");
+    expect(ssr(SpecialRows, props(gs))).toContain("HIRE 14.0 WINS");
     const sct = ssr(SpecialRows, props(gc));
-    expect(sct).not.toContain("+14.0");
+    expect(sct).not.toContain("14.0");
     expect(sct).toContain(">HIRE<"); // bare verb, no advertised hole
   });
 
@@ -231,9 +234,11 @@ describe("RosterRail parity", () => {
       },
       (g) => ({ game: g }),
     );
+    // The rail's chips carry bare values — "5.2", "+14.0" — with no W/WINS unit.
     expect(std).toContain("rwar");
     expect(std).toContain("5.2");
-    expect(std).toContain("+14.0 W");
+    expect(std).toContain("+14.0");
+    expect(std).not.toContain("+14.0 W");
     expect(sct).not.toContain("rwar");
     expect(sct).not.toContain("5.2");
     expect(sct).not.toContain("+14.0");

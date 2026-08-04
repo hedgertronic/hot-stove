@@ -23,7 +23,7 @@
 <Sheet
   {onclose}
   label="Pick a team"
-  title="🚚 RELOCATE — ANY {game.card?.year ?? ''} CLUB"
+  title="🚚 RELOCATE: ANY {game.card?.year ?? ''} CLUB"
   confirmLabel="CANCEL"
 >
   {#each divisions as d (d.label)}

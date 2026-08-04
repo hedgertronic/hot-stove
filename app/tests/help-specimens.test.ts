@@ -2,10 +2,10 @@
  *
  * Every figure in HowToPlay names a man, a club and a year, so a wrong WAR or a
  * wrong price is the sheet stating a falsehood about a real person's season —
- * and the sheet's own caption says a seat's border color IS that player's WAR
+ * and the sheet's own caption says a seat's chip color IS that player's WAR
  * tier, so an invented number makes the ladder it teaches wrong too. That is
  * exactly what shipped for one round: a manager chair labelled `star` beside a
- * hand-typed "+9.4 W", which is `elite`.
+ * hand-typed "+9.4", which is `elite`.
  *
  * Every figure is now checked against data/cards, and the tiers are derived in
  * the component rather than written down. This test is the half the component
@@ -164,7 +164,9 @@ describe("the help sheet's manager specimen", () => {
     expect(c.manager).toBe("Bobby Cox");
     expect([c.wins, c.losses]).toEqual([90, 54]);
     const wins = (c.wins - c.losses) * MANAGER_PER_NET_WIN;
-    expect(BODY).toContain(`${signed(wins)} W`);
+    // The chair's chip prints the signed value bare — no W/WINS unit fits the
+    // rail's small rows, and the tag-to-tag match proves nothing rides after it.
+    expect(BODY).toContain(`>${signed(wins)}<`);
     // The half that broke: the chair's rung has to be the rung that number
     // earns, not a hand-picked one that looks about right. Read off the chair's
     // own element — see SEATS above for why the page-wide search this replaces
