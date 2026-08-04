@@ -267,13 +267,15 @@ import { track } from "../lib/analytics";
     // Brags wait for the count-up to settle — they annotate the final number.
     const bragsAt = totalAt + 1000;
     timers.push(setTimeout(() => (bragsShown = true), bragsAt));
-    // The stamps land one held beat after the LAST brag pill — the same 350ms
-    // hold the stamp takes after the ledger, so the pause before each payoff is
-    // the same pause. A club that earned no badges simply follows the stamp by
-    // that one beat; the arithmetic needs no special case for it.
-    timers.push(
-      setTimeout(() => (passShown = true), bragsAt + brags.length * BRAG_STEP * 1000 + 350),
-    );
+    // The stamps land one held beat after the LAST brag pill has FINISHED its
+    // 0.45s thunk-in (BadgePill's own animation, which starts after the pill's
+    // (i × BRAG_STEP) delay) — the same 350ms hold the stamp takes after the
+    // ledger, so the pause before each payoff is the same pause. Counting pill
+    // STARTS instead of finishes shaved the hold to ~20ms. A club that earned
+    // no badges follows the stamp by hold + thunk; close enough to one beat
+    // that the arithmetic needs no special case for it.
+    const lastBragDone = Math.max(0, brags.length - 1) * BRAG_STEP * 1000 + 450;
+    timers.push(setTimeout(() => (passShown = true), bragsAt + lastBragDone + 350));
     return () => timers.forEach(clearTimeout);
   });
 

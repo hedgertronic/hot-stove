@@ -214,4 +214,16 @@ describe("a full or unreadable store", () => {
     // ties a record to its row. A record that cannot be rendered is no record.
     expect(loadArchive().map((r) => r.id)).toEqual(["g1"]);
   });
+
+  it("drops records written under another FINALE_VERSION", () => {
+    // A version bump retires archived rows by itself — no one has to remember
+    // to clear the key. A row from a future build (or a past one) reads as
+    // absent, exactly as `loadStoredFinale` treats `hotstove.finale`.
+    const good = rec("g1");
+    store.set(
+      ARCHIVE_KEY,
+      JSON.stringify([{ ...good, id: "g0", v: 0 }, good, { ...good, id: "g2", v: 99 }]),
+    );
+    expect(loadArchive().map((r) => r.id)).toEqual(["g1"]);
+  });
 });

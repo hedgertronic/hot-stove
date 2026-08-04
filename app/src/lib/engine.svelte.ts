@@ -7,7 +7,13 @@ import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadSpecials, ownerFor } from "./data";
 import { eligibleTypes, visiblePlayers } from "./eligibility";
 import { localDateStamp, recordFromTotal, type WarTier } from "./format";
-import { appendHistory, archiveGame, earnedBadgeKeys, loadArchive } from "./history";
+import {
+  FINALE_VERSION,
+  appendHistory,
+  archiveGame,
+  earnedBadgeKeys,
+  loadArchive,
+} from "./history";
 import { Rng, randomSeed } from "./rng";
 import {
   GAMES,
@@ -274,10 +280,6 @@ const SAVE_VERSION = 6;
  * unchanged by any of it. */
 const FINALE_KEY = "hotstove.finale";
 const FINALE_OPEN_KEY = "hotstove.finale.open";
-/** v1 = the first stored finale. Bump whenever the archive stops being
- * renderable by the finale screen; an unrecognized version reads as no stored
- * finale, exactly like a corrupt one. */
-const FINALE_VERSION = 1;
 
 /** Everything the finale screen reads off a Game, plus the result itself.
  *
@@ -1800,11 +1802,10 @@ export class Game {
    * record to fit, so it competes with neither the key above nor
    * `hotstove.current`.
    *
-   * ANY FUTURE `FINALE_VERSION` BUMP MUST ALSO DROP `hotstove.archive`.
-   * `loadArchive` checks the two fields the seasons list dereferences rather
-   * than `v`, exactly as `loadStoredFinale` does, so a record this build can no
-   * longer render would survive there after being correctly rejected from
-   * `hotstove.finale`.
+   * A `FINALE_VERSION` bump retires archived rows on its own: `loadArchive`
+   * checks `v` (the constant lives in lib/history for exactly this reason), so
+   * a record this build can no longer render is dropped there just as
+   * `loadStoredFinale` drops it from `hotstove.finale`.
    *
    * Guarded like every other write here: a full or disabled localStorage costs
    * the reload, never the finale the player already earned. The claim is set
@@ -1894,14 +1895,17 @@ export class Game {
    * nothing once the epoch it started on has moved, so the fetch still in
    * flight cannot land on top of the rewind.
    *
-   * Mid-reel reaches a MOVE only — a point taken at "landed". A point taken at
-   * "preSpin" belongs to the automatic roll, which no tap asked for and which
-   * would re-deal the identical card (the cursor rewinds with everything else),
-   * so taking it back spends the one rewind a game gets on nothing at all. */
+   * A MOVE only — a point taken at "landed" — is reachable from EVERY phase.
+   * A point taken at "preSpin" belongs to the automatic roll, which no tap
+   * asked for and which would re-deal the identical card (the cursor rewinds
+   * with everything else), so taking it back spends the one rewind a game gets
+   * on nothing at all. Exactly one such point exists: the game's opening deal,
+   * whose snapshot spin() takes because nothing has taken one yet. Before this
+   * gate covered the landed phase too, the pill lit up on that first card with
+   * a rewind to an identical position behind it. */
   get canUndo(): boolean {
-    if (this.undoPoint === null) return false;
-    if (this.phase === "preSpin" || this.phase === "landed") return true;
-    return this.phase === "spinning" && this.undoPoint.phase === "landed";
+    if (this.undoPoint === null || this.undoPoint.phase !== "landed") return false;
+    return this.phase === "preSpin" || this.phase === "landed" || this.phase === "spinning";
   }
 
   /** Hold the position, for `undo()` to put back.

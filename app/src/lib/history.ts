@@ -170,19 +170,23 @@ export function earnedBadgeKeys(): Set<string> {
  * in-progress save is never the thing being squeezed. (~5.4KB is a real finale
  * over the real corpus — the one-card fixture the tests play understates it.)
  *
- * ---- Two obligations ----
+ * ---- One obligation ----
  *
- * These records are plain `StoredFinale`s, so bumping the engine's
- * FINALE_VERSION makes them unrenderable exactly as it does `hotstove.finale`.
- * That bump has to remove this key too; nothing here is migrated, as nothing
- * here ever is.
- *
- * And the shape check below repeats `loadStoredFinale`'s rather than calling
- * it. Importing that function would make the log depend on the engine at
- * runtime and close the very cycle this module's position in the stack exists
- * to avoid — so the two dereferences every finale surface performs are checked
- * twice, on purpose. */
+ * The shape check below repeats `loadStoredFinale`'s rather than calling it.
+ * Importing that function would make the log depend on the engine at runtime
+ * and close the very cycle this module's position in the stack exists to
+ * avoid — so the two dereferences every finale surface performs are checked
+ * twice, on purpose. (Version skew needs no obligation: rows carry `v`, and
+ * `loadArchive` drops any row whose version this build doesn't render, exactly
+ * as `loadStoredFinale` does for `hotstove.finale`. A bump silently retires
+ * the old rows instead of relying on someone remembering to clear the key.) */
 const ARCHIVE_KEY = "hotstove.archive";
+
+/** v1 = the first stored finale. Bump whenever a stored finale stops being
+ * renderable by the finale screen; an unrecognized version reads as no stored
+ * finale, exactly like a corrupt one. Lives here rather than in the engine so
+ * `loadArchive` can check it without importing upward. */
+export const FINALE_VERSION = 1;
 /** Exported because the seasons list says the number out loud once a season has
  * aged out — a cap the player can see explained is the difference between a
  * dead row and a broken one. */
@@ -202,6 +206,7 @@ export function loadArchive(): ArchivedFinale[] {
     if (!Array.isArray(a)) return [];
     return a.filter(
       (r) =>
+        r?.v === FINALE_VERSION &&
         typeof r?.id === "string" &&
         typeof r.finale?.parts?.total === "number" &&
         Array.isArray(r.slots),

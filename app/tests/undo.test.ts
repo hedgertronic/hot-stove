@@ -166,9 +166,14 @@ describe("what a rewind puts back", () => {
     const g = await spun();
     const cursor = g.rng.state;
     const slots = JSON.stringify(g.slots);
-    expect(g.canUndo).toBe(true);
+    // The opening deal is not a move — no tap made it — so the pill is dark
+    // until the player commits something. Undoing here would re-deal the
+    // identical card (the cursor rewinds with everything else) and burn the
+    // game's one rewind on nothing.
+    expect(g.canUndo).toBe(false);
 
     g.signPlayer(g.card!.players[0]);
+    expect(g.canUndo).toBe(true);
     expect(g.slots.filter(Boolean)).toHaveLength(1);
     expect(JSON.stringify(g.slots)).not.toBe(slots);
 
@@ -256,27 +261,35 @@ describe("what a rewind puts back", () => {
 });
 
 describe("the seed", () => {
-  it("deals the identical card when the same spin is made again after an undo", async () => {
+  it("deals the identical card when the spin a rewind took back is made again", async () => {
+    // Sign on card one, let the stove roll card two, rewind the signing, sign
+    // again, spin again. The re-spin must re-deal card two exactly. This is
+    // the assertion the whole feature turns on: without it the re-spin draws a
+    // different index and the seed stops meaning anything.
     const g = await spun();
-    const first = { team: g.card!.team, year: g.card!.year };
+    const cursorBeforeSign = g.rng.state;
+    g.signPlayer(g.card!.players[0]);
+    g.spin();
+    await g.land();
+    const second = { team: g.card!.team, year: g.card!.year };
     const spunCursor = g.rng.state;
     const spins = g.spinCount;
 
     g.undo();
-    // The cursor is back where the spin found it. This is the assertion the
-    // whole feature turns on: without it the re-spin below draws a different
-    // index and the seed stops meaning anything.
-    expect(g.rng.state).not.toBe(spunCursor);
-    expect(g.phase).toBe("preSpin");
+    // The cursor is back where the signing found it — the spin's draw is
+    // un-drawn along with the pick it followed.
+    expect(g.rng.state).toBe(cursorBeforeSign);
+    expect(g.phase).toBe("landed");
     expect(g.spinCount).toBe(spins - 1);
 
+    g.signPlayer(g.card!.players[0]);
     g.spin();
     await g.land();
-    expect({ team: g.card!.team, year: g.card!.year }).toEqual(first);
+    expect({ team: g.card!.team, year: g.card!.year }).toEqual(second);
     expect(g.rng.state).toBe(spunCursor);
     expect(g.spinCount).toBe(spins);
     // And `seen` is not double-counted by the round trip.
-    expect(g.seen).toEqual([first]);
+    expect(g.seen.filter((s) => s.team === second.team && s.year === second.year)).toHaveLength(1);
   });
 
   it("keeps a rewound game walking the same deal as an untouched one on the same seed", async () => {
@@ -437,7 +450,7 @@ describe("one level, repeatable", () => {
 describe("the finale boundary", () => {
   it("is unavailable from the moment the club completes", async () => {
     const g = await spun();
-    for (let i = 0; i < SLOT_TYPES.length; i++) g.slots[i] = filler(i);
+    for (let i = 0; i < SLOT_TYPES.length; i++) g.slots[i] ??= filler(i);
     g.owner = {
       name: "x",
       budget: 100,
@@ -451,13 +464,18 @@ describe("the finale boundary", () => {
       franchise: g.card!.franchise,
       year: g.card!.year,
     };
-    expect(g.canUndo).toBe(true);
+    // Dark here too: the only point held is the opening deal's, and the pill
+    // never lights for a point with no move behind it.
+    expect(g.canUndo).toBe(false);
 
-    // The hire that completes the club. `finishGame` is async and leaves the
-    // phase on "landed" until its dream solve resolves, so the window this
-    // asserts is the one where the HUD is still up and the game is already
-    // over — a rewind taken here would have finishGame land on a club that no
-    // longer exists.
+    // The hire that completes the club. It takes a point of its own — a real
+    // "landed" move point that would light the pill — microseconds before
+    // `finishGame` drops it. `finishGame` is async and leaves the phase on
+    // "landed" until its dream solve resolves, so the window this asserts is
+    // the one where the HUD is still up and the game is already over — a
+    // rewind taken here would have finishGame land on a club that no longer
+    // exists. A dark pill in this window proves the synchronous drop, not the
+    // opening-deal gate.
     g.hireManager();
     expect(g.canUndo).toBe(false);
 
