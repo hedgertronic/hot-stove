@@ -47,12 +47,13 @@
        normal white + chip. The dash is safe HERE and only here: nothing at the
        finale is tappable or armed, so the ARMED channel — which the dash serves
        everywhere in play — has no traffic to collide with on that screen.
-     * FRONT OFFICE tiles (owner gold, ballpark orange, skipper white) are market
+     * FRONT OFFICE tiles (owner teal, ballpark orange, skipper white) are market
        rows whose hue is a CATEGORY, not a value — they say what the chair is,
-       not how good the hire would be. Orange is not a WAR-chip rung color, so
-       the stadium tile cannot be mistaken for a high-rung chip. Owner gold
-       (--yellow) is bright and saturated; the elite chip fill (--gold-2) is a
-       pale cream — the same hue family at very different saturations, visually
+       not how good the hire would be. Neither teal nor orange is a WAR-chip
+       rung color, so neither tile can be mistaken for a high-rung chip. Teal
+       is banknote color on the money man; it replaced a bright saturated gold
+       (--yellow) that shouted over the board — the same hue family as the
+       pale-cream elite chip fill (--gold-2) at a very different saturation,
        distinct at the row vs chip scale.
 
    The rung is applied through --rung-fill / --rung-line rather than by
@@ -196,6 +197,12 @@
   --orange-5: #ff922b;
   --orange-6: #fd7e14;
   --orange-8: #e8590c;
+  /* The owner's hue — banknote teal, the money man's own color. Off the WAR
+     ladder for the stadium's reason (a full-row fill in a rung hue reads as a
+     giant chip), and off orange because the ballpark holds it. Verbatim Open
+     Color teal-2/8. */
+  --teal-2: #96f2d7;
+  --teal-8: #099268;
   /* OFF-SCALE, deliberately. Open Color's grays are cool; the cardstock ground
      is warm, so the app carries its own warm pair — and it is already exactly
      what the rule asks for, a fill plus the same family darker. Left alone. */

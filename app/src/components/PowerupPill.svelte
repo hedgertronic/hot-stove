@@ -197,18 +197,29 @@
     border-color: var(--orange-8);
     color: var(--ink);
   }
-  /* The six ready labels need ~393px at the base type size — just over a
-     390px phone's 362px content box. One modest type tier, keyed to the
-     row's ACTUAL width (container query, not viewport), keeps the 3+3
-     lattice on standard phones. Armed labels are longer and may still wrap;
-     the two-row structure keeps every wrap's spacing uniform. (This block
-     must sit after the base .pp rule — equal specificity, source order
-     decides.) */
-  @container (max-width: 400px) {
+  /* THE LATTICE TIERS, keyed to the row's ACTUAL width (container query, not
+     viewport) and measured live rather than estimated. The widest resting row
+     (✌️ 🔁 🏠) needs 396px at base size, ~355px at the middle tier, and
+     ~327px at the small one — so base holds a 430pt phone's 402px box only
+     just, and the middle tier alone left every 360–375pt phone wrapping to
+     three lines. The 410px boundary buys the base tier real margin instead of
+     6px, and the 360px tier is what keeps the 3+3 lattice on the phones that
+     actually broke it. Armed labels are longer and may still wrap; the
+     two-row structure keeps every wrap's spacing uniform. (These blocks must
+     sit after the base .pp rule and in descending order — equal specificity,
+     source order decides.) */
+  @container (max-width: 410px) {
     .pp {
       font-size: 10px;
       padding: 5px 8px;
       letter-spacing: 0.02em;
+    }
+  }
+  @container (max-width: 360px) {
+    .pp {
+      font-size: 9.5px;
+      padding: 5px 6px;
+      letter-spacing: 0.01em;
     }
   }
 </style>

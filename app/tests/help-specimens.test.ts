@@ -259,8 +259,16 @@ describe("the help sheet's manager specimen", () => {
     // together; this is the vertical-alignment complaint, pinned.
     // Whole-file check rather than carving out the media block: both files
     // keep several 760px blocks and the −8 lives in exactly one of them.
+    // ORDER MATTERS and is the second half of the pin: a media query adds no
+    // specificity, so the −8 override only wins if it is declared AFTER the
+    // base rule that says −4. It shipped once declared before it — present in
+    // the file, dead in the cascade, and the misalignment survived the test.
     for (const f of ["PlayerList.svelte", "SpecialRows.svelte"]) {
-      expect(read(f), `${f} wide chip inset`).toContain("margin-right: -8px");
+      const src = read(f);
+      const wide = src.indexOf("margin-right: -8px");
+      const base = src.indexOf("margin-right: -4px");
+      expect(wide, `${f} wide chip inset`).toBeGreaterThan(-1);
+      expect(wide, `${f} wide inset must follow the base rule`).toBeGreaterThan(base);
     }
   });
 });

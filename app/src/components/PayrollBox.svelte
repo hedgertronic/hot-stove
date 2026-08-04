@@ -242,25 +242,25 @@
   }
   /* The ballpark's own hue, and it is the ballpark's because the FRONT OFFICE
      tile a player buys it from is this exact pair (`SpecialRows .srow.stad`).
-     It read green here and blue there, which made the multiplier chip look like
-     a different object from the thing that set it.
-     Ink type, not a tinted one. This was the only chip in the game carrying a
-     hue as TEXT — every other one in every other component puts ink on a rung-2
-     fill, which is app.css's rule, and green-deep on green-wash measured 4.7:1
-     against 12.4:1 for ink on blue-2. */
+     The chip and the tile MUST move together — the chip once read green while
+     the tile read blue, which made the multiplier look like a different object
+     from the thing that set it, and it went stale a second time when the tile
+     moved to orange and the chip stayed blue.
+     Ink type, not a tinted one: every chip in the game puts ink on a light
+     fill, which is app.css's rule. */
   .chip.stad {
-    background: var(--blue-2);
-    border-color: var(--blue-8);
+    background: var(--orange-2);
+    border-color: var(--orange-8);
   }
   /* The owner's own hue — the same pair the FRONT OFFICE owner tile wears
-     (`SpecialRows .srow` default: --yellow fill, --gold-8 ring). The chip and
+     (`SpecialRows .srow` default: --teal-2 fill, --teal-8 ring). The chip and
      the tile it was born from are the same object; they must read as one. */
   .chip.own {
-    background: var(--yellow);
-    border-color: var(--gold-8);
+    background: var(--teal-2);
+    border-color: var(--teal-8);
   }
   /* The total-payroll result chip. Neutral cardstock keeps it from colliding
-     with either input: the owner chip is gold, the stadium chip is blue, and
+     with either input: the owner chip is teal, the stadium chip is orange, and
      the product chip is the plain surface both inputs sit on — the math reads
      as an equation rather than as three competing categories. */
   .chip.eff {

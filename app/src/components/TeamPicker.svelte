@@ -99,8 +99,19 @@
     letter-spacing: 0.04em;
     line-height: 1.2;
     padding: 11px 0;
+    /* Code and medal are ONE line, always. The tiles carry no horizontal
+       padding, so on a phone "TOR💍" misses a 7-column tile's content box by
+       under a pixel — and the wrap that bought was a taller tile mid-row,
+       which read as the whole grid buckling. Nowrap holds the line; a
+       fractional overflow center-bleeds invisibly instead. */
+    white-space: nowrap;
   }
+  /* Down from the shared 11px: seven columns leave this picker the narrowest
+     tiles in the game, and the medal is a footnote on a club code, not a
+     second glyph of type. 9px beside 13px caps is what lets ring clubs fit
+     the same one-line tile as everyone else on a 360pt phone. */
   .pickopt .pedi {
-    margin-left: 2px;
+    margin-left: 1px;
+    font-size: 9px;
   }
 </style>

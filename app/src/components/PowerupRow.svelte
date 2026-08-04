@@ -155,4 +155,14 @@
     justify-content: center;
     gap: 8px 7px;
   }
+  /* The narrow lattice tier's other pixel source: PowerupPill shrinks its own
+     type and padding at this same 360px boundary, and the two column gaps
+     give back 4px more — together they put the widest row (~327px) inside a
+     360pt phone's 332px box. Row gap stays 8px; the ::after tap extensions
+     are capped at half of it and must keep meeting exactly. */
+  @container (max-width: 360px) {
+    .row {
+      gap: 8px 5px;
+    }
+  }
 </style>

@@ -16,7 +16,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { flushSync, mount, unmount } from "svelte";
 import Finale from "../src/components/Finale.svelte";
-import { finaleCeilingAbove, finaleOver } from "../src/lab/fixtures";
+import { finaleBad, finaleCeilingAbove, finaleCentury, finaleOver, finalePerfect } from "../src/lab/fixtures";
 import type { Game } from "../src/lib/engine.svelte";
 
 const FINALE_SRC = fs.readFileSync(
@@ -307,7 +307,7 @@ describe("styling and layout contracts", () => {
     expect(bragsParent).toBe(clubpassParent);
   });
 
-  it("(items 2, 3, 4, 6) source: sticky, seed 12px, no stripe, green-wash, lrow tint", () => {
+  it("(items 2, 3, 4, 5b, 6) source: sticky, seed 12px, no stripe, green-wash, lrow tint", () => {
     // Item 2: left column sticky on desktop
     expect(FINALE_SRC).toContain("position: sticky");
     expect(FINALE_SRC).toContain("top: 10px");
@@ -315,11 +315,72 @@ describe("styling and layout contracts", () => {
     expect(FINALE_SRC).not.toContain("repeating-linear-gradient");
     expect(FINALE_SRC).toContain(".squad.dream .qrow.signed");
     expect(FINALE_SRC).toContain("var(--green-wash)");
-    // Item 4: .lrow uses the app's parchment ground tinted into --card, not bare --card
+    // Item 4: .lrow uses the app's parchment ground tinted into --card, not bare --card;
+    // and the outer color-mix bleeds the tier's foreshadow wash (--fore) into the parchment.
     expect(FINALE_SRC).not.toMatch(/\.lrow\s*\{[^}]*background:\s*var\(--card\)/s);
     expect(FINALE_SRC).toContain("color-mix(in srgb, var(--ground) 55%, var(--card))");
+    expect(FINALE_SRC).toContain("var(--fore");
     // Item 6: seed chip font larger than the old 10px
     const seedMatch = FINALE_SRC.match(/\.seedchip\s*\{[^}]*font-size:\s*(\d+)px/s);
     expect(parseInt(seedMatch?.[1] ?? "0", 10)).toBeGreaterThan(10);
+  });
+});
+
+/** FORESHADOW TINT: scorecard rows carry the final tier color from the first frame.
+ *
+ * The tint is set as --fore on .ledger, a CSS custom property derived from
+ * recTier — the exact same value the stamp's class carries. One derivation, two
+ * surfaces, so neither can drift from the other. The tint is present before any
+ * row deals, because fin.parts.total (the source of recTier) never moves during
+ * the reveal — it is a property of the completed game, not an animated counter. */
+describe("foreshadow tint", () => {
+  /** The ledger element, which holds --fore as an inline custom property. */
+  function ledger(el: HTMLElement): HTMLElement {
+    return el.querySelector(".ledger") as HTMLElement;
+  }
+
+  it("elite total → gold wash on .ledger, elite class on .tamt", () => {
+    // finalePerfect: 74.1 WAR + sweep + trophy case → total past 162 → elite.
+    const el = render(true, finalePerfect());
+    const style = ledger(el).getAttribute("style") ?? "";
+    expect(style).toContain("--fore: var(--gold-2)");
+    // Cross-check: both surfaces speak the same tier. A second derivation
+    // could diverge; the stamp class is the canary.
+    expect(el.querySelector(".tamt")?.classList.contains("elite")).toBe(true);
+  });
+
+  it("neg total → red wash on .ledger, neg class on .tamt", () => {
+    // finaleBad: −2.0 WAR vs Piniella +14, spend over budget → total ≈ 60 → neg.
+    const el = render(true, finaleBad());
+    const style = ledger(el).getAttribute("style") ?? "";
+    expect(style).toContain("--fore: var(--red-2)");
+    expect(el.querySelector(".tamt")?.classList.contains("neg")).toBe(true);
+  });
+
+  it("low total → gray wash on .ledger, low class on .tamt", () => {
+    // finaleOver: 8 rings but $19.3M luxury-tax drag → total ≈ 98 wins → low.
+    // Gray uses --gray-bg (the warm near-parchment), not a standard -2 token.
+    const el = render(true, finaleOver());
+    const style = ledger(el).getAttribute("style") ?? "";
+    expect(style).toContain("--fore: var(--gray-bg)");
+    expect(el.querySelector(".tamt")?.classList.contains("low")).toBe(true);
+  });
+
+  it("mid total → green wash on .ledger, mid class on .tamt", () => {
+    // finaleCentury: 2017 Astros 36 WAR + Piniella → total ≈ 114 wins → mid.
+    const el = render(true, finaleCentury());
+    const style = ledger(el).getAttribute("style") ?? "";
+    expect(style).toContain("--fore: var(--green-2)");
+    expect(el.querySelector(".tamt")?.classList.contains("mid")).toBe(true);
+  });
+
+  it("the tint is present on the first frame, before any rows deal (resolved=false)", () => {
+    // The foreshadow is a property of the club, not of the reveal. It exists
+    // from mount — no row needs to deal before the parchment knows its tier.
+    const el = render(false, finalePerfect());
+    const style = ledger(el).getAttribute("style") ?? "";
+    expect(style).toContain("--fore: var(--gold-2)");
+    // Confirm the rows are not yet dealt — the tint precedes the ceremony.
+    expect([...el.querySelectorAll(".lrow")].some((r) => r.classList.contains("show"))).toBe(false);
   });
 });

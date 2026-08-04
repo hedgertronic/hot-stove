@@ -221,9 +221,6 @@
       padding: 8px 14px;
       gap: 12px;
     }
-    .right {
-      margin-right: -8px;
-    }
   }
   /* Position is a filter cue, not the headline: a compact fixed-width tag so
      the left edge scans as a column. Pitchers flip to filled ink — one subtle
@@ -324,6 +321,17 @@
     margin-right: -4px;
     flex: none;
     min-height: 26.3px;
+  }
+  /* The wide tier pads 14px, so the same 6px seat needs a deeper pull — the
+     identical −8 SpecialRows' skipper chip carries, or the two columns' right
+     edges split by 4px. THIS BLOCK MUST FOLLOW the base `.right` rule above:
+     the media query adds no specificity, so source order is the only thing
+     that lets −8 beat −4 — declared before the base rule it silently loses at
+     every width, which is exactly how the misalignment shipped once. */
+  @media (min-width: 760px) {
+    .right {
+      margin-right: -8px;
+    }
   }
   /* Salary sits inboard; the WAR chip is flush right, the last thing the eye
      lands on. The chip lives in app.css because PrimePicker draws the same

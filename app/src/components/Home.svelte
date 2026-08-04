@@ -233,7 +233,7 @@
     <!-- The seed pill sits below PLAY. The compact button swaps for the field
          in place: the pill grows in width but holds its height, so PLAY above
          it and the record book below it never move under the thumb. -->
-    <div class="seedzone" class:open={seedOpen} bind:this={seedZoneEl}>
+    <div class="seedzone" class:open={seedOpen} class:bad={seedBad} bind:this={seedZoneEl}>
       {#if seedOpen}
         <div class="seedrow" class:bad={seedBad}>
           <!-- svelte-ignore a11y_autofocus -->
@@ -569,7 +569,7 @@
     margin-top: 14px;
   }
   /* The seed pill sits below PLAY, centered. Width transitions between the
-     compact closed state (110px, "SEED 🌱") and the open state (280px, input
+     compact closed state (110px, "SEED 🌱") and the open state (200px, input
      row); both are pixel values so the Safari transition engine can interpolate
      without measuring — animating to/from `auto` or `fit-content` is not
      Safari-safe. `overflow:hidden` clips growing content during the transition.
@@ -598,7 +598,17 @@
     transition: width 0.18s ease, transform 0.08s;
   }
   .seedzone.open {
-    width: 210px;
+    width: 200px;
+  }
+  /* Open, the capsule IS the field: the input inside draws no box of its own
+     (see .seedin), so the pill's border does the field's work. Focus and the
+     bad-code shake both report at this border — the one stroke on screen —
+     instead of on a second box nested inside it. */
+  .seedzone.open:focus-within {
+    border-color: var(--ink);
+  }
+  .seedzone.bad {
+    border-color: var(--orange);
   }
   /* Press dip on the closed pill only — clicking GO or the input should not
      dip the pill while entry is in progress. */
@@ -666,7 +676,6 @@
     animation: seedshake 0.45s;
   }
   .seedrow.bad .seedin {
-    border-color: var(--orange);
     color: var(--orange);
   }
   @keyframes seedshake {
@@ -689,12 +698,16 @@
      keeps the keyboard from switching to uppercase mode; CSS `text-transform`
      handles the uppercase display, so the two do not conflict, and parseSeedCode
      already calls `.toUpperCase()` on the input value. */
+  /* No box of its own — a bordered rectangle inside a capsule left wedge gaps
+     at the rounded ends and read as two nested controls. The capsule is the
+     field now: the input is bare text, the caret and the placeholder say
+     "type here", and focus reports at the pill's own border (.seedzone.open
+     :focus-within above). */
   .seedin {
     flex: 1;
     min-width: 0;
-    border: 2px dashed var(--gray-ink);
-    border-radius: 9px;
-    background: var(--card);
+    border: none;
+    background: transparent;
     color: var(--ink);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 16px;
@@ -702,12 +715,8 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     text-align: center;
-    padding: 2px 8px;
+    padding: 0;
     outline: none;
-  }
-  .seedin:focus {
-    border-style: solid;
-    border-color: var(--ink);
   }
   /* GO, and the ✕ beside it in the same shape: one filled pill for the commit
      and one outlined pill for the dismissal, which is the app's primary /
@@ -749,7 +758,6 @@
   @media (max-width: 359px) {
     .seedin {
       letter-spacing: 0.03em;
-      padding: 2px 4px;
     }
     .seedgo {
       padding: 5px 7px;

@@ -74,12 +74,14 @@ describe("badgeCase", () => {
   it("pins the collectible denominator to the badge table", () => {
     // The summary line prints this denominator; it lives in badges.ts, and a
     // table edit must move the fraction here rather than silently anywhere.
-    // The denominator holds at 57 while the table grows to 70: ↩️ SECOND
+    // The denominator holds at 58 while the table grows to 71: ↩️ SECOND
     // THOUGHTS is an anti-trophy (ironic), and an anti-trophy belongs to
-    // neither side of the fraction. 🦉 OUTSCOUTED is not ironic, so it IS
-    // counted. That gap between the two numbers is the assertion.
-    expect(COLLECTIBLE.length).toBe(57);
-    expect(BADGES.length).toBe(70);
+    // neither side of the fraction. 🔂 DÉJÀ VU is NOT ironic (it belongs in
+    // the progress fraction as something to chase), so it IS counted alongside
+    // 🦉 OUTSCOUTED and the rest. That gap between the two numbers is the
+    // assertion.
+    expect(COLLECTIBLE.length).toBe(58);
+    expect(BADGES.length).toBe(71);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 

@@ -231,8 +231,8 @@
     gap: 9px;
     border: 2.5px solid var(--line);
     border-radius: 11px;
-    background: var(--yellow);
-    border-color: var(--gold-8);
+    background: var(--teal-2);
+    border-color: var(--teal-8);
     padding: 6px 10px;
     cursor: pointer;
     transition: transform 0.08s;
@@ -335,13 +335,13 @@
       margin-right: -8px;
     }
   }
-  /* Stadium moves to orange — not a WAR-chip rung color (the ladder runs
-     red/gray/green/blue/violet/gold), so the stadium tile cannot be mistaken for
-     a high-WAR chip the way the previous sky blue could. Orange is the app's
-     armed/alarm hue as pills, not as full-row fills, so a resting stadium row
-     reads as warm and energetic rather than urgent. Owner keeps its gold
-     (--yellow fill, --gold-8 ring), which is a bright saturated yellow distinct
-     from the pale-cream --gold-2 chip fill at the scales they share the screen. */
+  /* Stadium is orange, owner is teal, and neither is a WAR-chip rung color
+     (the ladder runs red/gray/green/blue/violet/gold) — so neither full-row
+     fill can be mistaken for a giant high-WAR chip the way the stadium's old
+     sky blue could. Orange is the app's armed/alarm hue as pills, not as
+     full-row fills, so a resting stadium row reads as warm rather than urgent.
+     Teal is banknote color on the money man; it replaced a bright saturated
+     gold that shouted over the whole board and crowded the --gold-2 chips. */
   .srow.stad {
     background: var(--orange-2);
     border-color: var(--orange-8);
@@ -358,21 +358,32 @@
     background: var(--card);
     border-color: var(--line);
   }
-  /* Already gone: the warm gray pair, matching the market's dead rows, which
-     is the same "you can't have this" state one section down the page. */
+  /* Already gone: the market's dead-row recipe, part for part — gray card,
+     0.55 opacity, identity bits (icon, name, meta) to monochrome — so the
+     FRONT OFFICE and PLAYERS sections speak one "you can't have this" state.
+     The skipper's wins chip keeps its hue at the same saturate(0.7) the dead
+     players' WAR chips wear: a rung you already banked still reads as its
+     rung. A row-level grayscale(1) here once took the chip with it, which is
+     exactly the mismatch the split filters exist to prevent. */
   .srow.taken {
     background: var(--gray-bg);
     border-color: var(--gray-ink);
-    color: var(--gray-ink);
+    opacity: 0.55;
     cursor: default;
-    filter: grayscale(1);
   }
   .srow.taken:active {
     transform: none;
   }
+  .srow.taken .ic,
+  .srow.taken .mid {
+    filter: grayscale(1);
+  }
   .srow.taken .meta,
-  .srow.taken .val {
+  .srow.taken .val:not(.warchip) {
     color: var(--gray-ink);
+  }
+  .srow.taken .val.warchip {
+    filter: saturate(0.7);
   }
   /* Armed Prime marks the open manager tile browsable with the same
      amber-dashed look the player rows use — one "tappable for a powerup"

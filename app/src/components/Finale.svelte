@@ -3,7 +3,7 @@
   import { bragRow } from "../lib/badges";
   import { ownerFor } from "../lib/data";
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, statValue, warTier } from "../lib/format";
+  import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, statValue, warTier, type WarTier } from "../lib/format";
   import {
     GAMES,
     MANAGER_PER_NET_WIN,
@@ -184,6 +184,22 @@
   const recWins = $derived(rec.wins);
   const recLosses = $derived(rec.losses);
   const recTier = $derived(rec.tier);
+
+  /** Each tier's -2 wash token: the same six-rung palette the WAR chips and the
+   * record stamp use, re-purposed as a foreshadow tint on the scorecard rows.
+   * One map, driven by recTier — the stamp already owns that value, and a second
+   * derivation of the breakpoints is a second source of truth waiting to drift.
+   * Gray has no standard -2 token; --gray-bg is the warm near-parchment that
+   * stands in for it across the whole app. */
+  const TIER_WASH: Record<WarTier, string> = {
+    neg:   "var(--red-2)",
+    low:   "var(--gray-bg)",
+    mid:   "var(--green-2)",
+    high:  "var(--blue-2)",
+    star:  "var(--violet-2)",
+    elite: "var(--gold-2)",
+  };
+  const lrowFore = $derived(TIER_WASH[recTier]);
 
   function count(set: (v: number) => void, n: number, ms: number) {
     const t0 = performance.now();
@@ -602,7 +618,7 @@
 <div class="fin-cols">
 <div class="fin-main">
 <div class="psep">THE SCORECARD</div>
-<div class="ledger">
+<div class="ledger" style="--fore: {lrowFore}">
   {#each rows as row, i (row.key)}
     <div class="lrow disp" class:show={i < shownRows}>
       <span class="lbl">{row.lbl}</span>
@@ -995,8 +1011,14 @@
     /* Scorecard rows wear the app's own parchment ground (--ground) stepped
        down from the player card surface (--card). Two distinct materials —
        near-white cardstock for .qrow, warm parchment for .lrow — with no
-       shadows, fully within the flat-ink aesthetic. */
-    background: color-mix(in srgb, var(--ground) 55%, var(--card));
+       shadows, fully within the flat-ink aesthetic.
+       --fore (set on .ledger by recTier, the same value the stamp colors) bleeds
+       the final tier's -2 wash into the parchment from the first painted frame.
+       The tint is a foreshadow, not a reveal — rows are already this color before
+       a single one deals, because recTier reads fin.parts.total, which never moves
+       during the reveal. The fallback (--ground) guards against a CSS
+       computed-value invalidation if --fore somehow lands unset. */
+    background: color-mix(in srgb, var(--fore, var(--ground)) 25%, color-mix(in srgb, var(--ground) 55%, var(--card)));
     padding: 6px 12px;
     opacity: 0;
     transform: translateY(10px) scale(0.97);

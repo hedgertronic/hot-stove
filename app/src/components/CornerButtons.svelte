@@ -235,6 +235,14 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    /* Press feedback. app.css kills every transition for reduced-motion readers
+       with `* { transition: none !important }`, so no component-level guard
+       is needed here. */
+    transition: transform 0.08s;
+  }
+  /* The same tactile dip the market rows use (PlayerList .prow:active). */
+  .help:active {
+    transform: translate(-1px, -1px);
   }
   /* The HUD is a centered flex row and hands the pills their vertical position;
      the home screen is a plain block, so there they pin to its top edge. */

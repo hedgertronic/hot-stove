@@ -486,6 +486,17 @@ export class Game {
    * background tabs, and a player who undoes, reloads, then finishes would
    * otherwise lose the badge silently. */
   undoUsed = $state(false);
+  /** Undo was used AND the very next committed action was the exact same move —
+   * 🔂 DÉJÀ VU.
+   *
+   * Sticky like `undoUsed`: set once and never reset inside a run. A redo
+   * always co-fires with ↩️ SECOND THOUGHTS — a redo requires an undo.
+   *
+   * The same RUN / POSITION distinction as `undoUsed` applies: `hydrate` does
+   * not carry it (a snapshot taken before the action that earns it would clear
+   * it on the one call that sets it), and `restore` reads it off the save
+   * directly. */
+  redone = $state(false);
   powerups = $state<Record<PowerupKey, PowerupState>>({
     seasonTicket: "ready",
     relocate: "ready",
@@ -539,6 +550,32 @@ export class Game {
 
   private pendingCard: Promise<Card> | null = null;
   private pendingEntry: IndexEntry | null = null;
+
+  /** Signature of the LAST COMMITTED action — set in each action method just
+   * before `snapshot()` where the card, player, and slot are fully resolved,
+   * and KEPT after `consumeChoice` so that `undo()` can read it as the
+   * signature of whatever it is about to revert. Format:
+   *
+   *   sign|{playerId}|{cardTeam}|{cardYear}|{slotIdx}   — player sign
+   *   swap|{playerId}|{cardTeam}|{cardYear}|{slotIdx}   — player swap (TD)
+   *   owner|{franchise}|{year}                          — hire owner
+   *   stadium|{franchise}|{year}                        — buy stadium
+   *   manager|{team}|{year}                             — hire manager (any path)
+   *   swapspecial|{which}|{team}|{year}                 — TD special swap
+   *
+   * The card's team and year are in every string so a Prime re-sign of a
+   * different season of the same man into the same slot cannot falsely match.
+   *
+   * Never serialized. Nulled by 🎟️/🚚/cold-respin (which take snapshots but
+   * bypass consumeChoice) so they cannot bridge a pending redo across a
+   * re-deal. Overwritten by the next action's sig on the next commit. */
+  private actionSig: string | null = null;
+
+  /** Set by `undo()` to `actionSig` at the moment of the rewind. Compared
+   * by the very next `consumeChoice` call: a match sets `redone`. Any
+   * committed action — match or miss — clears it immediately.
+   * Never serialized — cleared by every committed action. */
+  private pendingRedoSig: string | null = null;
 
   /** The game as it stood before the last committed move: its serialized state
    * plus the card that was on the reel at that moment. Everything `undo()`
@@ -999,6 +1036,10 @@ export class Game {
       (c) => c.franchise === this.card!.franchise && c.year === year,
     );
     if (!entry) return;
+    // Not a committed choice — bypasses consumeChoice — so clear any pending
+    // redo sig rather than letting it outlive the re-deal.
+    this.actionSig = null;
+    this.pendingRedoSig = null;
     this.snapshot();
     this.spendPowerup("seasonTicket");
     this.disarmToggles();
@@ -1021,6 +1062,10 @@ export class Game {
       (c) => c.year === this.card!.year && c.team === team,
     );
     if (!entry) return;
+    // Not a committed choice — bypasses consumeChoice — so clear any pending
+    // redo sig rather than letting it outlive the re-deal.
+    this.actionSig = null;
+    this.pendingRedoSig = null;
     this.snapshot();
     this.spendPowerup("relocate");
     this.disarmToggles();
@@ -1216,6 +1261,7 @@ export class Game {
     if (!p) return false;
     const idx = this.primeSlotFor(p);
     if (idx === null) return false;
+    this.actionSig = `${this.slots[idx] !== null ? "swap" : "sign"}|${id}|${team}|${year}|${idx}`;
     this.snapshot();
     const trade = this.slots[idx] !== null;
     const discounted = this.primeDiscountEligible(p, card.franchise);
@@ -1250,6 +1296,7 @@ export class Game {
     const idx = this.index.cards.find(
       (c) => c.team === team && c.year === year,
     );
+    this.actionSig = `manager|${team}|${year}`;
     this.snapshot();
     // Read BEFORE the hire lands, the same way `hireOwner` reads its own
     // moment: this pick can be the one that completes the club, and the
@@ -1340,6 +1387,19 @@ export class Game {
   }
 
   private consumeChoice(entry: SpinLogEntry): void {
+    // 🔂 DÉJÀ VU: the pending sig from undo() matches this action's sig.
+    // Sticky — once set it stays for the rest of the run.
+    if (
+      !this.redone &&
+      this.pendingRedoSig !== null &&
+      this.pendingRedoSig === this.actionSig
+    )
+      this.redone = true;
+    // Clear the pending sig regardless of match — any committed action closes
+    // the redo window. actionSig is kept so undo() can capture it: it holds
+    // the signature of the LAST committed action, and undo() reads it as the
+    // signature of whatever it is about to revert.
+    this.pendingRedoSig = null;
     this.choicesUsed += 1;
     this.choicesLeft -= 1;
     // Double Play burns only when its second pick lands.
@@ -1362,6 +1422,10 @@ export class Game {
   /** Free respin out of a dead card. */
   coldRespin(): void {
     if (!this.coldStove) return;
+    // Not a committed choice — bypasses consumeChoice — so clear any pending
+    // redo sig rather than letting it outlive the re-deal.
+    this.actionSig = null;
+    this.pendingRedoSig = null;
     this.snapshot();
     this.spinCount -= 1;
     this.phase = "preSpin";
@@ -1410,6 +1474,7 @@ export class Game {
     // After the slot picker's early return above: opening the picker commits
     // nothing, and a point taken there would overwrite the real one with the
     // position the player is already standing in.
+    this.actionSig = `sign|${p.id}|${this.card!.team}|${this.card!.year}|${idx}`;
     this.snapshot();
     const discounted = this.discountEligible(p);
     this.slots[idx] = this.makeSigned(
@@ -1440,6 +1505,7 @@ export class Game {
     )
       return;
     const c = this.card;
+    this.actionSig = `owner|${c.franchise}|${c.year}`;
     this.snapshot();
     // Read BEFORE the choice is consumed: this hire can itself be the pick
     // that ends the game, and the question is what the roster looked like
@@ -1465,6 +1531,7 @@ export class Game {
     )
       return;
     const c = this.card;
+    this.actionSig = `stadium|${c.franchise}|${c.year}`;
     this.snapshot();
     this.stadium = {
       park: c.park,
@@ -1485,6 +1552,7 @@ export class Game {
       return;
     const c = this.card;
     if (c.manager == null) return;
+    this.actionSig = `manager|${c.team}|${c.year}`;
     this.snapshot();
     // The moment 🪑 THE INTERIM reads, recorded as it happens for the reason
     // beside `managerHiredLast`.
@@ -1529,6 +1597,7 @@ export class Game {
   }
 
   private completeSwap(p: CardPlayer, idx: number): void {
+    this.actionSig = `swap|${p.id}|${this.card!.team}|${this.card!.year}|${idx}`;
     this.snapshot();
     // TD + 🏠 both armed: a debut-eligible trade-in commits at the discounted
     // price and consumes both powerups.
@@ -1558,6 +1627,7 @@ export class Game {
     // is taken: a snapshot on a tap that then bails would overwrite a real one
     // with the position the club is already standing in.
     if (which === "manager" && c.manager == null) return;
+    this.actionSig = `swapspecial|${which}|${c.team}|${c.year}`;
     this.snapshot();
     if (which === "owner") {
       this.owner = {
@@ -1811,6 +1881,7 @@ export class Game {
         : 0,
       konami: this.konami,
       undone: this.undoUsed,
+      redone: this.redone,
       managerTeam: this.manager?.team ?? null,
       managerYear: this.manager?.year ?? null,
       managerName: this.manager?.name ?? null,
@@ -2031,6 +2102,10 @@ export class Game {
     const point = this.undoPoint!;
     this.undoPoint = null;
     this.undoUsed = true;
+    // Capture the undone action's signature so the very next consumeChoice
+    // can check for an instant redo (🔂 DÉJÀ VU). If no action had been
+    // committed yet, actionSig is null and no redo can fire — correct.
+    this.pendingRedoSig = this.actionSig;
     // The reel in flight is abandoned here, before a single field moves.
     // Dropping the pending fetch stops a `land()` that has not started; the
     // epoch stops the one already parked on the await, which has its own
@@ -2084,6 +2159,7 @@ export class Game {
       managerHiredLast: this.managerHiredLast,
       konami: this.konami,
       undoUsed: this.undoUsed,
+      redone: this.redone,
       powerups: this.powerups,
       choicesLeft: this.choicesLeft,
       choicesUsed: this.choicesUsed,
@@ -2239,6 +2315,7 @@ export class Game {
       // and an unrecorded rewind is not a rewind.
       game.konami = s.konami === true;
       game.undoUsed = s.undoUsed === true;
+      game.redone = s.redone === true;
       if (s.cardRef && s.phase === "landed") {
         game.card = await loadCard(s.cardRef.team, s.cardRef.year);
         game.phase = "landed";

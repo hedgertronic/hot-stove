@@ -562,3 +562,127 @@ describe("↩️ SECOND THOUGHTS", () => {
     expect(def.ironic).toBe(true);
   });
 });
+
+describe("🔂 DÉJÀ VU", () => {
+  it("resolves from the fact the engine hands the badge table", () => {
+    const facts = (over: Partial<BadgeFacts>): BadgeFacts => ({
+      baselineWins: 81,
+      baselineLosses: 81,
+      total: 81,
+      spendM: 50,
+      budgetM: 100,
+      budgetBonus: 0,
+      scoutHits: 0,
+      roster: [],
+      managerTeam: null,
+      managerYear: null,
+      managerName: null,
+      rings: 0,
+      awardPoints: 0,
+      managerMoty: false,
+      owner: null,
+      stadium: null,
+      divisions: [],
+      powerups: { spent: 1, total: 6 },
+      ...over,
+    });
+    expect(earnedBadges(facts({ redone: true }))).toContain("rewind");
+    expect(earnedBadges(facts({ redone: false }))).not.toContain("rewind");
+    // Absent reads as no redo, never as an unknown that pays out.
+    expect(earnedBadges(facts({}))).not.toContain("rewind");
+  });
+
+  it("fires when the very next committed action is the same move", async () => {
+    const g = await spun();
+    expect(g.redone).toBe(false);
+
+    const p = g.card!.players[0];
+    g.signPlayer(p);
+    g.undo();
+    // pendingRedoSig is set; the same player auto-resolves to the same slot.
+    g.signPlayer(p);
+    expect(g.redone).toBe(true);
+  });
+
+  it("does not fire when a different player follows the undo", async () => {
+    const g = await spun();
+    const p0 = g.card!.players[0];
+    const p1 = g.card!.players[1];
+    g.signPlayer(p0);
+    g.undo();
+    g.signPlayer(p1);
+    expect(g.redone).toBe(false);
+  });
+
+  it("does not fire when the same player goes into a different slot", async () => {
+    const g = await spun();
+    const p = g.card!.players[0];
+    // Sign into slot 1 (auto-resolved first IF seat), then undo.
+    g.signPlayer(p, 1);
+    g.undo();
+    // Re-sign into slot 2 — same player, different slot — no match.
+    g.signPlayer(p, 2);
+    expect(g.redone).toBe(false);
+  });
+
+  it("is sticky — stays true after a second undo", async () => {
+    const g = await spun();
+    const p = g.card!.players[0];
+    g.signPlayer(p);
+    g.undo();
+    g.signPlayer(p);
+    expect(g.redone).toBe(true);
+
+    g.undo();
+    // Undoing the redo should not clear the flag — it is a run fact.
+    expect(g.redone).toBe(true);
+  });
+
+  it("does not fire when an intervening different action follows the undo", async () => {
+    const g = await spun();
+    const p0 = g.card!.players[0];
+    const p1 = g.card!.players[1];
+    g.signPlayer(p0);
+    g.undo();
+    // Different action clears the pending sig.
+    g.signPlayer(p1);
+    // Now undo again and re-sign p0 — no longer an immediate redo.
+    g.undo();
+    g.signPlayer(p0);
+    expect(g.redone).toBe(false);
+  });
+
+  it("survives the save/restore round trip", async () => {
+    const g = await spun();
+    const p = g.card!.players[0];
+    g.signPlayer(p);
+    g.undo();
+    g.signPlayer(p);
+    expect(store.has(SAVE_KEY)).toBe(true);
+
+    const back = await Game.restore(meta, index, owners);
+    expect(back!.redone).toBe(true);
+    // A run that never redid a move restores as one that never did — the flag
+    // is read `=== true`, so an older save with no such field is a game with
+    // no redo rather than a free badge.
+    store.set(
+      SAVE_KEY,
+      JSON.stringify({
+        ...JSON.parse(store.get(SAVE_KEY)!),
+        redone: undefined,
+      }),
+    );
+    expect((await Game.restore(meta, index, owners))!.redone).toBe(false);
+  });
+
+  it("is a secret collectible badge with no measurable population", () => {
+    const def = BADGE_BY_KEY.rewind;
+    expect(def.label).toBe("DÉJÀ VU");
+    expect(def.axis).toBe("meta");
+    expect(def.secret).toBe(true);
+    // Not ironic — belongs in the progress fraction as something to chase.
+    expect(def.ironic).toBeFalsy();
+    // No bot arm presses undo, so there is nothing to measure this against.
+    expect(def.freq).toBeNull();
+  });
+});

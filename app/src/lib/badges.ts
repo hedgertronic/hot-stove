@@ -343,6 +343,12 @@ export interface BadgeFacts {
    * Optional for `konami`'s reason and it fails the same way: a fact set built
    * before the field existed reports no rewind rather than a free badge. */
   undone?: boolean;
+  /** Undo was used AND the very next committed action was the exact same move —
+   * 🔂 DÉJÀ VU.
+   *
+   * Optional for `konami`'s reason and it fails the same way: a fact set built
+   * before the field existed reports no redo rather than a free badge. */
+  redone?: boolean;
   /** `Game.pedigree.rings`. */
   rings: number;
   /** `ScoreParts.awardPoints` — includes the manager's MotY points. */
@@ -2310,6 +2316,43 @@ export const BADGES: BadgeDef[] = [
     freq: null,
     how: "Took back a move.",
   },
+  /* The instant replay — undo, then the exact same move immediately after.
+   *
+   * `secret: true` for 🎮's reason: "🔂 DÉJÀ VU" on an empty case tells the
+   * player there is a condition they can discover, and the condition itself is
+   * the reward. Always co-fires with ↩️ SECOND THOUGHTS — a redo requires
+   * an undo.
+   *
+   * NOT ironic, unlike its neighbor. Replaying your own move after taking it
+   * back is not a joke at your expense the way a mulligan is; it is a curious
+   * thing to do on purpose, and it belongs in the progress fraction as
+   * something to chase.
+   *
+   * `rare` like 🤝 WORD OF MOUTH and for a parallel reason: both stand
+   * outside the ironic cluster, both belong in the progress fraction, and
+   * neither has a bot-arm population behind them — no harness game ever
+   * presses undo. The label is what the player experienced (DÉJÀ VU, not
+   * "the redo mechanic"), following the axis's own voice: PACKED IT IN,
+   * WORD OF MOUTH, SECOND THOUGHTS.
+   *
+   * "Same move" is defined conservatively: kind + player id + card team +
+   * card year + slot index for player picks; kind + franchise/team + year for
+   * front-office picks. The card's season is in the string so a Prime re-hire
+   * of a different year of the same manager into the same chair does not fire
+   * falsely. */
+  {
+    key: "rewind",
+    emoji: "🔂",
+    label: "DÉJÀ VU",
+    name: "Déjà Vu",
+    rarity: "rare",
+    axis: "meta",
+    secret: true,
+    // Same unmeasurability as ↩️, one gate narrower: the player also has to
+    // repeat the move they just took back.
+    freq: null,
+    how: "Took back a move, then immediately made the same one again.",
+  },
 ];
 
 export const BADGE_BY_KEY: Record<string, BadgeDef> = Object.fromEntries(
@@ -2689,6 +2732,9 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // field existed reports no keyboard rather than a free badge.
   if (f.konami === true) out.push("cheatcodes");
   if (f.undone === true) out.push("secondthoughts");
+  // Same default-false reading: a fact set assembled before the field existed
+  // reports no redo rather than a free badge.
+  if (f.redone === true) out.push("rewind");
   if (roster.some(isRecord)) out.push("recordbook");
   if (roster.some(isChase)) out.push("chase");
   if (roster.some((p) => p.year === 2020)) out.push("covid");

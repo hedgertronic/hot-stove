@@ -238,6 +238,10 @@
     font: inherit;
     color: inherit;
     cursor: pointer;
+    /* Press feedback. app.css kills every transition for reduced-motion readers
+       with `* { transition: none !important }`, so no component-level guard
+       is needed here. */
+    transition: transform 0.08s;
   }
   /* The focus ring takes the SHAPE OF THE CHIP INSIDE IT. A capsule outline
      around a rectangle is the giveaway that a wrapper stopped matching its
@@ -248,6 +252,13 @@
   }
   .slot.rect {
     border-radius: 4px;
+  }
+  /* Scale about the chip's center so the chip stays centered — `translate` would
+     shift the center and make `measure()`'s `getBoundingClientRect` read a
+     slightly displaced position on touch devices where `:active` can persist
+     through the click event. */
+  .slot:active {
+    transform: scale(0.94);
   }
   .slot:focus-visible {
     outline: 3px solid var(--blue);
@@ -292,8 +303,23 @@
        one line) and the longest (216 chars, six lines). */
     text-align: center;
   }
+  /* The panel snaps open with no transition in its pre-animation state —
+     `visibility: visible` cannot be eased, and the bare `{#if open}` guard
+     means the element exists for only as long as the chip is expanded.
+     The animation fires once on `.placed` (added after `measure()` confirms
+     coordinates), so the panel is never seen at an unplaced position AND it
+     eases into view rather than popping. Under `animation: none !important`
+     (app.css, reduced-motion) the `from` frame is ignored and the panel
+     renders immediately at the `to` state — fully visible. */
+  @keyframes how-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96) translateY(-3px);
+    }
+  }
   .how.placed {
     visibility: visible;
+    animation: how-in 0.12s ease-out;
   }
   /* The connector: an ink triangle with a card triangle sitting just inside it,
      so what shows is a 2px chevron that continues the panel's own outline and

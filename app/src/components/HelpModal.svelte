@@ -195,6 +195,10 @@
       meta: "90–54",
       val: MGR_WINS.toFixed(1),
       unit: "WINS",
+      // Without the rung the specimen draws plain type ("7.2WINS", no chip)
+      // while the caption below promises a chip — the same one-mapping rule
+      // the rail's MGR seat follows, three lines down.
+      tier: warTier(MGR_WINS),
     },
   ];
   /** The payroll those two hires produce — owner × ballpark, the engine's own
@@ -408,7 +412,10 @@
         {#if count > 1}<span class="scnt">×{count}</span>{/if}
       </span>
     {/each}
-    <span class="sbadge"><span class="pos">MGR</span></span>
+    <!-- The dugout is not a market position, so its chip steps off the
+         batter/pitcher two-way split: warm gray, the same pair the rail's MGR
+         seat sits outside — a third category, not a third team. -->
+    <span class="sbadge"><span class="pos mgr">MGR</span></span>
   </div>
 
   <div class="psep">A PLAYER ROW</div>
@@ -479,16 +486,16 @@
 
   <div class="psep">FRONT OFFICE</div>
   <!-- The game's own tiles (SpecialRows), inert, off the same ATL 1995 card
-       the rail drafts from. The hue is the chair, not a grade: owner gold,
-       ballpark blue, skipper red. -->
+       the rail drafts from. The hue is the chair, not a grade: owner teal,
+       ballpark orange, skipper white with a rung-colored chip. -->
   <div class="spec">
     <SpecialRows specimen={FRONT_OFFICE} />
   </div>
   <ul>
-    <li><b>💰 Owner</b> (gold): sets your payroll budget.</li>
-    <li><b>🏟️ Ballpark</b> (blue): multiplies it, 0.85× to 1.15×.</li>
+    <li><b>💰 Owner</b> (teal): sets your payroll budget.</li>
+    <li><b>🏟️ Ballpark</b> (orange): multiplies it, 0.85× to 1.15×.</li>
     <li>
-      <b>🧢 Skipper</b> (red): adds (W−L) × {MANAGER_PER_NET_WIN} to your win total. The
+      <b>🧢 Skipper</b> (white): adds (W−L) × {MANAGER_PER_NET_WIN} to your win total. The
       chip reads it in WINS.
     </li>
   </ul>
@@ -944,6 +951,14 @@
     line-height: 1;
     padding: 4px 0;
     flex: none;
+  }
+  /* The MGR chip's third look: batters are white, pitchers inverted ink, and
+     the dugout — not a market position at all — wears the warm gray pair so
+     the two-way arms/bats split stays a two-way split. Ink text, not
+     gray-on-gray: the chip is a label, not a dead row. */
+  .pos.mgr {
+    background: var(--gray-bg);
+    border-color: var(--gray-ink);
   }
   .pos.pit {
     background: var(--ink);
