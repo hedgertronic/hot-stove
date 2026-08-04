@@ -68,6 +68,82 @@ describe("the ✕ is drawn, not typed", () => {
   });
 });
 
+describe("review fixes: the two markets share one right edge", () => {
+  it("PrimePicker carries the wide tier's −8px, declared after the base", () => {
+    const src = read("components/PrimePicker.svelte");
+    const base = src.indexOf("margin-right: -4px;");
+    const wide = src.indexOf("margin-right: -8px;");
+    expect(base).toBeGreaterThan(-1);
+    expect(wide, "wide tier present and after the base rule").toBeGreaterThan(base);
+  });
+});
+
+describe("review fixes: a failed career tap re-enables the rows", () => {
+  it("both pickers release `busy` in finally and close only on success", () => {
+    for (const f of ["components/PrimePicker.svelte", "components/SpecialPrimePicker.svelte"]) {
+      const src = read(f);
+      expect(src, f).toMatch(/try \{\n\s+await game\.applyPrime/);
+      expect(src, f).toMatch(/\} finally \{\n\s+busy = false;/);
+    }
+  });
+});
+
+describe("review fixes: the sheet keeps the modal promise", () => {
+  const sheet = read("components/Sheet.svelte");
+
+  it("declares aria-modal and cycles Tab inside itself", () => {
+    expect(sheet).toContain('aria-modal="true"');
+    expect(sheet).toContain("function trapTab(");
+    expect(sheet).toContain("trapTab(e)");
+  });
+
+  it("hands focus back to the opener on close", () => {
+    expect(sheet).toContain("return () => opener?.focus();");
+  });
+});
+
+describe("review fixes: names and keys assistive tech is owed", () => {
+  it("the HUD ✕ carries an accessible name in every state", () => {
+    expect(read("App.svelte")).toContain('"Quit this game"');
+  });
+
+  it("every role=button confirm answers Space as well as Enter", () => {
+    for (const f of ["components/PlayerList.svelte", "components/SpecialRows.svelte"]) {
+      const src = read(f);
+      // No confirm keydown handler that checks Enter alone.
+      expect(src, f).not.toMatch(/onkeydown=\{\(e\) => e\.key === "Enter" &&/);
+    }
+  });
+});
+
+describe("review fixes: the finalization window", () => {
+  const engine = read("lib/engine.svelte.ts");
+
+  it("the club-completing move is saved before the async finish", () => {
+    expect(engine).toMatch(/this\.save\(\);\n\s+void this\.finishGame\(\);/);
+  });
+
+  it("a quit during the dream solve stands the finalizer down", () => {
+    expect(engine).toContain("if (this.abandoned) return;");
+    expect(read("App.svelte")).toContain("game?.abandon();");
+  });
+});
+
+describe("review fixes: prototype-safe bank lookup", () => {
+  it("SeasonsModal validates history banks with hasOwn, not `in`", () => {
+    const src = read("components/SeasonsModal.svelte");
+    expect(src).toContain("Object.hasOwn(BANKS, e.bank)");
+    expect(src).not.toContain("e.bank in BANKS");
+  });
+});
+
+describe("review fixes: retired dead code stays dead", () => {
+  it("awardDef and --orange-deep are gone", () => {
+    expect(read("lib/awards.ts")).not.toContain("awardDef");
+    expect(read("app.css")).not.toContain("--orange-deep");
+  });
+});
+
 describe("the empty-front-office bank is From the Ground Up", () => {
   it("modes.ts names it, and the key stays classic", () => {
     const modes = read("lib/modes.ts");

@@ -81,9 +81,17 @@
   async function pick(row: Row) {
     if (busy || row.here) return;
     busy = true;
-    await game.applyPrimeSpecial(row.team, row.year);
-    busy = false;
-    onclose();
+    // try/finally for PrimePicker's reason exactly: the apply awaits a
+    // network load, and a throw would latch `busy` — rows grayed for the
+    // sheet's life. Close on success only; re-enable on any failure.
+    try {
+      await game.applyPrimeSpecial(row.team, row.year);
+      onclose();
+    } catch {
+      /* offline mid-tap: stay open, rows re-enable */
+    } finally {
+      busy = false;
+    }
   }
 </script>
 

@@ -89,8 +89,11 @@
       // two normalizers are private to settings, so the rules are spelled again
       // here rather than reached for; they are two expressions and they are the
       // same two expressions the record book indexes on.
+      // hasOwn, not `in`: `in` walks the prototype chain, so a corrupt row
+      // whose bank reads "constructor" would pass and index BANKS at a
+      // function. (settings.ts validates against a Set for the same reason.)
       const bank = (
-        typeof e.bank === "string" && e.bank in BANKS
+        typeof e.bank === "string" && Object.hasOwn(BANKS, e.bank)
           ? e.bank
           : e.moneyball === true
             ? "moneyball"

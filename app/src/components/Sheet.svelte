@@ -82,9 +82,52 @@
    * nothing until the player happened to tap something in the sheet first.
    *
    * Taking focus is also what stops Tab from walking the market rows and the
-   * powerup pills underneath an open modal. */
+   * powerup pills underneath an open modal — for the first press. Once focus
+   * has moved onto the ✕ or the bottom button, a further Tab would walk out
+   * of the dialog into the board underneath, so `trapTab` below cycles it.
+   *
+   * The element that had focus when the sheet opened gets it back on close —
+   * the same hand-back Home's seed capsule does — so a keyboard user lands on
+   * the control they came from rather than on `<body>`. Captured before the
+   * sheet takes focus, restored in the effect's teardown (the unmount). */
   let sheetEl = $state<HTMLElement | null>(null);
-  $effect(() => sheetEl?.focus());
+  $effect(() => {
+    const opener =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    sheetEl?.focus();
+    return () => opener?.focus();
+  });
+
+  /** Cycle Tab and Shift-Tab inside the sheet. A dialog that lets Tab reach
+   * the live game under its own backdrop is only pretending to be modal —
+   * `aria-modal` promises assistive tech a boundary, and this is the half of
+   * the promise the keyboard has to keep. */
+  function trapTab(e: KeyboardEvent) {
+    if (e.key !== "Tab" || !sheetEl) return;
+    const focusables = Array.from(
+      sheetEl.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      ),
+      // offsetParent is null for display:none subtrees — a hidden control is
+      // not a Tab stop.
+    ).filter((el) => el.offsetParent !== null);
+    if (focusables.length === 0) {
+      e.preventDefault();
+      return;
+    }
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    // The sheet element itself holds focus right after open; Shift-Tab from
+    // there wraps to the end exactly as it would from the first control.
+    if (e.shiftKey && (active === first || active === sheetEl)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
 
   /** Lock page scroll while this sheet is mounted; unlock on teardown.
    * The lock is reference-counted so stacked modals don't unlock each other
@@ -99,8 +142,9 @@
     class:framed
     bind:this={sheetEl}
     onclick={(e) => e.stopPropagation()}
-    onkeydown={(e) => e.key === "Escape" && onclose()}
+    onkeydown={(e) => (e.key === "Escape" ? onclose() : trapTab(e))}
     role="dialog"
+    aria-modal="true"
     aria-label={label}
     tabindex="-1"
   >

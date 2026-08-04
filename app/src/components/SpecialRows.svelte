@@ -204,9 +204,10 @@
         {#if row.moty}<AwardPill code="MOY" small />{/if}
       </span>
       {#if confirmKey === `s:${row.key}` && !taken && !primeBlocked}
-        <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commit(row.key); }} onkeydown={(e) => e.key === "Enter" && commit(row.key)}>{row.val ? `${row.verb} ${row.val}${row.unit ? ` ${row.unit}` : ""}` : row.verb}</span>
+        <!-- role=button owes both keys, same as the market rows' confirm. -->
+        <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commit(row.key); }} onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); commit(row.key); } }}>{row.val ? `${row.verb} ${row.val}${row.unit ? ` ${row.unit}` : ""}` : row.verb}</span>
       {:else if confirmKey === `w:${row.key}` && swappable}
-        <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSwap(row.key); }} onkeydown={(e) => e.key === "Enter" && commitSwap(row.key)}>🔁 TRADE IN</span>
+        <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSwap(row.key); }} onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); commitSwap(row.key); } }}>🔁 TRADE IN</span>
       {:else}
         <span class="val {row.tier ? `warchip ${row.tier}` : ''}">{row.val}{#if row.val && row.unit}<span class="unit">{row.unit}</span>{/if}</span>
       {/if}

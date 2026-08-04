@@ -245,7 +245,6 @@
      the same chip. Held here rather than pushed to --violet-2: at rung 2 it
      lands on top of --lilac's own ring hue and the two pills merge. */
   --rare-violet: #dcd3f0;
-  --orange-deep: #d04e08;
 
   /* ---------- the WAR ladder ----------
      Six hues, each at both rungs. --war-* is the LINE register — chip borders,

@@ -56,11 +56,6 @@ export const AWARDS: AwardDef[] = [
 
 const BY_CODE = new Map(AWARDS.map((a) => [a.code, a]));
 
-/** The registry row for a code, or undefined for one the game does not know. */
-export function awardDef(code: string): AwardDef | undefined {
-  return BY_CODE.get(code);
-}
-
 /** What the pill prints. An unknown code prints itself: a card carrying
  * hardware this build has never heard of still shows the player earned
  * something. */

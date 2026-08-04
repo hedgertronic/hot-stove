@@ -170,9 +170,11 @@
              man already on the club) keep their own pill, which is what makes
              the suppression match the routing exactly. -->
         {:else if confirmKey === `p:${p.id}` && open && !swappable && !primeable}
-          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSign(p); }} onkeydown={(e) => e.key === "Enter" && commitSign(p)}>SIGN {money(price)}</span>
+          <!-- role=button owes both keys: Enter and Space (Space preventDefaulted
+               so it cannot also scroll the page). -->
+          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSign(p); }} onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); commitSign(p); } }}>SIGN {money(price)}</span>
         {:else if confirmKey === `t:${p.id}` && swappable && !primeable}
-          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => e.key === "Enter" && commitTrade(p)}>TRADE FOR {money(price)}</span>
+          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); commitTrade(p); } }}>TRADE FOR {money(price)}</span>
         {:else}
           <span class="cost {discounted ? 'cheap' : costTier(price)}">{money(price)}</span>
           {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}

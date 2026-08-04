@@ -116,7 +116,9 @@
     // an unreachable state rather than a boot-time tiebreak.
     clearStoredFinale();
     restoredFinale = false;
-    game = new Game(deps.meta, deps.index, deps.owners, seed, config);
+    // The final argument is the seed badges' provenance bit: an explicit seed
+    // here can only have come off the PLAY A SEED input.
+    game = new Game(deps.meta, deps.index, deps.owners, seed, config, seed !== undefined);
     track("game_start", { difficulty: config.difficulty, bank: config.bank });
     // One event with a boolean rather than two names: `seed` is undefined off
     // the PLAY button and a parsed number off PLAY A SEED, so the flag answers
@@ -190,6 +192,11 @@
       // The confirmed tap only, matching recordQuit: arming the ✕ and thinking
       // better of it is not a quit and must not be counted as one.
       track("game_quit");
+      // A club that completed this instant may have an async finishGame in
+      // flight (it awaits the dream solve's card loads). Told, it stands down
+      // instead of landing after this quit and filing a finished season on
+      // top of the quit row.
+      game?.abandon();
       Game.clearSave();
       goHome();
       return;
@@ -350,6 +357,11 @@
       class:pushed={undoArmed}
       bind:this={quitEl}
       onclick={tapQuit}
+      aria-label={quitArmed
+        ? "Quit this game: tap again to confirm"
+        : game.phase === "finale"
+          ? "Back to the home screen"
+          : "Quit this game"}
     >
       {#if quitArmed}QUIT?{:else}<CloseGlyph />{/if}
     </button>

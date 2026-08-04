@@ -80,9 +80,18 @@
   async function pick(sea: Season) {
     if (busy || !sea.fits || sea.here) return;
     busy = true;
-    await game.applyPrime(sea.team, sea.year);
-    busy = false;
-    onclose();
+    // try/finally, not sequential: applyPrime awaits a card fetch, and a
+    // fetch that throws mid-tap would otherwise latch `busy` forever — every
+    // row grayed, no error, no retry. The close belongs to success only; a
+    // failed tap re-enables the rows so the next tap can try again.
+    try {
+      await game.applyPrime(sea.team, sea.year);
+      onclose();
+    } catch {
+      /* offline mid-tap: stay open, rows re-enable */
+    } finally {
+      busy = false;
+    }
   }
 </script>
 
@@ -247,6 +256,15 @@
     gap: 10px;
     margin-right: -4px;
     flex: none;
+  }
+  /* The wide tier's deeper pull, same numbers and same source-order caveat as
+     PlayerList's .right: without it this sheet's right edge split 4px from
+     the market's above 760px — exactly the drift the comment below warns two
+     copies invite. */
+  @media (min-width: 760px) {
+    .right {
+      margin-right: -8px;
+    }
   }
   /* The WAR chip is one ladder in app.css — this sheet used to carry a second
      copy of it, which is how two markets drift apart.

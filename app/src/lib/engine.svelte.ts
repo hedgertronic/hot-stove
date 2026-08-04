@@ -13,6 +13,7 @@ import {
   archiveGame,
   earnedBadgeKeys,
   loadArchive,
+  loadHistory,
 } from "./history";
 import { Rng, randomSeed } from "./rng";
 import {
@@ -355,10 +356,22 @@ export function loadStoredFinale(): StoredFinale | null {
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (s?.v !== FINALE_VERSION) return null;
-    // The two things every surface dereferences: the ledger's numbers and the
-    // roster it renders a seat per. A record missing either is not a finale.
+    // What the finale screen dereferences without guards: the ledger's parts,
+    // the stamped record, the roster it renders a seat per, and the run
+    // numbers on the receipts. A record missing any of them is not a finale —
+    // better no way back than a way back that white-screens.
     if (typeof s.finale?.parts?.total !== "number") return null;
-    if (!Array.isArray(s.slots)) return null;
+    if (typeof s.finale.wins !== "number" || typeof s.finale.losses !== "number")
+      return null;
+    if (
+      typeof s.finale.spend !== "number" ||
+      typeof s.finale.budget !== "number" ||
+      typeof s.finale.totalWar !== "number" ||
+      typeof s.finale.spinCount !== "number"
+    )
+      return null;
+    if (!Array.isArray(s.finale.badges)) return null;
+    if (!Array.isArray(s.slots) || !Array.isArray(s.seen)) return null;
     return s as StoredFinale;
   } catch {
     return null;
@@ -475,6 +488,18 @@ export class Game {
    * a code that altered the game would make every score after it
    * incomparable. */
   konami = $state(false);
+  /** The seed was TYPED — set only through the constructor's explicit
+   * provenance flag, which only the home screen's PLAY A SEED path passes
+   * (PLAY, the finale's Replay, every test fixture and every bot leave it
+   * false). The bit the two seed badges divide between them: at the
+   * finale, typed + already in the local history is ✳️ THE ASTERISK, typed +
+   * absent from it is 🤝 WORD OF MOUTH (a code that came from somewhere
+   * else). A RUN fact like `konami`: serialized so an evicted tab keeps it,
+   * read back by `restore()` rather than `hydrate()` so a rewind cannot
+   * touch it, and false on a save written before the field — the badge is
+   * withheld, never invented. Not reactive: set once in the constructor,
+   * read once at the finale. */
+  seedTyped = false;
   /** A move was taken back during this game — ↩️ SECOND THOUGHTS.
    *
    * A fact about the RUN, not about the position, which is exactly why
@@ -649,11 +674,17 @@ export class Game {
     owners: Owners,
     seed?: number,
     config: GameConfig = DEFAULT_CONFIG,
+    seedTyped = false,
   ) {
     this.meta = meta;
     this.index = index;
     this.owners = owners;
     this.seed = seed ?? randomSeed();
+    // An explicit FLAG, never inferred from the seed argument's presence: the
+    // test harnesses and the bot studies all hand seeds in programmatically,
+    // and "a seed was passed" is not "a player typed a code". Only the home
+    // screen's PLAY A SEED path says true.
+    this.seedTyped = seedTyped;
     this.rng = new Rng(this.seed);
     this.config = { ...config };
   }
@@ -1502,6 +1533,13 @@ export class Game {
     if (this.powerups.hometown === "armed") this.powerups.hometown = "ready";
     if (this.complete) {
       // A complete club ends the game — unspent powerups are just left money.
+      // Saved FIRST: finishGame awaits card loads before it writes anything,
+      // and until it finishes, storage would otherwise still hold the
+      // position BEFORE the club-completing move — a reload in that window
+      // silently took the final signing back. Persisted here, a reload
+      // restores to "landed, nothing left", which restore() already answers
+      // by re-running this endSpin and finishing the game again.
+      this.save();
       void this.finishGame();
     } else {
       this.phase = "preSpin";
@@ -1802,6 +1840,16 @@ export class Game {
     return loaded.filter((c): c is Card => c !== null);
   }
 
+  /** The player quit while this game was live. One-way: checked by the async
+   * `finishGame` after its awaits, because a quit taken during the dream
+   * solve's card loads would otherwise race it — the quit clears the save and
+   * leaves, then the orphaned finalizer lands and writes a completed season,
+   * archives it, and claims the finale for a game the player walked out on. */
+  private abandoned = false;
+  abandon(): void {
+    this.abandoned = true;
+  }
+
   private async finishGame(): Promise<void> {
     // Dropped first, before a single await. `endSpin` hands a complete club to
     // this method and returns, leaving the phase on "landed" until the dream
@@ -1831,6 +1879,10 @@ export class Game {
     } catch {
       /* offline mid-game: finish without the yardstick */
     }
+    // Every await is behind us. If the player quit during them, the game this
+    // method was finishing no longer exists — writing its finale now would
+    // file a completed season AND a quit for the same run.
+    if (this.abandoned) return;
     const playerHits =
       best?.picks.filter(
         (b) =>
@@ -1918,6 +1970,14 @@ export class Game {
     // the club actually passed the solve. Strictly greater: a tie is
     // `playedTheCeiling`, not a win.
     const beatDream = solvedTotal !== null && parts.total > solvedTotal;
+    // Seeds this device has already played, read before recordHistory appends
+    // this game's own row (rows without a seed predate the field and can
+    // match nothing).
+    const priorSeeds = new Set(
+      loadHistory()
+        .map((e) => e.seed)
+        .filter((s): s is number => typeof s === "number"),
+    );
     const badges = earnedBadges({
       baselineWins: wins,
       baselineLosses: losses,
@@ -1958,6 +2018,13 @@ export class Game {
       konami: this.konami,
       undone: this.undoUsed,
       redone: this.redone,
+      // The seed badges' two halves, split by the local log BEFORE
+      // recordHistory below appends this game: a typed seed already in the
+      // history is a replay (✳️), a typed seed the log has never seen came
+      // from somewhere else (🤝). Mutually exclusive by construction; a
+      // rolled seed sets neither.
+      replayedSeed: this.seedTyped && priorSeeds.has(this.seed),
+      sharedSeed: this.seedTyped && !priorSeeds.has(this.seed),
       managerTeam: this.manager?.team ?? null,
       managerYear: this.manager?.year ?? null,
       managerName: this.manager?.name ?? null,
@@ -2234,6 +2301,7 @@ export class Game {
       manager: this.manager,
       managerHiredLast: this.managerHiredLast,
       konami: this.konami,
+      seedTyped: this.seedTyped,
       undoUsed: this.undoUsed,
       redone: this.redone,
       powerups: this.powerups,
@@ -2364,6 +2432,23 @@ export class Game {
     try {
       const s = JSON.parse(raw);
       if (s.v !== SAVE_VERSION && s.v !== 5 && s.v !== 4) return null;
+      // Structural floor, checked BEFORE a Game is built on it: hydrate()
+      // assigns these fields verbatim, so a record that parses and carries
+      // the right version but not the right shape (a truncated write, a
+      // hand-edited key) would otherwise come back as a Game whose first
+      // spin throws far from any catch. An unreadable save is no save.
+      if (
+        typeof s.seed !== "number" ||
+        typeof s.rngState !== "number" ||
+        typeof s.spinCount !== "number" ||
+        typeof s.choicesLeft !== "number" ||
+        typeof s.choicesUsed !== "number" ||
+        !Array.isArray(s.slots) ||
+        !Array.isArray(s.spinLog) ||
+        typeof s.powerups !== "object" ||
+        s.powerups === null
+      )
+        return null;
       // v4 → v5: the Hometown Hero combo became the 🏠 Homegrown powerup; an
       // in-flight save's heroUsed maps to the powerup's spent/ready state.
       if (s.v === 4)
@@ -2390,6 +2475,10 @@ export class Game {
       // written before their field: an unrecorded keystroke is not a keystroke,
       // and an unrecorded rewind is not a rewind.
       game.konami = s.konami === true;
+      // The constructor above was handed the save's seed explicitly, which
+      // would read as "typed" — the save's own record of the provenance is
+      // the truth, and its absence (an older save) reads as rolled.
+      game.seedTyped = s.seedTyped === true;
       game.undoUsed = s.undoUsed === true;
       game.redone = s.redone === true;
       if (s.cardRef && s.phase === "landed") {
