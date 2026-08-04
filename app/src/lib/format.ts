@@ -92,6 +92,21 @@ export function signed(n: number, digits = 1): string {
   return n >= 0 ? `+${v}` : `−${v.replace("-", "")}`;
 }
 
+/** A stat as a CHIP prints it: a positive reads bare, a negative keeps its
+ * minus — and the typographic one `signed` sets, not a hyphen.
+ *
+ * WAR has always read this way ("5.2", never "+5.2"), so a manager's wins read
+ * this way too. The two numbers sit in the same six-rung chip on the same rows
+ * and answer the same question, and a plus on one of them made the pair look
+ * like different scales when the only difference is the unit beside them. The
+ * unit is what says which scale this is; the sign is not.
+ *
+ * NOT for arithmetic. The finale's ledger spells out a sum — "50 + 36.9 WAR +
+ * Piniella +4.0" — where the plus is an operator and `signed` is still right. */
+export function statValue(n: number, digits = 1): string {
+  return n < 0 ? signed(n, digits) : n.toFixed(digits);
+}
+
 /** Game seed ⇄ shareable code: uppercase base36 of the uint32 seed (≤7 chars). */
 export function seedCode(seed: number): string {
   return (seed >>> 0).toString(36).toUpperCase();

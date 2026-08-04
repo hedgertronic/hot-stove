@@ -2,7 +2,7 @@
   import { tick } from "svelte";
   import type { Bank, Difficulty, GameConfig, StoredFinale } from "../lib/engine.svelte";
   import { parseSeedCode, recordFromTotal } from "../lib/format";
-  import { loadHistory } from "../lib/history";
+  import { loadArchive, loadHistory } from "../lib/history";
   import { BANKS, DIFFICULTIES } from "../lib/modes";
   import { bestFor } from "../lib/settings";
   import CornerButtons from "./CornerButtons.svelte";
@@ -90,6 +90,26 @@
     onplay({ difficulty, bank }, seed);
   }
 
+  /** Open the best season for this mode directly via the archive, or fall back
+   * to the seasons sheet when that record has aged out of the bounded tail.
+   * The archive is read on tap rather than at render time — the home screen
+   * has no other use for it. SeasonsModal's third route (loadStoredFinale for
+   * the newest row) is not replicated here: the BEST card is a shortcut into
+   * an already-identified season, not a general "open the last finale" path. */
+  function openBest() {
+    if (!best.bestId) {
+      seasonsOpen = true;
+      return;
+    }
+    const archiveMap = new Map(loadArchive().map((r) => [r.id, r]));
+    const rec = archiveMap.get(best.bestId);
+    if (rec) {
+      onopen(rec, best.bestId);
+    } else {
+      seasonsOpen = true;
+    }
+  }
+
   /** Close the field and forget what was typed: reopening starts clean, and a
    * half-typed code never returns to shake at someone who has moved on. */
   async function cancelSeed() {
@@ -173,112 +193,116 @@
     {/each}
   </div>
 
-  <!-- The two ways into a game, side by side: a fresh card sequence and a
-       shared one. PLAY A SEED sits IN LINE with PLAY rather than a row below
-       it, because it is the same decision at a different starting point, and
-       because the screen has one fewer row for it — SEASONS is gone from here,
-       consolidated into the record book card below.
+  <!-- PLAY is the primary path. SEED is the rare path — most sessions start
+       fresh — so it sits below PLAY as a compact secondary. The seed zone
+       swaps the button for the field in place, so PLAY above it never moves
+       under the thumb mid-tap.
 
        The flame is a `.bic` like every other button glyph rather than loose
        text: inline it inherited the button's 17px and rendered visibly smaller
-       than the 19px joystick and receipt on the rows around it, which is the
-       one place in the game an icon changed size according to its label. -->
-  <div class="btnrow under">
+       than the 19px joystick and receipt on the rows around it. -->
+  <div class="under">
     <button class="btn hot playbtn" onclick={() => onplay({ difficulty, bank })}
       >PLAY <span class="bic">🔥</span></button
     >
-    <!-- PLAY A SEED swaps ITS OWN cell for the field rather than the row: the
-         cell keeps its height and its track width, so PLAY never moves under
-         the thumb mid-tap. -->
-    {#if seedOpen}
-      <div class="seedrow" class:bad={seedBad}>
-        <!-- svelte-ignore a11y_autofocus -->
-        <input
-          class="seedin"
-          type="text"
-          maxlength="8"
-          placeholder="KF12OY"
-          inputmode="text"
-          autocapitalize="none"
-          autocorrect="off"
-          autocomplete="off"
-          spellcheck="false"
-          enterkeyhint="go"
-          autofocus
-          bind:value={seedInput}
-          onkeydown={(e) => {
-            if (e.key === "Enter") playSeed();
-            // Scoped to the focused field, never to the window: the badge
-            // panel catches Escape in the capture phase and Sheet closes on a
-            // bubbling one, and both live inside a modal that takes focus off
-            // this input the moment it opens. A handler that only fires while
-            // the caret is here cannot reach either.
-            else if (e.key === "Escape") cancelSeed();
-          }}
-        />
-        <!-- GO and its way back out, as a pair on the right of the field: two
-             pills of the same shape, the filled one committing the code and the
-             outlined one dismissing it. ✕ is the app's one dismissal glyph (the
-             header's quit pill, every Sheet's corner). It stands beside GO
-             rather than in the field's leading slot so that the row's actions
-             are in one place instead of on either side of the thing they act
-             on. -->
-        <button class="seedgo" onclick={playSeed}>GO</button>
-        <button class="seedgo seedx" onclick={cancelSeed} aria-label="Cancel seed entry">✕</button>
-      </div>
-    {:else}
-      <button class="btn ubtn" bind:this={seedBtn} onclick={() => (seedOpen = true)}
-        >PLAY A SEED <span class="shash">#</span></button
-      >
-    {/if}
+    <!-- The seed zone sits below PLAY. The compact button swaps for the field
+         in place: the zone keeps its shape, so PLAY above it stays still. -->
+    <div class="seedzone">
+      {#if seedOpen}
+        <div class="seedrow" class:bad={seedBad}>
+          <!-- svelte-ignore a11y_autofocus -->
+          <input
+            class="seedin"
+            type="text"
+            maxlength="8"
+            placeholder="KF12OY"
+            inputmode="text"
+            autocapitalize="none"
+            autocorrect="off"
+            autocomplete="off"
+            spellcheck="false"
+            enterkeyhint="go"
+            autofocus
+            bind:value={seedInput}
+            onkeydown={(e) => {
+              if (e.key === "Enter") playSeed();
+              // Scoped to the focused field, never to the window: the badge
+              // panel catches Escape in the capture phase and Sheet closes on a
+              // bubbling one, and both live inside a modal that takes focus off
+              // this input the moment it opens. A handler that only fires while
+              // the caret is here cannot reach either.
+              else if (e.key === "Escape") cancelSeed();
+            }}
+          />
+          <!-- GO and its way back out, as a pair on the right of the field: two
+               pills of the same shape, the filled one committing the code and the
+               outlined one dismissing it. ✕ is the app's one dismissal glyph (the
+               header's quit pill, every Sheet's corner). It stands beside GO
+               rather than in the field's leading slot so that the row's actions
+               are in one place instead of on either side of the thing they act
+               on. -->
+          <button class="seedgo" onclick={playSeed}>GO</button>
+          <button class="seedgo seedx" onclick={cancelSeed} aria-label="Cancel seed entry">✕</button>
+        </div>
+      {:else}
+        <button class="btn ubtn" bind:this={seedBtn} onclick={() => (seedOpen = true)}
+          >SEED <span class="bic">🌱</span></button
+        >
+      {/if}
+    </div>
   </div>
 
-  <!-- The record book, and the door into every season ever played: one surface,
-       because they are one question asked twice. The card itself is the punched
-       combo's line — the punched rows above name WHICH combo, so it carries no
-       label of its own — and tapping it opens the full book, where the best
-       season in every mode played sits above the whole list.
-       Two zones: G counts this combo's games, box-score style; BEST SEASON is
-       the finale's total stamp in miniature — the tier-colored record the best
-       total resolves into, with the exact points quiet beneath.
+  <!-- The record book: two cards side by side, each a door into the past.
+       GAMES holds the global count and opens the full seasons sheet. BEST holds
+       this mode's highest total and opens that season's finale directly via the
+       archive; if the record has aged out, it falls back to the seasons sheet.
 
-       Disabled on the LOG's count and never on `best.games`: a career whose
-       only seasons were played in another combo still has a book to open, and
-       a card that went dead every time the punch moved would be a door that
-       flickers. -->
+       GAMES is disabled on the LOG's count — a career played entirely in
+       another combo still has a book to open. BEST is disabled when `season`
+       is null: there is no best for this combo yet, so there is nowhere for
+       the card to go. Both cards always render the same element structure so
+       switching modes does not change the area's height. -->
   <div class="psep bestsep">RECORD BOOK</div>
-  <button
-    class="book"
-    disabled={seasons === 0}
-    aria-label={seasons === 0
-      ? "Record book. No seasons yet"
-      : "Open the record book and every season played"}
-    onclick={() => (seasonsOpen = true)}
-  >
-    <div class="btable">
+  <div class="books">
+    <button
+      class="book book-g"
+      disabled={seasons === 0}
+      aria-label={seasons === 0
+        ? "Record book. No seasons yet"
+        : "Open the record book and every season played"}
+      onclick={() => (seasonsOpen = true)}
+    >
       <div class="bcol">
         <div class="bcap">G</div>
         <div class="bn" class:empty={best.games === 0}>{best.games}</div>
       </div>
+      <!-- The one thing the card gains by becoming a control: a footer that
+           says what is behind it, and counts what is there. -->
+      <div class="bmore">
+        {seasons === 0 ? "NO SEASONS YET" : seasons === 1 ? "1 SEASON · ALL MODES" : `${seasons} SEASONS · ALL MODES`}
+        <!-- Not a `.bic`: that class is the 19px glyph a button LABEL carries,
+             and this rides a 9px eyebrow. -->
+        <span class="bmic">🧾</span>
+      </div>
+    </button>
+    <button
+      class="book book-b"
+      disabled={season === null}
+      aria-label={season === null
+        ? "Best season for this mode. No games played yet"
+        : `Open best season: ${season.wins}–${season.losses}, ${season.pts} points`}
+      onclick={openBest}
+    >
       <div class="bcol">
         <div class="bcap">BEST SEASON</div>
-        {#if season}
-          <div class="brec {season.tier}">{season.wins}–{season.losses}</div>
-          <div class="bpts">{season.pts} PTS</div>
-        {:else}
-          <div class="bn empty">—</div>
-        {/if}
+        <!-- `.brec` and `.bpts` always render — one at full opacity, one
+             hidden — so the card height is the same whether or not a best
+             season exists for the punched combo. -->
+        <div class="brec {season ? season.tier : 'empty'}">{season ? `${season.wins}–${season.losses}` : "—"}</div>
+        <div class="bpts" class:invis={!season}>{season ? `${season.pts} PTS` : ""}</div>
       </div>
-    </div>
-    <!-- The one thing the card gains by becoming a control: a footer that says
-         what is behind it, and counts what is there. -->
-    <div class="bmore">
-      {seasons === 0 ? "NO SEASONS YET" : seasons === 1 ? "1 SEASON · ALL MODES" : `${seasons} SEASONS · ALL MODES`}
-      <!-- Not a `.bic`: that class is the 19px glyph a button LABEL carries,
-           and this rides a 9px eyebrow. -->
-      <span class="bmic">🧾</span>
-    </div>
-  </button>
+    </button>
+  </div>
 
   {#if seasonsOpen}
     <!-- Created fresh on every open, which is what makes its read of the log
@@ -498,13 +522,6 @@
       font-size: 7.5px;
       padding: 1.5px 5px;
     }
-    /* Two labels across ~150px halves: the pair stays on one line. The glyph
-       narrows with them, in app.css beside the glyph's own rule. */
-    .ubtn {
-      font-size: 12px;
-      gap: 4px;
-      padding: 7px 4px;
-    }
   }
   /* The primary. All-caps at 17px, so app.css's optical correction is
      0.047 × 17 = 0.80px more padding above than below — paid on top of .btn's
@@ -521,44 +538,41 @@
     font-size: 17px;
     letter-spacing: 0.04em;
   }
-  /* PLAY and PLAY A SEED, equal halves. Both cells are the same fixed height,
-     the seed field included, so opening the field cannot move PLAY. */
+  /* PLAY on top, SEED zone below: flex column so opening the seed field
+     cannot move PLAY regardless of the zone's height. */
   .under {
-    /* minmax(0,·), not 1fr: an auto floor lets the seed field's content widen
-       its own track and steal width from the button beside it, which is the
-       same jump under the thumb, sideways. */
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
     margin-top: 14px;
   }
-  .under > * {
-    min-height: 52px;
+  /* The seed zone sits below PLAY, right-aligned when the button is visible.
+     When the field is open, seedrow expands to fill it. */
+  .seedzone {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
   }
-  /* Cell shape, glyph gap and the all-caps optical correction come from
-     `.btnrow .btn` in app.css — the same row the finale's three actions are.
-     Only the one thing that is this row's own stays here. */
+  .seedzone .seedrow {
+    flex: 1;
+  }
+  /* The secondary entry point: smaller than PLAY, compact, right-aligned.
+     Uses the same `.btn` base (border, radius, background, transition) but
+     overrides size so it reads as "rare path" beside the dominant PLAY. */
   .ubtn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    font-size: 12px;
+    letter-spacing: 0.04em;
     white-space: nowrap;
   }
-  /* Nothing finished yet, or the last game was quit: the button stays in the
-     row and goes flat. Same language as an unavailable powerup pill on the
-     board — one opacity on the whole control, no dashes and no hue change
-     (dashed means unearned, which is a badge's word, not a dead control's).
-     0.65 rather than the pill's 0.55: ink over the page ground fades to
-     3.76:1 at 0.55, and a 13px bold cap is below the large-text threshold,
-     so it needs 4.5:1. 0.65 lands at 5.11:1. */
-  .ubtn:disabled {
-    opacity: 0.65;
-    cursor: default;
-  }
-  .ubtn:disabled:active {
-    transform: none;
-  }
-  /* The seed button's # carries the same quiet mono voice as the finale's
-     GAME #XXXX chip, which is where a code is copied from. */
-  .shash {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12px;
-    color: var(--muted);
+  @media (max-width: 359px) {
+    .ubtn {
+      padding: 5px 8px;
+      font-size: 11px;
+    }
   }
   .seedrow {
     display: flex;
@@ -664,10 +678,16 @@
   .bestsep {
     margin-top: 20px;
   }
-  /* The card is a control now, so it says so the way every other card-shaped
-     control in the app does: cardstock on the structural line, pressed by the
-     same 2px nudge, faded whole rather than dashed when there is nothing
-     behind it. */
+  /* Two cards side by side: GAMES narrower (global log count), BEST wider
+     (punched-combo best season). The grid mirrors the old btable proportions
+     so the visual weight of the two zones stays the same. */
+  .books {
+    display: grid;
+    grid-template-columns: minmax(44px, 1fr) 3fr;
+    gap: 9px;
+  }
+  /* Each card is a control: cardstock on the structural line, pressed by the
+     same 2px nudge, faded whole rather than dashed when nothing is behind it. */
   .book {
     display: block;
     width: 100%;
@@ -695,9 +715,9 @@
   .book:disabled:active {
     transform: none;
   }
-  /* What is behind the card, and how much of it. Sits on the dashed line the
-     book's two columns already share, so the footer reads as part of the same
-     ruled sheet rather than as a label stuck underneath one. */
+  /* What is behind the GAMES card, and how much of it. Sits on a dashed line
+     that separates the count from the footer, the same ruled-sheet language
+     the old single card used. */
   .bmore {
     margin-top: 9px;
     padding-top: 7px;
@@ -715,20 +735,18 @@
     font-size: 12px;
     line-height: 1;
   }
-  .btable {
-    display: grid;
-    grid-template-columns: minmax(44px, 1fr) 3fr;
-  }
-  /* Each zone stacks cap-over-numeral and centers the numeral in the leftover
-     height, so G's number sits level with the record even though the season
-     zone carries an extra points line. */
+  /* Each card stacks cap-over-numeral and centers its content vertically. */
   .bcol {
     display: flex;
     flex-direction: column;
     align-items: center;
   }
-  .bcol + .bcol {
-    border-left: 2px dashed var(--dash);
+  /* The hidden half of the BEST card's height reserve: `.bpts` is always in
+     the DOM so the card's height does not change between modes that have a
+     best season and ones that do not. `visibility: hidden` reserves the space
+     without showing the empty string. */
+  .bpts.invis {
+    visibility: hidden;
   }
   /* Eyebrow over numeral — the finale total stamp's shape in miniature. */
   .bcap {

@@ -115,7 +115,7 @@ describe("roster rail WAR tier bands", () => {
 
   // The seats above hire nobody, so they cannot cover the manager's gate: with
   // no manager the tier is "" whatever the mode says. The skipper rides the
-  // same six-rung ladder as the players — Piniella's 2001 (116–46 → +14.0 W)
+  // same six-rung ladder as the players — Piniella's 2001 (116–46 → 14.0 wins)
   // is the elite rung, which the share string has always printed as 🟨 — so it
   // needs the same two assertions the seats get, on its own fixture.
   const mgrElite = (g: Game) => {
@@ -132,19 +132,21 @@ describe("roster rail WAR tier bands", () => {
     };
   };
 
-  it("Box Score tiers the manager's seat and his +wins on the players' ladder", () => {
+  it("Box Score tiers the manager's seat and his wins on the players' ladder", () => {
     const { std } = pair(RosterRail, mgrElite, railProps);
     expect(std).toContain("war-elite");
-    // Bare and signed on the chip — no W/WINS unit in the rail's small rows.
-    expect(std).toContain("+14.0");
-    expect(std).not.toContain("+14.0 W");
+    // The chip's whole content, matched between its tags: bare, no W/WINS unit
+    // (the rail's small rows have no room for one) and no plus on a positive
+    // (a WAR chip two seats down reads "5.2", and this is the same ladder).
+    expect(std).toContain(">14.0<");
+    expect(std).not.toContain("+14.0");
   });
 
-  it("Eye Test hides the manager's tier and his +wins — both would leak the read", () => {
+  it("Eye Test hides the manager's tier and his wins — both would leak the read", () => {
     const { sct } = pair(RosterRail, mgrElite, railProps);
     expect(sct).toContain("Piniella"); // the seat renders; only the tier is gone
     expect(sct).not.toContain("war-");
-    expect(sct).not.toContain("+14.0");
+    expect(sct).not.toContain("14.0");
   });
 });
 
@@ -160,8 +162,13 @@ describe("roster rail WAR tier bands", () => {
  * The token has to move with the record. A skipper's rung comes from net wins
  * × MANAGER_PER_NET_WIN, which is a different arithmetic from a player's raw
  * WAR, so the rungs are pinned across the ladder rather than at one point:
- * 116–46 is +14.0 (elite), 90–72 is +3.6 (mid), 81–81 is +0.0 (low), and
+ * 116–46 is 14.0 (elite), 90–72 is 3.6 (mid), 81–81 is 0.0 (low), and
  * 60–102 is −8.4 (neg). A ladder pinned only at the top passes on a constant.
+ *
+ * The values are matched as the chip's ENTIRE text, `>14.0<`, not as a loose
+ * substring: that is what makes the row also prove the sign rule — a positive
+ * reads bare like a WAR chip, a negative keeps its typographic minus — because
+ * a `+14.0` or a `-8.4` would no longer be the whole of the chip.
  *
  * And Eye Test has to emit none of it — no token, no chip. That gate was
  * already load-bearing for the numeral; a colored chip is a louder leak.
@@ -171,9 +178,9 @@ describe("roster rail WAR tier bands", () => {
  * the state. */
 describe("the hired manager's seat wears its rung", () => {
   const RUNGS: [string, number, number, string][] = [
-    ["elite", 116, 46, "+14.0"],
-    ["mid", 90, 72, "+3.6"],
-    ["low", 81, 81, "+0.0"],
+    ["elite", 116, 46, "14.0"],
+    ["mid", 90, 72, "3.6"],
+    ["low", 81, 81, "0.0"],
     ["neg", 60, 102, "−8.4"],
   ];
 
@@ -200,14 +207,14 @@ describe("the hired manager's seat wears its rung", () => {
     return m![0];
   }
 
-  for (const [rung, w, l, plusW] of RUNGS) {
-    it(`${w}–${l} (${plusW}) puts exactly one token, war-${rung}, on the seat`, () => {
+  for (const [rung, w, l, chipVal] of RUNGS) {
+    it(`${w}–${l} (${chipVal}) puts exactly one token, war-${rung}, on the seat`, () => {
       const { std } = pair(RosterRail, hire(w, l), railProps);
       const tag = mgrTag(std);
       expect(tag).toContain("filled");
       expect(tag).toContain(`war-${rung}`);
       expect(tag.match(/war-/g)).toHaveLength(1);
-      expect(std).toContain(plusW);
+      expect(std).toContain(`>${chipVal}<`);
     });
 
     it(`Eye Test leaves the ${w}–${l} seat untinted`, () => {
@@ -215,7 +222,7 @@ describe("the hired manager's seat wears its rung", () => {
       const tag = mgrTag(sct);
       expect(tag).toContain("filled"); // the seat is still hired
       expect(tag).not.toContain("war-");
-      expect(sct).not.toContain(plusW);
+      expect(sct).not.toContain(`>${chipVal}<`);
     });
   }
 });

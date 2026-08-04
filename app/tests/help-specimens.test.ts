@@ -25,10 +25,15 @@ import {
   MANAGER_PER_NET_WIN,
   PENNANT_POINTS,
   RING_POINTS,
+  SCOUT_HIT_POINTS,
   WBC_CHAMPION_POINTS,
   WBC_RUNNERUP_POINTS,
+  budgetBonus,
+  luxuryTax,
+  round1,
 } from "../src/lib/scoring";
-import { money, posLabel, signed, warTier } from "../src/lib/format";
+import { SLOT_TYPES } from "../src/lib/engine.svelte";
+import { money, posLabel, signed, statValue, warTier } from "../src/lib/format";
 import { eligibleTypes } from "../src/lib/eligibility";
 import { ownerFor } from "../src/lib/data";
 import type { CardPlayer, Owners } from "../src/lib/types";
@@ -70,45 +75,63 @@ const surname = (full: string) => full.split(" ").slice(1).join(" ");
 
 const BODY = render(HelpModal, { props: { onclose: () => {} } }).body;
 
-/** Every chair the sheet draws, as [class attribute, contents]. A seat holds
- * only `<b>`, `<span>`, `<i>` and `<em>`, so the first closing div or button
- * after one opens is that seat's own.
+/** Every chair the sheet draws, as [class attribute, contents].
  *
  * THE SCOPE IS THE POINT. This file's job is to prove a chair's rung is
  * DERIVED from the number beside it, and it used to prove it by finding
  * `war-star` anywhere in the sheet — which worked only while exactly one
- * element on the page could emit a `war-` token. The sheet now draws a rung on
- * five seats across three specimens, so a page-wide search would pass no matter
- * what any single chair wore: an assertion that can no longer fail when the
- * thing it guards breaks. Cutting each chair out and reading ITS class is what
- * keeps the proof honest as specimens are added. */
-const SEATS = [
-  ...BODY.matchAll(/<(?:div|button) class="((?:cell|mgr)[^"]*)"[^>]*>([\s\S]*?)<\/(?:div|button)>/g),
-];
-/** Every chair bearing this name — a man can hold two (Maddux sits in the rail
- * and again in the trade picker), and both have to wear his rung. */
+ * element on the page could emit a `war-` token. The sheet draws a rung on
+ * several seats at once, so a page-wide search would pass no matter what any
+ * single chair wore: an assertion that can no longer fail when the thing it
+ * guards breaks. Cutting each chair out and reading ITS class is what keeps
+ * the proof honest as specimens are added.
+ *
+ * The cut COUNTS TAGS rather than stopping at the first `</div>`. It used to
+ * stop at the first one, on the reading that a seat holds only `<b>`, `<span>`,
+ * `<i>` and `<em>` — and the moment RailSeat wrapped the manager's chip in a
+ * `.mhead` div, the manager's chair truncated to that wrapper and `seatsOf`
+ * lost him silently. Balancing the tags means a seat can hold whatever
+ * RailSeat needs it to. */
+const SEATS: [string, string][] = [...BODY.matchAll(/<(?:div|button) class="((?:cell|mgr)[^"]*)"[^>]*>/g)].map(
+  (m) => {
+    const start = m.index + m[0].length;
+    const step = /<(\/?)(?:div|button)\b[^>]*>/g;
+    step.lastIndex = start;
+    let depth = 1;
+    let end = BODY.length;
+    for (let s = step.exec(BODY); s; s = step.exec(BODY)) {
+      depth += s[1] ? -1 : 1;
+      if (depth === 0) {
+        end = s.index;
+        break;
+      }
+    }
+    return [m[1], BODY.slice(start, end)];
+  },
+);
+/** Every chair bearing this name — a man could hold more than one, and all of
+ * them have to wear his rung. */
 const seatsOf = (name: string): string[] =>
-  SEATS.filter((m) => m[2].includes(`>${name}<`)).map((m) => m[1]);
+  SEATS.filter(([, inner]) => inner.includes(`>${name}<`)).map(([cls]) => cls);
 
 /** The extractor above is a regex over rendered markup, so it can DEGRADE
  * silently: give RailSeat a wrapper element and every match truncates at the
  * wrong closing tag, `seatsOf` returns nothing for everybody, and a test whose
  * every assertion is "each seat found wears the right rung" passes over an
- * empty set. Pinning the count is what makes that failure loud instead — nine
- * chairs: five in the rail (the manager plus four seats), two lit by the slot
- * picker, two by the trade picker. A specimen added or removed lands here
- * first, which is the correct place for it to land. */
+ * empty set. Pinning the count is what makes that failure loud instead — seven
+ * chairs: five in the rail (the manager plus four seats) and two lit by the
+ * slot picker. A specimen added or removed lands here first, which is the
+ * correct place for it to land. */
 it("finds every chair the sheet draws", () => {
-  expect(SEATS).toHaveLength(9);
+  expect(SEATS).toHaveLength(7);
 });
 
 describe("the help sheet's player specimens", () => {
   /** [club, year, surname, the WAR the sheet prints] — every seat the sheet
-   * draws with a name on it, rail and trade picker alike. */
+   * draws with a name on it. */
   const SEASONS: [string, number, string, number][] = [
     ["LAD", 1997, "Piazza", 8.7],
     ["ATL", 1995, "Maddux", 10.8],
-    ["ATL", 1995, "Smoltz", 4.5],
   ];
 
   it.each(SEASONS)("prints %s %d %s at the WAR the card carries", (team, year, last, war) => {
@@ -123,7 +146,8 @@ describe("the help sheet's player specimens", () => {
 
   it("gives each seat the rung its own number earns", () => {
     // The caption's claim, checked on the seat that makes it. `war-star` on an
-    // 8.7 is the failure this whole file exists for.
+    // 8.7 is the failure this whole file exists for. `seatsOf` returns every
+    // chair bearing the name, since one man may hold more than one.
     for (const [, , last, war] of SEASONS) {
       const seats = seatsOf(last);
       expect(seats.length, `${last} has no seat on the sheet`).toBeGreaterThan(0);
@@ -175,9 +199,10 @@ describe("the help sheet's manager specimen", () => {
     expect(c.manager).toBe("Bobby Cox");
     expect([c.wins, c.losses]).toEqual([90, 54]);
     const wins = (c.wins - c.losses) * MANAGER_PER_NET_WIN;
-    // The chair's chip prints the signed value bare — no W/WINS unit fits the
+    // The chair's chip prints the value the way the live rail does: positive
+    // bare, negative keeping its minus (statValue) — no W/WINS unit fits the
     // rail's small rows, and the tag-to-tag match proves nothing rides after it.
-    expect(BODY).toContain(`>${signed(wins)}<`);
+    expect(BODY).toContain(`>${statValue(wins)}<`);
     // The half that broke: the chair's rung has to be the rung that number
     // earns, not a hand-picked one that looks about right. Read off the chair's
     // own element — see SEATS above for why the page-wide search this replaces
@@ -222,12 +247,12 @@ describe("the help sheet is a diagram, not a control surface", () => {
   const BUTTONS = [...BODY.matchAll(/<button[^>]*>/g)].map((m) => m[0]);
 
   it("renders every embedded specimen control inert", () => {
-    // The components that render buttons — RailSeat's pickable seats (two lit
-    // by the slot picker, two by the trade picker) and SpecialRows' three
-    // tiles — all take the specimen flag, which puts the native `inert`
-    // attribute on them: no tab stop, no click, no promise of one.
+    // The components that render buttons — RailSeat's two pickable seats, lit
+    // by the slot picker, and SpecialRows' three tiles — all take the specimen
+    // flag, which puts the native `inert` attribute on them: no tab stop, no
+    // click, no promise of one.
     const specimens = BUTTONS.filter((b) => /class="[^"]*(?:cell|srow)/.test(b));
-    expect(specimens).toHaveLength(7);
+    expect(specimens).toHaveLength(5);
     for (const b of specimens) expect(b).toContain("inert");
   });
 
@@ -253,14 +278,84 @@ describe("the help sheet's scoring copy", () => {
     }
   });
 
-  it("puts TROPHY CASE above RING CHASING, and uses the game's section device", () => {
-    const trophy = BODY.indexOf("TROPHY CASE");
-    const rings = BODY.indexOf("RING CHASING");
-    expect(trophy).toBeGreaterThan(-1);
-    expect(rings).toBeGreaterThan(trophy);
-    // Every section header is the board's own .psep dashed-rule device.
-    expect(BODY).toContain('class="psep');
+  /** The sheet's outline, read off the rendered headers: [title, nested?].
+   * Every header on the sheet is the board's own .psep dashed-rule device, and
+   * a subsection is that device with a `sub` modifier — there is no header
+   * class private to this file (`hsec`, the one there used to be, is asserted
+   * gone below). */
+  const OUTLINE = [...BODY.matchAll(/<div class="psep([^"]*)"[^>]*>([^<]+)<\/div>/g)].map(
+    (m): [string, boolean] => [m[2].trim(), / sub\b| sub /.test(` ${m[1]} `)],
+  );
+
+  it("nests the four scoring subsections under SCORING and nothing else", () => {
+    // The whole outline, in order, at its levels. Pinned rather than spot
+    // checked: the point of the restructure is that TROPHY CASE and RING
+    // CHASING stopped being sections of their own, and only a full reading
+    // can show that no fifth level or stray top-level heading crept back.
+    expect(OUTLINE).toEqual([
+      ["THE LOOP", false],
+      ["A PLAYER ROW", false],
+      ["YOUR SQUAD", false],
+      ["FRONT OFFICE", false],
+      ["YOUR PAYROLL", false],
+      ["BALL KNOWLEDGE", false],
+      ["POWERUPS · ONE USE EACH", false],
+      ["SCORING", false],
+      ["PAYROLL BONUS", true],
+      ["SCOUTING", true],
+      ["TROPHY CASE", true],
+      ["RING CHASING", true],
+      ["DATA SOURCES", false],
+    ]);
     expect(BODY).not.toContain("hsec");
+  });
+
+  it("prices the payroll meters off the game's own bonus and tax", () => {
+    // Two fills of PayrollBox's `mini` bar, both against the ATL 1995 payroll
+    // the rest of the sheet quotes. The figure beside each is what the game
+    // would actually award, computed here the same way the component does —
+    // a hand-typed points figure is the payroll half of the invented-WAR
+    // failure this file exists for.
+    const c = card("ATL", 1995);
+    const budget = c.budget * c.stadiumMult;
+    expect(budgetBonus(40, budget)).toBeLessThan(0); // underfilled: the bar costs points
+    expect(luxuryTax(40, budget)).toBe(0);
+    expect(budgetBonus(111, budget)).toBe(0); // over: the bonus is gone outright
+    expect(luxuryTax(111, budget)).toBeGreaterThan(0);
+    expect(BODY).toContain(`>${signed(round1(budgetBonus(40, budget)))}<`);
+    expect(BODY).toContain(`>${signed(-luxuryTax(111, budget))}<`);
+    // Both bars are the real component: two mini meters, the over one alarmed.
+    const meters = [...BODY.matchAll(/<div class="pmeter[^"]*"/g)].map((m) => m[0]);
+    expect(meters.filter((m) => m.includes("mini"))).toHaveLength(2);
+    expect(meters.filter((m) => m.includes("mini") && m.includes("pover"))).toHaveLength(1);
+  });
+
+  it("prices the scouting stars off SCOUT_HIT_POINTS and counts them off the seats", () => {
+    // One ⭐ per find, the finale's own chip. The ceiling the copy quotes is
+    // every seat plus the skipper — the owner and the ballpark are not
+    // scoutable (bestroster.ts counts players and the skipper only).
+    // Read the run off its own element: ⭐ is also the PRIMETIME powerup's
+    // glyph, twice, so a page-wide count of the star would price the row
+    // against a number nothing on the sheet shows.
+    const run = BODY.match(/<span class="semo[^"]*">(⭐+)<\/span>/);
+    expect(run, "no scouting star run on the sheet").not.toBeNull();
+    const hits = [...run![1]].length;
+    expect(hits).toBeGreaterThan(0);
+    expect(hits).toBeLessThanOrEqual(SLOT_TYPES.length + 1);
+    expect(BODY).toMatch(
+      new RegExp(`<b class="spts[^"]*">\\+${round1(hits * SCOUT_HIT_POINTS)}<`),
+    );
+    expect(BODY).toContain(`up to ${SLOT_TYPES.length + 1}`);
+    expect(BODY).toContain(`worth +${SCOUT_HIT_POINTS}`);
+  });
+
+  it("draws no mocked-up screenshot of a powerup mid-use", () => {
+    // The POWERUPS section is the pill table and the two spent/off pills, and
+    // that is all: the 🔁 two-tap mock taught nothing its own table row did
+    // not already say. Its instruction pill is the tell.
+    expect(BODY).not.toContain("TAP WHO TO TRADE");
+    // The slot picker's is the sheet's one remaining instruction pill.
+    expect(BODY).toContain("↑ PICK A SLOT");
   });
 
   it("names each data source exactly once", () => {

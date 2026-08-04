@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { lastName, signed, slotLabel, warTier } from "../lib/format";
+  import { lastName, slotLabel, statValue, warTier } from "../lib/format";
   import { MANAGER_PER_NET_WIN } from "../lib/scoring";
   import type { CardPlayer } from "../lib/types";
   import RailSeat from "./RailSeat.svelte";
@@ -76,16 +76,18 @@
          One club, nine chairs, same visual language throughout. MGR labels it
          in the same tracked caps the players' position codes use; the sideways
          geometry already marks the chair as a different kind of thing. The
-         chip's value is bare and signed — "+14.0", no W/WINS unit — because
-         these rows have no room for one and the sign already says "wins, not
-         WAR". -->
+         chip's value is bare — "14.0", no W/WINS unit, no plus — because these
+         rows have no room for a unit and the seat's own MGR label already says
+         whose number this is. It reads exactly like the WAR on the eight seats
+         below it, which is the point: one chip, one ladder, one way to read a
+         number. A negative keeps its minus. -->
     <RailSeat
       chair="mgr"
       label="MGR"
       name={game.manager ? lastName(game.manager.name) : null}
       meta={game.manager ? `${game.manager.year} ${game.manager.team}` : null}
       tier={mgrTier}
-      war={game.manager && game.showWar ? signed(mgrWins) : null}
+      war={game.manager && game.showWar ? statValue(mgrWins) : null}
     />
     {#each game.slots as slot, i}
       <RailSeat

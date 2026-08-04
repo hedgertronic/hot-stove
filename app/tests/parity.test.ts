@@ -180,6 +180,69 @@ describe("SpecialRows parity", () => {
     }
   });
 
+  /** The skipper's win value is a `.warchip` on the players' own six-rung
+   * ladder, tiered by `warTier` on the win number itself — the same expression
+   * the roster rail's MGR seat and the manager career sheet use, so one mapping
+   * serves all three and none of them can drift.
+   *
+   * Pinned at four points across the ladder rather than one, because the rung
+   * comes from net wins × MANAGER_PER_NET_WIN and a single point passes on a
+   * constant: 116–46 is 14.0 (elite), 90–72 is 3.6 (mid), 81–81 is 0.0 (low),
+   * 60–102 is −8.4 (neg).
+   *
+   * The chip carries the BARE tier token (`elite`), never the `war-` prefixed
+   * one. That split is app.css's: a chip wears the bare word, a ROW that
+   * carries the rung as a fact wears the prefix. rail-tiers.test.ts asserts Eye
+   * Test emits no `war-` token anywhere, and a prefixed token here would walk
+   * out from under that proof.
+   *
+   * The hues are not asserted — they are CSS, jsdom resolves no custom
+   * properties, and the look is a screenshot job. The class is the state. */
+  describe("the skipper's win value rides the WAR ladder's chip", () => {
+    const RUNGS: [string, number, number, string][] = [
+      ["elite", 116, 46, "14.0"],
+      ["mid", 90, 72, "3.6"],
+      ["low", 81, 81, "0.0"],
+      ["neg", 60, 102, "−8.4"],
+    ];
+
+    for (const [rung, w, l, val] of RUNGS) {
+      it(`${w}–${l} (${val} WINS) draws a ${rung} chip`, () => {
+        const { std } = pair(SpecialRows, (g) => (g.card = mkCard({ wins: w, losses: l })), listProps);
+        // The whole class list, spelled out: the bare tier token and never the
+        // row's `war-` one. Asserted as a literal rather than by finding "the
+        // value span", because the owner's value span is the first one on the
+        // page and would happily answer a looser query with its own no-chip
+        // class list.
+        expect(std).toContain(`class="val warchip ${rung}`);
+        expect(std).not.toContain(`war-${rung}`);
+        // Value then unit, exactly as the player market's "5.2 WAR" is built.
+        // The value is matched as the chip's own leading text — `>14.0<` — so
+        // the row also proves the sign rule: a positive reads bare, a negative
+        // keeps its typographic minus, and a `+14.0` would not match.
+        expect(std).toContain(`>${val}<`);
+        expect(std).toContain('<span class="unit">WINS</span>');
+      });
+
+      it(`Eye Test draws no chip at all for ${w}–${l}`, () => {
+        const { sct } = pair(SpecialRows, (g) => (g.card = mkCard({ wins: w, losses: l })), listProps);
+        expect(sct).toContain("Lou Piniella"); // the tile renders; the value is gone
+        expect(sct).not.toContain("warchip");
+        expect(sct).not.toContain(val);
+        expect(sct).not.toContain("WINS");
+      });
+    }
+
+    it("the owner and stadium values stay plain — they are not on this ladder", () => {
+      const { std } = pair(SpecialRows, (g) => (g.card = mkCard()), listProps);
+      // Three tiles, exactly one chip: a budget in dollars and a payroll
+      // multiplier are not "how good is this" on the WAR scale.
+      expect(std.match(/warchip/g)).toHaveLength(1);
+      expect(std).toContain("$92.1M");
+      expect(std).toContain("×1.05");
+    });
+  });
+
   it("the manager HIRE confirm carries the win value only in Box Score", () => {
     const props = (g: Game) => ({ game: g, confirmKey: "s:manager", setConfirm: () => {} });
     const gs = forgeGame(CLASSIC, (g) => (g.card = mkCard()));
@@ -234,14 +297,17 @@ describe("RosterRail parity", () => {
       },
       (g) => ({ game: g }),
     );
-    // The rail's chips carry bare values — "5.2", "+14.0" — with no W/WINS unit.
+    // The rail's chips carry bare values — "5.2", "14.0" — with no W/WINS unit
+    // and no sign on a positive: the skipper's number reads exactly like the
+    // WAR on the seats below it, which is the whole point of one ladder.
     expect(std).toContain("rwar");
     expect(std).toContain("5.2");
-    expect(std).toContain("+14.0");
-    expect(std).not.toContain("+14.0 W");
+    expect(std).toContain("14.0");
+    expect(std).not.toContain("+14.0");
+    expect(std).not.toContain("14.0 W");
     expect(sct).not.toContain("rwar");
     expect(sct).not.toContain("5.2");
-    expect(sct).not.toContain("+14.0");
+    expect(sct).not.toContain("14.0");
     for (const body of [std, sct]) {
       expect(body).toContain("Boone");
       expect(body).toContain("Piniella");

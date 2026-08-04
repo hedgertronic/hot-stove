@@ -19,12 +19,17 @@
     /** Small unit after the value ("WINS" on the skipper), styled like the WAR
      * unit on the player market chips. Empty for the unitless values. */
     unit?: string;
+    /** The WAR ladder's rung for this value as a bare word (`elite`, `mid`, …),
+     * which turns the value into a chip. Only the skipper carries one: an owner's
+     * budget and a stadium's multiplier are not on that scale. Empty draws the
+     * plain right-edge value the other two tiles use. */
+    tier?: string;
   }
 </script>
 
 <script lang="ts">
   import type { Game } from "../lib/engine.svelte";
-  import { money, signed } from "../lib/format";
+  import { money, statValue, warTier } from "../lib/format";
   import { MANAGER_PER_NET_WIN } from "../lib/scoring";
   import AwardPill from "./AwardPill.svelte";
 
@@ -86,9 +91,17 @@
       // exactly the quantified signals the mode hides, and a "?" placeholder
       // would just advertise the hole. The stadium ×mult stays: it's
       // mechanical (it sets your payroll), not a scouting stat.
-      // The win value reads "7.2 WINS", the same value-then-unit shape as the
-      // player chips' "5.2 WAR" — the unit says which scale this is, so a
-      // positive drops the plus and a negative keeps its minus.
+      // The win value reads "7.2 WINS" in a rung-colored chip — the same
+      // value-then-unit-in-a-chip shape as the player market's "5.2 WAR", down
+      // to the six hues. The unit says which scale this is, so a positive drops
+      // the plus and a negative keeps its minus.
+      // ONE MAPPING, NEVER RE-DERIVED: net wins × the scoring module's own
+      // per-win rate, read through format.ts's `warTier` — the exact expression
+      // the roster rail's MGR seat and the manager career sheet already use. A
+      // skipper's contribution is measured in wins and the ladder is the game's
+      // one scale for "how good is this", which is why the share string has
+      // always printed the manager cell in the players' own six hues. Inventing
+      // wins-specific breakpoints would put three ladders on one number.
       const wins = (c.wins - c.losses) * MANAGER_PER_NET_WIN;
       out.push({
         key: "manager",
@@ -97,8 +110,9 @@
         who: c.manager,
         meta: game.scout ? "" : `${c.wins}–${c.losses}`,
         moty: game.showAwards && c.managerMoty === true,
-        val: game.scout ? "" : wins < 0 ? signed(wins) : wins.toFixed(1),
+        val: game.scout ? "" : statValue(wins),
         unit: game.scout ? "" : "WINS",
+        tier: game.showWar ? warTier(wins) : "",
         verb: "HIRE",
       });
     }
@@ -171,7 +185,7 @@
       {:else if confirmKey === `w:${row.key}` && swappable}
         <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSwap(row.key); }} onkeydown={(e) => e.key === "Enter" && commitSwap(row.key)}>🔁 TRADE IN</span>
       {:else}
-        <span class="val">{row.val}{#if row.val && row.unit}<span class="unit">{row.unit}</span>{/if}</span>
+        <span class="val {row.tier ? `warchip ${row.tier}` : ''}">{row.val}{#if row.val && row.unit}<span class="unit">{row.unit}</span>{/if}</span>
       {/if}
     </button>
   {/each}
@@ -256,7 +270,17 @@
     line-height: 1;
     flex: none;
   }
-  .mid {
+  /* `mid` is also the WAR ladder's middle rung, and the skipper's chip wears
+     the bare tier token — so on any manager from roughly 86–76 to 91–71 the
+     value span reads `val warchip mid` and this rule would claim it. Scoped, it
+     outranks the global `.warchip`, and the chip would become a flex box: a
+     6px gap opening between the value and its WINS unit, the unit's baseline
+     ride dropped (flex items ignore `vertical-align`), and the 42px floor gone
+     to `min-width: 0`. The child combinator alone does not fence it — the chip
+     is the name span's SIBLING, both direct children of the row — so excluding
+     the chip by name is the fix, exactly as the manager career sheet fences the
+     same collision on the same token. */
+  .srow > .mid:not(.warchip) {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -289,20 +313,18 @@
     margin-left: auto;
     flex: none;
     font-weight: 800;
-    font-size: 14px;
     white-space: nowrap;
   }
-  /* The skipper's WINS unit, in the exact register the player chips give WAR
-     (.warchip .unit in app.css): same size, tracking, weight-by-inheritance,
-     opacity and baseline ride. Restated here because this value is not a chip
-     — the FRONT OFFICE tiles wear identity hues, and a rung chip on one would
-     put an identity fill and a rung fill side by side. */
-  .val .unit {
-    font-size: 9px;
-    letter-spacing: 0.05em;
-    opacity: 0.85;
-    margin-left: 2.5px;
-    vertical-align: 1px;
+  /* The owner's budget and the stadium's multiplier are plain right-edge type
+     at the row's own size. The skipper's value is not: it is a `.warchip`, and
+     a chip owns its type, border, wash and 13.5px scale the way it does on
+     every other row in the game. Excluding it here is what lets it — the same
+     collision, and the same fix, as the career sheet's `.mid:not(.warchip)`.
+     A rung chip does put a rung fill inside the tile's identity hue, and on the
+     skipper's red that is a deliberate second signal rather than a clash to
+     design around: the tile's hue says WHAT this is, the chip says HOW GOOD. */
+  .val:not(.warchip) {
+    font-size: 14px;
   }
   .srow.stad {
     background: var(--sky);

@@ -73,8 +73,19 @@
       {#if war}<em class="rwar warchip sm">{war}</em>{/if}
     {/if}
   </button>
+{:else if name && chair === "mgr"}
+  <!-- The skipper's chair is the one seat whose chip shares a line with the
+       label. On the phone the card is rotated, so every element takes a whole
+       COLUMN of a 52px-wide card, and four of them do not fit — the chip was
+       drawn off the edge. Pairing it with MGR spends one column on both. At
+       width `.mhead` is `display: contents` and the pair dissolves back into
+       the row, so this wrapper costs the wide geometry nothing. -->
+  <div class="mgr filled {rung}">
+    <div class="mhead"><b>{label}</b>{#if war}<em class="rwar warchip sm">{war}</em>{/if}</div>
+    <span>{name}</span><i>{meta}</i>
+  </div>
 {:else if name}
-  <div class="{chair} filled {rung}">
+  <div class="cell filled {rung}">
     <b>{label}</b><span>{name}</span><i>{meta}</i>
     {#if war}<em class="rwar warchip sm">{war}</em>{/if}
   </div>
@@ -83,7 +94,18 @@
 {/if}
 
 <style>
-  /* Flex centering: the type stack is shorter than the 52px seat, and a block
+  /* A SEAT'S HEIGHT IS FIXED, AND CONTENT FILLS IT. `height`, not
+     `min-height`: an empty seat and a filled one are the same chair, so signing
+     a player must not resize the furniture. The phone grid is the strict case —
+     one grid row is as tall as its tallest seat, so a single signing used to
+     re-tally EVERY seat in the row from 52px to 74.641px, and the whole card
+     grew under the finger that tapped it.
+     74.641px is what a filled phone seat measures: 5px of border, 10px of
+     padding, and the four stacked lines (11.25 label + 13.75 name + 10.625
+     season + 3 gap + 21.016 chip). 75px is that with the remainder as slack,
+     split evenly by the flex centering below, which is also why the empty seat
+     needs no filler to hold the height — the seat holds it.
+     Flex centering: the type stack is shorter than the seat, and a block
      container would park it at the top — the leftover space belongs half
      above, half below. */
   .cell {
@@ -94,7 +116,7 @@
     padding: 5px 2px;
     font-size: 10px;
     line-height: 1.25;
-    min-height: 52px;
+    height: 75px;
     font-family: inherit;
     color: inherit;
     display: flex;
@@ -189,11 +211,16 @@
     }
   }
   /* The manager reads bottom-to-top up the left rail (y-axis-label style,
-     glyphs facing the grid) — three parallel lines, label outermost, same
-     content pattern and type scale as the player seats. The width is fixed
+     glyphs facing the grid) — three parallel lines, label-and-chip outermost,
+     same content pattern and type scale as the player seats. The width is fixed
      so the grid doesn't reflow when the empty seat gains its name/season
-     lines on hire; it equals the seat cells' min-height, a geometric match
-     between the rotated chair and the upright ones.
+     lines on hire, and it is sized for the HIRED chair, because that is the
+     state that has to fit: 5px of border, 10px of padding, and three columns
+     of content — 21.02px for the MGR/chip pair, 14.3px for the name, 11.05px
+     for the season line — with the remainder as slack. The chair used to be
+     52px, a geometric match to the player seats' height, and the hired card
+     overflowed it by 36px: the chip was drawn outside the card and clipped.
+     Fitting the content is the job; matching a number elsewhere is not.
      The grid placement is here rather than with the rail's own grid because it
      is a fact about the CHAIR — it is the only seat that spans two rows — and
      a caller laying seats out in a flex column (the help sheet, and the rail
@@ -207,7 +234,7 @@
   .mgr {
     grid-column: 1;
     grid-row: 1 / 3;
-    width: 52px;
+    width: 64px;
     border: 2.5px solid var(--line);
     border-radius: 9px;
     background: var(--card);
@@ -216,6 +243,23 @@
     padding: 4px 5px;
     line-height: 1.3;
     overflow: hidden;
+  }
+  /* The label and the wins chip, side by side across the rotated card's reading
+     direction — MGR first, its number right after it, the way a stat sits
+     beside the thing it measures. `row` follows the INLINE axis, which
+     sideways-lr runs bottom-to-top, so the pair reads as one line of the card
+     and costs one column of its width instead of two. `align-items: center`
+     answers to the block axis, centering both across the column.
+     The chip's own 3px top margin is the phone PLAYER seat's gap under the
+     season line; here the gap between label and chip is this flex `gap`, so the
+     margin is given back. */
+  .mhead {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .mhead .rwar {
+    margin-top: 0;
   }
   /* MGR is a word in the players' own label register — same tracked caps, same
      muted color — because the sideways geometry already does the whole "this
@@ -277,10 +321,34 @@
       gap: 8px;
       text-align: left;
       width: 100%;
-      min-height: 36px;
+      /* Fixed, for the same reason the phone seat's height is: a filled row
+         measures 38.016px — 5px of border, 12px of padding and the 21.016px
+         chip, which is taller than any of the three type lines beside it — so a
+         36px floor let signing a player push the row 2px taller than the empty
+         seats above and below it. 38.5px is the filled height with the
+         remainder as slack, and `align-items: center` splits it. */
+      height: 38.5px;
       padding: 6px 10px;
       line-height: 1.25;
       overflow: hidden;
+    }
+    /* Wide, the pair is not a pair: the row wants label, name, season and chip
+       as four items of ITS flex, with the chip's `margin-left: auto` pushing
+       off the same edge the player seats push off. `contents` removes the box
+       and promotes its children, so the wide geometry sees the same four
+       elements the player seats give it and needs no rule of its own. */
+    .mhead {
+      display: contents;
+    }
+    /* `contents` promotes the chip into the row in DOM ORDER, which on the
+       manager's chair is second — right after MGR, ahead of his name. The wide
+       row wants it last, on the right edge, where all eight player seats and
+       the finale's squad rows put theirs. `order` is the whole fix: it costs
+       the phone geometry nothing (there the pair is a flex of its own, and the
+       chip is already where it belongs) and it leaves the DOM alone, which is
+       what the phone card's reading order depends on. */
+    .mgr .rwar {
+      order: 1;
     }
     /* The 34px label column is what aligns every row's second field, and both
        chairs speak it in the same tracked caps — MGR is a code like the rest. */

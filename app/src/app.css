@@ -260,6 +260,10 @@
 html,
 body {
   margin: 0;
+  /* Painted on BOTH elements so the canvas can never fall back to UA white:
+   * Safari paints overscroll and collapsed-toolbar regions from the root
+   * element's background, and a scroll-locked body doesn't reach them. */
+  background: var(--ground);
 }
 
 body {
@@ -418,9 +422,18 @@ button {
    here, and worth moving as one set rather than one at a time. The confirm
    pill is NOT among them: it lives in PlayerList only, because PrimePicker
    has no confirm step — a tapped season calls applyPrime directly.) */
+/* The measures below are LOGICAL, not physical. Every size the chip reserves is
+   a fact about its own text — 42px of run before the box stops hugging, 5px of
+   room before and after that run — and the manager's chair on the phone draws
+   this same chip under `writing-mode: sideways-lr`, where the text runs bottom
+   to top. Spelled physically, `min-width` and the left/right padding would land
+   ACROSS the rotated text instead of along it: the 42px floor became 42px of
+   card width, and the chair overflowed its column by the chip's whole measure.
+   Logical properties follow the text, so one declaration serves both
+   orientations and the horizontal chip is unchanged to the pixel. */
 .warchip {
   display: inline-block;
-  min-width: 42px;
+  min-inline-size: 42px;
   text-align: center;
   border: 2px solid var(--line);
   border-radius: 9px;
@@ -436,14 +449,22 @@ button {
      ride 0.32px high. The small WAR unit keeps its own `vertical-align`, which
      answers to the baseline and not to the leading, so it is untouched. */
   line-height: 1.603;
-  padding: 0.635px 5px 0;
+  padding-block: 0.635px 0;
+  padding-inline: 5px;
   color: var(--ink);
 }
+/* The negative inline-end margin is the tracking, given back. `letter-spacing`
+   adds its 0.05em after EVERY glyph including the last, so the unit's box ran
+   0.448px past the final R and the chip's ink sat off-center: measured inside a
+   13.5px "11.8 WAR" chip, the gaps were 8.16 left, 8.80 right, 7.97 top, 8.49
+   bottom. Cancelling exactly one step of tracking brings the right gap to 8.35,
+   and the four insets then agree to within half a pixel — the ink is centered
+   because the type is, not because the padding was bent to hide the leak. */
 .warchip .unit {
   font-size: 9px;
   letter-spacing: 0.05em;
   opacity: 0.85;
-  margin-left: 2.5px;
+  margin-inline: 2.5px -0.05em;
   vertical-align: 1px;
 }
 /* The chip's small cut, for the tight rows: rail seats, the finale squads and
@@ -452,12 +473,13 @@ button {
    asymmetric padding is the optical centering rule at 11px type
    (0.047 × 11 = 0.517px), paid out of the leading like the full-size chip's. */
 .warchip.sm {
-  min-width: 36px;
+  min-inline-size: 36px;
   font-size: 11px;
   border-width: 2px;
   border-radius: 8px;
   line-height: 1.5;
-  padding: 0.517px 4px 0;
+  padding-block: 0.517px 0;
+  padding-inline: 4px;
 }
 /* ---------- the rung, as a pair of custom properties ----------
    The ONLY place the six tiers are enumerated. Every surface that wears a rung

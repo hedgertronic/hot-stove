@@ -1,19 +1,25 @@
 // @vitest-environment jsdom
-/** The row under the mode pickers — PLAY beside PLAY A SEED — and the record
- * book card that is now the one door into every season played.
+/** The row under the mode pickers — PLAY above SEED — and the two record-book
+ * cards (GAMES and BEST) that replace the single card.
  *
- * The card is enabled by the LOG, not by the archive and not by the punched
- * combo's own game count: every season a career has finished appears in the
- * list, and whether any given one can still be reopened is the modal's question
- * (seasons.dom.test.ts). What only a mounted component can show is that an
- * empty log reaches the DOM as a real `disabled` attribute rather than a fade,
- * that a career played entirely in another combo still has a book to open, that
- * the play row is always two cells whatever storage holds, and that cancelling
- * the seed field closes it, empties it, and hands focus back to the button it
- * replaced.
+ * GAMES (`.book-g`): shows this combo's game count and the global log total;
+ * disabled when nothing has ever been finished; tapping opens the seasons
+ * sheet.
  *
- * Geometry (the row's box not moving between states) is a screenshot job:
- * jsdom has no layout, so a width assertion here would pass on zeroes.
+ * BEST (`.book-b`): shows the best season for the punched combo; disabled when
+ * no season has been played in that combo; tapping opens that season's finale
+ * directly via the archive, or falls back to the seasons sheet when the record
+ * has aged out.
+ *
+ * What only a mounted component can show: an empty log reaches the DOM as a
+ * real `disabled` attribute rather than a fade; a career played entirely in
+ * another combo still has a GAMES book to open; cancelling the seed field
+ * closes it, empties it, and hands focus back to the button it replaced; the
+ * BEST card always renders the same element structure regardless of whether the
+ * combo has been played.
+ *
+ * Geometry (card heights not jumping between states) is a screenshot job:
+ * jsdom has no layout, so a height assertion here would pass on zeroes.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
@@ -49,10 +55,13 @@ function open() {
   return {
     target,
     under,
-    /** The row's two cells, in DOM order: PLAY, then the seed half. */
+    /** The row's two children in DOM order: PLAY button, then the seed zone. */
     cells: () => [...under.children] as HTMLElement[],
     play: () => under.querySelector(".playbtn") as HTMLButtonElement,
-    book: () => target.querySelector(".book") as HTMLButtonElement,
+    /** GAMES card — the narrower left card, opens the seasons sheet. */
+    gamesCard: () => target.querySelector(".book-g") as HTMLButtonElement,
+    /** BEST card — the wider right card, opens the best season's finale. */
+    bestCard: () => target.querySelector(".book-b") as HTMLButtonElement,
     seedBtn: () => under.querySelector(".ubtn") as HTMLButtonElement,
     input: () => under.querySelector(".seedin") as HTMLInputElement | null,
     go: () => under.querySelector(".seedgo:not(.seedx)") as HTMLButtonElement | null,
@@ -77,18 +86,19 @@ function focused(): Promise<void> {
 }
 
 describe("the play row", () => {
-  it("puts PLAY A SEED in line with PLAY, and nothing else in the row", () => {
+  it("puts SEED below PLAY, and nothing else in the row", () => {
     const ui = open();
     const cells = ui.cells();
     expect(cells).toHaveLength(2);
     expect(cells[0].textContent).toContain("PLAY");
-    expect(cells[1].textContent).toContain("PLAY A SEED");
-    // SEASONS is gone from here — it lives on the record book card now.
+    // SEED button is inside the second child (the seed zone)
+    expect(cells[1].textContent).toContain("SEED");
+    // SEASONS does not appear here — it lives on the record book cards now.
     expect(ui.under.textContent).not.toContain("SEASONS");
     ui.close();
   });
 
-  it("keeps the row two cells while the seed field is open, so PLAY holds still", () => {
+  it("keeps two children in the row while the seed field is open, so PLAY holds still", () => {
     const ui = open();
     ui.seedBtn().click();
     flushSync();
@@ -99,17 +109,17 @@ describe("the play row", () => {
   });
 });
 
-describe("the record book card", () => {
+describe("the GAMES card", () => {
   it("is disabled, not absent, when nothing has ever been finished", () => {
     const ui = open();
-    expect(ui.book().disabled).toBe(true);
-    expect(ui.book().textContent).toContain("NO SEASONS YET");
+    expect(ui.gamesCard().disabled).toBe(true);
+    expect(ui.gamesCard().textContent).toContain("NO SEASONS YET");
     ui.close();
   });
 
   it("refuses the tap and the focus while disabled", () => {
     const ui = open();
-    const card = ui.book();
+    const card = ui.gamesCard();
     card.focus();
     expect(document.activeElement).not.toBe(card);
     card.click();
@@ -123,30 +133,30 @@ describe("the record book card", () => {
     // Same guard the record book counts games with.
     appendHistory({ date: "2026-08-02", badges: ["packedin"] });
     const ui = open();
-    expect(ui.book().disabled).toBe(true);
+    expect(ui.gamesCard().disabled).toBe(true);
     ui.close();
   });
 
   it("opens the seasons sheet on tap the moment a season is logged", () => {
     season();
     const ui = open();
-    expect(ui.book().disabled).toBe(false);
+    expect(ui.gamesCard().disabled).toBe(false);
     expect(ui.target.querySelector('[role="dialog"]')).toBeNull();
-    ui.book().click();
+    ui.gamesCard().click();
     flushSync();
     expect(ui.target.querySelector('[role="dialog"]')).not.toBeNull();
     ui.close();
   });
 
   it("stays a door for a career played entirely in another combo", () => {
-    // The card's own numbers are scoped to the PUNCHED combo, and this season
-    // is not in it — G reads 0 and BEST SEASON reads a dash. The book behind
-    // the card is global, so the card is still openable.
+    // The card's own G is scoped to the PUNCHED combo, and this season is not
+    // in it — G reads 0. The book behind the card is global, so it is still
+    // openable.
     season({ bank: "moneyball" });
     const ui = open();
-    expect(ui.book().disabled).toBe(false);
-    expect(ui.book().querySelector(".bn")!.textContent).toBe("0");
-    expect(ui.book().textContent).toContain("1 SEASON");
+    expect(ui.gamesCard().disabled).toBe(false);
+    expect(ui.gamesCard().querySelector(".bn")!.textContent).toBe("0");
+    expect(ui.gamesCard().textContent).toContain("1 SEASON");
     ui.close();
   });
 
@@ -156,7 +166,7 @@ describe("the record book card", () => {
     season({ difficulty: "scout" });
     appendHistory({ date: "2026-08-04", badges: ["packedin"] }); // a quit counts for nothing
     const ui = open();
-    expect(ui.book().textContent).toContain("3 SEASONS");
+    expect(ui.gamesCard().textContent).toContain("3 SEASONS");
     ui.close();
   });
 
@@ -164,13 +174,76 @@ describe("the record book card", () => {
     // A reload is a fresh mount against the same storage — the same thing this
     // does twice. The disabled state is a read of localStorage, not of memory.
     const first = open();
-    expect(first.book().disabled).toBe(true);
+    expect(first.gamesCard().disabled).toBe(true);
     first.close();
 
     season();
     const second = open();
-    expect(second.book().disabled).toBe(false);
+    expect(second.gamesCard().disabled).toBe(false);
     second.close();
+  });
+});
+
+describe("the BEST card", () => {
+  it("is disabled when no seasons have been played in this combo", () => {
+    const ui = open();
+    expect(ui.bestCard().disabled).toBe(true);
+    ui.close();
+  });
+
+  it("stays disabled when seasons exist only in another combo", () => {
+    season({ bank: "moneyball" });
+    const ui = open();
+    // standard/classic combo has no best — BEST card is disabled even though
+    // the GAMES card is now open.
+    expect(ui.bestCard().disabled).toBe(true);
+    ui.close();
+  });
+
+  it("becomes enabled when a season is played in this combo", () => {
+    season(); // standard/classic
+    const ui = open();
+    expect(ui.bestCard().disabled).toBe(false);
+    ui.close();
+  });
+
+  it("always renders .brec and .bpts regardless of whether a best exists", () => {
+    // The structural fix for height jitter: both elements are always in the
+    // DOM; .bpts carries `visibility:hidden` when no season exists. jsdom has
+    // no layout, so this is a DOM-presence assertion, not a height assertion.
+    const ui = open();
+    const card = ui.bestCard();
+    expect(card.querySelector(".brec")).not.toBeNull();
+    expect(card.querySelector(".bpts")).not.toBeNull();
+    // When no season, .brec shows the placeholder and .bpts has the invis class.
+    expect(card.querySelector(".brec")!.textContent).toBe("—");
+    expect(card.querySelector(".bpts")!.classList.contains("invis")).toBe(true);
+    ui.close();
+  });
+
+  it("shows the best record when a season exists in this combo", () => {
+    season(); // total 120 → recordFromTotal gives 88–74 mid tier
+    const ui = open();
+    const card = ui.bestCard();
+    expect(card.querySelector(".brec")!.textContent).not.toBe("—");
+    // .bpts is visible and contains the points
+    expect(card.querySelector(".bpts")!.classList.contains("invis")).toBe(false);
+    expect(card.querySelector(".bpts")!.textContent).toContain("PTS");
+    ui.close();
+  });
+
+  it("falls back to the seasons sheet when the best season has aged out of the archive", () => {
+    // Archive is empty (localStorage cleared in beforeEach), so the season's
+    // id has no matching archive record. openBest() falls back to seasonsOpen.
+    season();
+    const ui = open();
+    expect(ui.bestCard().disabled).toBe(false);
+    expect(ui.target.querySelector('[role="dialog"]')).toBeNull();
+    ui.bestCard().click();
+    flushSync();
+    // The seasons sheet (role="dialog") opens as the fallback.
+    expect(ui.target.querySelector('[role="dialog"]')).not.toBeNull();
+    ui.close();
   });
 });
 

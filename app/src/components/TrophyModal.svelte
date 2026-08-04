@@ -3,12 +3,14 @@
   import {
     badgeCase,
     passportBoard,
+    stampLabel,
+    stampReveal,
     takeOpenedBadgeCue,
     type PassportItem,
   } from "../lib/settings";
   import BadgePill from "./BadgePill.svelte";
   import BadgeSlot from "./BadgeSlot.svelte";
-  import Passport from "./Passport.svelte";
+  import PillSlot from "./PillSlot.svelte";
   import Sheet from "./Sheet.svelte";
 
   /** The lifetime trophy case, as a modal: badges, then the passport, on one
@@ -77,38 +79,76 @@
     ];
   }
 
+  /** The countries this career has fielded, rarest first.
+   *
+   * `passportBoard()` draws only what has been collected; see the note on it
+   * for why the unvisited half of the table is not on the sheet. A country
+   * nobody has been to is not a locked slot here, unlike a badge — the two
+   * absences are different, and the note on `passportBoard` is where the
+   * difference is argued. */
+  const items: PassportItem[] = passportBoard();
+
+  /** The stamps that belong to one rarity, in the board's own order.
+   *
+   * ONE LADDER, NOT TWO. Countries carry the same measured tier badges do and
+   * the pills already wear it, so a PASSPORT band of its own was filing them by
+   * WHAT THEY ARE when the sheet is organized by HOW RARE THEY ARE — an ultra
+   * country sat two screens below the ultra badges it is exactly as hard to
+   * get. Mixed into the bands, the case answers one question per heading.
+   *
+   * Nothing distinguishes them but SHAPE, and nothing needs to: a stamp is a
+   * 4px rectangle and a badge is a 999px capsule (Passport.svelte and
+   * BadgePill.svelte respectively, both by long-standing intent), so the two
+   * kinds read apart at a glance inside one band without a word of labelling.
+   *
+   * Only four tiers ever fill: `legendary` is the top of a badge axis and
+   * `ironic` is an anti-trophy, and no birthplace is either — see the country
+   * table in settings.ts. Those two bands hold badges alone, which is correct
+   * rather than incidental.
+   *
+   * A country the table does not know has no tier to file under, and there are
+   * none today — it takes a data regen adding a fortieth country to make one.
+   * It lands at the foot of the LAST measured band rather than nowhere: the
+   * bottom of the bottom band is where an unranked thing sorts without claiming
+   * a rank, and the stamp still draws in its own plain paper, which is visibly
+   * quieter than a common one. Losing it off the sheet entirely is the only
+   * outcome this must not have. */
+  const LAST_MEASURED = RARITY_ORDER[RARITY_ORDER.length - 2];
+  function flags(rarity: Rarity): PassportItem[] {
+    const tiered = items.filter((s) => s.rarity === rarity);
+    if (rarity !== LAST_MEASURED) return tiered;
+    return [...tiered, ...items.filter((s) => s.rarity === null)];
+  }
+
   /** The collection ladder as sections, rarest first. Rarity is a heading over
    * a band of pills rather than a word on each pill: every pill under a heading
    * shares its tier, so the word still carries rarity on a channel that is not
-   * color — it is just printed once instead of N times.
+   * color — it is just printed once instead of N times. The stamps under it
+   * share it too, which is the whole reason they are in the band.
    *
    * The order is lib/badges' RARITY_ORDER, not a copy of it: a tier added there
    * gets a band here without this file being touched, and cannot land in a
-   * different position than the case's own tile sort puts it. */
-  const sections = RARITY_ORDER.map((rarity) => ({ rarity, items: slots(rarity) }))
-    .filter((s) => s.items.length > 0);
-
-  /** The passport: the countries this career has fielded, rarest first. Read
-   * once at mount for the same reason the case is.
+   * different position than the case's own tile sort puts it.
    *
-   * ONE PAGE, not two. This lived behind a tab for one round, on the reasoning
-   * that a panel under six bands and fifty-eight pills is a screen and a half
-   * of scrolling away. That is true and it is the wrong problem to solve with
-   * navigation: a tab hides the passport from everyone who does not press it,
-   * which is worse than putting it somewhere that takes a scroll. The sheet is
-   * one object — a lifetime record of what a career turned up — and it now
-   * reads as one, badges then countries, with the app's own dashed separator
-   * between them exactly like every other section in the game.
-   *
-   * `passportBoard()` draws only what has been collected; see the note on it
-   * for why the unvisited half of the table is not on the sheet. */
-  const items: PassportItem[] = passportBoard();
+   * A band draws when it holds ANYTHING. Stamps count: a tier whose badges are
+   * all unearned and unnamed can still be a tier this career has been to. */
+  const sections = RARITY_ORDER.map((rarity) => ({
+    rarity,
+    items: slots(rarity),
+    stamps: flags(rarity),
+  })).filter((s) => s.items.length > 0 || s.stamps.length > 0);
 
-  /** The one opened badge, by key. Only an EARNED pill is a button, so only an
-   * earned badge can ever land here — a locked slot has nothing to open, and
-   * revealing its trigger would pre-spend the surprise the silhouette exists to
-   * protect. One at a time: BadgeSlot renders the reveal only for the badge
-   * whose key this holds, so nothing is rendered for any of the others. */
+  /** The one opened chip on the sheet, badge or country, by a namespaced key.
+   *
+   * Namespaced because both kinds now sit in the same rows: a badge is its own
+   * key, a country is `country:` and its name, so the two sets cannot collide
+   * however they are spelled. One at a time across the whole sheet — a slot
+   * renders its reveal only when this holds its key, so nothing is rendered for
+   * any of the others.
+   *
+   * Only a COLLECTED chip is ever a button, so only a collected one can land
+   * here: a locked badge has nothing to open, and revealing its trigger would
+   * pre-spend the surprise the silhouette exists to protect. */
   let opened = $state<string | null>(null);
 
   function toggle(key: string) {
@@ -155,30 +195,38 @@
               />
             {/if}
           {/each}
+          <!-- The tier's countries, INLINE in the same wrapping row as its
+               badges — not on a line of their own. A flag is one more chip in
+               the band's flow, wherever it happens to fall, which is the whole
+               claim the band makes: these are the same rarity. A forced break
+               would have re-drawn the separation the PASSPORT band used to be.
+               Rendered as `PillSlot`s directly rather than through `Passport`,
+               and that is what makes inline possible: `PillSlot` fences an open
+               panel inside `btnEl.parentElement`, so the stamps' parent has to
+               BE this row. `.bandrow` is already `position: relative`, so it
+               satisfies the contract as it stands. `Passport` remains the
+               finale's row, where the strip needs a box of its own.
+               One open chip across both kinds: the key is namespaced, so a
+               country and a badge can never collide and only one panel is ever
+               open on the sheet. -->
+          {#each s.stamps as stamp (stamp.country)}
+            {@const key = `country:${stamp.country}`}
+            <PillSlot
+              reveal={stampReveal(stamp)}
+              ariaLabel={stampLabel(stamp)}
+              emoji={stamp.flag || undefined}
+              label={stamp.flag ? undefined : stamp.country}
+              count={stamp.count}
+              rarity={stamp.rarity}
+              shape="rect"
+              title={stampReveal(stamp)}
+              open={opened === key}
+              ontoggle={() => toggle(key)}
+            />
+          {/each}
         </div>
       </div>
     {/each}
-
-    <!-- The last band on the sheet, and a sibling of the rarity bands rather
-         than a block after them: the ones above answer "what have I
-         collected", this answers "where have I been", and `.band + .band`
-         gives it exactly the gap every other band gets. It sat outside this
-         wrapper for one round, which is why its header rode closer to the
-         stamps above it than any other separator on the sheet — the adjacent
-         sibling rule never reached it.
-         No count. The stamps are the answer and a total would only rank it. -->
-    <div class="band">
-      <div class="psep">PASSPORT</div>
-      {#if items.length === 0}
-        <p class="caseempty">No countries yet — play a season.</p>
-      {:else}
-        <!-- "Countries fielded" is the whole of it now: the board is what the
-             career turned up and the unvisited table is not on the sheet. The
-             finale's passport carries the same label, because the two draw the
-             same stamps. -->
-        <Passport stamps={items} label="Passport — countries fielded, rarest first" />
-      {/if}
-    </div>
   </div>
 </Sheet>
 

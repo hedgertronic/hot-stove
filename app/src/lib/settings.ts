@@ -213,16 +213,22 @@ export function recordQuit(): void {
   if (first) noteNewBadges([PACKED_IN]);
 }
 
-/** Best score, best record, and game count for one mode combo. Legacy entries
- * (no v stamp) get the same difficulty mapping as settings; pre-bank entries
- * carry a `moneyball` boolean instead of `bank`. Best record = most wins,
- * fewest losses on ties; entries without a parseable record still count
- * toward games and best score. */
+/** Best score, best record, game count, and archive id for one mode combo.
+ * Legacy entries (no v stamp) get the same difficulty mapping as settings;
+ * pre-bank entries carry a `moneyball` boolean instead of `bank`. Best record
+ * = most wins, fewest losses on ties; entries without a parseable record still
+ * count toward games and best score.
+ *
+ * `bestId` tracks the archive id of the best-total entry. On ties, the NEWER
+ * entry's id wins — `>=` on the comparison — matching the seasons sheet's own
+ * tie-break (its shelf iterates newest-first and keeps the first match). The
+ * numeric `best` is the same either way; only the id differs. */
 export function bestFor(
   difficulty: Difficulty,
   bank: Bank,
-): { best: number | null; bestRecord: string | null; games: number } {
+): { best: number | null; bestRecord: string | null; games: number; bestId?: string } {
   let best: number | null = null;
+  let bestId: string | undefined = undefined;
   let games = 0;
   let recW = -1;
   let recL = -1;
@@ -235,7 +241,10 @@ export function bestFor(
     const b = normalizeBank(e);
     if (d !== difficulty || b !== bank) continue;
     games += 1;
-    if (best === null || e.total > best) best = e.total;
+    if (best === null || e.total >= best) {
+      best = e.total;
+      bestId = e.id;
+    }
     const m =
       typeof e.record === "string" ? /^(\d+)[-–](\d+)$/.exec(e.record) : null;
     if (m) {
@@ -247,7 +256,7 @@ export function bestFor(
       }
     }
   }
-  return { best, bestRecord: recW >= 0 ? `${recW}–${recL}` : null, games };
+  return { best, bestRecord: recW >= 0 ? `${recW}–${recL}` : null, games, bestId };
 }
 
 /** One earned badge and how many games earned it. */
@@ -623,30 +632,45 @@ export interface PassportItem {
   /** First time this country has ever been fielded. Finale only: in the case
    * every stamp is already found, so the flag would mark all of them. */
   fresh: boolean;
-  /** The sentence a stamp reveals when it is tapped, after the country's own
-   * name. Null is a stamp with nothing to add — the finale's, where a career
-   * sentence beside a count of tonight's men would be two subjects on one
-   * stamp — and it still opens, on the country's name alone. That name is the
-   * question a bare flag cannot answer on a touch screen, so no stamp is ever
-   * inert. */
-  title: string | null;
 }
 
-/** What one stamp says on hover, and to a screen reader.
+/** WHAT A STAMP SAYS WHEN IT IS TAPPED, and it is the same sentence wherever
+ * the stamp is met. The finale and the trophy case draw their stamps into
+ * different rows now — a strip of its own down there, inline among the badges
+ * of its rarity band up here — so the one thing that must not depend on which
+ * row it landed in lives beside the table it is built from rather than in
+ * either component.
  *
- * It spells out the two numbers the stamp itself cannot: which of the games
- * behind a country actually named the people in it, and how many seasons those
- * were. A stamp with `counted === 0` says so in words rather than showing a
- * zero — a country nobody is counted for is a gap in the log, not a club with
- * nobody in it. */
-export function stampTitle(s: PassportStamp): string {
-  const when = s.first ? `First fielded ${s.first}. ` : "";
-  const seasons = `${s.visits} ${s.visits === 1 ? "season" : "seasons"}`;
-  if (s.counted === 0) return `${when}${seasons}, none carrying a roster.`;
-  const players = `${s.players} ${s.players === 1 ? "player" : "players"}`;
-  if (s.counted === s.visits) return `${when}${players} across ${seasons}.`;
-  return `${when}${players} across ${s.counted} of ${seasons}.`;
+ * "A player", singular, at any count: the sentence says why the stamp EXISTS,
+ * and how many men are behind it is already drawn on the stamp. */
+export function stampReveal(s: Pick<PassportItem, "country">): string {
+  return `Rostered a player from ${s.country}`;
 }
+
+/** What a stamp announces to a screen reader.
+ *
+ * It carries the NEW chip, the country and the count, because `aria-label`
+ * REPLACES everything inside the element it sits on and every one of those
+ * three is drawn rather than written — the country hardest of all, since the
+ * flag IS the stamp and a flag is not a name. It leads with NEW, the way the
+ * eye does.
+ *
+ * It stops there: the sentence above is the panel's, announced when the panel
+ * is opened, the same division a badge draws between its pill and its
+ * trigger. */
+export function stampLabel(s: Pick<PassportItem, "country" | "count" | "fresh">): string {
+  return `${s.fresh ? "New. " : ""}${s.country}${s.count !== null ? `, ${s.count}` : ""}`;
+}
+
+/* A stamp carries NO per-surface sentence. It used to: the case's stamps spelled
+ * out a career — first fielded, N players across M of K seasons — while the
+ * finale's carried none, so one mark meant two different amounts depending on
+ * which screen it was read from. `Passport.svelte` now says the same single
+ * sentence about every stamp on both surfaces, built from the country's name,
+ * which is why neither this shape nor the reader below carries the prose any
+ * more. The numbers it spelled out are still on the stamp itself: `count` is
+ * the players, and `PassportStamp` still holds the visit log for anything that
+ * wants to reason about it. */
 
 /** The stamps a career has actually collected, as the panel draws them.
  *
@@ -674,7 +698,6 @@ export function passportItems(
       rarity: s.rarity,
       count: s.counted > 0 ? s.players : null,
       fresh: fresh.has(s.country),
-      title: stampTitle(s),
     }))
     .sort((a, b) => Number(b.fresh) - Number(a.fresh));
 }

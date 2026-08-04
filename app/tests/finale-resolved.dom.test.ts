@@ -28,6 +28,11 @@ const store = new Map<string, string>();
 vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) =>
   setTimeout(() => cb(performance.now()), 0),
 );
+// The library, not the effect: the component's dynamic import and try/catch
+// stay under test, but real canvas-confetti starts a frame loop that crashes
+// on jsdom's null 2D context an async tick later — OUTSIDE the catch, as an
+// unhandled error vitest reports against whichever test is then running.
+vi.mock("canvas-confetti", () => ({ default: () => {} }));
 
 let host: HTMLElement | null = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -114,6 +119,17 @@ describe("a restored finale", () => {
     expect(bar.closest(".lrow")?.querySelector(".why")?.textContent).toBe("$19.3M over");
   });
 
+  it("shows the dream team on the first frame, with no beat to wait for", () => {
+    // The ceiling is a withheld beat during the ceremony (see below). A finale
+    // reopened from history has no ceremony, so the block that would be waiting
+    // on a timer that never fires has to be shown outright — the same branch
+    // that settles the rows, the stamp and the passport.
+    const el = render(true);
+    const dream = el.querySelector(".squad.dream");
+    expect(dream).not.toBeNull();
+    expect(dream!.classList.contains("show")).toBe(true);
+  });
+
   it("a finale just earned still plays the reveal", () => {
     // The control: without the flag, nothing is shown on the first frame. If
     // this ever passes for the wrong reason — reduced motion, a changed
@@ -122,5 +138,111 @@ describe("a restored finale", () => {
     expect([...el.querySelectorAll(".lrow")].some((r) => r.classList.contains("show"))).toBe(false);
     expect(el.querySelector(".total-stamp")?.classList.contains("show")).toBe(false);
     expect(el.querySelector(".brags")).toBeNull();
+    // The ceiling is withheld on the same frame, and this is the assertion that
+    // makes the spoiler regression loud rather than silent.
+    expect(el.querySelector(".squad.dream")?.classList.contains("show")).toBe(false);
+  });
+});
+
+/** THE CEILING MUST NOT ARRIVE BEFORE THE RECORD.
+ *
+ * The dream team is the best club the player could have signed. Read while the
+ * ledger is still dealing, it gives away the verdict before the season that
+ * earned it — so it is the one beat of the reveal that exists to withhold
+ * rather than to pace, and "after the stamp" is a rule about what the player is
+ * allowed to know rather than a matter of rhythm.
+ *
+ * Timed by watching rather than by arithmetic. The exact cue is the badge
+ * pills' and the ledger's length depends on the fixture, so the test steps the
+ * clock and records WHEN each beat lands; what it pins is the ORDER, which is
+ * the whole of the requirement and survives any retiming of the ceremony. */
+describe("the dream team waits for the record", () => {
+  /** The first tick at which a beat is on screen, stepping in small slices so
+   * two beats on the same cue are recorded at the same time. */
+  function landings(el: HTMLElement) {
+    const shown = (sel: string) => {
+      const node = el.querySelector(sel);
+      return node !== null && (sel === ".brags" || node.classList.contains("show"));
+    };
+    const at: Record<string, number> = {};
+    for (let t = 0; t <= 12000; t += 50) {
+      for (const [name, sel] of [
+        ["stamp", ".total-stamp"],
+        ["brags", ".brags"],
+        ["dream", ".squad.dream"],
+      ] as const) {
+        if (at[name] === undefined && shown(sel)) at[name] = t;
+      }
+      vi.advanceTimersByTime(50);
+      flushSync();
+    }
+    return at;
+  }
+
+  /** A club whose seats carry birth countries, so the finale draws a passport
+   * strip at all. The fixture's own seats carry none. */
+  function withCountries(): Game {
+    const g = finaleCeilingAbove();
+    ["Japan", "Cuba", "Peru"].forEach((bc, i) => {
+      const seat = g.slots[i];
+      if (seat) seat.bc = bc;
+    });
+    return g;
+  }
+
+  it("deals the passport stamps AT their beat, not silently before it", () => {
+    // THE BUG THIS EXISTS TO CATCH: `.clubpass` is mounted on the first frame
+    // at `opacity: 0` — deliberately, so the row never displaces the buttons
+    // mid-reveal — and a CSS animation on a child of a transparent box RUNS
+    // ANYWAY. Opacity does not defer animations. So stamps that carried the
+    // entrance class from mount finished their thunk-in inside the first
+    // second, seconds before the passport beat, and the row then appeared
+    // whole: the exact "all at once" the stagger was added to replace.
+    //
+    // The fix is that the entrance is applied AT the beat. What is pinned here
+    // is that the class is absent before it and present after — a markup-only
+    // stagger test cannot see this, because the delays are right either way.
+    vi.useFakeTimers();
+    try {
+      const el = render(false, withCountries());
+      const stamps = () => [...el.querySelectorAll<HTMLElement>(".stamps .pill")];
+      const dealing = () => stamps().filter((s) => s.classList.contains("animate"));
+      expect(stamps().length).toBeGreaterThan(1);
+      // Mounted from the first frame, and NOT animating yet.
+      expect(dealing()).toHaveLength(0);
+
+      // Run the whole ceremony out.
+      for (let t = 0; t <= 12000; t += 50) {
+        vi.advanceTimersByTime(50);
+        flushSync();
+      }
+      const strip = el.querySelector(".clubpass");
+      expect(strip?.classList.contains("show")).toBe(true);
+      // Every stamp deals, and it deals left to right off its own index.
+      expect(dealing()).toHaveLength(stamps().length);
+      expect(stamps().map((s) => s.style.animationDelay)).toEqual(["", "0.12s", "0.24s"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("lands after the stamp, on the badge pills' own cue", () => {
+    vi.useFakeTimers();
+    try {
+      const el = render(false);
+      const at = landings(el);
+      // All three beats actually ran; a fixture that never revealed would make
+      // every ordering assertion below vacuously true.
+      expect(at.stamp).toBeGreaterThan(0);
+      expect(at.brags).toBeGreaterThan(0);
+      expect(at.dream).toBeGreaterThan(0);
+      // THE RULE: never before the stamp.
+      expect(at.dream).toBeGreaterThan(at.stamp);
+      // And in parallel with the badges, which is the cue it rides — the beat
+      // that annotates the record, which is what a ceiling does.
+      expect(at.dream).toBe(at.brags);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

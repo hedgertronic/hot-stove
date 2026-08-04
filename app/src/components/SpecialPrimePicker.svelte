@@ -1,7 +1,7 @@
 <script lang="ts">
   import { loadSpecials } from "../lib/data";
   import type { Game } from "../lib/engine.svelte";
-  import { signed, warTier } from "../lib/format";
+  import { statValue, warTier } from "../lib/format";
   import { MANAGER_PER_NET_WIN } from "../lib/scoring";
   import type { SpecialSeason } from "../lib/types";
   import AwardPill from "./AwardPill.svelte";
@@ -14,11 +14,6 @@
    * never reach this picker. */
   const skipper = $derived(game.primeSpecial !== null ? (game.card?.manager ?? "") : "");
 
-  /** The chip's number: a negative keeps its minus, a positive drops the plus —
-   * the WINS unit beside it is what says which scale this is. */
-  function mgrVal(wins: number): string {
-    return wins < 0 ? signed(wins) : wins.toFixed(1);
-  }
 
   interface Row {
     team: string;
@@ -73,7 +68,7 @@
             // contribution is measured in wins and the ladder is the game's one
             // scale for "how good is this", which is why the share string has
             // always printed the manager cell in the players' own six hues.
-            val: game.scout ? "" : mgrVal((s.w - s.l) * MANAGER_PER_NET_WIN),
+            val: game.scout ? "" : statValue((s.w - s.l) * MANAGER_PER_NET_WIN),
             tier: game.showWar ? warTier((s.w - s.l) * MANAGER_PER_NET_WIN) : "",
             here: s.team === c.team && s.year === c.year,
           }));

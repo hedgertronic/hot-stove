@@ -32,7 +32,6 @@ const stamp = (country: string, over: Partial<PassportItem> = {}): PassportItem 
   rarity: "common",
   count: 1,
   fresh: false,
-  title: `First fielded 2026-01-01. 1 player across 1 season.`,
   ...over,
 });
 
@@ -54,8 +53,8 @@ function board(...stamps: PassportItem[]): HTMLElement {
   return host;
 }
 
-const buttons = (el: HTMLElement) => [...el.querySelectorAll<HTMLElement>(".stamp")];
-const panels = (el: HTMLElement) => [...el.querySelectorAll<HTMLElement>(".detail")];
+const buttons = (el: HTMLElement) => [...el.querySelectorAll<HTMLElement>("button")];
+const panels = (el: HTMLElement) => [...el.querySelectorAll<HTMLElement>(".how")];
 
 /** A real tap: the pointerdown the dismissal path listens for, then the click
  * the button listens for. Sending only the click would let a listener that
@@ -72,9 +71,7 @@ describe("tapping a stamp", () => {
     expect(panels(el)).toHaveLength(0);
     tap(buttons(el)[0]);
     const [panel] = panels(el);
-    expect(panel.textContent).toContain(
-      "Japan — First fielded 2026-01-01. 1 player across 1 season.",
-    );
+    expect(panel.textContent).toContain("Rostered a player from Japan");
     // Measured: the panel is `visibility: hidden` until a placement exists, so
     // this class is the difference between a reveal and a tap that does
     // nothing visible.
@@ -195,13 +192,50 @@ describe("tapping a stamp", () => {
     expect(sheetSaw).toBe(1);
   });
 
-  it("opens on the country's name alone where there is no sentence", () => {
-    // The finale's stamps carry no detail — a career sentence beside a count of
-    // tonight's men is two subjects on one stamp — and they still open. The
-    // country's name is the question a bare flag cannot answer on a touch
-    // screen, and it is the one worth a tap.
-    const el = board(stamp("Japan", { title: null }));
-    tap(buttons(el)[0]);
-    expect(panels(el)[0].textContent?.trim()).toBe("Japan");
+  it("opens on one sentence naming the country, whatever the stamp carries", () => {
+    // NO STAMP IS EVER INERT and no panel is ever empty. A stamp used to carry
+    // a per-surface sentence and the finale's was null, which made "does it
+    // open at all" a real question; the sentence is built from the country now,
+    // so every stamp on every surface opens on the same shape. The country's
+    // name is the question a bare flag cannot answer on a touch screen, and it
+    // is the one worth a tap.
+    for (const country of ["Japan", "Curaçao"]) {
+      const el = board(stamp(country, { count: null, rarity: null, flag: "" }));
+      tap(buttons(el)[0]);
+      expect(panels(el)[0].textContent?.trim()).toBe(`Rostered a player from ${country}`);
+    }
+  });
+});
+
+describe("dealing the row in", () => {
+  // The finale's stamps are the last beat of a ceremony and land one at a time,
+  // the way the badge pills above them do. The trophy case's never do: nothing
+  // there was just earned, so the row is simply present.
+  it("staggers each stamp by its own index when asked", () => {
+    const el = board(stamp("Japan"), stamp("Cuba"), stamp("Peru"));
+    // Not asked: no entrance class and no delay anywhere.
+    expect(buttons(el).some((b) => b.classList.contains("animate"))).toBe(false);
+    expect(buttons(el).some((b) => b.style.animationDelay !== "")).toBe(false);
+
+    host?.remove();
+    if (app) unmount(app);
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    app = mount(Passport, {
+      target: host,
+      props: {
+        stamps: [stamp("Japan"), stamp("Cuba"), stamp("Peru")],
+        label: "Countries fielded",
+        animate: true,
+        step: 0.12,
+      },
+    });
+    flushSync();
+    const dealt = [...host.querySelectorAll<HTMLElement>(".stamp")];
+    expect(dealt.every((b) => b.classList.contains("animate"))).toBe(true);
+    // The row deals left to right off the index it already has — the first
+    // stamp carries no delay at all, so the beat starts the moment the row
+    // is revealed rather than one step after it.
+    expect(dealt.map((b) => b.style.animationDelay)).toEqual(["", "0.12s", "0.24s"]);
   });
 });

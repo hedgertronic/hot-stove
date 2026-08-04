@@ -132,24 +132,52 @@ function finale(...countries: (string | undefined)[]): string {
   }).body;
 }
 
-/** The passport on a rendered surface: the one row of stamps, whichever
- * surface drew it. Queried, not sliced — the trophy case's board is the last
- * band above a CLOSE button and the finale's sits directly over THE DREAM
- * TEAM, and a slice bounded by either of those neighbours answers with the
- * neighbour the moment one of them moves.
+/** The passport on a rendered surface: EVERY row of stamps it drew, in
+ * document order. Queried, not sliced — the finale's row sits directly over THE
+ * DREAM TEAM and the case's rows sit inside the rarity bands, and a slice
+ * bounded by any of those neighbours answers with the neighbour the moment one
+ * of them moves.
  *
- * It throws rather than returning an empty string when there is no board,
+ * Rows, plural, because the case files a country in the band of its own tier —
+ * so an ultra country is a stamp row under ULTRA, beside the ultra badges,
+ * and there is one row per tier that has been reached. The finale still draws
+ * exactly one. Reading them all in document order is what makes both surfaces
+ * answerable by the same helpers: the bands run rarest first, so the
+ * concatenation IS the board, in the order a reader meets it.
+ *
+ * It throws rather than returning an empty list when there is no row at all,
  * because "this career has no passport" and "this passport has no stamps" are
  * different claims and every assertion below is about one or the other. */
-function board(markup: string): Element {
-  const el = new JSDOM(markup).window.document.querySelector(".stamps");
-  if (!el) throw new Error("no passport rendered");
-  return el;
+function board(markup: string): Element[] {
+  // Two row shapes, because a stamp lives in two kinds of row. The finale draws
+  // a passport strip of its own (`.stamps`); the trophy case has no passport
+  // section at all any more, and files each country INLINE among the badges of
+  // its rarity band, so up there the row is `.bandrow`. Both are queried, and
+  // only rows that actually hold a stamp are a board — a rarity band of pure
+  // badges is not an empty passport.
+  const rows = [...new JSDOM(markup).window.document.querySelectorAll(".stamps, .bandrow")];
+  const els = rows.filter((r) => r.querySelector(".stamp") !== null);
+  if (els.length === 0) throw new Error("no passport rendered");
+  return els;
 }
 
-/** Every stamp on a board, in the order it draws them. */
+/** Every stamp the surface drew, in the order a reader meets it — across every
+ * band on a trophy sheet, and across the one row on a finale.
+ *
+ * `.stamp` is the class the rectangle has always worn and still wears: badges
+ * and countries render through one shared `Pill` now, and the shape's own hook
+ * survived the merge precisely so that a test selecting a stamp keeps selecting
+ * a stamp. A badge in the same row is `.brag` and is never picked up here.
+ *
+ * What is returned is the BUTTON, not the chip inside it. A stamp is a chip in
+ * a slot — the arrangement a badge has always had — so the control carries the
+ * accessible name and the expanded state while the chip carries the tier and
+ * the drawn parts. Every assertion below is about one or the other, and the
+ * button is the one that reaches both. */
 function stampEls(markup: string): Element[] {
-  return [...board(markup).querySelectorAll(".stamp")];
+  return board(markup).flatMap((row) => [
+    ...row.querySelectorAll<Element>("button:has(.stamp)"),
+  ]);
 }
 
 /** The country one stamp announces. The accessible name is the NEW chip, then
@@ -184,12 +212,18 @@ function stampFor(markup: string, country: string): Element {
   return el;
 }
 
-/** Whatever the stamp naming a country wears BESIDES `stamp` and its style
- * hash — the tier a reader actually sees, rather than the tier the reader
- * returned. An empty list is a stamp with no tier at all. */
+/** Whatever the CHIP naming a country wears besides its structural classes and
+ * its style hash — the tier a reader actually sees, rather than the tier the
+ * reader returned. An empty list is a stamp with no tier at all.
+ *
+ * `pill` and `stamp` are both structural: `pill` is the one shared chip every
+ * badge and country renders through, `stamp` is the rectangular shape's hook.
+ * Neither is a tier, so neither counts here. */
 function stampClass(markup: string, country: string): string[] {
-  return [...stampFor(markup, country).classList].filter(
-    (c) => c !== "stamp" && !c.startsWith("svelte-"),
+  const chip = stampFor(markup, country).querySelector(".stamp");
+  if (!chip) throw new Error(`no chip inside the stamp for ${country}`);
+  return [...chip.classList].filter(
+    (c) => c !== "pill" && c !== "stamp" && !c.startsWith("svelte-"),
   );
 }
 
@@ -602,27 +636,60 @@ describe("the player count", () => {
 /* ---------- the trophy-case board ---------- */
 
 describe("the passport board", () => {
-  it("keeps its band on an untravelled sheet, with no stamps under it", () => {
-    // Two rules at once. The band is a PERMANENT section — it used to appear
-    // only once a country landed, so a new player saw no passport at all and
-    // never learned there was one. And an untravelled board draws nothing: the
-    // grayed slot for every unvisited country is gone, so what stands in for
-    // thirty-nine of them is the same one line the empty badge case gets.
+  it("draws no stamp row at all on an untravelled sheet", () => {
+    // An untravelled board draws nothing, and now draws it NOWHERE: the grayed
+    // slot for every unvisited country is gone, and so is the band that used to
+    // hold the "no countries yet" line. There is no passport section left to
+    // stand empty — a country lives in the band of its own tier, so a career
+    // that has been nowhere adds no stamp to any band and the badge ladder is
+    // the whole sheet.
     seed({ v: 2, date: "2026-01-01", total: 120, record: "95-67", spins: 3, badges: ["hundred"] });
     const body = modal();
-    expect(body).toContain("PASSPORT");
-    expect(body).toContain("No countries yet — play a season.");
+    expect(body).not.toContain("PASSPORT");
+    expect(body).not.toContain("No countries yet — play a season.");
     expect(() => board(body)).toThrow(/no passport/);
   });
 
-  it("sits on the same page as the badges, with no tabs between them", () => {
-    // One sheet, two bands, badges first. A tab hid the passport from everyone
-    // who did not press it, which is worse than a scroll.
-    seed(game(["Japan"]));
+  it("files each country in its own rarity band, with no band of its own", () => {
+    // ONE LADDER, NOT TWO. The countries used to sit in a PASSPORT band below
+    // every rarity band, which filed them by what they ARE on a sheet organized
+    // by how RARE they are — an ultra country two screens under the ultra
+    // badges it is exactly as hard to get. Each stamp now sits in the band that
+    // names its tier, and the separate header is gone.
+    //
+    // Japan is uncommon, Panama rare: two tiers, so the assertion is about the
+    // country's OWN rung and not about one band happening to be first.
+    seed(game(["Japan", "Panama"]));
     const body = modal();
     expect(body).not.toContain('role="tablist"');
     expect(body).not.toContain('role="tabpanel"');
-    expect(body.indexOf("LEGENDARY")).toBeLessThan(body.indexOf("PASSPORT"));
+    expect(body).not.toContain("PASSPORT");
+
+    // INLINE, in the band's own wrapping row — a flag is one more chip in the
+    // flow, not a strip parked under the badges. The evidence is structural:
+    // the stamp's parent row is the same `.bandrow` that holds badges, and it
+    // holds both kinds at once.
+    const doc = new JSDOM(body).window.document;
+    const rows = [...doc.querySelectorAll(".bandrow")];
+    const withStamps = rows.filter((r) => r.querySelector(".stamp"));
+    expect(withStamps).toHaveLength(2);
+    for (const row of withStamps) {
+      // Both kinds, one row. A band whose badges were all pushed elsewhere
+      // would pass a "stamp is in a bandrow" check and fail this one.
+      expect(row.querySelector(".brag")).not.toBeNull();
+      expect(row.querySelector(".stamp")).not.toBeNull();
+    }
+    // And each lands in the band that names its OWN tier: Japan is uncommon,
+    // Panama rare. Read off the heading each row is filed under, so a stamp
+    // that drifted one band up or down fails here.
+    const bandOf = (country: string) => {
+      const stamp = [...doc.querySelectorAll(".stamp")].find(
+        (s) => s.closest("button")?.getAttribute("aria-label")?.startsWith(country),
+      );
+      return stamp?.closest(".band")?.querySelector(".psep")?.textContent;
+    };
+    expect(bandOf("Japan")).toBe("UNCOMMON");
+    expect(bandOf("Panama")).toBe("RARE");
   });
 
   it("shows the countries this career has fielded, and nothing else", () => {
@@ -687,7 +754,10 @@ describe("the passport board", () => {
     // And the row is a group of buttons rather than a list: `role="listitem"`
     // on a button replaces the button, and a wrapper carrying the role puts a
     // box between the button and the row its panel is measured against.
-    expect(board(p).getAttribute("role")).toBe("group");
+    // Every row, not just the first: the case draws one per rarity band.
+    for (const row of board(p)) {
+      expect(row.getAttribute("role")).toBe("group");
+    }
     expect(p).not.toContain('role="listitem"');
   });
 
@@ -711,9 +781,9 @@ describe("the passport board", () => {
   it("flies the flag in place of the name", () => {
     seed(game(["Japan", "Curaçao", "England"]));
     const p = modal();
-    expect(stampFor(p, "Japan").querySelector(".flag")?.textContent).toBe("🇯🇵");
-    expect(stampFor(p, "Curaçao").querySelector(".flag")?.textContent).toBe("🇨🇼");
-    expect(stampFor(p, "England").querySelector(".flag")?.textContent).toBe("🏴󠁧󠁢󠁥󠁮󠁧󠁿");
+    expect(stampFor(p, "Japan").querySelector(".ico")?.textContent).toBe("🇯🇵");
+    expect(stampFor(p, "Curaçao").querySelector(".ico")?.textContent).toBe("🇨🇼");
+    expect(stampFor(p, "England").querySelector(".ico")?.textContent).toBe("🏴󠁧󠁢󠁥󠁮󠁧󠁿");
   });
 
   it("wears the country's tier, and no tier at all for an unknown one", () => {
@@ -726,6 +796,22 @@ describe("the passport board", () => {
     // The one country the table cannot measure wears nothing — no tier, and no
     // defaulted `common` standing in for one.
     expect(stampClass(p, "Atlantis")).toEqual([]);
+
+    // AND IT STILL WEARS THE RECTANGLE'S SHAPE HOOK, which is what routes it to
+    // the rectangle's untiered paper. Badges and countries share one `Pill`
+    // now, and the two shapes' untiered fallbacks are deliberately DIFFERENT:
+    // an untiered badge falls back to the pill's gray wash on the structural
+    // line, while an untiered country falls back to plain card on a gray
+    // hairline — quieter than `common`, because an unmeasured country must not
+    // look like a measured one. Both are keyed off this class, so a stamp that
+    // lost it would silently start wearing a badge's fallback.
+    const chip = (sel: string) =>
+      new JSDOM(p).window.document.querySelector(sel)!.classList;
+    expect(stampFor(p, "Atlantis").querySelector(".stamp")!.classList).toContain("pill");
+    // The badge half of the same claim: a capsule in the same sheet is `brag`,
+    // never `stamp`, so the two fallbacks can never resolve to one rule.
+    expect(chip(".brag")).toContain("pill");
+    expect(chip(".brag")).not.toContain("stamp");
   });
 
   it("names no denominator anywhere on the sheet", () => {
@@ -762,9 +848,10 @@ describe("the passport board", () => {
     const el = stampFor(modal(), "Japan");
     expect(el.querySelector(".count")).toBeNull();
     expect(el.getAttribute("aria-label")).toBe("Japan");
-    expect(el.getAttribute("title")).toBe(
-      "Japan — First fielded 2026-01-01. 2 seasons, none carrying a roster.",
-    );
+    // The blank is the whole claim about the number. The detail names the
+    // country and says what the stamp is for; it does not stand in for a count
+    // the stamp is deliberately not showing.
+    expect(el.getAttribute("title")).toBe("Rostered a player from Japan");
   });
 
   it("carries no prose at all — the stamp explains itself", () => {
@@ -777,21 +864,29 @@ describe("the passport board", () => {
     const p = modal();
     expect(p).not.toContain("A number is how many different players");
     expect(p).not.toContain("Seasons that recorded no roster carry none.");
-    // …and the fact that note carried is on the stamp.
-    expect(stampFor(p, "Japan").getAttribute("title")).toBe(
-      "Japan — First fielded 2024-01-01. 1 player across 1 of 2 seasons.",
-    );
+    // And no prose anywhere else on the sheet either: the career arithmetic the
+    // note carried used to survive on the stamp's own detail, and it is gone
+    // from there too.
+    expect(p).not.toContain("First fielded");
+    expect(p).not.toContain("across");
   });
 
-  it("keeps the whole detail on the stamp, name first", () => {
-    // It leads with the country because the stamp does not print one: a bare
-    // flag, tapped or hovered, has to answer "which country" before it answers
-    // anything else. The tooltip and the panel say the same sentence — the
-    // pointer and the tap are two ways to the one fact, not two facts.
+  it("says one sentence on the stamp, and the same one on both surfaces", () => {
+    // It names the country because the stamp does not print one: a bare flag,
+    // tapped or hovered, has to answer "which country" before anything else.
+    // The tooltip and the panel say the same sentence — the pointer and the tap
+    // are two ways to the one fact, not two facts.
+    //
+    // And the CASE and the FINALE say it identically, which is the rule this
+    // test exists for. The case used to spell out a career here while the
+    // finale said the country's name alone, so one stamp meant two different
+    // amounts depending on the screen it was read from. Two players fielded and
+    // the sentence still says "a player": it says why the stamp exists, and the
+    // number of men behind it is already drawn on the stamp.
     seed(rostered({ Japan: ["ohtansh01", "suzukii01"] }, "2026-01-01"));
-    expect(stampFor(modal(), "Japan").getAttribute("title")).toBe(
-      "Japan — First fielded 2026-01-01. 2 players across 1 season.",
-    );
+    const sentence = "Rostered a player from Japan";
+    expect(stampFor(modal(), "Japan").getAttribute("title")).toBe(sentence);
+    expect(stampFor(finale("Japan", "Japan"), "Japan").getAttribute("title")).toBe(sentence);
   });
 });
 
@@ -862,15 +957,14 @@ describe("the finale's passport", () => {
     ).toBe("×2");
   });
 
-  it("opens on the country's name where there is nothing else to tell", () => {
-    // A finale stamp carries no sentence — a career's "first fielded, N players
-    // across M seasons" beside a count of tonight's men is two subjects on one
-    // stamp. That leaves the one question a bare flag cannot answer on a touch
-    // screen, and it is the question worth a tap. So the stamp is still a
-    // control and the shortest panel there is says a country's name.
+  it("opens on the one sentence every stamp opens on", () => {
+    // The question a bare flag cannot answer on a touch screen is which country
+    // it is, and it is the question worth a tap. So the stamp is a control, and
+    // what it opens is the same sentence the trophy case's stamps open — the
+    // finale is not a shorter version of the passport, it is the same stamps.
     const el = stampFor(finale("Japan"), "Japan");
     expect(el.tagName).toBe("BUTTON");
     expect(el.getAttribute("aria-expanded")).toBe("false");
-    expect(el.getAttribute("title")).toBe("Japan");
+    expect(el.getAttribute("title")).toBe("Rostered a player from Japan");
   });
 });

@@ -1,7 +1,16 @@
 <script lang="ts">
   import { BADGE_BY_KEY } from "../lib/badges";
   import { SLOT_TYPES } from "../lib/engine.svelte";
-  import { costTier, money, posLabel, signed, slotLabel, sortAwards, warTier } from "../lib/format";
+  import {
+    costTier,
+    money,
+    posLabel,
+    signed,
+    slotLabel,
+    sortAwards,
+    statValue,
+    warTier,
+  } from "../lib/format";
   import { BANKS } from "../lib/modes";
   import {
     AWARD_POINTS,
@@ -15,6 +24,9 @@
     SCOUT_HIT_POINTS,
     WBC_CHAMPION_POINTS,
     WBC_RUNNERUP_POINTS,
+    budgetBonus,
+    luxuryTax,
+    round1,
   } from "../lib/scoring";
   import type { CardPlayer } from "../lib/types";
   import AwardPill from "./AwardPill.svelte";
@@ -34,13 +46,17 @@
    * line of copy beside it, instead of a paragraph describing a picture the
    * player cannot see.
    *
-   * That extends to the two MOMENTS a still row cannot carry. Signing a man
-   * who fits two seats, and trading one man out for another, are both a tap
-   * that changes the whole screen: the rail lights up and the row's right-hand
-   * column turns into an orange instruction pointing at it. Each is drawn here
-   * as the screen it actually is — armed seats above, instructed row below,
-   * in the order the board stacks them, so the ↑ in the pill points at the
-   * seats it is talking about.
+   * That extends to the one MOMENT a still row cannot carry. Signing a man who
+   * fits two seats is a tap that changes the whole screen: the rail lights up
+   * and the row's right-hand column turns into an orange instruction pointing
+   * at it. It is drawn here as the screen it actually is — armed seats above,
+   * instructed row below, in the order the board stacks them, so the ↑ in the
+   * pill points at the seats it is talking about.
+   *
+   * The powerups get no such screen. Each one is a row of the POWERUPS table —
+   * its pill, the armed pill it becomes, and a line of copy — and a mocked-up
+   * screenshot of one mid-use taught nothing the armed pill and that line did
+   * not already say.
    *
    * ---- How the specimens are built ----
    *
@@ -62,9 +78,9 @@
    * The market row is the one specimen still drawn by hand. `PlayerList` is a
    * list of buttons wired to signings and pickers, and there is no presentation
    * layer to lift out of it that would not be the whole component. It is drawn
-   * ONCE, as the `prow` snippet, because five rows of it appear on the sheet —
-   * resting, gray, utility, mid-pick and mid-trade — and five copies of one
-   * hand-copy is five chances for four of them to drift.
+   * ONCE, as the `prow` snippet, because four rows of it appear on the sheet —
+   * resting, gray, utility and mid-pick — and four copies of one hand-copy is
+   * four chances for three of them to drift.
    *
    * Nothing here comes from `src/lab`. That directory is the DEV-only fixture
    * gallery, excluded from the production bundle by an `import.meta.env.DEV`
@@ -102,8 +118,6 @@
     pit?: boolean;
     /** Nowhere to put him: the market's gray. */
     dead?: boolean;
-    /** An armed 🔁 has claimed this row: amber under a dashed ink line. */
-    swap?: boolean;
   }
 
   /** One row off a real card: a generational season with hardware on it. */
@@ -204,7 +218,7 @@
    * seat's border wears the prefixed one (`war-elite`) — app.css's two
    * spellings, one ladder.
    *
-   * The sheet draws SIX prefixed rungs across its seats, so no assertion
+   * The sheet draws a prefixed rung on several seats at once, so no assertion
    * anywhere may look for a `war-` token in the sheet's whole markup and
    * conclude anything about one chair from finding it. That is why
    * tests/help-specimens.test.ts cuts the manager's chair out of the body and
@@ -256,15 +270,32 @@
     },
   ];
 
-  /** The two arms already in the rotation when a 🔁 lands on a third — Maddux's
-   * and Smoltz's real 1995 seasons, so the seat a trade empties is a real
-   * season leaving the club. Two of them because that is the ONLY shape that
-   * raises the picker: `tdTapPlayer` completes the swap outright when a man
-   * fits exactly one filled seat, and asks which one only when he fits more. */
-  const ROTATION = [
-    { name: "Maddux", war: 10.8 },
-    { name: "Smoltz", war: 4.5 },
+  /** The payroll bonus, drawn as the bar itself at two fills — the ONE thing a
+   * sentence about a sliding scale cannot show, which is where on the bar a
+   * number sits. Both quote the same ATL 1995 payroll the box specimens above
+   * do, and both figures are run through the game's own `budgetBonus` and
+   * `luxuryTax` rather than typed out, so a retuned constant moves the captions
+   * with it. `mini` is PayrollBox's ledger-row bar, the same object under the
+   * same rules at a third the height. */
+  const METERS: { spend: number; label: string }[] = [
+    { spend: 40, label: "under" },
+    { spend: 111, label: "over" },
   ];
+  /** Above the payroll the bonus is gone outright, so the row's number is the
+   * tax it turns into rather than a bonus of zero. */
+  const meterPts = (spend: number) =>
+    spend > FO_BUDGET
+      ? signed(-luxuryTax(spend, FO_BUDGET))
+      : signed(round1(budgetBonus(spend, FO_BUDGET)));
+
+  /** How many ⭐ the scouting row can hold: every seat plus the skipper. Owner
+   * and ballpark are not scoutable (bestroster.ts counts players and the
+   * skipper only), and the count is derived off SLOT_TYPES for the same reason
+   * SEAT_LINE is — a seat added to the game must not need this number found. */
+  const DREAM_SEATS = SLOT_TYPES.length + 1;
+  /** A middling scouting report, drawn the way the finale draws one: a run of
+   * stars, one per find, against what the run is worth. */
+  const SCOUT_HITS = 4;
 
   /** The trophy case, in the pills it is actually made of. Counted off
    * `AWARD_POINTS` in the app's own display order rather than written out, so a
@@ -300,7 +331,7 @@
      row runs, so a specimen can never show both at once when the board
      never does. -->
 {#snippet prow(p: Spec, hint?: string)}
-  <div class="prow" class:dead={p.dead} class:swap={p.swap}>
+  <div class="prow" class:dead={p.dead}>
     <span class="pos" class:pit={p.pit}>{p.pos}</span>
     <span class="mid">
       <span class="pname">{p.name}</span>
@@ -366,7 +397,7 @@
       name="Cox"
       meta="1995 ATL"
       tier={warTier(MGR_WINS)}
-      war={signed(MGR_WINS)}
+      war={statValue(MGR_WINS)}
     />
     {#each SEATS as s (s.label)}
       <RailSeat
@@ -460,10 +491,10 @@
       parkMult={FO_PARK_MULT}
     />
   </div>
-  <p class="cap">
-    You can go over. The luxury tax then takes {LUXURY_TAX_PER_M} point per $1M, with no
-    cap on it.
-  </p>
+  <!-- What the over state LOOKS like, and no price on it: the payroll bonus
+       and the luxury tax are both priced under SCORING now, and a rate quoted
+       in two sections is a rate that can disagree with itself. -->
+  <p class="cap">You can go over. The bar goes orange and the figure says by how much.</p>
   <ul>
     <li><b>💼 Clean House:</b> owner × ballpark sets the payroll, as above.</li>
     <li><b>⚾ Moneyball:</b> a fixed {BANKS.moneyball.cash}. No hires. The 2002 A's.</li>
@@ -490,28 +521,6 @@
       <span class="ptxt">{pu.text}</span>
     {/each}
   </div>
-  <!-- 🔁's second tap, which is the one no label can carry: the seats he could
-       take light up and the row points at them. Both seats are filled, because
-       that is the only shape that raises this screen at all — one eligible
-       seat and the swap completes on the first tap. -->
-  <div class="picks">
-    {#each ROTATION as r (r.name)}
-      <RailSeat
-        label="SP"
-        name={r.name}
-        meta="1995 ATL"
-        tier={warTier(r.war)}
-        war={r.war.toFixed(1)}
-        pickable
-        specimen
-      />
-    {/each}
-  </div>
-  {@render prow({ ...MARKET, swap: true }, "↑ TAP WHO TO TRADE")}
-  <p class="cap">
-    A trade is two taps: the man you want, then the seat he takes. That season leaves
-    the club.
-  </p>
   <!-- The two states no row above can show, since both are a pill that has
        stopped being usable. One label in both, so the only difference on
        screen is the difference being taught — and each caption hangs off its
@@ -534,24 +543,66 @@
     More than one can be armed on the same spin. A powerup never costs you a spin.
   </p>
 
+  <!-- SCORING is the sheet's one nested section: the wins line is the whole
+       total's spine, and the four things that move it off that spine each get
+       a subsection under it. The level is the same .psep device with a `sub`
+       modifier, not a header style private to this sheet — one dashed rule
+       instead of two, indented, so a reader can see at a glance that PAYROLL
+       BONUS sits under SCORING rather than beside it.
+       Every subsection is a DIRECT child of .help, wrapper-free: the vertical
+       rhythm is written once over .help's children, and a container around a
+       subsection would silently drop every gap inside it. -->
   <div class="psep">SCORING</div>
   <ul>
     <li>
       <b>Wins:</b> {REPLACEMENT_WINS} base + roster WAR + skipper (W−L) × {MANAGER_PER_NET_WIN}.
-    </li>
-    <li>
-      <b>Payroll:</b> −{BUDGET_BONUS_MAX} for spending nothing, 0 at half your payroll,
-      +{BUDGET_BONUS_MAX} right at it. Over it the bonus is gone and the luxury tax runs
-      instead.
-    </li>
-    <li><b>Scouting:</b> +{SCOUT_HIT_POINTS} per signing the dream team also wanted.</li>
-    <li>
-      <b>The dream team</b> is the best club the finale can build from the cards you were
-      dealt. Your score is measured against it.
+      That is your record, and the rest of this section is what moves it.
     </li>
   </ul>
 
-  <div class="psep">TROPHY CASE</div>
+  <div class="psep sub">PAYROLL BONUS</div>
+  <!-- The bar at two fills, which is the one thing a sentence about a sliding
+       scale cannot show: where on the bar a number sits. PayrollBox's own
+       `mini` bar, so the under bar's green cut edge and the over bar's orange
+       hatch are the states the board itself draws. -->
+  <div class="meters">
+    {#each METERS as m (m.label)}
+      <div class="mtr">
+        <PayrollBox mini bank="classic" budget={FO_BUDGET} spend={m.spend} />
+        <span class="mlbl">
+          <span>{money(m.spend)} of {money(FO_BUDGET)}</span>
+          <span><b>{meterPts(m.spend)}</b> PTS</span>
+        </span>
+      </div>
+    {/each}
+  </div>
+  <p class="cap">
+    The fuller the bar, the better it pays: −{BUDGET_BONUS_MAX} for spending nothing, 0 at
+    half your payroll, +{BUDGET_BONUS_MAX} right at it.
+  </p>
+  <p class="cap">
+    Past the end the bonus is gone and the luxury tax runs instead, at {LUXURY_TAX_PER_M}
+    point per $1M over, with no cap on it.
+  </p>
+
+  <div class="psep sub">SCOUTING</div>
+  <!-- The finale's own scouting chip: one ⭐ per find, against what the run is
+       worth. Priced off SCOUT_HIT_POINTS and counted off SLOT_TYPES, so a
+       retuned point and an added seat both move this line themselves. -->
+  <div class="stars">
+    <span class="semo">{"⭐".repeat(SCOUT_HITS)}</span>
+    <b class="spts">+{round1(SCOUT_HITS * SCOUT_HIT_POINTS)}</b>
+  </div>
+  <p class="cap">
+    The dream team is the best club you could have signed from the cards you were dealt.
+    The finale lays it out beside yours and stars every seat you both wanted.
+  </p>
+  <p class="cap">
+    Each star is worth +{SCOUT_HIT_POINTS}, up to {DREAM_SEATS}: {SLOT_TYPES.length} seats plus
+    the skipper. Your owner and your ballpark are not scouted.
+  </p>
+
+  <div class="psep sub">TROPHY CASE</div>
   <!-- The trophy case as the pills it is made of. These are the finale's own
        AwardPills, so the ledger a player reaches at the end is a row of things
        they have already seen keyed to a number — which is what a sentence
@@ -584,7 +635,7 @@
     any time.
   </p>
 
-  <div class="psep">RING CHASING</div>
+  <div class="psep sub">RING CHASING</div>
   <!-- One honour per row, each priced off its own scoring constant. The
        emojis are the finale's pedigree glyphs, so the ledger row the player
        meets at the end reads back in the same pictures. -->
@@ -646,6 +697,23 @@
   /* The first heading closes up against Sheet's header. */
   .help > .psep:first-child {
     margin-top: 0;
+  }
+  /* ---------- the subsection level ----------
+     SCORING is the only section with one, and its four parts get the SAME
+     device a rung quieter rather than a header style of their own: one dashed
+     rule instead of two, indented, a size down. The asymmetry is what carries
+     the level — a title that starts at a margin and trails off into the rule
+     reads as hanging under the centered title above it, which is what it does.
+     A subsection opens on 12px, between the 16px a section opens on and the
+     8px between blocks inside one, so the nesting is legible in the spacing as
+     well as in the rule. */
+  .help > .psep.sub {
+    margin-top: 12px;
+    font-size: 9px;
+    padding-left: 12px;
+  }
+  .help > .psep.sub::before {
+    display: none;
   }
   .help > .cap,
   .help > .lgnd {
@@ -763,12 +831,6 @@
     background: var(--gray-bg);
     border-color: var(--gray-ink);
     opacity: 0.55;
-  }
-  /* An armed 🔁 has claimed this row: amber under a dashed ink line, which is
-     the app's one ARMED vocabulary rather than a look this sheet invented. */
-  .prow.swap {
-    background: var(--amber);
-    border: 2.5px dashed var(--ink);
   }
   /* The pending pill, PlayerList's numbers exactly — 24px tall (12px type, 8px
      of padding, 4px of border) so the row does not change height when the chip
@@ -955,6 +1017,49 @@
     gap: 3px;
   }
 
+  /* ---------- the payroll bonus, as two fills of the bar ----------
+     PayrollBox's `mini` draws the bar and nothing else, and the width belongs
+     to whoever places it — so each fill gets a column of its own with the
+     figure that fill is worth beneath it. The label is the box's own
+     SPENT/LEFT row down to the 4px that ties a label to its specimen, the
+     10.5px muted words and the bare figure carrying the size: this is that
+     box's bar, and it should read like it. */
+  .meters {
+    display: grid;
+    gap: 8px;
+  }
+  .mtr {
+    display: block;
+  }
+  .mlbl {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .mlbl b {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  /* ---------- the emoji scoring lines ----------
+     SCOUTING and RING CHASING both price a glyph, and they are two views of
+     one device: a 13px glyph, the body's 12px for what it names, and 12px/800
+     for what it is worth. They were 15px and 13px here and nothing on the
+     sheet ranged against them, which made RING CHASING read as a page from a
+     different document.
+     The scouting line is the finale's chip: a RUN of stars, one per find,
+     against what the run is worth — so it carries no label column. */
+  .stars {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
   /* RING CHASING: glyph · honour · points, one honour per row, the points
      right-aligned down one rule the way the finale's ledger keeps its column. */
   .rings {
@@ -963,17 +1068,21 @@
     gap: 5px 9px;
     align-items: center;
   }
-  .remo {
-    font-size: 15px;
+  .remo,
+  .semo {
+    font-size: 13px;
     line-height: 1;
   }
   .rlbl {
     font-size: 12px;
     line-height: 1.3;
   }
-  .rpts {
+  .rpts,
+  .spts {
     font-weight: 800;
-    font-size: 13px;
+    font-size: 12px;
+  }
+  .rpts {
     justify-self: end;
   }
 </style>

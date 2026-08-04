@@ -1,9 +1,9 @@
 <script lang="ts">
+  import { track } from "../lib/analytics";
   import { bragRow } from "../lib/badges";
-import { track } from "../lib/analytics";
   import { ownerFor } from "../lib/data";
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, warTier } from "../lib/format";
+  import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, statValue, warTier } from "../lib/format";
   import {
     GAMES,
     MANAGER_PER_NET_WIN,
@@ -156,10 +156,10 @@ import { track } from "../lib/analytics";
         // One star per find, like the pedigree row (max 9 fits the line).
         chips: fin.scoutHits > 0 ? [{ code: "⭐".repeat(fin.scoutHits), n: 1 }] : undefined,
         why: fin.scoutHits > 0 ? undefined : "none found",
-        // One decimal, unlike the trophy case and ring rows above: a scout
-        // point is worth half, so this row lands on .5 at every odd count and
-        // a whole-number rendering would not add up to the total.
-        amt: signed(p.scoutBonus),
+        // Whole points, whole figure: a find is worth SCOUT_HIT_POINTS, which
+        // is 1, so this row prints integers the way the ring row above does —
+        // "+4", never "+4.0".
+        amt: signed(p.scoutBonus, 0),
         cls: p.scoutBonus > 0 ? "plus" : "zero",
       });
     }
@@ -174,6 +174,8 @@ import { track } from "../lib/analytics";
   let totalShown = $state(false);
   let bragsShown = $state(false);
   let passShown = $state(false);
+  /** The dream team, held back until the record exists to read it against. */
+  let dreamShown = $state(false);
 
   /** Record + tier come from the shared ladder (lib/format.recordFromTotal)
    * so the home record book resolves totals identically. PERFECT SEASON stays
@@ -202,10 +204,17 @@ import { track } from "../lib/analytics";
     }
   }
 
-  /* Four beats: rows deal out on a steady cadence, a held pause before the
+  /* Five beats: rows deal out on a steady cadence, a held pause before the
    * total stamp lands (with its count-up and confetti), the brag pills thunk in
-   * once the number has settled, and the passport closes the stack once the
-   * last pill has landed.
+   * once the number has settled — and the dream team comes in beside them, in
+   * the other column, on the same cue — then the passport closes the stack once
+   * the last pill has landed.
+   *
+   * The dream team is the one beat that exists to WITHHOLD rather than to pace.
+   * It is the ceiling: the best club the player could have signed, and reading
+   * it while the ledger is still dealing gives away the verdict before the
+   * season that earned it. Its only hard requirement is "not before the stamp",
+   * which the badges' cue satisfies with a beat to spare.
    *
    * The order is the payoff read in the order it was earned — the record, then
    * what the record won, then where the club that won it came from — and every
@@ -213,11 +222,12 @@ import { track } from "../lib/analytics";
    * clock: the badge row deals left to right at BRAG_STEP a pill, so the
    * passport's cue is measured off the last pill, not off the first.
    *
-   * Two states skip all four and render the finished screen: a player who has
+   * Two states skip all five and render the finished screen: a player who has
    * asked for reduced motion, and a finale restored from storage, which has
    * already been watched once. Both want the same thing — every row shown, the
-   * stamp up, the counters at their final values, the brag pills and the
-   * passport visible, and no confetti — so both take one branch, and it returns
+   * stamp up, the counters at their final values, the brag pills, the dream
+   * team and the passport visible, and no confetti — so both take one branch,
+   * and it returns
    * before a single timer is created, which is why there is nothing to clean
    * up. */
   $effect(() => {
@@ -227,6 +237,7 @@ import { track } from "../lib/analytics";
       totalShown = true;
       bragsShown = true;
       passShown = true;
+      dreamShown = true;
       dispRecW = recWins;
       dispRecL = recLosses;
       dispTotal = fin.parts.total.toFixed(1);
@@ -267,6 +278,12 @@ import { track } from "../lib/analytics";
     // Brags wait for the count-up to settle — they annotate the final number.
     const bragsAt = totalAt + 1000;
     timers.push(setTimeout(() => (bragsShown = true), bragsAt));
+    // The dream team rides the badges' cue exactly, in the other column. It is
+    // a WITHHELD beat rather than a paced one: the ceiling read beside a ledger
+    // still dealing tells the player how the season ends before the season
+    // does, so the only requirement is "after the stamp", and the badges are
+    // already the beat that annotates the stamp.
+    timers.push(setTimeout(() => (dreamShown = true), bragsAt));
     // The stamps land one held beat after the LAST brag pill has FINISHED its
     // 0.45s thunk-in (BadgePill's own animation, which starts after the pill's
     // (i × BRAG_STEP) delay) — the same 350ms hold the stamp takes after the
@@ -501,10 +518,6 @@ import { track } from "../lib/analytics";
           rarity: def?.rarity ?? null,
           count: men.size,
           fresh: (visits.get(country) ?? 1) <= 1,
-          // No hover detail. The case's tooltip spells out a career — first
-          // fielded, players across seasons — and that sentence beside a
-          // one-club count is two subjects on one stamp.
-          title: null,
         };
       })
       .sort((a, b) => b.count - a.count || Number(b.fresh) - Number(a.fresh));
@@ -697,9 +710,29 @@ import { track } from "../lib/analytics";
        Its box is the whole distance between the badges and the buttons, so a
        block that appeared mid-reveal would shove the action row down under a
        thumb already reaching for it. Held at `opacity: 0` instead, the row sits
-       where it will end up before the ledger has dealt a single line. -->
+       where it will end up before the ledger has dealt a single line.
+       The BOX fades; the STAMPS deal. The wrapper used to carry a spring of its
+       own, which put a staggered row inside a moving container and read as
+       neither — so the entrance moved onto the stamps, at the badge row's own
+       BRAG_STEP, and this block is left gating nothing but opacity. The last
+       beat of the ceremony now lands the way the beat before it did: one mark
+       at a time, left to right. -->
   <div class="clubpass disp" class:show={passShown}>
-    <Passport stamps={clubCountries} label="Countries fielded" />
+    <!-- `animate` waits for `passShown`, and that is a correctness condition
+         rather than tidiness. This row is MOUNTED from the first frame at
+         `opacity: 0`, and a CSS animation on a child of a transparent box runs
+         anyway — opacity defers nothing. Asking for the entrance at mount meant
+         every stamp finished its thunk-in inside the first second and the row
+         then faded up already settled, which is the all-at-once the stagger
+         exists to replace. Applied at the beat, the delays deal the row.
+         The badge row above needs no such guard: it is `{#if}`d in at its own
+         beat, so its pills cannot animate before they exist. -->
+    <Passport
+      stamps={clubCountries}
+      label="Countries fielded"
+      animate={!resolved && passShown}
+      step={BRAG_STEP}
+    />
   </div>
 {/if}
 
@@ -783,9 +816,10 @@ import { track } from "../lib/analytics";
             >{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
         >
       </span>
-      <!-- Bare and signed, like the rail's MGR chip: no room for a WINS unit
-           in the chip's small cut, and the sign already says wins, not WAR. -->
-      <span class="warchip sm {warTier(fin.parts.managerWins)}">{signed(fin.parts.managerWins)}</span>
+      <!-- Bare like the rail's MGR chip: no room for a WINS unit in the
+           chip's small cut, positive drops the plus the way WAR does, and a
+           negative keeps the minus that says the bench cost wins. -->
+      <span class="warchip sm {warTier(fin.parts.managerWins)}">{statValue(fin.parts.managerWins)}</span>
     </div>
   {/if}
   <!-- The payroll this club ran, closing the list. A footer, not a header: the
@@ -796,7 +830,17 @@ import { track } from "../lib/analytics";
 </div>
 
 {#if fin.best}
-  <div class="squad disp">
+  <!-- HELD BACK UNTIL THE RECORD HAS LANDED. The ceiling is the one number on
+       this screen that can spoil another: a player still watching their own
+       ledger deal out, with the club they could have signed already sitting
+       beside it, reads the verdict before the season it belongs to. So the
+       block waits for the stamp and comes in with the badge pills — the beat
+       that annotates the record, which is exactly what a ceiling does.
+       Mounted from the first frame and revealed by a class, the rule the
+       passport follows for the same reason: this is the taller of the two
+       columns, and a block that appeared mid-reveal would resize the page under
+       a player who is reading it. -->
+  <div class="squad dream disp" class:show={dreamShown}>
     <div class="psep">⭐ THE DREAM TEAM</div>
     <!-- What this club would have gone: the stamp's own two lines — record
          over exact points — at a fraction of its type size, directly under the
@@ -817,24 +861,21 @@ import { track } from "../lib/analytics";
         {/if}
       </div>
     {/if}
-    <!-- What the two treatments mean, said once. An uncaptioned visual
-         distinction is a puzzle; four words is the whole explanation.
-         No pronoun and no sentence: `tests/finale-ceiling` holds this block to
-         saying nothing ABOUT itself — no tagline, no near-miss callout, no
-         consolation — and a legend has to read as a key rather than as the
-         beginning of one. -->
-    <div class="dtkey">SOLID = SIGNED · DASHED = MISSED</div>
-    <!-- DRAFTED vs NOT. Every row is the one player-row look — white cardstock
-         with the WAR on a chip — and the rows the player never signed carry
-         two quiet marks on top of it: the chip's color fades and the row's
-         outline goes dashed. A signed season is the normal row, identical to
-         YOUR SQUAD's above. The dash is safe here and only here — nothing at
-         the finale is tappable or armed, so the ARMED channel it serves
+    <!-- DRAFTED vs NOT, and the two states are told apart by WEIGHT rather than
+         by a legend. A signed season is the full row on white cardstock,
+         identical to YOUR SQUAD's above; a season the player never got sits
+         behind a dashed outline with its whole contents washed out — name,
+         year, award pills, WAR chip, all of it at one opacity. Faded IS missed,
+         which is the thing a caption was being asked to say and the thing the
+         rows can say themselves. The dash is safe here and only here — nothing
+         at the finale is tappable or armed, so the ARMED channel it serves
          everywhere in play has no traffic on this screen to collide with (see
          app.css, WHERE THE RUNG IS WORN).
-         The ⭐ stays. It marks the same seats, and it is the mark the scouting
-         ledger row counts, so removing it would leave that row pointing at
-         nothing. -->
+         No ⭐ on these rows. The star is the scouting mark and it belongs to
+         the club the player actually built — repeated here it marked the same
+         men twice, which made the dream list look like a second scoreboard
+         rather than the counterfactual it is. YOUR SQUAD still wears every
+         one, so the scouting ledger row above still points at something. -->
     {#each fin.best.picks as pick, i}
       {@const mine =
         pick != null &&
@@ -846,7 +887,7 @@ import { track } from "../lib/analytics";
                its objective now, not just WAR. -->
           <span class="qmid">
             <span class="qname"
-              >{#if mine}<span class="emo qstar">⭐</span>{/if}{pick.name}
+              >{pick.name}
               <i>{pick.year} {pick.team}</i></span
             >
             <span class="qbadges">
@@ -866,14 +907,14 @@ import { track } from "../lib/analytics";
     {/each}
     {#if fin.bestManager}
       {@const bestWins = fin.bestManager.netWins * MANAGER_PER_NET_WIN}
-      <!-- The skipper answers to the same key as the seats: ⭐/solid when the
-           player's own hire IS the dream skipper, dashed-and-faded when the
-           dream club found a better one. -->
+      <!-- The skipper answers to the same treatment as the seats: solid and
+           full-strength when the player's own hire IS the dream skipper,
+           dashed-and-washed when the dream club found a better one. -->
       <div class="qrow" class:missed={!fin.managerHit}>
         <span class="qpos">MGR</span>
         <span class="qmid">
           <span class="qname"
-            >{#if fin.managerHit}<span class="emo qstar">⭐</span>{/if}{fin.bestManager.name}
+            >{fin.bestManager.name}
             <i>{fin.bestManager.year} {fin.bestManager.team}</i></span
           >
           <!-- MotY is worth +2 in the solver's objective, so the pill shows
@@ -886,7 +927,7 @@ import { track } from "../lib/analytics";
               >{:else if fin.bestManager.pen}<span class="emo">🚩</span>{/if}</span
           >
         </span>
-        <span class="warchip sm {warTier(bestWins)}">{signed(bestWins)}</span>
+        <span class="warchip sm {warTier(bestWins)}">{statValue(bestWins)}</span>
       </div>
     {/if}
     <!-- The payroll the dream club would have run, in the same place and the
@@ -1148,6 +1189,67 @@ import { track } from "../lib/analytics";
   .squad {
     margin-top: 16px;
   }
+  /* THE DREAM TEAM'S CARDSTOCK IS NOT THE SQUAD'S. YOUR SQUAD is what happened
+     and its rows are the game's one player-row look, white cardstock, the same
+     paper the market rows and the rail were drawn on. These rows are what was
+     AVAILABLE — a club that never took the field — and on identical paper the
+     two stacks read as one roster in two halves.
+     So the stock changes, on the ROWS rather than behind them. A panel behind
+     the block would tint the gutters and leave the cards themselves white,
+     which distinguishes the container and not the thing; the card is what the
+     player is looking at, so the card is what has to feel different.
+     Diagonal stripes rather than a flat gray. Flat gray on a row is the
+     universal look of a row that is switched off — the exact wrong reading for
+     the best club on the screen — where a stripe reads as a different STOCK,
+     watermarked paper, which is what this is.
+     45deg because everything else on the surface runs horizontal: the rows, the
+     separators, the ledger. A diagonal is the one direction not already
+     spoken.
+     SUBTLETY IS THE WHOLE CONSTRAINT, because unlike a section background this
+     one sits directly under type. --gray-bg cut to 45% against --card puts
+     roughly two points of luminance between the stripe and the ground — enough
+     to see the texture, far too little to move the contrast under a name, an
+     award pill or the WAR chip, all of which are drawn against --card's ink
+     ratio and keep it. 3px on a 9px period: wide enough not to shimmer at
+     small sizes, fine enough to stay texture rather than pattern.
+     `background-color` stays --card underneath, so the row keeps its own paper
+     if a gradient ever fails to paint. */
+  .squad.dream .qrow {
+    background-color: var(--card);
+    background-image: repeating-linear-gradient(
+      45deg,
+      color-mix(in srgb, var(--gray-bg) 45%, var(--card)) 0 3px,
+      var(--card) 3px 9px
+    );
+  }
+  .squad.dream {
+    /* Held until the fifth beat; see below. */
+    opacity: 0;
+  }
+  /* THE FIFTH BEAT, and the only one that is a WITHHOLDING rather than a
+     flourish. It rides the badge pills' cue: the record has landed, so the
+     ceiling can be read against it.
+     Same language as the ledger rows above — a rise and a fade at the ledger
+     row's own duration — so the ceiling arrives as part of the same reveal
+     rather than as a panel sliding in from somewhere else. A transform in a
+     KEYFRAME, which resolves back to none: this block contains a passport-less
+     but payroll-bearing column, and a persistent transform would make it a
+     containing block for anything absolutely positioned inside it. */
+  .squad.dream.show {
+    opacity: 1;
+    animation: dream-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  @keyframes dream-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .squad.dream.show {
+      animation: none;
+    }
+  }
   .qrow {
     display: flex;
     align-items: center;
@@ -1235,29 +1337,11 @@ import { track } from "../lib/analytics";
     margin: 8px 0 0;
     opacity: 0;
   }
-  /* The fourth beat, in the reveal's own language: the ledger row's rise and
-     the stamp's spring, at the ledger row's duration. */
+  /* The fourth beat gates VISIBILITY and nothing else. The entrance belongs to
+     the stamps inside, which deal one at a time — a box that also sprang would
+     be a second motion over the top of theirs. */
   .clubpass.show {
     opacity: 1;
-    animation: pass-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-  }
-  @keyframes pass-in {
-    from {
-      opacity: 0;
-      transform: translateY(10px) scale(0.97);
-    }
-  }
-  /* What the dream team's two row treatments mean. It reads as a caption
-     rather than as a rule of the game, so it takes the ceiling's own quiet
-     small-caps rather than a psep of its own — the header two lines up already
-     said what the block is. */
-  .dtkey {
-    margin: 0 0 8px;
-    text-align: center;
-    font-size: 9.5px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    color: var(--muted);
   }
   /* Every row's WAR rides the chip's small cut (app.css's .warchip.sm — a
      modifier on the one chip, sized for these tighter rows). Only layout facts
@@ -1267,14 +1351,24 @@ import { track } from "../lib/analytics";
     margin-left: auto;
     flex: none;
   }
-  /* A dream seat the player never signed: the chip's rung washes out and the
-     row's outline goes dashed — the two marks the SOLID/DASHED key above
-     names. Dashed is safe on this screen because nothing here is tappable;
-     see app.css, WHERE THE RUNG IS WORN. */
+  /* A dream seat the player never signed: the outline goes dashed and the row's
+     CONTENTS wash out — name, year, award pills, chip, every part of it at one
+     opacity. Dashed is safe on this screen because nothing here is tappable;
+     see app.css, WHERE THE RUNG IS WORN.
+     The fade is on the CHILDREN, never on `.qrow.missed` itself. Opacity on the
+     row would take the dashed border down with it, and the border is the half
+     of the pair that has to stay at full strength — a washed-out dash on a
+     washed-out row is one weak signal instead of two clear ones.
+     0.5 was the chip's number when the chip was the only thing fading, and it
+     stays the number now that the whole row does. It composes with the striped
+     stock above rather than fighting it: the stripe moves the ground by about
+     two points of luminance, so a name at half strength lands in the same place
+     over a stripe as over the card between them, and the row stays plainly a
+     row rather than a ghost. */
   .qrow.missed {
     border-style: dashed;
   }
-  .qrow.missed .warchip {
+  .qrow.missed > * {
     opacity: 0.5;
   }
   .qname.empty {
