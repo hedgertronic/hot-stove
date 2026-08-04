@@ -28,10 +28,10 @@
 >
   {#each divisions as d (d.label)}
     <div class="div-h">{d.label}</div>
-    <div class="grid">
+    <div class="pickgrid">
       {#each d.teams as t (t.team)}
         <button
-          class="teambtn"
+          class="pickopt teambtn"
           disabled={t.team === game.card?.team}
           style:--accent={accentFor(colors, t.franchise)}
           title={t.name}
@@ -62,44 +62,32 @@
   .div-h:first-child {
     margin-top: 0;
   }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 7px;
+  /* Six division grids stacked, so this one sets the gap under itself; the
+     five columns, the tile and the pedigree glyph are app.css's `.pickgrid` /
+     `.pickopt`, shared with the season-ticket sheet. */
+  .pickgrid {
     margin-bottom: 4px;
   }
   /* Each tile is a club color, so it wears the pair — the accent thinned into
      the cardstock for the fill, the accent itself for the line. Same derivation
      as the spun year pill in SpinBanner, for the same reason: the hue arrives
      at runtime from colors.json, so the rungs are computed rather than looked
-     up. The codes go ink; a rung-2 fill never carries white type. */
+     up. It is handed over as `.pickopt`'s pair rather than painted on top of
+     it, so the tile's own declaration does the painting and this rule never
+     has to out-specify the shared one. The codes stay the base tile's ink; a
+     rung-2 fill never carries white type.
+     Only the hue and the type's own metrics are here — a three-letter
+     code takes more air above and below than a four-digit year, and it is
+     tracked out, so the padding and the leading are this picker's to set. */
   .teambtn {
     --accent: var(--ink);
-    border: 2px solid var(--accent);
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--accent) 18%, var(--card));
-    color: var(--ink);
-    font-family: inherit;
-    font-weight: 800;
-    font-size: 13px;
+    --pick-line: var(--accent);
+    --pick-fill: color-mix(in srgb, var(--accent) 18%, var(--card));
     letter-spacing: 0.04em;
     line-height: 1.2;
     padding: 11px 0;
-    cursor: pointer;
-    transition: transform 0.08s;
   }
-  .teambtn:active {
-    transform: translateY(1.5px);
-  }
-  .pedi {
+  .pickopt .pedi {
     margin-left: 2px;
-    /* Emoji render below their nominal size — 11px sits balanced with the
-       13px codes. */
-    font-size: 11px;
-    line-height: 1;
-  }
-  .teambtn:disabled {
-    opacity: 0.32;
-    cursor: default;
   }
 </style>

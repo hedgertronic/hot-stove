@@ -22,12 +22,12 @@
 <Sheet
   {onclose}
   label="Pick a season"
-  title="🎟️ SEASON TICKET — {game.card?.name ?? ''}"
+  title="🎟️ SEASON TICKET: {game.card?.name ?? ''}"
   confirmLabel="CANCEL"
 >
-  <div class="grid">
+  <div class="pickgrid">
     {#each years as y (y)}
-      <button class="yearbtn" disabled={y === game.card?.year} onclick={() => pick(y)}>
+      <button class="pickopt yearbtn" disabled={y === game.card?.year} onclick={() => pick(y)}>
         {y}{#if ped[y]}<span class="pedi">{ped[y] === "ws" ? "💍" : "🚩"}</span>{/if}
       </button>
     {/each}
@@ -37,37 +37,16 @@
 <style>
   /* Header, ✕ and the CANCEL button all belong to Sheet — a picker is a thing
      you back out of, so its bottom button says CANCEL rather than CLOSE. The
-     grid carries no bottom margin: Sheet's button supplies the gap. */
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 7px;
-  }
+     one grid carries no bottom margin either: Sheet's button supplies the gap.
+     The grid itself, the tile and the pedigree glyph are app.css's `.pickgrid`
+     / `.pickopt`, shared with the relocate sheet; a year needs no hue, so the
+     tile keeps the neutral cardstock those already draw. */
   .yearbtn {
-    border: 2px solid var(--line);
-    border-radius: 9px;
-    background: var(--card);
-    font-family: inherit;
-    font-weight: 800;
-    font-size: 13px;
     padding: 9px 0;
-    cursor: pointer;
-    transition: transform 0.08s;
   }
-  /* October pedigree sits inline right after the year, small enough that
-     the year stays the dominant glyph. */
-  .pedi {
+  /* Right after the year, and a hair further out than the relocate sheet sets
+     it: a digit ends flush where a tracked-out letter already leaves air. */
+  .pickopt .pedi {
     margin-left: 3px;
-    /* Emoji render below their nominal size — 11px sits balanced with the
-       13px year. */
-    font-size: 11px;
-    line-height: 1;
-  }
-  .yearbtn:active {
-    transform: translateY(1.5px);
-  }
-  .yearbtn:disabled {
-    opacity: 0.32;
-    cursor: default;
   }
 </style>

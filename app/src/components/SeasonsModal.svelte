@@ -305,39 +305,18 @@
     background: var(--amber);
     border-color: var(--gold-8);
   }
-  /* The finale's total stamp shrunk to row scale, tier-colored. The six rules
-     below are a hand copy of the ladder Home's record book carries, and app.css
-     says plainly that copying it is the thing --rung-fill exists to stop. They
-     are here anyway because that pair tints a surface and this tints TEXT: the
-     record's own color is the only place a value may show on a market row, and
-     no --war-* class sets a text color. A shared class would have to be added
-     to app.css to fix it properly. */
+  /* The finale's total stamp shrunk to row scale, tier-colored. The color is
+     app.css's record ladder — `.rec.elite` and its five siblings, the text
+     channel of the WAR ladder, and what the six rules that used to sit here
+     were a hand copy of. The record's own color is the only place a value may
+     show on a market row; the size is the only part of it this surface
+     decides. */
   .rec {
     flex: none;
     font-size: 19px;
     font-weight: 900;
     line-height: 1.05;
     font-variant-numeric: tabular-nums;
-  }
-  .rec.neg {
-    color: var(--war-neg);
-  }
-  .rec.low {
-    color: var(--war-low);
-  }
-  .rec.mid {
-    color: var(--war-mid);
-  }
-  .rec.high {
-    color: var(--war-high);
-  }
-  .rec.star {
-    color: var(--war-star);
-  }
-  .rec.elite {
-    /* Brighter than --war-elite, matching the finale stamp and the record book:
-       at heavy stamp weight the token's #c98a08 reads brown. */
-    color: var(--record-elite);
   }
   /* Which modes the season was played under. The bank shows on EVERY row,
      including Clean House, rather than following the HUD chip's "nothing for

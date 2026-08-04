@@ -360,6 +360,54 @@ button {
   letter-spacing: 0.04em;
 }
 
+/* ---------- the picker grid ----------
+   RELOCATE's clubs and SEASON TICKET's years are one control in two sheets:
+   five columns of small display-caps tiles, 7px apart, each a 2px ruled box on
+   cardstock that dips 1.5px when pressed and fades to 32% when it is the option
+   you are already on. Both pickers had drawn all of that privately, which is
+   how the disabled opacity, the press distance and the pedigree glyph came to
+   be maintained twice.
+   What the two do NOT share stays theirs: a club tile wears its franchise
+   accent as the pair (see `.teambtn`) and pads to 11px because a three-letter
+   code is shorter than a year, and each picker sets the gap under its own grid.
+   The tile's hue arrives as a pair of custom properties, for the reason the
+   rung ladder gives below: properties carry no specificity, so a picker that
+   HAS a hue sets the pair in its own rule and never has to win a cascade fight
+   with this one, and a picker that has none simply omits it and takes the
+   fallback — plain cardstock in --line. The season sheet omits it. */
+.pickgrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 7px;
+}
+.pickopt {
+  border: 2px solid var(--pick-line, var(--line));
+  border-radius: 9px;
+  background: var(--pick-fill, var(--card));
+  color: var(--ink);
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.08s;
+}
+.pickopt:active {
+  transform: translateY(1.5px);
+}
+/* The option you are already on: still legible, plainly not a destination. */
+.pickopt:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+/* October pedigree — 💍 champion, 🚩 pennant — inline after the label. Emoji
+   render below their nominal size, so 11px sits balanced beside 13px type, and
+   its own line-height keeps a tall glyph from growing the tile. Each picker
+   sets its own left margin: a year and a team code leave different gaps. */
+.pickopt .pedi {
+  font-size: 11px;
+  line-height: 1;
+}
+
 /* ---------- the WAR chip ----------
    One ladder, one home. PlayerList and PrimePicker each used to carry a
    private copy of these six rules, so every ladder edit had to land twice or
@@ -474,6 +522,148 @@ button {
 .warchip {
   background: var(--rung-fill, transparent);
   border-color: var(--rung-line, var(--line));
+}
+
+/* ---------- the record's ink ----------
+   A W–L record is the one number in the game that shows its rung as TYPE
+   rather than as a surface, so it cannot spend --rung-fill / --rung-line: that
+   pair tints a box, and no --war-* class sets a text color. This is the text
+   channel of the same ladder, and unlike the pair it PAINTS — the three
+   surfaces that draw a record (the home screen's record book, the finale's
+   total stamp, the seasons list) want one identical declaration, so there is
+   nothing for a component's own rule to decide and no cascade fight to lose.
+
+   THE SPELLING IS THE COMPONENT'S OWN CLASS PLUS THE BARE TIER TOKEN, exactly
+   as `.warchip.neg` is spelled above. The tier arrives as the same bare token
+   the chips wear (`elite`), which is far too generic to paint on globally, so
+   each record surface names itself here and keeps its own size, weight and
+   leading: 30px in the record book, 54px on the stamp, 19px in the list. Those
+   three carried six hand-copied color rules apiece — the same six, three times,
+   which is exactly the drift the ladder above exists to stop.
+
+   The top rung brightens, and only here: --record-elite is a rung past
+   --war-elite because a 19px-plus numeral at weight 900 carries chroma a 13px
+   chip border cannot, and #c98a08 at that size reads brown. */
+.brec.neg,
+.tamt.neg,
+.rec.neg {
+  color: var(--war-neg);
+}
+.brec.low,
+.tamt.low,
+.rec.low {
+  color: var(--war-low);
+}
+.brec.mid,
+.tamt.mid,
+.rec.mid {
+  color: var(--war-mid);
+}
+.brec.high,
+.tamt.high,
+.rec.high {
+  color: var(--war-high);
+}
+.brec.star,
+.tamt.star,
+.rec.star {
+  color: var(--war-star);
+}
+.brec.elite,
+.tamt.elite,
+.rec.elite {
+  color: var(--record-elite);
+}
+
+/* ---------- the rarity ladder, as a pair of custom properties ----------
+   The second register the game runs — WAR tiers are saturated chips, rarity is
+   washes — and the ONLY place its rungs are enumerated. It is --rung-fill's
+   sibling and works the same way: a rarity class sets the pair and paints
+   nothing, so a component's own scoped rule does the painting and can never
+   lose a cascade fight to the ladder. Two shapes wear it, and they are not the
+   same shape: a badge pill is a 999px capsule, a passport stamp is a 4px-radius
+   mark. Both spent a hand copy of these hexes to say the same four things.
+
+   THE SPELLING IS THE COMPONENT'S OWN CLASS PLUS THE BARE TOKEN, the way the
+   WAR chip's is. `common` alone is far too generic to define globally, and
+   trophycase.test.ts reads the bare rarity token straight off the badge to
+   prove a locked pill keeps its tier — so the token stays exactly what the
+   markup emits and the component class is what fences the rule.
+
+   FOUR RUNGS ARE SHARED, TWO ARE THE PILL'S. `legendary` is the top of a badge
+   axis and `ironic` is an anti-trophy; a birthplace is neither, so no stamp
+   selector appears on those two.
+
+   --rarity-ink IS THE STAMP'S CHANNEL ALONE. A stamp with no tier is quiet
+   --muted-2 paper and a tinted one goes ink, so its type color moves with its
+   rung. A pill's does not: `.brag` declares no color at all and inherits its
+   context, and the two rules that do set one (LEGENDARY's inversion, locked's
+   fade) are identity and state rather than ladder. Giving the pill this channel
+   would hand it a color it never had. */
+.brag.common,
+.stamp.common {
+  --rarity-fill: var(--gray-bg);
+  --rarity-line: var(--gray-ink);
+  --rarity-ink: var(--ink);
+}
+.brag.uncommon,
+.stamp.uncommon {
+  --rarity-fill: var(--sky);
+  --rarity-line: var(--blue-8);
+  --rarity-ink: var(--ink);
+}
+.brag.rare,
+.stamp.rare {
+  --rarity-fill: var(--rare-violet);
+  --rarity-line: var(--violet-8);
+  --rarity-ink: var(--ink);
+}
+/* Gold, and nothing else. The fill alone separates ultra from the washes below
+   it — an inset ink ring on top only read as a heavier border. */
+.brag.ultra,
+.stamp.ultra {
+  --rarity-fill: var(--yellow);
+  --rarity-line: var(--gold-8);
+  --rarity-ink: var(--ink);
+}
+/* Inverted from the entire ladder — an ink fill under the LIGHT gold rather
+   than a deeper wash under the dark one. An ink fill has no rung 2, so the pill
+   borrows the wash rung for its line instead of the line rung for its fill,
+   which is what makes LEGENDARY read as "off the top" rather than "one more
+   step up". BadgePill supplies the gold type that completes the inversion. */
+.brag.legendary {
+  --rarity-fill: var(--ink);
+  --rarity-line: var(--yellow);
+}
+/* The anti-trophy: a brick wash, the pale-register echo of --war-neg, which
+   already means "below replacement" everywhere else in the game. */
+.brag.ironic {
+  --rarity-fill: var(--brick-wash);
+  --rarity-line: var(--war-neg);
+}
+
+/* ---------- the NEW chip ----------
+   First-ever earn, on a badge pill and on a passport stamp: a filled ink chip
+   with the word in it. A chip rather than a glow or a ring because both of the
+   other channels are already spent on rarity — a gold ring around a new RARE
+   would read as an ULTRA — and an inset chip borrows neither.
+   Its own line-height, not the page's 1.55: as a flex item the chip is a box,
+   and an inherited factor would size that box off the paragraph rhythm rather
+   than off the chip. 1.2 plus 2px of padding is the whole 12.2px height, which
+   clears the pill's inner edge top and bottom.
+   The chip is the one place in either shape where the type has a hard edge of
+   its own to be centered against — an ink rectangle with no side bearing — so
+   app.css's optical centering rule is at its most visible here, and NEW is the
+   shortest, boldest, most-looked-at word on the finale. 0.047 × 8.5 = 0.40px of
+   the 2px goes above the caps rather than below (1.2 / 0.8). */
+.newchip {
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--card);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  padding: 1.2px 5px 0.8px;
 }
 
 /* Dashed section separator (FRONT OFFICE / PLAYERS) */

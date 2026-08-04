@@ -1,34 +1,16 @@
 <script lang="ts">
-  /** One award pill — the single source for award → color/medal-text mapping,
-   * shared by the market rows, the finale squads, and the finale ledger.
+  import { awardFamily, awardLabel } from "../lib/awards";
+
+  /** One award pill, shared by the market rows, the finale squads, and the
+   * finale ledger. What a code is CALLED and which hue family it wears are
+   * lib/awards.ts's business — the same registry format.ts sorts a pill row
+   * by — so this file draws pills and holds no table of its own.
    * `small` is the market-row size; `n` renders a ×N multiplier (ledger). */
   let { code, n = 1, small = false }: { code: string; n?: number; small?: boolean } = $props();
-
-  const AWARD_CLS: Record<string, string> = {
-    MVP: "mvp",
-    CY: "cy",
-    MVP2: "mvp",
-    CY2: "cy",
-    MVP3: "mvp",
-    CY3: "cy",
-    GG: "gg",
-    SS: "ss",
-    ROY: "roy",
-    AS: "as",
-    MOY: "moy",
-  };
-  const PILL_TEXT: Record<string, string> = {
-    MVP: "🥇MVP",
-    CY: "🥇CY",
-    MVP2: "🥈MVP",
-    CY2: "🥈CY",
-    MVP3: "🥉MVP",
-    CY3: "🥉CY",
-  };
 </script>
 
-<span class="qb {AWARD_CLS[code] ?? ''}" class:small
-  >{PILL_TEXT[code] ?? code}{#if n > 1}<span class="mult">×{n}</span>{/if}</span
+<span class="qb {awardFamily(code)}" class:small
+  >{awardLabel(code)}{#if n > 1}<span class="mult">×{n}</span>{/if}</span
 >
 
 <style>

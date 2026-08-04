@@ -202,7 +202,7 @@
         btnEl = e.currentTarget;
         open = open === s.country ? null : s.country;
       }}
-    >{#if s.fresh}<span class="new">NEW</span>{/if}{#if s.flag}<span
+    >{#if s.fresh}<span class="newchip">NEW</span>{/if}{#if s.flag}<span
           class="flag">{s.flag}</span
         >{:else}<span class="name">{s.country}</span>{/if}{#if s.count !== null}<span
           class="count">×{s.count}</span
@@ -260,10 +260,15 @@
     align-items: center;
     gap: 4px;
     margin: 0;
-    border: 2px solid var(--gray-ink);
+    /* The rarity ladder's pair plus its ink, spent on the stamp's own shape.
+       Untiered falls back to plain paper on a gray hairline in the quiet
+       --muted-2: a country the flag table does not know is the one state with
+       no tier to wear, and it is deliberately quieter than `common` rather
+       than louder — an unmeasured country must not look like a measured one. */
+    border: 2px solid var(--rarity-line, var(--gray-ink));
     border-radius: 4px;
-    background: var(--card);
-    color: var(--muted-2);
+    background: var(--rarity-fill, var(--card));
+    color: var(--rarity-ink, var(--muted-2));
     font: inherit;
     font-size: 10.5px;
     font-weight: 800;
@@ -277,36 +282,13 @@
     outline: 3px solid var(--blue);
     outline-offset: 2px;
   }
-  /* The four tier fills are BadgePill's own token pairs, rung for rung — the
-     game runs one rarity register and a second ramp would mean a rare stamp and
-     a rare pill were different kinds of rare. Only the four middle rungs exist
-     here: `legendary` is the top of a badge axis and a country is not an axis,
-     and `ironic` is an anti-trophy, which no birthplace is.
-     A stamp whose country the table does not know keeps the plain-paper base
-     above. It is the one state with no tier to wear, and it is deliberately
-     quieter than `common` rather than louder — an unmeasured country must not
-     look like a measured one. */
-  .stamp.common {
-    background: var(--gray-bg);
-    border-color: var(--gray-ink);
-    color: var(--ink);
-  }
-  .stamp.uncommon {
-    background: var(--sky);
-    border-color: var(--blue-8);
-    color: var(--ink);
-  }
-  .stamp.rare {
-    background: var(--rare-violet);
-    border-color: var(--violet-8);
-    color: var(--ink);
-  }
-  .stamp.ultra {
-    background: var(--yellow);
-    border-color: var(--gold-8);
-    color: var(--ink);
-  }
-  /* The flag runs a little larger than the name it sits beside: an emoji set at
+  /* The tier fills are app.css's rarity ladder, the one BadgePill's pills read
+     — the game runs one rarity register, and a second ramp would mean a rare
+     stamp and a rare pill were different kinds of rare. Only the four middle
+     rungs are shared: `legendary` is the top of a badge axis and a country is
+     not an axis, and `ironic` is an anti-trophy, which no birthplace is, so
+     neither names a stamp in that ladder.
+     The flag runs a little larger than the name it sits beside: an emoji set at
      the type size of small caps reads as a smudge, and the flag is the only
      part of a stamp that has to be identifiable at a glance. Its own
      line-height, so a taller glyph cannot grow the stamp. */
@@ -317,26 +299,15 @@
   .count {
     opacity: 0.7;
   }
-  /* First time ever fielded, and the same chip the finale's badge pills spend.
-     The fill and the border are both spent on rarity here exactly as they are
-     on a pill, so a chip is the one channel left that borrows nothing.
-     It is announced from the stamp's `aria-label` rather than read off this
+  /* First time ever fielded is app.css's `.newchip`, literally the chip the
+     finale's badge pills spend — the fill and the border are both on rarity
+     here exactly as they are on a pill, so a chip is the one channel left that
+     borrows nothing, and there is nothing left for this file to add to it.
+     It is announced from the stamp's `aria-label` rather than read off that
      text: an aria-label REPLACES everything inside the element it sits on, so
      once the country's name moved there — which it had to, the stamp being a
-     bare flag — this chip stopped reaching a screen reader on its own. The
+     bare flag — the chip stopped reaching a screen reader on its own. The
      label leads with it, the way the eye does. */
-  .new {
-    border-radius: 999px;
-    background: var(--ink);
-    color: var(--card);
-    font-size: 8.5px;
-    letter-spacing: 0.1em;
-    /* Its own line-height for the reason the flag has one: as a flex item the
-       chip is a box, and an inherited factor would size that box off the
-       paragraph rhythm rather than off the chip. */
-    line-height: 1.2;
-    padding: 1.2px 5px 0.8px;
-  }
   /* The reveal, and it OVERLAYS the row. Nothing moves when a stamp opens: not
      the stamp that was tapped, not its row-mates, not the buttons below. That
      is the whole reason it is absolutely positioned rather than a block in the

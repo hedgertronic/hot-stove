@@ -756,28 +756,10 @@
     line-height: 1.05;
     font-variant-numeric: tabular-nums;
   }
-  /* The record wears the game's WAR-ladder palette, keyed to its win count —
-     the same tier→color mapping as the finale stamp. */
-  .brec.neg {
-    color: var(--war-neg);
-  }
-  .brec.low {
-    color: var(--war-low);
-  }
-  .brec.mid {
-    color: var(--war-mid);
-  }
-  .brec.high {
-    color: var(--war-high);
-  }
-  .brec.star {
-    color: var(--war-star);
-  }
-  .brec.elite {
-    /* Brighter than --war-elite, matching the finale stamp: at heavy stamp
-       weight the token's #c98a08 reads brown; true gold needs the chroma. */
-    color: var(--record-elite);
-  }
+  /* The record wears the game's WAR-ladder palette, keyed to its win count.
+     The color is app.css's record ladder — `.brec.elite` and its five
+     siblings, the same six rules the finale stamp and the seasons list read.
+     Only the size and the weight are this surface's own. */
   /* The exact points, quiet and tabular under the record — the finale's
      .tpts voice sized down to the miniature. */
   .bpts {

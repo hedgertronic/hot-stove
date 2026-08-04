@@ -53,7 +53,7 @@ describe("the help cue", () => {
     const ui = open();
     expect(ui.help.classList.contains("cue")).toBe(true);
     // Not color alone: the label changes with the state.
-    expect(ui.help.getAttribute("aria-label")).toBe("How to play — start here");
+    expect(ui.help.getAttribute("aria-label")).toBe("How to play: start here");
     ui.close();
   });
 
@@ -94,7 +94,7 @@ describe("the trophy cue", () => {
     const ui = open({ newBadges: ["crown"] });
     flushSync();
     expect(ui.trophy.classList.contains("cue")).toBe(true);
-    expect(ui.trophy.getAttribute("aria-label")).toBe("Trophy case — 1 new badge");
+    expect(ui.trophy.getAttribute("aria-label")).toBe("Trophy case: 1 new badge");
     expect(cues().pendingBadges).toEqual(["crown"]);
     ui.close();
   });
@@ -102,7 +102,7 @@ describe("the trophy cue", () => {
   it("counts plurals in the label", () => {
     const ui = open({ newBadges: ["crown", "mariners"] });
     flushSync();
-    expect(ui.trophy.getAttribute("aria-label")).toBe("Trophy case — 2 new badges");
+    expect(ui.trophy.getAttribute("aria-label")).toBe("Trophy case: 2 new badges");
     ui.close();
   });
 

@@ -1,5 +1,14 @@
+import { awardRank } from "./awards";
 import { eligibleTypes, isPitcher } from "./eligibility";
 import type { CardPlayer } from "./types";
+
+/** Today as `YYYY-MM-DD` in the PLAYER'S timezone. History rows carry this
+ * stamp and the seasons list prints it back; `toISOString()` would shift an
+ * evening game to tomorrow's date for anyone west of Greenwich. */
+export function localDateStamp(now: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+}
 
 /** Normalized display dollars, always in millions ("$136.3M", "$110M", "$0.9M"). */
 export function money(m: number): string {
@@ -37,14 +46,13 @@ export function costTier(costM: number): CostTier {
 
 /** Canonical hardware order for award pill rows: prestige first (MVP ballot,
  * then Cy Young ballot, then ROY), fielding/hitting hardware after, All-Star
- * always last. Unknown codes sort behind everything, original order kept. */
-const AWARD_ORDER = ["MVP", "MVP2", "MVP3", "CY", "CY2", "CY3", "ROY", "GG", "SS", "AS"];
+ * always last. The order itself is `rank` in lib/awards.ts, beside the label
+ * and the hue family the pill spends — one registry, so a code cannot be
+ * orderable here and nameless there. Unknown codes sort behind everything,
+ * original order kept (`sort` is stable, and every unranked code shares one
+ * rank). */
 export function sortAwards(awards: string[]): string[] {
-  const rank = (a: string) => {
-    const i = AWARD_ORDER.indexOf(a);
-    return i === -1 ? AWARD_ORDER.length : i;
-  };
-  return [...awards].sort((a, b) => rank(a) - rank(b));
+  return [...awards].sort((a, b) => awardRank(a) - awardRank(b));
 }
 
 /** Display label for a roster slot. Internal slot keys are frozen (saves and

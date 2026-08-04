@@ -188,13 +188,13 @@
 
 {#if game.loadFailed}
   <div class="cold disp">
-    <div class="coldmsg">📡 SIGNAL LOST — the card didn't come through</div>
+    <div class="coldmsg">📡 SIGNAL LOST: the card didn't come through</div>
     <button class="btn spinbtn disp" onclick={retry}>TAP TO RETRY</button>
   </div>
 {:else if game.coldStove}
   <div class="cold disp">
-    <div class="coldmsg">🥶 COLD STOVE — nothing left to take here</div>
-    <button class="btn spinbtn disp" onclick={() => game.coldRespin()}>SPIN AGAIN — FREE</button>
+    <div class="coldmsg">🥶 COLD STOVE: nothing left to take here</div>
+    <button class="btn spinbtn disp" onclick={() => game.coldRespin()}>SPIN AGAIN · FREE</button>
   </div>
 {:else if game.resumedForfeit}
   <!-- The other two notices offer a button because the player has a decision

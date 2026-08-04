@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSeedCode, posLabel, seedCode, slotLabel, sortAwards, warTier } from "../src/lib/format";
+import { localDateStamp, parseSeedCode, posLabel, seedCode, slotLabel, sortAwards, warTier } from "../src/lib/format";
 import type { CardPlayer } from "../src/lib/types";
 
 describe("warTier", () => {
@@ -100,5 +100,19 @@ describe("seedCode / parseSeedCode", () => {
     for (const bad of ["", "  ", "#", "NOT A SEED", "12345678", "ZZZZZZZ", "1Z141Z4", "-5", "3.5"]) {
       expect(parseSeedCode(bad)).toBeNull();
     }
+  });
+});
+
+describe("localDateStamp", () => {
+  it("stamps the player's own calendar day, not Greenwich's", () => {
+    // 11:30pm local on Aug 3. In any timezone west of UTC, toISOString()
+    // already says Aug 4 — the bug this helper exists to prevent. The stamp
+    // must come from the LOCAL components regardless of offset.
+    const lateNight = new Date(2026, 7, 3, 23, 30);
+    expect(localDateStamp(lateNight)).toBe("2026-08-03");
+  });
+
+  it("pads single-digit months and days", () => {
+    expect(localDateStamp(new Date(2026, 0, 5))).toBe("2026-01-05");
   });
 });

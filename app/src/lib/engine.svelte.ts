@@ -6,7 +6,7 @@ import { earnedBadges } from "./badges";
 import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadSpecials, ownerFor } from "./data";
 import { eligibleTypes, visiblePlayers } from "./eligibility";
-import { recordFromTotal, type WarTier } from "./format";
+import { localDateStamp, recordFromTotal, type WarTier } from "./format";
 import { appendHistory, archiveGame, earnedBadgeKeys, loadArchive } from "./history";
 import { Rng, randomSeed } from "./rng";
 import {
@@ -1851,7 +1851,7 @@ export class Game {
     for (const ids of Object.values(countryPlayers)) ids.sort();
     appendHistory({
       v: 2, // two-rung ladder era; disambiguates "scout" from the old stats mode
-      date: new Date().toISOString().slice(0, 10),
+      date: localDateStamp(),
       seed: this.seed,
       // Beside the seed because both identify the game — this one points the
       // seasons list at the record it opens.

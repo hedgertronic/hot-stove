@@ -91,7 +91,7 @@
     {:else if seasons === null}
       <div class="note">Pulling the card file…</div>
     {:else if seasons.length === 0}
-      <div class="note">One-season wonder — no other years to visit.</div>
+      <div class="note">One-season wonder: no other years to visit.</div>
     {:else}
       <div class="list">
         {#each seasons as sea ((sea.team + sea.year))}

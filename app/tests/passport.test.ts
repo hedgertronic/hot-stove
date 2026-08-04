@@ -830,7 +830,8 @@ describe("the finale's passport", () => {
     expect(flagged(f)).toEqual(["Cuba"]);
     // Announced AND drawn: the chip is a mark on the stamp, and the accessible
     // name leads with it because an aria-label replaces the mark.
-    expect(stampFor(f, "Cuba").querySelector(".new")?.textContent).toBe("NEW");
+    // `.newchip` is app.css's shared chip — the same one a badge pill wears.
+    expect(stampFor(f, "Cuba").querySelector(".newchip")?.textContent).toBe("NEW");
   });
 
   it("flags nothing when every country is already in the passport", () => {

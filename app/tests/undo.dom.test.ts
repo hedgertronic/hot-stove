@@ -151,7 +151,7 @@ describe("the undo pill", () => {
     expect(game.undoUsed).toBe(false);
     expect(ui.undo()!.textContent!.trim()).toBe("UNDO?");
     expect(ui.undo()!.getAttribute("aria-label")).toBe(
-      "Undo last move — tap again to confirm",
+      "Undo last move: tap again to confirm",
     );
 
     ui.tap(ui.undo()!);

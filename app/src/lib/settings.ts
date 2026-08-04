@@ -14,6 +14,7 @@ import {
   type Difficulty,
   type GameConfig,
 } from "./engine.svelte";
+import { localDateStamp } from "./format";
 import { appendHistory, earnedBadgeKeys, loadHistory } from "./history";
 
 const SETTINGS_KEY = "hotstove.settings";
@@ -206,7 +207,7 @@ export function recordQuit(): void {
   // No `v`: that stamp only disambiguates a row's stored difficulty, and an
   // unscored row carries none.
   appendHistory({
-    date: new Date().toISOString().slice(0, 10),
+    date: localDateStamp(),
     badges: [PACKED_IN],
   });
   if (first) noteNewBadges([PACKED_IN]);

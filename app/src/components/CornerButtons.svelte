@@ -143,7 +143,7 @@
   class:home
   class:cue={helpCue}
   onclick={openHelp}
-  aria-label={helpCue ? "How to play — start here" : "How to play"}>?</button
+  aria-label={helpCue ? "How to play: start here" : "How to play"}>?</button
 >
 <button
   class="help trophy"
@@ -151,7 +151,7 @@
   class:cue={badgeCue}
   onclick={openTrophy}
   aria-label={badgeCue
-    ? `Trophy case — ${badgeCount} new badge${badgeCount === 1 ? "" : "s"}`
+    ? `Trophy case: ${badgeCount} new badge${badgeCount === 1 ? "" : "s"}`
     : "Trophy case"}
   ><svg class="tico" viewBox="0 0 14 14" aria-hidden="true"
     ><path
@@ -171,7 +171,7 @@
     class:pushed={pushed && !undoArmed}
     disabled={!game.canUndo}
     onclick={tapUndo}
-    aria-label={undoArmed ? "Undo last move — tap again to confirm" : "Undo last move"}
+    aria-label={undoArmed ? "Undo last move: tap again to confirm" : "Undo last move"}
     >{#if undoArmed}UNDO?{:else}<svg class="tico" viewBox="0 0 14 14" aria-hidden="true"
         ><path d="M11 11.5V8.5A4 4 0 0 0 7 4.5H2.5 M5.5 2 2.5 4.5l3 2.5" /></svg
       >{/if}</button

@@ -1063,28 +1063,10 @@ import { track } from "../lib/analytics";
     line-height: 1.05;
     font-variant-numeric: tabular-nums;
   }
-  /* The record wears the game's WAR-ladder palette, keyed to its win count —
-     the same color language every player chip already taught. */
-  .tamt.neg {
-    color: var(--war-neg);
-  }
-  .tamt.low {
-    color: var(--war-low);
-  }
-  .tamt.mid {
-    color: var(--war-mid);
-  }
-  .tamt.high {
-    color: var(--war-high);
-  }
-  .tamt.star {
-    color: var(--war-star);
-  }
-  .tamt.elite {
-    /* Brighter than --war-elite on purpose: at 54px/900 the token's #c98a08
-       reads brown; true gold needs the extra chroma at stamp size. */
-    color: var(--record-elite);
-  }
+  /* The record wears the game's WAR-ladder palette, keyed to its win count.
+     The color is app.css's record ladder — `.tamt.elite` and its five
+     siblings, the same six rules the record book and the seasons list read.
+     Only the stamp's size and the weight are this surface's own. */
   /* The exact points, quiet and tabular under the record — it reconciles the
      ledger (rows sum to this, not to the rounded record) and tells 162.5
      apart from a 185 blowout when the record caps at 162–0. */
