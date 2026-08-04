@@ -21,10 +21,17 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { render } from "svelte/server";
 import HelpModal from "../src/components/HelpModal.svelte";
-import { MANAGER_PER_NET_WIN } from "../src/lib/scoring";
-import { posLabel, signed, warTier } from "../src/lib/format";
+import {
+  MANAGER_PER_NET_WIN,
+  PENNANT_POINTS,
+  RING_POINTS,
+  WBC_CHAMPION_POINTS,
+  WBC_RUNNERUP_POINTS,
+} from "../src/lib/scoring";
+import { money, posLabel, signed, warTier } from "../src/lib/format";
 import { eligibleTypes } from "../src/lib/eligibility";
-import type { CardPlayer } from "../src/lib/types";
+import { ownerFor } from "../src/lib/data";
+import type { CardPlayer, Owners } from "../src/lib/types";
 
 interface CardRow {
   year: number;
@@ -32,6 +39,10 @@ interface CardRow {
   wins: number;
   losses: number;
   manager: string | null;
+  park: string;
+  attendance: number;
+  stadiumMult: number;
+  budget: number;
   /** The app's own row type, not a narrowing of it: the utility specimen below
    * runs a card player through `posLabel` and `eligibleTypes`, which read
    * fields (`posG`) a hand-listed subset would have to remember to carry. */
@@ -173,5 +184,95 @@ describe("the help sheet's manager specimen", () => {
     // could not fail any more.
     expect(seatsOf("Cox")).toEqual([expect.stringContaining(`war-${warTier(wins)}`)]);
     expect(warTier(wins)).toBe("star");
+  });
+});
+
+describe("the help sheet's front-office specimens", () => {
+  const c = card("ATL", 1995);
+
+  it("draws the three tiles off the ATL 1995 card's own figures", () => {
+    // Owner budget, park, attendance, multiplier — each read back off the card
+    // the sheet claims to be quoting.
+    expect(BODY).toContain(money(c.budget));
+    expect(BODY).toContain(c.park);
+    expect(BODY).toContain(`×${c.stadiumMult.toFixed(2)}`);
+    expect(BODY).toContain(`${(c.attendance / 1e6).toFixed(2)}M fans`);
+    // The skipper's chip: bare value then the WINS unit, SpecialRows' own
+    // shape — a positive drops its plus, the unit says the scale.
+    const wins = (c.wins - c.losses) * MANAGER_PER_NET_WIN;
+    expect(BODY).toMatch(new RegExp(`class="val[^"]*">${wins.toFixed(1).replace(".", "\\.")}<`));
+    expect(BODY).toContain(">WINS<");
+  });
+
+  it("names the owner the data held in the chair that year", () => {
+    const owners = JSON.parse(fs.readFileSync(path.join(DATA, "owners.json"), "utf8")) as Owners;
+    const owner = ownerFor(owners, "ATL", 1995);
+    expect(owner).toBe("Ted Turner");
+    expect(BODY).toContain(owner);
+  });
+
+  it("prices the payroll specimens off the same owner and ballpark", () => {
+    // Owner budget × park multiplier, the engine's own expression — the box's
+    // headline payroll has to be the product of the two tiles above it.
+    expect(BODY).toContain(money(c.budget * c.stadiumMult));
+  });
+});
+
+describe("the help sheet is a diagram, not a control surface", () => {
+  const BUTTONS = [...BODY.matchAll(/<button[^>]*>/g)].map((m) => m[0]);
+
+  it("renders every embedded specimen control inert", () => {
+    // The components that render buttons — RailSeat's pickable seats (two lit
+    // by the slot picker, two by the trade picker) and SpecialRows' three
+    // tiles — all take the specimen flag, which puts the native `inert`
+    // attribute on them: no tab stop, no click, no promise of one.
+    const specimens = BUTTONS.filter((b) => /class="[^"]*(?:cell|srow)/.test(b));
+    expect(specimens).toHaveLength(7);
+    for (const b of specimens) expect(b).toContain("inert");
+  });
+
+  it("leaves exactly two live buttons: the Sheet's own exits", () => {
+    const live = BUTTONS.filter((b) => !b.includes("inert"));
+    expect(live).toHaveLength(2); // the corner ✕ and GOT IT
+  });
+});
+
+describe("the help sheet's scoring copy", () => {
+  it("prices each ring-chasing emoji off its own scoring constant", () => {
+    const RINGS: [string, number][] = [
+      ["💍", RING_POINTS],
+      ["🚩", PENNANT_POINTS],
+      ["🌐", WBC_CHAMPION_POINTS],
+      ["🎌", WBC_RUNNERUP_POINTS],
+    ];
+    for (const [emo, pts] of RINGS) {
+      // The glyph, its label, then its price — read off the rendered row so a
+      // retuned constant cannot leave the sheet quoting last round's number.
+      const row = new RegExp(`${emo}</span><span class="rlbl[^"]*">[^<]+</span><b class="rpts[^"]*">\\+${pts}<`);
+      expect(BODY).toMatch(row);
+    }
+  });
+
+  it("puts TROPHY CASE above RING CHASING, and uses the game's section device", () => {
+    const trophy = BODY.indexOf("TROPHY CASE");
+    const rings = BODY.indexOf("RING CHASING");
+    expect(trophy).toBeGreaterThan(-1);
+    expect(rings).toBeGreaterThan(trophy);
+    // Every section header is the board's own .psep dashed-rule device.
+    expect(BODY).toContain('class="psep');
+    expect(BODY).not.toContain("hsec");
+  });
+
+  it("names each data source exactly once", () => {
+    for (const src of ["Lahman", "Baseball-Reference", "SABR:", "Wikipedia:"]) {
+      const first = BODY.indexOf(src);
+      expect(first, `${src} is missing`).toBeGreaterThan(-1);
+      expect(BODY.indexOf(src, first + 1), `${src} appears twice`).toBe(-1);
+    }
+    expect(BODY).toContain("DATA SOURCES");
+  });
+
+  it("carries no em dash anywhere in the rendered sheet", () => {
+    expect(BODY).not.toContain("—");
   });
 });

@@ -155,6 +155,11 @@ describe("which rows are doors", () => {
     // Newest first, so the top row is the second game — and the record handed
     // over is that game's, not the last one archived by accident.
     expect(ui.onopen.mock.calls[0][0].id).toBe("g1");
+    // And it names the season out loud: the archive id travels beside the
+    // record so the finale can claim the boot screen under its own name. Drop
+    // it and a reload off that screen restores the LAST game played instead —
+    // a bug that typechecks, because the argument is optional.
+    expect(ui.onopen.mock.calls[0][1]).toBe("g1");
     ui.close();
   });
 
@@ -203,6 +208,10 @@ describe("which rows are doors", () => {
     expect(ui.rows()[0].disabled).toBe(false);
     ui.rows()[0].click();
     expect(ui.onopen).toHaveBeenCalledOnce();
+    // NO id on this route, and that is the right answer rather than a gap: the
+    // record came out of `hotstove.finale`, which holds exactly one game, and
+    // the live boot claim already means that key.
+    expect(ui.onopen.mock.calls[0][1]).toBeUndefined();
     ui.close();
   });
 

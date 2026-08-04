@@ -131,9 +131,11 @@ const freshOf = (row: ReturnType<typeof bragRow>) =>
   row.filter((b) => b.fresh).map((b) => b.def.key);
 
 describe("bragRow", () => {
-  it("keeps the engine's order when nothing is new", () => {
+  it("leads with the rarest when nothing is new", () => {
+    // allstars is uncommon; noweak and cooperstown are rare and tie, so the
+    // engine's order breaks that tie.
     const row = bragRow(["allstars", "noweak", "cooperstown"], [], 4);
-    expect(keysOf(row)).toEqual(["allstars", "noweak", "cooperstown"]);
+    expect(keysOf(row)).toEqual(["noweak", "cooperstown", "allstars"]);
     expect(freshOf(row)).toEqual([]);
   });
 
@@ -148,26 +150,25 @@ describe("bragRow", () => {
     // badge they have never earned.
     const earned = ["allstars", "noweak", "cooperstown", "rings", "decade"];
     const row = bragRow(earned, ["decade"], 4);
-    expect(keysOf(row)).toEqual([
-      "decade",
-      "allstars",
-      "noweak",
-      "cooperstown",
-    ]);
+    // Behind the fresh pill the rest stack rarest first: rings is ultra,
+    // noweak and cooperstown rare, and allstars (uncommon) is what gets cut.
+    expect(keysOf(row)).toEqual(["decade", "rings", "noweak", "cooperstown"]);
     // The row does not widen to fit it: the tail is still what gets cut.
     expect(row).toHaveLength(4);
   });
 
-  it("is stable within each group", () => {
+  it("sorts rarest first inside both groups", () => {
     const earned = ["allstars", "noweak", "cooperstown", "rings", "decade"];
     const row = bragRow(earned, ["cooperstown", "decade"], 5);
-    // New ones first in their original relative order, then the rest in theirs.
+    // Fresh pills lead and stack rarest first (cooperstown rare over decade
+    // uncommon); the rest do the same (rings ultra, noweak rare, allstars
+    // uncommon).
     expect(keysOf(row)).toEqual([
       "cooperstown",
       "decade",
-      "allstars",
-      "noweak",
       "rings",
+      "noweak",
+      "allstars",
     ]);
   });
 

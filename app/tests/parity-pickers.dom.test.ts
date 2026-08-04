@@ -230,7 +230,9 @@ describe("the help sheet teaches with the real parts", () => {
     expect(ui.target.querySelectorAll(".paylbl .left")).toHaveLength(2);
     expect(ui.target.querySelectorAll(".pmeter.pnocap")).toHaveLength(1);
     expect(ui.target.querySelectorAll(".pmeter.pover")).toHaveLength(1);
-    expect(ui.target.querySelector(".paylbl .warn")?.textContent).toContain("$14.3M");
+    // $111M spent against the ATL 1995 payroll the FRONT OFFICE specimen
+    // sets ($93.2M × 1.09): the overrun the alarm face quotes.
+    expect(ui.target.querySelector(".paylbl .warn")?.textContent).toContain("$9.4M");
     // A powerup pill in each of its three states.
     for (const cls of [".pp", ".pp.armed", ".pp.spent"])
       expect(ui.target.querySelector(cls)).not.toBeNull();

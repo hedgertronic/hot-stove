@@ -9,7 +9,11 @@
  *
  * The split is what makes both halves of the request possible at once. "Stay
  * on the finale until ✕ / Replay / Modes" is the CLAIM's lifetime; "a way back
- * from home" is the ARCHIVE's. One flag inside one record cannot do both: an
+ * from home" is the ARCHIVE's. The claim's VALUE says which finale is on screen
+ * — "1" for the live one in `hotstove.finale`, "a:<id>" for a season reopened
+ * out of `hotstove.archive` — so a reload puts back the club the player was
+ * looking at rather than the last one they played. One flag inside one record
+ * cannot do both: an
  * exit that deleted the record would delete it before the home screen could
  * ever offer the way back, since ✕ and Modes are the only routes from the
  * finale to the home screen in the first place.
@@ -22,13 +26,14 @@ import {
   Game,
   SLOT_TYPES,
   claimFinale,
+  claimedArchiveId,
   clearStoredFinale,
   finaleClaimed,
   loadStoredFinale,
   releaseFinale,
   type Signed,
 } from "../src/lib/engine.svelte";
-import { loadHistory } from "../src/lib/history";
+import { loadArchive, loadHistory } from "../src/lib/history";
 import type { Card, CardPlayer, GameIndex, Meta, Owners } from "../src/lib/types";
 
 const FINALE_KEY = "hotstove.finale";
@@ -291,6 +296,76 @@ describe("leaving the finale", () => {
     expect(loadStoredFinale()!.seed).toBe(99);
     expect(resume()!.finale).toEqual(second.finale);
     expect(first.seed).not.toBe(second.seed);
+  });
+});
+
+/** A season reopened from the seasons list survives a reload too, and survives
+ * it as ITSELF.
+ *
+ * `hotstove.finale` holds exactly one game — the last one finished — so a claim
+ * that could only mean that key would answer a reload with the wrong club the
+ * moment an older season was on screen. The id in the claim is what makes the
+ * answer specific, and the two games these tests play are what make a fallback
+ * to `hotstove.finale` visible: with one game the two records are the same
+ * record and every assertion would pass on the bug. */
+describe("reopening an archived season", () => {
+  it("restores the season the claim names, not the last game played", async () => {
+    const first = await playToFinale(7);
+    const firstId = loadArchive()[0].id;
+    clearStoredFinale(); // startGame(): the next game retires the live finale
+    await playToFinale(99);
+    // The live key is the SECOND game now. The claim below names the first.
+    expect(loadStoredFinale()!.seed).toBe(99);
+
+    claimFinale(firstId); // openFinale() off the seasons list
+    const back = resume()!;
+    expect(back).not.toBeNull();
+    expect(back.seed).toBe(7);
+    expect(back.finale).toEqual(first.finale);
+    expect(claimedArchiveId()).toBe(firstId);
+  });
+
+  it("leaves the live claim meaning the game just finished", async () => {
+    // The control: `finishGame` claims without an id, and that claim still
+    // resolves through `hotstove.finale`.
+    await playToFinale(7);
+    clearStoredFinale();
+    await playToFinale(99);
+    expect(claimedArchiveId()).toBeNull();
+    expect(resume()!.seed).toBe(99);
+  });
+
+  it("lands home when the claimed season has aged out of the archive", async () => {
+    // The ordinary end of an old season: the archive is a bounded tail, so the
+    // fifty games after this one evict it. Home is the honest answer, and the
+    // claim goes with it rather than surviving to strand the next boot too.
+    await playToFinale(7);
+    claimFinale("a-season-no-longer-held");
+    expect(resume()).toBeNull();
+    expect(finaleClaimed()).toBe(false);
+    // The live finale is untouched — the way back from home still works.
+    expect(loadStoredFinale()).not.toBeNull();
+  });
+
+  it("✕ / Modes drop an archived claim exactly as they drop a live one", async () => {
+    await playToFinale(7);
+    claimFinale(loadArchive()[0].id);
+    releaseFinale(); // goHome()
+    expect(finaleClaimed()).toBe(false);
+    expect(claimedArchiveId()).toBeNull();
+    expect(resume()).toBeNull();
+    // …and the season is still in the list it was opened from.
+    expect(loadArchive()).toHaveLength(1);
+  });
+
+  it("a new game retires the archived claim with the live one", async () => {
+    await playToFinale(7);
+    claimFinale(loadArchive()[0].id);
+    clearStoredFinale(); // startGame()
+    expect(finaleClaimed()).toBe(false);
+    expect(resume()).toBeNull();
+    // The archive itself outlives the claim: the season is still reopenable.
+    expect(loadArchive()).toHaveLength(1);
   });
 });
 

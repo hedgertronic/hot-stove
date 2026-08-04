@@ -71,7 +71,6 @@
     font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.04em;
-    cursor: pointer;
     transition: transform 0.08s;
     font-family: inherit;
     color: inherit;
@@ -93,7 +92,12 @@
     position: absolute;
     inset: -4px 0;
   }
-  .pp:active {
+  /* Only the wired pill is an offer: the span variant is a diagram, and a
+     pointer cursor on it would promise a tap that does nothing. */
+  button.pp {
+    cursor: pointer;
+  }
+  button.pp:active {
     transform: translateY(1.5px);
   }
   .pp.spent {

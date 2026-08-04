@@ -173,6 +173,7 @@ import { track } from "../lib/analytics";
   let dispTotal = $state("0");
   let totalShown = $state(false);
   let bragsShown = $state(false);
+  let passShown = $state(false);
 
   /** Record + tier come from the shared ladder (lib/format.recordFromTotal)
    * so the home record book resolves totals identically. PERFECT SEASON stays
@@ -201,22 +202,31 @@ import { track } from "../lib/analytics";
     }
   }
 
-  /* Three beats: rows deal out on a steady cadence, a held pause before the
-   * total stamp lands (with its count-up and confetti), then the brag pills
-   * thunk in once the number has settled.
+  /* Four beats: rows deal out on a steady cadence, a held pause before the
+   * total stamp lands (with its count-up and confetti), the brag pills thunk in
+   * once the number has settled, and the passport closes the stack once the
+   * last pill has landed.
    *
-   * Two states skip all three and render the finished screen: a player who has
+   * The order is the payoff read in the order it was earned — the record, then
+   * what the record won, then where the club that won it came from — and every
+   * beat waits for the one before it to FINISH rather than firing on a fixed
+   * clock: the badge row deals left to right at BRAG_STEP a pill, so the
+   * passport's cue is measured off the last pill, not off the first.
+   *
+   * Two states skip all four and render the finished screen: a player who has
    * asked for reduced motion, and a finale restored from storage, which has
    * already been watched once. Both want the same thing — every row shown, the
-   * stamp up, the counters at their final values, the brag pills visible, and
-   * no confetti — so both take one branch, and it returns before a single timer
-   * is created, which is why there is nothing to clean up. */
+   * stamp up, the counters at their final values, the brag pills and the
+   * passport visible, and no confetti — so both take one branch, and it returns
+   * before a single timer is created, which is why there is nothing to clean
+   * up. */
   $effect(() => {
     if (reduced || resolved) {
       dispWins = fin.parts.expectedWins;
       shownRows = rows.length;
       totalShown = true;
       bragsShown = true;
+      passShown = true;
       dispRecW = recWins;
       dispRecL = recLosses;
       dispTotal = fin.parts.total.toFixed(1);
@@ -255,7 +265,15 @@ import { track } from "../lib/analytics";
       }, totalAt),
     );
     // Brags wait for the count-up to settle — they annotate the final number.
-    timers.push(setTimeout(() => (bragsShown = true), totalAt + 1000));
+    const bragsAt = totalAt + 1000;
+    timers.push(setTimeout(() => (bragsShown = true), bragsAt));
+    // The stamps land one held beat after the LAST brag pill — the same 350ms
+    // hold the stamp takes after the ledger, so the pause before each payoff is
+    // the same pause. A club that earned no badges simply follows the stamp by
+    // that one beat; the arithmetic needs no special case for it.
+    timers.push(
+      setTimeout(() => (passShown = true), bragsAt + brags.length * BRAG_STEP * 1000 + 350),
+    );
     return () => timers.forEach(clearTimeout);
   });
 
@@ -671,8 +689,14 @@ import { track } from "../lib/analytics";
   <!-- `disp` because Passport sets no font of its own — it inherits, so the
        same stamp renders in Nunito inside the trophy sheet and would have
        dropped to system sans out here the moment it left the `.squad disp`
-       block it used to sit in. -->
-  <div class="clubpass disp">
+       block it used to sit in.
+       MOUNTED FROM THE FIRST FRAME, revealed by a class — the reveal's fourth
+       beat, and the one block that must not be `{#if}`d in when its turn comes.
+       Its box is the whole distance between the badges and the buttons, so a
+       block that appeared mid-reveal would shove the action row down under a
+       thumb already reaching for it. Held at `opacity: 0` instead, the row sits
+       where it will end up before the ledger has dealt a single line. -->
+  <div class="clubpass disp" class:show={passShown}>
     <Passport stamps={clubCountries} label="Countries fielded" />
   </div>
 {/if}
@@ -879,6 +903,17 @@ import { track } from "../lib/analytics";
 </div>
 
 <style>
+  /* THE ONE GAP BETWEEN THE PAYOFF STACK AND THE EXITS.
+     The record, the badges and the passport are one ceremony; MODES / RUN IT
+     BACK / SHARE are the next scene, and this is the whole separation between
+     them. It is a single distance at every width on purpose: the phone and the
+     desktop are the same screen at two sizes, and two numbers here made the
+     finale read as two different layouts rather than one. Whatever block ends
+     the stack — the passport, or the stamp alone on a finale whose seats carry
+     no country — the air below it is this. */
+  .fin-cols {
+    --stack-to-actions: 28px;
+  }
   /* Wide: score story beside the rosters. Each squad's psep header carries
      its own dashed rule, so the side column needs no extra separators — the
      first squad just tucks up to align with the head. */
@@ -1062,87 +1097,40 @@ import { track } from "../lib/analytics";
     font-variant-numeric: tabular-nums;
   }
   /* Cells and glyph come from the shared `.btnrow` in app.css; only the column
-     count, the moat above it and the phone's label fit are this row's own.
-     THE MOAT STAYS 28px, because it is doing the same job it always was: the
-     stamp (and any brags) is the payoff moment and the buttons are the next
-     scene, and with nothing between them the gap is the whole separation. A
-     finale whose seats carry no birth country — every save written before the
-     field existed — renders no passport at all, and that finale is exactly the
-     one the 28 was measured for.
-     This block lives BELOW the wide-layout rule, so the ≥760px moat must carry
-     its own media query to win. */
+     count, the gap above it and the phone's label fit are this row's own. */
   .fin-actions {
     grid-template-columns: 1fr 1fr 1fr;
-    margin-top: 28px;
+    margin-top: var(--stack-to-actions);
   }
-  /* WITH the passport in the gap, half that. The separation is now an object
-     rather than a distance, so the air on both sides of it can match: 8px
-     above the stamps, 14px below. Adjacent siblings, so the two margins
-     COLLAPSE — `.clubpass` sets `margin-bottom: 14px` and neither box has a
-     border, padding or a formatting context between them, so the pair resolves
-     to the larger rather than their sum. Leaving 28 here would win that
-     collapse and re-open the moat the passport was put there to close.
-     The adjacent-sibling selector is what keeps the two cases apart: no
-     passport, no override, and the 28 above still stands. */
-  .clubpass + .fin-actions {
-    margin-top: 14px;
-  }
-  /* ONE LINE, ALWAYS. A wrapped label stands the row up to 58px — 78px at
-     320px, where it breaks three ways — and the row's job is three equal 48px
-     cells at one baseline.
-     `1fr` is `minmax(auto, 1fr)`, so each track is floored at its MIN-CONTENT:
-     three tracks that do not fit overflow the row rather than shrinking, which
-     is why the fit has to be arithmetic rather than a hope.
-     THE PHONE BUYS THE FIT OUT OF THE CELL'S OWN PADDING, not out of the
-     glyph. Stock `.btnrow` cells are 8px of side padding on a 9px gap, and at
-     13px with the glyph that is 352px of demand against a 332px column at a
-     360px screen (the viewport less 28px of `#app` padding). Trimming to 3px
-     and 6px returns 36px — demand 316px, and the row closes with 16px spare.
-     A button 48px tall and ~90px wide is nowhere near its touch minimum, so
-     the padding is the cheapest thing in the row to spend; the glyph is not,
-     because `.btnrow` in app.css exists to keep the finale's row and HOME's
-     one control in two places and the glyph is half of what makes them look
-     it.
-     Sized for the WIDEST label, so the row is stable under the rename: RUN IT
-     BACK measures 90.2px in the bundled Nunito at 13px/0.04em against PLAY
-     AGAIN's 85.8px. The 4.4px is inside the 16px of headroom, which is the
-     whole point of measuring — the old row had none and was wrapping at every
-     phone width already. */
+  /* THE LABEL WRAPS; THE ROW DOES NOT SQUEEZE.
+     RUN IT BACK is the widest label in the game's action row, and on a 320px
+     phone three equal cells cannot hold it on one line. The row used to buy
+     that line back out of the cell padding and then out of the type size, which
+     bought it: at 11.5px caps the exits read as the smallest text on a screen
+     whose headline is 54px, and every width was one font fallback away from
+     wrapping anyway.
+     So the label breaks over two lines and the break is dressed rather than
+     prevented — centered, on a 1.25 line-height that puts two lines of 13px
+     caps at 32.5px inside the shared 48px cell, so the wrapped button is the
+     same height as the two beside it and the row keeps its baseline.
+     `.btnrow` is a grid with the default `align-items: stretch`, which is what
+     makes MODES and SHARE match RUN IT BACK for free if a narrower phone ever
+     does stand the cell taller. Nothing here may set `align-items`.
+     Wrapping also retires the overflow this row could not otherwise avoid:
+     `1fr` is `minmax(auto, 1fr)`, so a track is floored at its min-content —
+     with a nowrap label that floor is the whole phrase and three of them
+     overflow the row, and with a wrapping one it is the longest word. */
   .fin-actions .btn {
-    white-space: nowrap;
+    text-align: center;
+    line-height: 1.25;
   }
   @media (max-width: 759px) {
     .fin-actions {
       gap: 6px;
     }
     .fin-actions .btn {
-      padding-left: 3px;
-      padding-right: 3px;
-    }
-  }
-  /* The breakpoint `.bic` already steps its glyph down at, and the label steps
-     with it. The narrow phone is the one width the trimmed padding alone does
-     not close: 292px of column against 307px of demand at 13px. 11.5px brings
-     it to 285px and the row fits with 7px spare — the smaller `.bic` (15px,
-     from app.css) is already counted in that.
-     11.5 rather than 12 because 12 lands on 292.7px against a 292px column —
-     a 0.7px miss is a miss, and one that would come back the moment a font
-     fell back or a device rounded the other way. */
-  @media (max-width: 359px) {
-    .fin-actions .btn {
-      font-size: 11.5px;
-    }
-  }
-  @media (min-width: 760px) {
-    /* The score column has spare height beside the rosters — a wider moat.
-       Both selectors, and the compound one is why: `.clubpass + .fin-actions`
-       is (0,2,0) against this rule's (0,1,0), so a bare `.fin-actions` here
-       would LOSE to the phone override on every wide screen that renders a
-       passport — media queries carry no specificity of their own. Matching the
-       compound is what makes the wide layout win it back. */
-    .fin-actions,
-    .clubpass + .fin-actions {
-      margin-top: 48px;
+      padding-left: 6px;
+      padding-right: 6px;
     }
   }
   .btn.ghost {
@@ -1246,17 +1234,34 @@ import { track } from "../lib/analytics";
      for, while the chips align down the right edge and the eye reads
      gold-gold-violet-blue off them just the same. */
   /* Tucked to the badge row above it rather than spaced as a section of its
-     own — same column, same idea, one beat apart. The bottom margin is the
-     gap to the actions; it collapses against theirs, and both are 14 so the
-     one that wins is the one that was intended.
-     No `overflow`, no `position`, no `transform`, and deliberately none: a
-     stamp's open panel is absolutely positioned, and any of the three here
+     own — same column, same idea, one beat apart. It carries no bottom margin:
+     the distance to the exits belongs to `.fin-actions`, which owns it for
+     every finale whether this block draws or not.
+     No `overflow`, no `position`, and no PERSISTENT `transform`, deliberately:
+     a stamp's open panel is absolutely positioned, and any of the three here
      would clip it, re-origin it, or trap it. It needs nothing from this box
      either — `Passport` sets `position: relative` on the stamp row itself, so
      the panel's containing block and its horizontal fence are both inside the
-     component that draws it, the way `.brags` above does for BadgeSlot. */
+     component that draws it, the way `.brags` above does for BadgeSlot. The
+     entrance below is an ANIMATION for exactly that reason: the transform lives
+     in a keyframe and resolves back to none, where a transitioned `transform`
+     would have to sit in the resting rule and re-origin every panel opened
+     afterwards. */
   .clubpass {
-    margin: 8px 0 14px;
+    margin: 8px 0 0;
+    opacity: 0;
+  }
+  /* The fourth beat, in the reveal's own language: the ledger row's rise and
+     the stamp's spring, at the ledger row's duration. */
+  .clubpass.show {
+    opacity: 1;
+    animation: pass-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  @keyframes pass-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.97);
+    }
   }
   /* What the dream team's two row treatments mean. It reads as a caption
      rather than as a rule of the game, so it takes the ceiling's own quiet

@@ -1,42 +1,63 @@
-<script lang="ts">
-  import type { Game, SpecialKey } from "../lib/engine.svelte";
-  import { money, signed } from "../lib/format";
-  import { MANAGER_PER_NET_WIN } from "../lib/scoring";
-  import AwardPill from "./AwardPill.svelte";
+<script lang="ts" module>
+  import type { SpecialKey } from "../lib/engine.svelte";
 
-  let {
-    game,
-    confirmKey,
-    setConfirm,
-  }: { game: Game; confirmKey: string | null; setConfirm: (k: string | null) => void } = $props();
-
-  const tdArmed = $derived(game.powerups.tradeDeadline === "armed");
-  const canAct = $derived(game.phase === "landed" && game.choicesLeft > 0);
-
-  /** Compact attendance: 2,169,811 → "2.17M fans". */
-  function fans(n: number): string {
+  /** Compact attendance: 2,169,811 → "2.17M fans". Module-level so a caller
+   * building specimen rows renders attendance through the same words. */
+  export function fans(n: number): string {
     return n >= 1e6 ? `${(n / 1e6).toFixed(2)}M fans` : `${Math.round(n / 1e3)}K fans`;
   }
 
-  interface Row {
+  /** One tile's plain values — what a `specimen` caller supplies per row. */
+  export interface SpecimenRow {
     key: SpecialKey;
     cls: string;
     ic: string;
     who: string;
     /** Inline muted meta after the name — the icon already names the type. */
     meta: string;
-    /** Manager of the Year pill (award visibility: Box Score only). */
-    moty?: boolean;
     val: string;
     /** Small unit after the value ("WINS" on the skipper), styled like the WAR
      * unit on the player market chips. Empty for the unitless values. */
     unit?: string;
-    verb: string;
+  }
+</script>
+
+<script lang="ts">
+  import type { Game } from "../lib/engine.svelte";
+  import { money, signed } from "../lib/format";
+  import { MANAGER_PER_NET_WIN } from "../lib/scoring";
+  import AwardPill from "./AwardPill.svelte";
+
+  let {
+    game = null,
+    confirmKey = null,
+    setConfirm = () => {},
+    specimen = null,
+  }: {
+    game?: Game | null;
+    confirmKey?: string | null;
+    setConfirm?: (k: string | null) => void;
+    /** Plain rows for a help-sheet diagram: the same tiles, hues and anatomy,
+     * rendered `inert` — no section header, no confirm flow, no taps. When
+     * set, `game` is not consulted at all. */
+    specimen?: SpecimenRow[] | null;
+  } = $props();
+
+  const tdArmed = $derived(game?.powerups.tradeDeadline === "armed");
+  const canAct = $derived(game != null && game.phase === "landed" && game.choicesLeft > 0);
+
+  interface Row extends SpecimenRow {
+    /** Manager of the Year pill (award visibility: Box Score only). */
+    moty?: boolean;
+    /** Word on the confirm pill. Absent on specimen rows, whose confirm
+     * flow never opens. */
+    verb?: string;
   }
 
   const rows = $derived.by((): Row[] => {
-    const c = game.card;
-    if (!c) return [];
+    if (specimen) return specimen;
+    const c = game?.card;
+    if (!c || !game) return [];
     const out: Row[] = [];
     if (!game.fixedCap) {
       out.push(
@@ -85,6 +106,7 @@
   });
 
   function commit(key: SpecialKey) {
+    if (!game) return;
     setConfirm(null);
     if (key === "owner") game.hireOwner();
     else if (key === "stadium") game.buyStadium();
@@ -92,13 +114,14 @@
   }
 
   function commitSwap(key: SpecialKey) {
+    if (!game) return;
     setConfirm(null);
     game.tdTapSpecial(key);
   }
 
   function tap(row: Row, e: MouseEvent) {
     e.stopPropagation();
-    if (!canAct) return;
+    if (!game || !canAct) return;
     const taken = game.specialTaken(row.key);
     // ⭐ browses managers only — an armed Prime never claims the owner or
     // stadium tap, so those tiles keep their plain hire confirm.
@@ -113,27 +136,28 @@
   }
 </script>
 
-{#if rows.length > 0}
+{#if rows.length > 0 && !specimen}
   <div class="psep">FRONT OFFICE</div>
 {/if}
 <div class="special disp">
   {#each rows as row (row.key)}
-    {@const taken = game.specialTaken(row.key)}
+    {@const taken = game != null && game.specialTaken(row.key)}
     {@const swappable = taken && tdArmed && canAct}
-    {@const primeable = !taken && row.key === "manager" && game.primeArmed && canAct}
+    {@const primeable = !taken && row.key === "manager" && game?.primeArmed === true && canAct}
     <!-- ⭐ browses managers only. While Prime is armed, an unhired owner or
          stadium has no move at all, so it wears the same gray the taken rows
          wear — availability is binary, and the affordance must match. A TAKEN
          owner/stadium is excluded: an armed Trade Deadline still swaps it, and
          that amber path outranks Prime's blackout. Derived from the live
          primeArmed getter, so disarming restores the rows. -->
-    {@const primeBlocked = !taken && row.key !== "manager" && game.primeArmed}
+    {@const primeBlocked = !taken && row.key !== "manager" && game?.primeArmed === true}
     <button
       class="srow {row.cls}"
       class:taken={(taken && !swappable) || primeBlocked}
       class:swap={swappable}
       class:prime={primeable}
       disabled={primeBlocked}
+      inert={specimen != null}
       onclick={(e) => tap(row, e)}
     >
       <span class="ic">{row.ic}</span>
@@ -212,6 +236,14 @@
   }
   .srow:active {
     transform: translate(-1px, -1px);
+  }
+  /* A specimen tile is a diagram: inert blocks the tap and the tab stop, and
+     the cursor withdraws the offer of one. */
+  .srow[inert] {
+    cursor: default;
+  }
+  .srow[inert]:active {
+    transform: none;
   }
   /* The icon IS the type label — fixed width like .pos so front-office
      names align vertically with the player names below them. */

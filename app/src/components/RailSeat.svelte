@@ -30,6 +30,7 @@
     tier = "",
     war = null,
     pickable = false,
+    specimen = false,
     onclick,
   }: {
     /** `cell` is one of the eight player seats; `mgr` is the sideways chair
@@ -54,6 +55,11 @@
     /** Armed by the release picker — amber, dashed, and nudging. Only a player
      * seat is ever pickable; the manager is hired in the front office row. */
     pickable?: boolean;
+    /** A help-sheet diagram of the armed state: same markup, same amber, no
+     * tap. The native `inert` attribute takes the button out of the focus
+     * order and swallows clicks; the cursor rule below withdraws the promise
+     * of one. Only the pickable branch needs it — a resting seat is a div. */
+    specimen?: boolean;
     onclick?: () => void;
   } = $props();
 
@@ -61,7 +67,7 @@
 </script>
 
 {#if pickable}
-  <button class="cell pickable {rung}" class:vacant={!name} {onclick}>
+  <button class="cell pickable {rung}" class:vacant={!name} inert={specimen} {onclick}>
     <b>{label}</b>
     {#if name}<span>{name}</span><i>{meta}</i>
       {#if war}<em class="rwar warchip sm">{war}</em>{/if}
@@ -171,6 +177,11 @@
   .cell.pickable.vacant {
     display: grid;
     place-content: center;
+  }
+  /* A specimen keeps the armed look (the nudge is the state being taught) but
+     is not an offer: inert already blocks the tap and the tab stop. */
+  .cell.pickable[inert] {
+    cursor: default;
   }
   @keyframes nudge {
     50% {

@@ -17,6 +17,7 @@
   import { loadColors, loadIndex, loadMeta, loadOwners } from "./lib/data";
   import {
     Game,
+    claimFinale,
     clearStoredFinale,
     releaseFinale,
     type GameConfig,
@@ -73,16 +74,18 @@
         if (saved) {
           game = saved;
           screen = "game";
-          // A live game outranks a finale, and starting one already retired the
-          // stored finale — so a claim surviving alongside a save is stale by
-          // construction (two tabs racing is the only way to write one). Drop
-          // it rather than leave it to strand a later boot.
+          // A live game outranks a finale, whichever finale the claim names: a
+          // season already scored can be walked back into from home at any
+          // time, and a game in progress can only be stood back up here. The
+          // claim goes rather than being left to strand a later boot.
           releaseFinale();
         } else {
           // No game in flight: the finale is the other place a reload can be
-          // standing. Starting a game retires the stored finale, so the two
-          // never both exist — the save is checked first anyway, because a
-          // live game is the stronger claim on the screen.
+          // standing — the game just finished, or any older season the seasons
+          // list was reopened into, whichever the claim names. Starting a game
+          // retires the stored finale, so a save and a live finale never both
+          // exist; the save is checked first anyway, because a game in progress
+          // is the stronger claim on the screen.
           const back = Game.resumeFinale(meta, index, owners);
           if (back) {
             game = back;
@@ -123,16 +126,21 @@
 
   /** The home screen's way back into a finished season, from the seasons list.
    *
-   * NO BOOT CLAIM, unlike the finale a game just ended on. The claim is honored
-   * by re-reading `hotstove.finale`, which archives the LAST game and only
-   * that one — so claiming the screen while an older season is on it would
-   * resurrect the wrong finale on the next reload. A reload from here lands
-   * home instead, which is the honest answer: the season is still one tap away
-   * in the list it was opened from. */
-  function openFinale(rec: StoredFinale) {
+   * It claims the screen exactly as a game that just ended does, and the claim
+   * carries the archive id so the claim names THIS season rather than the last
+   * one played — a reload puts back the club that was on screen. `id` is
+   * undefined for the one row the seasons list opens out of `hotstove.finale`
+   * instead of the archive (the newest season, on a career whose archive row
+   * for it was never written), and that is the live claim, which resolves to
+   * the same record.
+   *
+   * A season evicted from the archive between the claim and the reload lands
+   * home instead — `resumeFinale` drops a claim it cannot honour. */
+  function openFinale(rec: StoredFinale, id?: string) {
     if (!deps) return;
     const back = Game.fromStoredFinale(deps.meta, deps.index, deps.owners, rec);
     if (!back) return;
+    claimFinale(id);
     game = back;
     restoredFinale = true;
     screen = "game";

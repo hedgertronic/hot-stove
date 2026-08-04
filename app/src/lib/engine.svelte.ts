@@ -7,7 +7,7 @@ import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadSpecials, ownerFor } from "./data";
 import { eligibleTypes, visiblePlayers } from "./eligibility";
 import { recordFromTotal, type WarTier } from "./format";
-import { appendHistory, archiveGame, earnedBadgeKeys } from "./history";
+import { appendHistory, archiveGame, earnedBadgeKeys, loadArchive } from "./history";
 import { Rng, randomSeed } from "./rng";
 import {
   GAMES,
@@ -254,7 +254,24 @@ const SAVE_VERSION = 6;
  * Split because the two change at different moments and for different reasons:
  * every exit is then a one-byte delete rather than a read-modify-write of a
  * multi-kilobyte blob, and "claim with no readable archive" resolves to the
- * home screen instead of a crash. */
+ * home screen instead of a crash.
+ *
+ * THE CLAIM ALSO SAYS WHICH FINALE. Two screens are the finale screen: the
+ * game that just ended, which is `hotstove.finale`, and any older season the
+ * seasons list walked back into, which lives in `hotstove.archive`. A claim
+ * that could only mean the first would resurrect the LAST game under a player
+ * who reloaded while looking at a season from a month ago — the wrong club, the
+ * wrong record, and no way to tell that it happened. So the claim's VALUE is
+ * the answer:
+ *
+ *   "1"        the live finale, in `hotstove.finale`
+ *   "a:<id>"   the archived season with that id, in `hotstove.archive`
+ *
+ * The prefix is what makes the two unmistakable whatever `finishGame` mints an
+ * id out of, and "1" is what every claim written before archived seasons could
+ * be claimed already says. The key's PRESENCE is still the whole of "is the
+ * player on the finale", so `finaleClaimed` and `clearStoredFinale` are
+ * unchanged by any of it. */
 const FINALE_KEY = "hotstove.finale";
 const FINALE_OPEN_KEY = "hotstove.finale.open";
 /** v1 = the first stored finale. Bump whenever the archive stops being
@@ -314,13 +331,29 @@ export function finaleClaimed(): boolean {
   }
 }
 
-/** Standing on the finale: a reload lands back here. Set when the game ends
- * and when the home screen's way back opens the archive. */
-export function claimFinale(): void {
+/** Standing on the finale: a reload lands back here. Set when the game ends,
+ * and when the seasons list opens a finished season.
+ *
+ * `archiveId` names WHICH season, for the second case: the id of its
+ * `hotstove.archive` row. Omitted — the game that just ended, and the newest
+ * season when it is being reopened out of `hotstove.finale` rather than out of
+ * the archive — the claim means the live finale. */
+export function claimFinale(archiveId?: string): void {
   try {
-    localStorage.setItem(FINALE_OPEN_KEY, "1");
+    localStorage.setItem(FINALE_OPEN_KEY, archiveId ? `a:${archiveId}` : "1");
   } catch {
     /* storage unavailable */
+  }
+}
+
+/** The archived season the claim names, or null when it names the live finale
+ * (and when there is no claim at all — `finaleClaimed` is what answers that). */
+export function claimedArchiveId(): string | null {
+  try {
+    const v = localStorage.getItem(FINALE_OPEN_KEY);
+    return v !== null && v.startsWith("a:") ? v.slice(2) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -2042,12 +2075,21 @@ export class Game {
 
   /** Boot: the finale the player never dismissed, or null to land home.
    *
-   * A claim whose archive has gone missing or unreadable drops the claim and
-   * lands home — a boot claim can never resurrect a finale that cannot be
-   * rendered. */
+   * The claim says which one — the live finale, or the archived season the
+   * seasons list was reopened into — so a reload puts back the club that was on
+   * screen rather than the most recent one.
+   *
+   * A claim whose record has gone missing or unreadable drops the claim and
+   * lands home. That is the ordinary end of an old season, not an error: the
+   * archive holds a bounded tail, so a claimed season can be evicted by the
+   * fifty games played after it. A boot claim can never resurrect a finale that
+   * cannot be rendered. */
   static resumeFinale(meta: Meta, index: GameIndex, owners: Owners): Game | null {
     if (!finaleClaimed()) return null;
-    const game = Game.fromStoredFinale(meta, index, owners);
+    const id = claimedArchiveId();
+    const rec =
+      id === null ? loadStoredFinale() : (loadArchive().find((r) => r.id === id) ?? null);
+    const game = Game.fromStoredFinale(meta, index, owners, rec);
     if (!game) releaseFinale();
     return game;
   }

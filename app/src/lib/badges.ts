@@ -2630,8 +2630,11 @@ export interface Brag {
  * with a real width budget should get the same sorted list rather than its own.
  *
  * First-time badges still sort to the FRONT, now for emphasis rather than for
- * survival: the pill a player most wants to see should not be seventh. The sort
- * is stable, so within each group the engine's order survives.
+ * survival: the pill a player most wants to see should not be seventh. Within
+ * each group the RAREST leads — the finale is a brag surface and the flex
+ * belongs at the head of the row, the same axis the trophy case's bands are
+ * stacked on. The sort is stable, so badges sharing a rung keep the engine's
+ * order.
  *
  * Keys that resolve to no definition are dropped, which covers a finale
  * restored from a save written before a badge was retired — 2️⃣ RE2PECT and
@@ -2646,7 +2649,11 @@ export function bragRow(
     .map((k) => BADGE_BY_KEY[k])
     .filter((d): d is BadgeDef => d !== undefined)
     .map((def) => ({ def, fresh: fresh.has(def.key) }))
-    .sort((a, b) => Number(b.fresh) - Number(a.fresh))
+    .sort(
+      (a, b) =>
+        Number(b.fresh) - Number(a.fresh) ||
+        RARITY_ORDER.indexOf(a.def.rarity) - RARITY_ORDER.indexOf(b.def.rarity),
+    )
     .slice(0, cap);
 }
 

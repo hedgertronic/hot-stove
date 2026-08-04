@@ -17,8 +17,9 @@
     config: GameConfig;
     onplay: (c: GameConfig, seed?: number) => void;
     /** Reopen a finished game's finale, from the seasons list. Only ever called
-     * with a record storage still holds. */
-    onopen: (rec: StoredFinale) => void;
+     * with a record storage still holds; the id names that season's archive row
+     * when the archive is where the record came from. */
+    onopen: (rec: StoredFinale, id?: string) => void;
   } = $props();
 
   // Seed once from the saved settings; the rows edit local state until PLAY.

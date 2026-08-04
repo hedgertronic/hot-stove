@@ -23,14 +23,16 @@
   import PowerupPill from "./PowerupPill.svelte";
   import RailSeat from "./RailSeat.svelte";
   import Sheet from "./Sheet.svelte";
+  import SpecialRows, { fans, type SpecimenRow } from "./SpecialRows.svelte";
 
   /** How to play, taught mostly in pictures.
    *
-   * The screens a player is about to meet are made of five things words are
-   * bad at: a market row, the roster rail's seats, the payroll meter, a
-   * powerup pill, and a badge. Each one appears here as ITSELF — same anatomy,
-   * same classes, same tier ladder — with one line of copy beside it, instead
-   * of a paragraph describing a picture the player cannot see.
+   * The screens a player is about to meet are made of six things words are
+   * bad at: a market row, the roster rail's seats, the three FRONT OFFICE
+   * tiles, the payroll meter, a powerup pill, and a badge. Each one appears
+   * here as ITSELF — same anatomy, same classes, same tier ladder — with one
+   * line of copy beside it, instead of a paragraph describing a picture the
+   * player cannot see.
    *
    * That extends to the two MOMENTS a still row cannot carry. Signing a man
    * who fits two seats, and trading one man out for another, are both a tap
@@ -42,20 +44,27 @@
    *
    * ---- How the specimens are built ----
    *
-   * From plain object literals, never a `Game`. All but one go through the REAL
-   * component: `PayrollBox`, `BadgePill`, `AwardPill`, `RailSeat` and
-   * `PowerupPill`. The last two used to be hand-copied markup here, on the
-   * grounds that their owners take a `Game` — so the seat and the pill were
-   * lifted out of `RosterRail` and `PowerupRow` into components of their own
-   * that take plain values. The copies are gone, and with them the only way for
-   * this sheet to teach a screen that no longer exists.
+   * From plain object literals, never a `Game`. All but one go through the
+   * REAL component: `PayrollBox`, `BadgePill`, `AwardPill`, `RailSeat`,
+   * `PowerupPill` and `SpecialRows`. The seat and the pill were lifted out of
+   * `RosterRail` and `PowerupRow` into components that take plain values;
+   * `SpecialRows` takes a `specimen` row list for the same reason, so the
+   * FRONT OFFICE tiles here are the game's own tiles and cannot drift.
+   *
+   * EVERY EMBEDDED CONTROL IS INERT. A specimen is a diagram, and a tappable
+   * control in a help sheet promises an action the sheet cannot deliver. The
+   * components that render buttons (`RailSeat` pickable, `SpecialRows`) take
+   * a specimen flag that puts the native `inert` attribute on them — no tab
+   * stop, no click, no pointer cursor — and `PowerupPill` renders a `<span>`
+   * whenever it has no `onclick`. tests/help-specimens.test.ts pins that the
+   * only live buttons on the sheet are Sheet's own two exits.
    *
    * The market row is the one specimen still drawn by hand. `PlayerList` is a
    * list of buttons wired to signings and pickers, and there is no presentation
    * layer to lift out of it that would not be the whole component. It is drawn
-   * ONCE, as the `prow` snippet, because five rows of it now appear on the
-   * sheet — resting, gray, utility, mid-pick and mid-trade — and five copies of
-   * one hand-copy is five chances for four of them to drift.
+   * ONCE, as the `prow` snippet, because five rows of it appear on the sheet —
+   * resting, gray, utility, mid-pick and mid-trade — and five copies of one
+   * hand-copy is five chances for four of them to drift.
    *
    * Nothing here comes from `src/lab`. That directory is the DEV-only fixture
    * gallery, excluded from the production bundle by an `import.meta.env.DEV`
@@ -63,19 +72,22 @@
    * shipped app.
    *
    * The WAR chip is the app.css ladder, not a copy: one ladder, one home. The
-   * row and seat rules below ARE a second copy of PlayerList's and
-   * RosterRail's, and are meant to be — a specimen that drifts from the screen
-   * it teaches is worse than no specimen, so it is the same numbers written
-   * out rather than the same component wired to a fake game. */
+   * row rules below ARE a second copy of PlayerList's, and are meant to be —
+   * a specimen that drifts from the screen it teaches is worse than no
+   * specimen, so it is the same numbers written out rather than the same
+   * component wired to a fake game.
+   *
+   * SECTION HEADERS are the game's own `.psep` device — the dashed rule with
+   * the centered title the board uses for FRONT OFFICE / PLAYERS — rather
+   * than a header style private to this sheet. */
   let { onclose }: { onclose: () => void } = $props();
 
   /* EVERY FIGURE BELOW IS THE REAL ONE, read off data/cards, and every tier is
    * DERIVED from it by the app's own `warTier`. Both halves matter. A caption a
-   * few lines down says a seat's border is that player's WAR tier, so a
+   * few lines down says a seat's chip is that player's WAR tier, so a
    * hand-picked tier beside a hand-picked number is the help sheet teaching the
-   * ladder wrong — a worse failure than the hand-copied markup these specimens
-   * were rewritten to remove, and the exact one that shipped here for a round:
-   * a manager chair labelled "star" over an invented "+9.4 W", which is elite.
+   * ladder wrong — the exact failure that shipped here for a round: a manager
+   * chair labelled "star" over an invented "+9.4 W", which is elite.
    * Nothing here is a plausible-looking invention any more. */
 
   /** What the `prow` snippet needs to draw one market row. The three state
@@ -135,6 +147,39 @@
    * number is the one the game would put there. */
   const MGR_WINS = (90 - 54) * MANAGER_PER_NET_WIN;
 
+  /** The FRONT OFFICE as the ATL 1995 card deals it — the same club the rail
+   * and trade specimens draft from, so the whole sheet teaches ONE season.
+   * Owner budget, park, attendance, multiplier and record are the card's own
+   * figures (tests/help-specimens.test.ts reads them back off the card), and
+   * every derived string goes through the game's own formatter: `money`,
+   * `fans`, and the skipper's bare value + WINS unit exactly as SpecialRows
+   * builds them. */
+  const FO_OWNER_BUDGET = 93.2;
+  const FO_PARK_MULT = 1.09;
+  const FRONT_OFFICE: SpecimenRow[] = [
+    { key: "owner", cls: "", ic: "💰", who: "Ted Turner", meta: "", val: money(FO_OWNER_BUDGET) },
+    {
+      key: "stadium",
+      cls: "stad",
+      ic: "🏟️",
+      who: "Atlanta-Fulton County Stadium",
+      meta: fans(2561831),
+      val: `×${FO_PARK_MULT.toFixed(2)}`,
+    },
+    {
+      key: "manager",
+      cls: "skip",
+      ic: "🧢",
+      who: "Bobby Cox",
+      meta: "90–54",
+      val: MGR_WINS.toFixed(1),
+      unit: "WINS",
+    },
+  ];
+  /** The payroll those two hires produce — owner × ballpark, the engine's own
+   * multiplication, so the payroll specimens below quote the same club. */
+  const FO_BUDGET = FO_OWNER_BUDGET * FO_PARK_MULT;
+
   /** The eight seats, counted off SLOT_TYPES rather than written out: "C · IF
    * ×2 · OF · UTIL · SP ×2 · RP". A seat added to the game must not need this
    * sentence found and edited — that is precisely the drift the specimens above
@@ -159,7 +204,7 @@
    * seat's border wears the prefixed one (`war-elite`) — app.css's two
    * spellings, one ladder.
    *
-   * The sheet now draws SIX prefixed rungs across its seats, so no assertion
+   * The sheet draws SIX prefixed rungs across its seats, so no assertion
    * anywhere may look for a `war-` token in the sheet's whole markup and
    * conclude anything about one chair from finding it. That is why
    * tests/help-specimens.test.ts cuts the manager's chair out of the body and
@@ -174,6 +219,43 @@
     ["8+", 8],
   ];
 
+  /** One aligned row per powerup: the resting pill, the ARMED pill it turns
+   * into, and what the sheet then asks for. The armed labels are the strings
+   * PowerupRow builds — same words, so the sheet names a thing the player will
+   * recognise on sight rather than paraphrasing it. Season Ticket and Relocate
+   * have no armed pill: their tap opens a picker grid outright, and the text
+   * carries that. */
+  const POWERUPS: { label: string; armed?: string; text: string }[] = [
+    {
+      label: "🎟️ SEASON TICKET",
+      text: "Same franchise, any year. Opens a grid of every season the club has played; tap one and that season is your card.",
+    },
+    {
+      label: "🚚 RELOCATE",
+      text: "Same year, any club. Opens a grid of everyone who played that season; tap one and that club is your card.",
+    },
+    {
+      label: "✌️ DOUBLE PLAY",
+      armed: "✌️ PICK TWO…",
+      text: "Two signings on one spin. The pill reads PICK TWO… until the first lands, then ONE MORE… until the second.",
+    },
+    {
+      label: "🔁 TRADE DEADLINE",
+      armed: "🔁 TAP A TRADE…",
+      text: "Swap a signed player, owner or ballpark for this card's. Every row you could take goes amber; tap the one you want, then who he replaces.",
+    },
+    {
+      label: "⭐ PRIMETIME",
+      armed: "⭐ TAP A PLAYER…",
+      text: "Tap any player and his whole career opens; take any season of it. The open skipper tile browses careers too.",
+    },
+    {
+      label: "🏠 HOMEGROWN",
+      armed: "🏠 SIGN AT $1M…",
+      text: "Rows that debuted with another club gray out; everyone still live signs for $1M.",
+    },
+  ];
+
   /** The two arms already in the rotation when a 🔁 lands on a third — Maddux's
    * and Smoltz's real 1995 seasons, so the seat a trade empties is a real
    * season leaving the club. Two of them because that is the ONLY shape that
@@ -184,7 +266,7 @@
     { name: "Smoltz", war: 4.5 },
   ];
 
-  /** The finale's ledger, in the pills it is actually made of. Counted off
+  /** The trophy case, in the pills it is actually made of. Counted off
    * `AWARD_POINTS` in the app's own display order rather than written out, so a
    * retuned award cannot leave the sheet quoting last round's number, and a new
    * award appears here without anyone remembering to add it. The skipper's MOY
@@ -195,6 +277,15 @@
       (c): [string, number] => [c, AWARD_POINTS[c]],
     ),
     ["MOY", MANAGER_MOTY_POINTS],
+  ];
+
+  /** RING CHASING, one row per honour, each priced off its own scoring
+   * constant — the emojis are the finale's own pedigree glyphs. */
+  const RINGS: [string, string, number][] = [
+    ["💍", "World Series ring", RING_POINTS],
+    ["🚩", "Pennant, Series lost", PENNANT_POINTS],
+    ["🌐", "World Baseball Classic gold", WBC_CHAMPION_POINTS],
+    ["🎌", "World Baseball Classic silver", WBC_RUNNERUP_POINTS],
   ];
 
   const EARNED = BADGE_BY_KEY.hundred;
@@ -229,12 +320,12 @@
 <Sheet {onclose} label="How to play" tall title="HOW TO PLAY" confirmLabel="GOT IT">
 <!-- Every block below is a direct child of this one div, and the gaps between
      them are set by the rhythm rule in the style block rather than block by
-     block. That is why the PayrollBox specimens are wrapped: the rule reaches
-     elements this file owns, and a child component's root is not one. A
-     `{@render}` introduces no wrapper of its own, so the rows the snippet
-     above draws are direct children like everything else. -->
+     block. That is why the PayrollBox and SpecialRows specimens are wrapped:
+     the rule reaches elements this file owns, and a child component's root is
+     not one. A `{@render}` introduces no wrapper of its own, so the rows the
+     snippet above draws are direct children like everything else. -->
 <div class="help">
-  <div class="hsec">THE LOOP</div>
+  <div class="psep">THE LOOP</div>
   <ul>
     <li>The stove spins you a real team-season, 1985–2025.</li>
     <li>Take <b>one</b> thing per spin: sign a player, or make a hire.</li>
@@ -245,10 +336,20 @@
     <li>Then the season is scored. <b>162 points is a perfect season.</b></li>
   </ul>
 
-  <div class="hsec">A PLAYER ROW</div>
+  <div class="psep">A PLAYER ROW</div>
   {@render prow(MARKET)}
-  <div class="lgnd">
-    <span>position</span><span>name + hardware</span><span>WAR</span><span>salary</span>
+  <!-- The part names, anchored to the parts they name: the legend is the row's
+       own anatomy (.pos, .mid, .right, .warchip, .cost) with the paint turned
+       off, so each ↑ sits on its column because it is IN that column — not
+       because a hand-measured grid track happens to agree with the row. A
+       resized chip or a repadded tag moves its own label with it. -->
+  <div class="lgnd" aria-hidden="true">
+    <span class="pos lt">position</span>
+    <span class="mid lt">name + hardware</span>
+    <span class="right">
+      <span class="warchip lt">WAR</span>
+      <span class="cost lt">salary</span>
+    </span>
   </div>
   {@render prow(MARKET_DEAD)}
   <p class="cap">
@@ -256,7 +357,7 @@
     they are cheap, orange when they are steep.
   </p>
 
-  <div class="hsec">YOUR SQUAD</div>
+  <div class="psep">YOUR SQUAD</div>
   <!-- The real seat component, the real rungs. -->
   <div class="rail">
     <RailSeat
@@ -285,10 +386,9 @@
   </div>
   <p class="cap">Six rungs. Every WAR chip in the game wears one.</p>
   <ul>
-    <li><b>Eight seats:</b> {SEAT_LINE}.</li>
     <li><b>UTIL:</b> any position player.</li>
-    <li><b>A manager too</b>, hired from the front office row.</li>
-    <li>One man per seat. Full seats gray out.</li>
+    <li><b>MGR:</b> the skipper's chair, hired from the FRONT OFFICE row below.</li>
+    <li>One man per seat.</li>
   </ul>
   <!-- A man who fits two seats, and the tap that settles which. The seats sit
        ABOVE the row here because they sit above it on the board, and because
@@ -296,13 +396,33 @@
   {@render prow(UTIL)}
   <p class="cap">A tag like {UTIL.pos} means he fits more than one seat.</p>
   <div class="picks">
-    <RailSeat label="IF" pickable />
-    <RailSeat label="OF" pickable />
+    <RailSeat label="IF" pickable specimen />
+    <RailSeat label="OF" pickable specimen />
   </div>
   {@render prow(UTIL, "↑ PICK A SLOT")}
   <p class="cap">Tap him and every seat he fits lights up. Tap the one you want.</p>
 
-  <div class="hsec">YOUR PAYROLL</div>
+  <div class="psep">FRONT OFFICE</div>
+  <!-- The game's own tiles (SpecialRows), inert, off the same ATL 1995 card
+       the rail drafts from. The hue is the chair, not a grade: owner gold,
+       ballpark blue, skipper red. -->
+  <div class="spec">
+    <SpecialRows specimen={FRONT_OFFICE} />
+  </div>
+  <ul>
+    <li><b>💰 Owner</b> (gold): sets your payroll budget.</li>
+    <li><b>🏟️ Ballpark</b> (blue): multiplies it, 0.85× to 1.15×.</li>
+    <li>
+      <b>🧢 Skipper</b> (red): adds (W−L) × {MANAGER_PER_NET_WIN} to your win total. The
+      chip reads it in WINS.
+    </li>
+  </ul>
+  <p class="cap">
+    Each hire costs a spin, the same as a player. Owner and ballpark exist under Clean
+    House only; the skipper is on every card that has one.
+  </p>
+
+  <div class="psep">YOUR PAYROLL</div>
   <!-- The box as a player first meets it, and the reason it is first: under
        Clean House nothing is hired yet, so this is the state they look at
        before any of the three below exist. `capKnown` false is what makes the
@@ -315,27 +435,29 @@
   <p class="cap">
     No owner, no payroll. It is $0 until you hire one, and the bar drifts empty.
   </p>
+  <!-- The FRONT OFFICE above, hired: the same owner and ballpark, so the ×
+       math here is the tiles' own two figures meeting. -->
   <div class="spec">
     <PayrollBox
       bank="classic"
-      budget={96.7}
+      budget={FO_BUDGET}
       spend={88}
       ownerName="Ted Turner"
-      ownerBudget={92.1}
-      parkName="Turner Field"
-      parkMult={1.05}
+      ownerBudget={FO_OWNER_BUDGET}
+      parkName="Atlanta-Fulton County Stadium"
+      parkMult={FO_PARK_MULT}
     />
   </div>
   <p class="cap">Owner × ballpark sets your payroll. The bar is what you've spent.</p>
   <div class="spec">
     <PayrollBox
       bank="classic"
-      budget={96.7}
+      budget={FO_BUDGET}
       spend={111}
       ownerName="Ted Turner"
-      ownerBudget={92.1}
-      parkName="Turner Field"
-      parkMult={1.05}
+      ownerBudget={FO_OWNER_BUDGET}
+      parkName="Atlanta-Fulton County Stadium"
+      parkMult={FO_PARK_MULT}
     />
   </div>
   <p class="cap">
@@ -343,59 +465,31 @@
     cap on it.
   </p>
   <ul>
-    <li>
-      <b>💼 Clean House:</b> hire an owner for a budget, then a ballpark to multiply it,
-      0.85× to 1.15×. Both cost a spin, the same as a player.
-    </li>
+    <li><b>💼 Clean House:</b> owner × ballpark sets the payroll, as above.</li>
     <li><b>⚾ Moneyball:</b> a fixed {BANKS.moneyball.cash}. No hires. The 2002 A's.</li>
     <li><b>💸 Blank Check:</b> a fixed {BANKS.blankcheck.cash}. The 2005 Yankees.</li>
   </ul>
 
-  <div class="hsec">BALL KNOWLEDGE</div>
+  <div class="psep">BALL KNOWLEDGE</div>
   <ul>
     <li><b>📊 Box Score:</b> WAR, salaries and hardware, all on the card.</li>
-    <li><b>🔭 Eye Test:</b> name, position, price. No WAR, no awards, your call.</li>
+    <li><b>🔭 Eye Test:</b> name, position, price. No WAR, no awards, no skipper records. Your call.</li>
     <li>Hidden hardware still scores. The mode changes what you see, not what you get.</li>
   </ul>
 
-  <div class="hsec">POWERUPS — ONE USE EACH</div>
-  <!-- One entry per powerup, each carrying its OWN pills rather than a shared
-       three-state key beside a list of names. A key teaches the vocabulary and
-       leaves the player to apply it; these say what tapping this pill does and
-       what the pill then reads, which is the question being asked. The armed
-       labels are the strings PowerupRow builds — same words, so the sheet is
-       naming a thing the player will recognise on sight rather than
-       paraphrasing it. -->
-  <ul class="puplist">
-    <li>
-      <PowerupPill label="🎟️ SEASON TICKET" /> Same franchise, any year: a grid of every
-      season the club has played.
-    </li>
-    <li>
-      <PowerupPill label="🚚 RELOCATE" /> Same year, any club: a grid of everyone who played
-      that season.
-    </li>
-    <li>
-      <PowerupPill label="✌️ DOUBLE PLAY" /> Two signings on one spin. It reads
-      <PowerupPill label="✌️ PICK TWO…" state="armed" /> until the first lands, then
-      <PowerupPill label="✌️ ONE MORE…" state="armed" />.
-    </li>
-    <li>
-      <PowerupPill label="🔁 TRADE DEADLINE" /> Swap a signed player, owner or ballpark for
-      this card's. Armed it reads <PowerupPill label="🔁 TAP A TRADE…" state="armed" /> and
-      every row you could swap for goes amber.
-    </li>
-    <li>
-      <PowerupPill label="⭐ PRIMETIME" /> Armed it reads
-      <PowerupPill label="⭐ TAP A PLAYER…" state="armed" />, and a tap opens that man's
-      whole career: take any season of it.
-    </li>
-    <li>
-      <PowerupPill label="🏠 HOMEGROWN" /> Armed it reads
-      <PowerupPill label="🏠 SIGN AT $1M…" state="armed" /> and grays every row that debuted
-      elsewhere. The rest cost $1M.
-    </li>
-  </ul>
+  <div class="psep">POWERUPS · ONE USE EACH</div>
+  <!-- One aligned row per powerup: its pill, the ARMED pill it becomes, and
+       one line saying what the tap opens and what the sheet then asks for.
+       The armed labels are PowerupRow's own strings. -->
+  <div class="pgrid">
+    {#each POWERUPS as pu (pu.label)}
+      <span class="pstack">
+        <PowerupPill label={pu.label} />
+        {#if pu.armed}<PowerupPill label={pu.armed} state="armed" />{/if}
+      </span>
+      <span class="ptxt">{pu.text}</span>
+    {/each}
+  </div>
   <!-- 🔁's second tap, which is the one no label can carry: the seats he could
        take light up and the row points at them. Both seats are filled, because
        that is the only shape that raises this screen at all — one eligible
@@ -409,6 +503,7 @@
         tier={warTier(r.war)}
         war={r.war.toFixed(1)}
         pickable
+        specimen
       />
     {/each}
   </div>
@@ -417,14 +512,20 @@
     A trade is two taps: the man you want, then the seat he takes. That season leaves
     the club.
   </p>
-  <!-- The two states no entry above can show, since both are a pill that has
+  <!-- The two states no row above can show, since both are a pill that has
        stopped being usable. One label in both, so the only difference on
-       screen is the difference being taught. -->
+       screen is the difference being taught — and each caption hangs off its
+       own pill rather than off a shared grid's luck. -->
   <div class="pups">
-    <PowerupPill label="🎟️ SEASON TICKET" state="off" />
-    <PowerupPill label="🎟️ SEASON TICKET" state="spent" />
+    <span class="keyed">
+      <PowerupPill label="🎟️ SEASON TICKET" state="off" />
+      <span class="klbl">not on this spin</span>
+    </span>
+    <span class="keyed">
+      <PowerupPill label="🎟️ SEASON TICKET" state="spent" />
+      <span class="klbl">used up</span>
+    </span>
   </div>
-  <div class="lgnd two"><span>not on this spin</span><span>used up</span></div>
   <!-- Says ARMED, and stops there. Arming genuinely stacks; what an armed
        combination can then DO is narrower than "they stack" would promise —
        ⭐ and 🏠 arm together, but an armed ⭐ browses only the rows 🏠 has
@@ -433,20 +534,15 @@
     More than one can be armed on the same spin. A powerup never costs you a spin.
   </p>
 
-  <div class="hsec">SCORING</div>
+  <div class="psep">SCORING</div>
   <ul>
     <li>
-      <b>Wins:</b> {REPLACEMENT_WINS} base + roster WAR + manager (W−L) × {MANAGER_PER_NET_WIN}.
+      <b>Wins:</b> {REPLACEMENT_WINS} base + roster WAR + skipper (W−L) × {MANAGER_PER_NET_WIN}.
     </li>
     <li>
       <b>Payroll:</b> −{BUDGET_BONUS_MAX} for spending nothing, 0 at half your payroll,
       +{BUDGET_BONUS_MAX} right at it. Over it the bonus is gone and the luxury tax runs
       instead.
-    </li>
-    <li>
-      <b>Ring chasing:</b> +{RING_POINTS} a 💍 World Series ring, +{PENNANT_POINTS} a 🚩
-      pennant, +{WBC_CHAMPION_POINTS} a World Baseball Classic gold, +{WBC_RUNNERUP_POINTS}
-      a silver. One man can carry a ring and a medal, and both count.
     </li>
     <li><b>Scouting:</b> +{SCOUT_HIT_POINTS} per signing the dream team also wanted.</li>
     <li>
@@ -454,6 +550,8 @@
       dealt. Your score is measured against it.
     </li>
   </ul>
+
+  <div class="psep">TROPHY CASE</div>
   <!-- The trophy case as the pills it is made of. These are the finale's own
        AwardPills, so the ledger a player reaches at the end is a row of things
        they have already seen keyed to a number — which is what a sentence
@@ -466,30 +564,50 @@
   <!-- The one thing the pills cannot say for themselves. 🥈MVP and 🥉MVP are
        BALLOT FINISHES — second and third in the voting — and a player who has
        only ever seen 🥇MVP on a market row has no way to read the other two
-       off the medal alone. The old prose spelled all eleven values out to say
-       this one sentence; the pills carry the other ten. -->
+       off the medal alone. -->
   <p class="cap">
-    <b>Trophy case:</b> every pill a signed player wears scores, and your skipper's MOY
-    with them. 🥈 and 🥉 are second and third in that year's voting.
+    Every pill a signed player wears scores, and your skipper's MOY with them. 🥈 and 🥉
+    are second and third in that year's voting.
+  </p>
+  <div class="pups">
+    <span class="keyed">
+      <BadgePill badge={EARNED} />
+      <span class="klbl">earned · tap to see why</span>
+    </span>
+    <span class="keyed">
+      <BadgePill badge={SECRET} locked />
+      <span class="klbl">go find it</span>
+    </span>
+  </div>
+  <p class="cap">
+    Badges are separate: a lifetime collection across every mode, worth no points. Tap 🏆
+    any time.
   </p>
 
-  <div class="hsec">THE TROPHY CASE</div>
-  <div class="pups">
-    <BadgePill badge={EARNED} />
-    <BadgePill badge={SECRET} locked />
+  <div class="psep">RING CHASING</div>
+  <!-- One honour per row, each priced off its own scoring constant. The
+       emojis are the finale's pedigree glyphs, so the ledger row the player
+       meets at the end reads back in the same pictures. -->
+  <div class="rings">
+    {#each RINGS as [emo, name, pts] (emo)}
+      <span class="remo">{emo}</span><span class="rlbl">{name}</span><b class="rpts">+{pts}</b>
+    {/each}
   </div>
-  <div class="lgnd two"><span>earned — tap to see why</span><span>go find it</span></div>
-  <p class="cap">Tap 🏆 any time. One lifetime collection, across every mode.</p>
+  <p class="cap">
+    Per signed player, and they stack: a ring and a Classic medal on one season both
+    count.
+  </p>
 
-  <div class="hsec">WHERE THE NUMBERS COME FROM</div>
-  <!-- Named source by source, and no license claimed: the repo records what
-       each file supplied (pipeline/fetch.py, data/owners.json's `source`,
-       data/wbc.json's `_source`) and states no terms for any of them. -->
+  <div class="psep">DATA SOURCES</div>
+  <!-- Named source by source, each named once, and no license claimed: the
+       repo records what each file supplied (pipeline/fetch.py,
+       data/owners.json's `source`, data/wbc.json's `_source`) and states no
+       terms for any of them. -->
   <ul class="src">
-    <li><b>Lahman Baseball Database:</b> rosters, records, salaries, awards, managers, ballparks.</li>
+    <li><b>Lahman Baseball Database:</b> statistics and salaries.</li>
     <li><b>Baseball-Reference:</b> WAR and salaries.</li>
-    <li><b>SABR and Wikipedia:</b> club owners.</li>
-    <li><b>Wikipedia:</b> WBC rosters.</li>
+    <li><b>SABR:</b> club owners.</li>
+    <li><b>Wikipedia:</b> WBC rosters and club owners.</li>
   </ul>
 </div>
 </Sheet>
@@ -498,7 +616,7 @@
   /* ---------- the vertical rhythm ----------
      Three values, and every gap on the sheet is one of them:
 
-         16px  opens a section — the space above a .hsec rule
+         16px  opens a section — the space above a .psep rule
           8px  between blocks inside a section
           4px  ties a label to the specimen it names (.cap, .lgnd)
 
@@ -512,18 +630,21 @@
 
      It reaches elements this file owns, since a child component's root does not
      carry this file's scope class. That is what the `.spec` wrappers around the
-     three PayrollBox specimens are for, and why a new specimen needs one. The
-     seat and pill groups need no wrapper of their own: `.rail`, `.picks` and
-     `.pups` are this file's elements already, and they exist to arrange the
-     child components inside them. */
+     PayrollBox and SpecialRows specimens are for, and why a new specimen needs
+     one. The seat and pill groups need no wrapper of their own: `.rail`,
+     `.picks`, `.pups` and `.pgrid` are this file's elements already, and they
+     exist to arrange the child components inside them. */
   .help > * + * {
     margin-top: 8px;
   }
-  .help > .hsec {
+  /* The section device is the game's own .psep (app.css): dashed rule either
+     side of a centered title, the same header the board hangs over FRONT
+     OFFICE and PLAYERS. Only its rhythm is decided here. */
+  .help > .psep {
     margin-top: 16px;
   }
   /* The first heading closes up against Sheet's header. */
-  .help > .hsec:first-child {
+  .help > .psep:first-child {
     margin-top: 0;
   }
   .help > .cap,
@@ -531,14 +652,6 @@
     margin-top: 4px;
   }
 
-  .hsec {
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    border-bottom: 2px solid var(--line);
-    padding-bottom: 3px;
-  }
   ul {
     list-style: none;
     margin: 0;
@@ -567,34 +680,63 @@
     line-height: 1.4;
     color: var(--muted);
   }
-  /* The part names, sitting under the specimen on the columns they name. The
-     ticks point up at the row rather than relying on horizontal luck alone. */
+  /* ---------- anchored labels ----------
+     The legend is the market row's own skeleton: the same .pos / .mid /
+     .right / .warchip / .cost elements at the same widths, paint stripped,
+     with the label riding INSIDE the box it names. Alignment is therefore the
+     row's own layout, not a parallel grid to keep in step with it. The
+     horizontal padding is the row's 10px padding plus its 2.5px border, the
+     two thicknesses the borderless legend does not spend. */
   .lgnd {
-    display: grid;
-    /* The row's own columns, gaps folded in, under the row's own padding — so
-       each tick lands on the part it names instead of near it: 38px tag + 9px
-       gap, the flexible name group, 42px chip + 7px gap, 56px price. */
-    grid-template-columns: 47px 1fr 49px 56px;
-    padding: 0 10px;
+    display: flex;
+    gap: 9px;
+    padding: 0 12.5px;
+  }
+  .lgnd .lt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    background: transparent;
+    border-color: transparent;
+    color: var(--muted);
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.3;
+    padding: 0;
+  }
+  /* The tick points up at the part, from inside the part's own column. */
+  .lgnd .lt::before {
+    content: "↑";
+    opacity: 0.55;
+  }
+  .lgnd .mid.lt {
+    flex: 1;
+    min-width: 0;
+  }
+  /* A pill-and-caption pair: the caption hangs off its own pill, so it cannot
+     drift onto a neighbour the way a shared label grid could. */
+  .keyed {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .klbl {
+    text-align: center;
     font-size: 8.5px;
     font-weight: 700;
     letter-spacing: 0.04em;
     color: var(--muted);
     text-transform: uppercase;
+    line-height: 1.3;
   }
-  .lgnd span {
-    text-align: center;
-  }
-  .lgnd span::before {
+  .klbl::before {
     content: "↑";
     display: block;
     opacity: 0.55;
-  }
-  .lgnd.two {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .lgnd.three {
-    grid-template-columns: repeat(3, 1fr);
   }
 
   /* The ladder as six of the app's own chips. `.warchip` is global, so these
@@ -721,7 +863,7 @@
   /* The seats and the pills are the real components now; only the boxes that
      arrange them live here, and each one mirrors its screen's own arrangement.
      Two seat columns rather than four: the phone rail is 2×4 and this is 2×2,
-     the same grid at a size that leaves room for a caption beside it. */
+     the same object at a size that leaves room for a caption. */
   .rail {
     display: grid;
     grid-template-columns: auto repeat(2, 1fr);
@@ -766,22 +908,34 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
+    align-items: flex-start;
+    gap: 8px 16px;
+    container-type: inline-size;
+  }
+  /* The powerup table: one aligned row per powerup — its pills in the left
+     column, one line of copy in the right — so the six entries read down two
+     ruled columns instead of pills dispersing through sentences. It declares
+     the same container as `.pups` because the container query is the pill's
+     contract wherever a pill is drawn: a pill with no container silently stays
+     at base size. */
+  .pgrid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
     align-items: center;
-    gap: 8px 7px;
     container-type: inline-size;
   }
-  /* The powerup entries. Pills sit INLINE in the sentence that explains them,
-     so the name of the thing and the thing itself are the same object on the
-     page; the extra leading is what keeps a line of 12px type readable with a
-     25px pill standing in it. It declares the same container as `.pups` because
-     the container query is the pill's contract wherever a pill is drawn — a
-     pill with no container silently stays at base size. */
-  .puplist {
-    gap: 8px;
-    container-type: inline-size;
+  /* The resting pill over the armed pill it becomes, left-flush so the two
+     columns keep a straight rule down the sheet. */
+  .pstack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
-  .puplist li {
-    line-height: 1.85;
+  .ptxt {
+    font-size: 12px;
+    line-height: 1.45;
   }
 
   /* The ledger's pills against what each is worth. A wrapping row rather than a
@@ -799,5 +953,27 @@
     display: inline-flex;
     align-items: center;
     gap: 3px;
+  }
+
+  /* RING CHASING: glyph · honour · points, one honour per row, the points
+     right-aligned down one rule the way the finale's ledger keeps its column. */
+  .rings {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 5px 9px;
+    align-items: center;
+  }
+  .remo {
+    font-size: 15px;
+    line-height: 1;
+  }
+  .rlbl {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+  .rpts {
+    font-weight: 800;
+    font-size: 13px;
+    justify-self: end;
   }
 </style>

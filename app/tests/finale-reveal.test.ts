@@ -6,7 +6,9 @@
  * requestAnimationFrame count-ups, and the canvas-confetti dynamic import —
  * all animation, none of it the contract under test. Same idiom as
  * moy-parity.test.ts; the pickers' dom test mounts only because its rows load
- * inside a client $effect.
+ * inside a client $effect. The reveal's own choreography — record, then badges,
+ * then passport — is the one contract here that CANNOT be read off a string, so
+ * it lives mounted in finale-reveal.dom.test.ts.
  *
  * 1. BALL KNOWLEDGE is the home screen's player-facing label for the ladder,
  *    while the internal difficulty keys stay frozen (saves and data reference

@@ -29,8 +29,13 @@
     onclose: () => void;
     /** Reopen this season's finale. Only ever called with a record still in
      * storage — a row without one renders as a control that cannot be
-     * pressed. */
-    onopen: (rec: StoredFinale) => void;
+     * pressed.
+     *
+     * The id comes along when the record came out of the archive, so the boot
+     * claim can name this season and a reload can put it back. It is undefined
+     * for the one row backed by `hotstove.finale` instead, which needs no id:
+     * that key holds one game and the live claim already means it. */
+    onopen: (rec: StoredFinale, id?: string) => void;
   } = $props();
 
   const MONTHS = [
@@ -98,10 +103,13 @@
       const date = played(e.date);
       const seed = typeof e.seed === "number" ? `#${seedCode(e.seed)}` : "";
       const modes = BANKS[bank].name + (scout ? ` · ${DIFFICULTIES.scout.name}` : "");
-      const rec =
-        (typeof e.id === "string" ? archive.get(e.id) : undefined) ??
-        (i === newest ? lastFinale : null);
+      const arch = typeof e.id === "string" ? archive.get(e.id) : undefined;
+      const rec = arch ?? (i === newest ? lastFinale : null);
       return {
+        // The archive id, when the archive is what this row opens. It travels
+        // with the record so the finale it opens can claim the screen under its
+        // own name instead of under the last game played.
+        id: arch?.id,
         // The mode combo this season was played under, and the key the shelf
         // below groups on. It is the PAIR — ladder and bank — because that is
         // what `bestFor` scopes a record book by, and a shelf that grouped on
@@ -173,7 +181,7 @@
     disabled={r.rec === null}
     aria-label={best ? `Best ${r.modes} season. ${r.aria}` : r.aria}
     onclick={() => {
-      if (r.rec) onopen(r.rec);
+      if (r.rec) onopen(r.rec, r.id);
     }}
   >
     <span class="date">{r.date}</span>
