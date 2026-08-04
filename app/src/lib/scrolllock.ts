@@ -2,9 +2,9 @@
  *
  * `lockScroll()` sets `overflow: hidden` on `document.body` on the first call
  * and increments a reference counter. It returns a release function that
- * decrements the counter and restores the saved overflow value when the count
- * reaches zero — so nested or stacked modals each hold their own lock and only
- * the last one to release actually unlocks the page.
+ * decrements the counter and clears the inline styles when the count reaches
+ * zero — so nested or stacked modals each hold their own lock and only the
+ * last one to release actually unlocks the page.
  *
  * Release is idempotent: calling the returned function more than once is a
  * no-op and will not drive the count negative.
@@ -26,16 +26,12 @@
  * the legacy tail. */
 
 let count = 0;
-let savedOverflow = "";
-let savedPaddingRight = "";
 
 export function lockScroll(): () => void {
   if (typeof document === "undefined") return () => {};
 
   if (count === 0) {
     const body = document.body;
-    savedOverflow = body.style.overflow;
-    savedPaddingRight = body.style.paddingRight;
 
     // Scrollbar compensation: add the scrollbar's width to body's right padding
     // so the layout does not shift when the scrollbar disappears.
@@ -56,10 +52,15 @@ export function lockScroll(): () => void {
     released = true;
     count = Math.max(0, count - 1);
     if (count === 0) {
-      document.body.style.overflow = savedOverflow;
-      document.body.style.paddingRight = savedPaddingRight;
-      savedOverflow = "";
-      savedPaddingRight = "";
+      // Clear rather than restore a snapshot. This module is the only writer
+      // of these inline styles, so the correct end state is always "no inline
+      // style" — and a snapshot taken while a stale lock was still applied
+      // (dev-server HMR replaces this module mid-lock, resetting `count` while
+      // the body still says `overflow: hidden`) would faithfully "restore" the
+      // leak forever. Clearing is self-healing: the first full release after
+      // any such leak unlocks the page.
+      document.body.style.removeProperty("overflow");
+      document.body.style.removeProperty("padding-right");
     }
   };
 }

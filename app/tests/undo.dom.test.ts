@@ -206,6 +206,42 @@ describe("the confirm", () => {
     vi.useRealTimers();
   });
 
+  it("disarms on a tap anywhere else, and the tap is not consumed", () => {
+    // A tap that is not the pill answers "UNDO?" with no — the lapse's
+    // outcome without the wait. Capture-phase pointerdown, so it hears taps
+    // whose CLICK a component swallows with stopPropagation.
+    const game = landed();
+    const ui = open(game);
+    game.hireOwner();
+    flushSync();
+    ui.tap(ui.undo()!);
+    expect(ui.undo()!.textContent!.trim()).toBe("UNDO?");
+
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    flushSync();
+    expect(ui.undo()!.textContent!.trim()).not.toBe("UNDO?");
+    // Disarmed, never confirmed: nothing was taken back.
+    expect(game.owner).not.toBeNull();
+    expect(game.undoUsed).toBe(false);
+    ui.close();
+  });
+
+  it("does not disarm on the pointerdown of its own confirming tap", () => {
+    // The second tap's pointerdown lands INSIDE the pill and must be ignored,
+    // or the click behind it would arrive at a pill already disarmed and read
+    // as a fresh arming tap instead of the confirm.
+    const game = landed();
+    const ui = open(game);
+    game.hireOwner();
+    flushSync();
+    ui.tap(ui.undo()!);
+
+    ui.undo()!.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    flushSync();
+    expect(ui.undo()!.textContent!.trim()).toBe("UNDO?");
+    ui.close();
+  });
+
   it("disarms when the rewind goes away underneath it", () => {
     // The reel lands, the club completes, the run is quit: a "UNDO?" left on a
     // control that has gone dead is asking for a tap that would do nothing.

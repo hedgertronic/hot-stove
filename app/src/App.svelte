@@ -197,6 +197,25 @@
     quitTimer = setTimeout(() => (quitArmed = false), 2500);
   }
 
+  /** A tap anywhere that is not the ✕ answers "QUIT?" with no: the confirm
+   * disarms and the tap still lands on whatever it was aimed at — the same
+   * outcome as letting it lapse, without the 2.5s wait. Capture phase, so a
+   * tap whose click a component swallows with stopPropagation still quiets
+   * the pill. Registered only while armed, and the arming tap can never trip
+   * it: that tap's pointerdown fired before this effect installed the
+   * listener. */
+  let quitEl = $state<HTMLButtonElement | undefined>();
+  $effect(() => {
+    if (!quitArmed) return;
+    const away = (e: Event) => {
+      if (e.target instanceof Node && quitEl?.contains(e.target)) return;
+      clearTimeout(quitTimer);
+      quitArmed = false;
+    };
+    window.addEventListener("pointerdown", away, true);
+    return () => window.removeEventListener("pointerdown", away, true);
+  });
+
   // The header chip is emoji-only; full mode names live in the title/aria-label.
   // Default modes (classic / standard) show no chip at all.
   const optIn = $derived.by(() => {
@@ -323,7 +342,13 @@
       <Logo />
       {#if modeChip}<span class="modechip" title={modeTitle} aria-label={modeTitle}>{modeChip}</span>{/if}
     </span>
-    <button class="quit" class:armed={quitArmed} class:pushed={undoArmed} onclick={tapQuit}>
+    <button
+      class="quit"
+      class:armed={quitArmed}
+      class:pushed={undoArmed}
+      bind:this={quitEl}
+      onclick={tapQuit}
+    >
       {quitArmed ? "QUIT?" : "✕"}
     </button>
   </header>
@@ -433,8 +458,14 @@
     background: var(--orange-2);
     color: var(--ink);
     border-color: var(--orange-8);
-    width: auto;
-    padding: 0 8px;
+    /* Fixed, not auto: "QUIT?" measures 35.5px in the bundled Nunito at
+       800/12px, so 56px seats it centered with the side room 8px padding used
+       to give. Pinning the number makes the confirm's footprint a CONSTANT the
+       undo pill can push off from — CornerButtons slides its pill by exactly
+       (56 + 4px resting gap − 32px anchor), and that arithmetic only holds if
+       this width cannot drift with font rendering. Change either number with
+       the other. */
+    width: 56px;
     z-index: 2;
   }
   /* Beside a live confirm — the undo pill's, since this is the ✕ and the

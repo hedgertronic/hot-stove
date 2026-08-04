@@ -107,13 +107,15 @@ describe("scroll lock through Sheet", () => {
     expect(document.body.style.overflow).toBe("");
   });
 
-  it("restores a prior overflow value rather than clearing it", () => {
-    document.body.style.overflow = "scroll";
+  it("clears a leaked inline overflow instead of preserving it", () => {
+    // The dev-HMR leak: a stale lock left `overflow: hidden` inline when this
+    // lock was taken. Snapshot-restore semantics would put the leak back on
+    // release; the lock is the only writer of this inline style, so the right
+    // end state after the last release is always "no inline style at all".
+    document.body.style.overflow = "hidden";
     const { inst, target } = openSheet();
     expect(document.body.style.overflow).toBe("hidden");
     closeSheet(inst, target);
-    expect(document.body.style.overflow).toBe("scroll");
-    // Tidy up for afterEach.
-    document.body.style.overflow = "";
+    expect(document.body.style.overflow).toBe("");
   });
 });

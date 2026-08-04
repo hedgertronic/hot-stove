@@ -114,6 +114,25 @@
     undoTimer = setTimeout(() => (undoArmed = false), CONFIRM_MS);
   }
 
+  /** A tap anywhere that is not this pill answers "UNDO?" with no — the same
+   * outcome as letting it lapse, without the 2.5s wait, and the tap still
+   * lands on whatever it was aimed at. Capture phase for the quit pill's
+   * reason (App.svelte): components swallow clicks with stopPropagation, but
+   * nothing swallows a capture-phase pointerdown. The arming tap can never
+   * trip it: that tap's pointerdown fired before this effect installed the
+   * listener. */
+  let undoEl = $state<HTMLButtonElement | undefined>();
+  $effect(() => {
+    if (!undoArmed) return;
+    const away = (e: Event) => {
+      if (e.target instanceof Node && undoEl?.contains(e.target)) return;
+      clearTimeout(undoTimer);
+      undoArmed = false;
+    };
+    window.addEventListener("pointerdown", away, true);
+    return () => window.removeEventListener("pointerdown", away, true);
+  });
+
   // The rewind can go away underneath an armed pill — the reel lands, the club
   // completes, the run is quit — and a "UNDO?" left sitting on a dead control
   // is asking for a second tap that would do nothing at all.
@@ -170,6 +189,7 @@
     class:armed={undoArmed}
     class:pushed={pushed && !undoArmed}
     disabled={!game.canUndo}
+    bind:this={undoEl}
     onclick={tapUndo}
     aria-label={undoArmed ? "Undo last move: tap again to confirm" : "Undo last move"}
     >{#if undoArmed}UNDO?{:else}<svg class="tico" viewBox="0 0 14 14" aria-hidden="true"
@@ -282,12 +302,12 @@
   }
   /* The neighbour of a live confirm, and the whole of request #3: while one
      pill is asking for its second tap, everything beside it steps back — this
-     rule for this pill, the identical one in App.svelte for the ✕ and the
-     wordmark. Ghosted rather than hidden, so the corner keeps its shape and
-     nothing reflows under the thumb; left tappable, so the pair still behaves
-     as two controls and a player who armed the wrong one can simply tap the
-     right one (the confirm above it takes the taps that land on the overlap,
-     which is what `z-index` is deciding).
+     rule for this pill, the near-identical one in App.svelte for the ✕ and the
+     wordmark. Ghosted AND slid aside rather than hidden: "QUIT?" grows across
+     this pill's anchor, and a dimmed control underneath a live confirm read as
+     clipped by a bug, so the pill steps left of the word instead. Left
+     tappable, so the pair still behaves as two controls and a player who armed
+     the wrong one can simply tap the right one.
      0.22 is deep enough that the covered pill reads as backdrop rather than as
      a control clipped by a bug; it is a transient state on a control that has
      been declared inactive for the duration, so the 3:1 a live graphical object
@@ -316,7 +336,16 @@
   }
   .help.pushed {
     opacity: 0.22;
-    transform: scale(0.92);
+    /* The armed "QUIT?" is pinned at 56px in App.svelte precisely so this
+       number can be exact: 56 armed + 4px resting gap − 32px anchor = 28px of
+       push, minus the ~1px the 0.92 scale hands back at the near edge. The
+       word grows and "pushes" the pill; the lapse pulls it home — the resting
+       gap between the two pills is the same in both states. Only THIS pill
+       slides — the ✕ it mirrors never moves, because a quit target that walks
+       sideways under the thumb is the hazard the anchors comment above
+       refuses. Sliding AWAY from an armed confirm has no such victim: the
+       pill is stepped-back and inactive for the duration. */
+    transform: translateX(-27px) scale(0.92);
     z-index: 0;
   }
   /* Line art rather than an emoji: the ?/✕ pills are 10px text glyphs, and a
