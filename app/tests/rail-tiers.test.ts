@@ -227,24 +227,19 @@ describe("the hired manager's seat wears its rung", () => {
   }
 });
 
-/** ⭐ PRIMETIME's reach across the market rows, which is a different question
- * from whether the landed season can be bought.
- *
- * `rowPlayable` answers "can this season be signed right now" and 🏠 Homegrown
- * is one of its inputs: an armed discount grays every row that did not debut
- * with this franchise. A career sheet sells seasons off cards the reel never
- * landed on, at list price, so the discount has no claim on it — routing ⭐
- * through `rowPlayable` shrank an armed ⭐ to the debut players, silently, and
- * that is the pair a player is most likely to arm together.
+/** ⭐ PRIMETIME under THE INTERSECTION RULE (round 31, superseding the
+ * round it was written in): with 🏠 armed beside ⭐, only rows that answer
+ * BOTH — debut matches whose careers ⭐ can browse — stay live; a non-debut
+ * row grays entirely, browse included. Disarm 🏠 to browse the whole market.
  *
  * The row's LOOK is what this asserts, because the look is what tells the
- * player the tap exists: a browsable row must not render `dead`. The routing
- * behind it reads the same `primeBrowsable` predicate, so one gate answers
- * both — which is the property that keeps them from drifting apart again. */
-describe("PRIMETIME reaches rows the market has grayed", () => {
+ * player the tap exists. The routing behind it reads the same
+ * `primeBrowsable` predicate (which consults the engine's marketBlocks), so
+ * one gate answers both — the property that keeps them from drifting. */
+describe("PRIMETIME under the intersection rule", () => {
   // "XXX" is the fixtures' default debut franchise and the card is SEA, so
-  // this player is exactly what an armed 🏠 grays and an armed ⭐ must still
-  // be able to browse.
+  // this player fails 🏠's test — exactly what the intersection grays even
+  // for an armed ⭐.
   const bothArmed = (g: Game) => {
     g.card = mkCard({
       players: [mkPlayer({ id: "bonds", name: "Barry Bonds", pos: "LF", war: 11.8, cost: 32 })],
@@ -253,14 +248,27 @@ describe("PRIMETIME reaches rows the market has grayed", () => {
     g.powerups.prime = "armed";
   };
 
-  it("an armed Homegrown does not gray a row an armed PRIMETIME can browse", () => {
+  it("⭐ + 🏠 armed together gray a non-debut row — browse included", () => {
     const { std } = pair(PlayerList, bothArmed, (g) => ({
       game: g,
       confirmKey: null,
       setConfirm: () => {},
     }));
     expect(std).toContain("Bonds");
-    expect(std).toContain("prime"); // the browse affordance is on the row
+    expect(std).not.toContain("prime"); // no browse affordance on a grayed row
+    expect(std).toContain("dead");
+  });
+
+  it("⭐ alone browses the same row", () => {
+    const { std } = pair(
+      PlayerList,
+      (g) => {
+        bothArmed(g);
+        g.powerups.hometown = "ready";
+      },
+      (g) => ({ game: g, confirmKey: null, setConfirm: () => {} }),
+    );
+    expect(std).toContain("prime");
     expect(std).not.toContain("dead");
   });
 
@@ -291,7 +299,7 @@ describe("Trade Deadline release hint", () => {
       (g) => ({ game: g, confirmKey: null, setConfirm: () => {} }),
     );
     for (const body of [std, sct]) {
-      expect(body).toContain("↑ TAP WHO TO TRADE");
+      expect(body).toContain("TAP WHO TO TRADE");
       expect(body).not.toContain("TRADE AWAY");
     }
   });

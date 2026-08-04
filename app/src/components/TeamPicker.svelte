@@ -36,7 +36,7 @@
 >
   {#each divisions as d (d.label)}
     <div class="div-h">{d.label}</div>
-    <div class="pickgrid" style="--div-cols: {pickCols}">
+    <div class="pickgrid" class:tight={pickCols >= 7} style="--div-cols: {pickCols}">
       {#each d.teams as t (t.team)}
         <button
           class="pickopt teambtn"
@@ -113,5 +113,14 @@
   .pickopt .pedi {
     margin-left: 1px;
     font-size: 9px;
+  }
+  /* Pre-1994 seasons deal 7-team divisions, and seven columns leave a phone
+     tile ~36px of content for "TOR💍". The season's own column count is
+     already computed for the grid, so the type keys off it too: a shade
+     smaller and tracked tighter ONLY when the grid is actually seven wide —
+     the modern 5-column grids keep the full 13px. */
+  .pickgrid.tight .teambtn {
+    font-size: 12px;
+    letter-spacing: 0.02em;
   }
 </style>

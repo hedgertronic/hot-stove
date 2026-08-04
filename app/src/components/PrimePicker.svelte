@@ -53,11 +53,12 @@
                   franchise: card.franchise,
                   year: card.year,
                   p,
-                  // The engine decides, because reachability is now two rules:
-                  // an open seat, or an armed 🔁 with an occupied one it may
-                  // vacate. A second copy here would gray the seasons the
-                  // swap branch is able to sign.
-                  fits: game.primeFits(p),
+                  // The engine decides, because reachability is now three
+                  // rules: an open seat, an armed 🔁 with an occupied one it
+                  // may vacate, and — with 🏠 armed — the intersection rule,
+                  // which keeps only the debut franchise's $1M seasons live.
+                  // A second copy here would drift from all three.
+                  fits: game.primeFits(p, card.franchise),
                   here: card.team === game.card?.team && card.year === game.card?.year,
                 }
               : null;

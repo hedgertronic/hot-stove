@@ -53,6 +53,14 @@
 
   function tap(p: CardPlayer, e: MouseEvent) {
     e.stopPropagation();
+    // A row with an open picker pointing at the rail: tapping it again means
+    // "never mind", the same toggle a SIGN confirm honors. Checked before
+    // every other route — while its picker is open this row has exactly one
+    // meaning, and ⭐/🔁 must not claim the tap that cancels it.
+    if (game.slotPick === p.id || game.releasePick === p.id) {
+      game.cancelPick();
+      return;
+    }
     // ⭐ PRIMETIME IS ASKED FIRST, AND WITH ITS OWN GATE. Browsing a career is
     // not a market action: `primeBrowsable` asks only "is there a career here
     // to look at" — armed, landed, a choice left, and a man the club does not
@@ -60,11 +68,10 @@
     // bought right now. Two rows separate the questions. A man whose landed
     // season fits nowhere is unplayable and still worth browsing, because a
     // different season of his career carries different slot eligibility and
-    // the sheet grays the ones that fit nothing. And an armed 🏠 Homegrown
-    // grays every row that did not debut with this franchise, which is a
-    // filter on the market the reel landed on — a career sheet sells seasons
-    // off cards the reel never landed on, so the discount has no claim there.
-    // Gating ⭐ on `rowPlayable` handed both of those to the wrong predicate.
+    // the sheet grays the ones that fit nothing. Gating ⭐ on `rowPlayable`
+    // handed that to the wrong predicate. (The engine's INTERSECTION RULE
+    // still applies inside primeBrowsable itself: with 🏠 armed beside ⭐,
+    // only debut matches stay browsable.)
     if (game.primeBrowsable(p)) {
       game.primeTapPlayer(p);
       return;
@@ -112,11 +119,16 @@
     {@const price = game.priceFor(p)}
     {@const plabel = posLabel(p)}
     {@const wbc = game.showAwards ? p.wbc : undefined}
+    <!-- hg: an armed 🏠's own targets — the rows whose tap answers "SIGN AT
+         $1M…" — wear the armed orange the way 🔁's candidates and ⭐'s
+         browsables do. One law for all three: armed lights the rows that
+         answer it. ⭐ and 🔁 outrank when they claim the same row's tap. -->
     <button
       class="prow"
       class:dead={!playable && !primeable}
       class:swap={swappable && !primeable}
       class:prime={primeable}
+      class:hg={discounted && playable && !swappable && !primeable}
       onclick={(e) => tap(p, e)}
     >
       <span class="pos" class:pit={isPitcher(p)} class:long={plabel.length > 5}>{plabel}</span>
@@ -143,10 +155,13 @@
       </span>
       <span class="right">
         {#if game.slotPick === p.id}
-          <!-- The picker lives in the rail — point there, cardstock-terse. -->
-          <span class="confirm hint">↑ PICK A SLOT</span>
+          <!-- The picker lives in the rail — point there, cardstock-terse.
+               The rail sits ABOVE the market on the phone and LEFT of it at
+               width, so the glyph is two spans and the 760px media tier picks
+               the one that points at the actual rail. -->
+          <span class="confirm hint"><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span> PICK A SLOT</span>
         {:else if game.releasePick === p.id}
-          <span class="confirm hint">↑ TAP WHO TO TRADE</span>
+          <span class="confirm hint"><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span> TAP WHO TO TRADE</span>
         <!-- A pending confirm is suppressed on a row ⭐ has claimed, not on
              every row while ⭐ is armed. The tap opens the career sheet there,
              so no confirm can be raised on it — but `confirmKey` survives the
@@ -393,11 +408,17 @@
     background: var(--gray-ink);
   }
   /* TD swap targets and Prime-browsable rows share one "tappable for a
-     powerup" look; the classes stay separate because the tap routes differ. */
+     powerup" look; the classes stay separate because the tap routes differ.
+     The fill AND the dash are the armed pills' own orange pair — the control
+     that armed and the rows it lit are one flow in one voice, with the dash
+     carrying the "target" half of the sentence. (The fill was --amber, a
+     third warm tone between the armed orange and the trophy amber; the dash
+     was ink, which read harder than the state it marked.) */
   .prow.swap,
-  .prow.prime {
-    background: var(--amber);
-    border: 2.5px dashed var(--ink);
+  .prow.prime,
+  .prow.hg {
+    background: var(--orange-2);
+    border: 2.5px dashed var(--orange-8);
     opacity: 1;
     filter: none;
   }
@@ -425,6 +446,20 @@
     background: var(--orange-2);
     border-color: var(--orange-8);
     color: var(--ink);
+  }
+  /* The hint's arrow, one glyph per layout: ↑ while the rail rides above the
+     market (phone), ← once the wide grid seats it to the left. Declared after
+     the base so the wide block's swap wins on source order. */
+  .hint .wd {
+    display: none;
+  }
+  @media (min-width: 760px) {
+    .hint .ph {
+      display: none;
+    }
+    .hint .wd {
+      display: inline;
+    }
   }
   .more {
     text-align: center;

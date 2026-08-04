@@ -104,7 +104,7 @@ describe("item 6 — stadium row: orange identity hue, not sky/blue", () => {
   });
 
   it("the .srow.stad element does not reference --sky or --blue in its class or inline style", () => {
-    // The hue is now orange (--orange-2 / --orange-8) applied via the .stad CSS
+    // The hue is now pink (--pink-2 / --pink-8) applied via the .stad CSS
     // rule in SpecialRows.svelte. No --sky or --blue-8 token may appear on the
     // stadium button's opening tag — those tokens lived in the old CSS rule and
     // the old comment; confirming the source text changed is a build-time check.

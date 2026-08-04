@@ -49,6 +49,10 @@
   } = $props();
 
   const tdArmed = $derived(game?.powerups.tradeDeadline === "armed");
+  /* The intersection rule's front-office arm, mirrored from the engine's
+     frontOfficeBlocks: 🏠 has no front-office targets, so while it is armed
+     every tile here grays — hires, 🔁 swaps and ⭐ browsing included. */
+  const hgArmed = $derived(game?.powerups.hometown === "armed");
   const canAct = $derived(game != null && game.phase === "landed" && game.choicesLeft > 0);
 
   interface Row extends SpecimenRow {
@@ -137,6 +141,15 @@
     e.stopPropagation();
     if (!game || !canAct) return;
     const taken = game.specialTaken(row.key);
+    // THE INTERSECTION RULE reaches the front office too: an armed 🔁 narrows
+    // these tiles to its own targets (taken chairs it can trade), so an
+    // untaken tile's plain hire is off the table until 🔁 disarms — the same
+    // gray the market's non-candidates wear.
+    if (!taken && tdArmed) return;
+    // 🏠's arm of the same rule: no front-office move at all while armed —
+    // the engine's frontOfficeBlocks refuses these anyway; the return keeps
+    // the confirm pill from opening over a refusal.
+    if (hgArmed) return;
     // ⭐ browses managers only — an armed Prime never claims the owner or
     // stadium tap, so those tiles keep their plain hire confirm.
     if (!taken && game.primeArmed) {
@@ -156,21 +169,31 @@
 <div class="special disp">
   {#each rows as row (row.key)}
     {@const taken = game != null && game.specialTaken(row.key)}
-    {@const swappable = taken && tdArmed && canAct}
-    {@const primeable = !taken && row.key === "manager" && game?.primeArmed === true && canAct}
+    <!-- A taken manager tile is only a real 🔁 target when the CARD has a
+         skipper to trade in — tdTapSpecial refuses the swap otherwise, and a
+         TRADE IN confirm on a tile the engine will no-op is a lie. -->
+    {@const swappable =
+      taken && tdArmed && !hgArmed && canAct && (row.key !== "manager" || game?.card?.manager != null)}
+    {@const primeable =
+      !taken && row.key === "manager" && game?.primeArmed === true && !tdArmed && !hgArmed && canAct}
     <!-- ⭐ browses managers only. While Prime is armed, an unhired owner or
          stadium has no move at all, so it wears the same gray the taken rows
          wear — availability is binary, and the affordance must match. A TAKEN
          owner/stadium is excluded: an armed Trade Deadline still swaps it, and
-         that amber path outranks Prime's blackout. Derived from the live
-         primeArmed getter, so disarming restores the rows. -->
+         that orange path outranks Prime's blackout. Derived from the live
+         primeArmed getter, so disarming restores the rows.
+         tdBlocked is the intersection rule's front-office arm: an armed 🔁
+         narrows these tiles to the taken chairs it can trade, so an untaken
+         tile (whose only move is a plain hire) grays until 🔁 disarms. -->
     {@const primeBlocked = !taken && row.key !== "manager" && game?.primeArmed === true}
+    {@const tdBlocked = tdArmed && canAct && !swappable}
+    {@const hgBlocked = hgArmed && canAct}
     <button
       class="srow {row.cls}"
-      class:taken={(taken && !swappable) || primeBlocked}
+      class:taken={(taken && !swappable) || primeBlocked || tdBlocked || hgBlocked}
       class:swap={swappable}
       class:prime={primeable}
-      disabled={primeBlocked}
+      disabled={primeBlocked || tdBlocked || hgBlocked}
       inert={specimen != null}
       onclick={(e) => tap(row, e)}
     >
@@ -335,16 +358,17 @@
       margin-right: -8px;
     }
   }
-  /* Stadium is orange, owner is teal, and neither is a WAR-chip rung color
+  /* Stadium is pink, owner is teal, and neither is a WAR-chip rung color
      (the ladder runs red/gray/green/blue/violet/gold) — so neither full-row
      fill can be mistaken for a giant high-WAR chip the way the stadium's old
-     sky blue could. Orange is the app's armed/alarm hue as pills, not as
-     full-row fills, so a resting stadium row reads as warm rather than urgent.
-     Teal is banknote color on the money man; it replaced a bright saturated
-     gold that shouted over the whole board and crowded the --gold-2 chips. */
+     sky blue could. Pink replaced a one-round orange: orange is the ARMED
+     voice (armed pills, hints, and the browsable rows below), and a resting
+     stadium in the action color read as something asking to be tapped. Teal
+     is banknote color on the money man; it replaced a bright saturated gold
+     that shouted over the whole board and crowded the --gold-2 chips. */
   .srow.stad {
-    background: var(--orange-2);
-    border-color: var(--orange-8);
+    background: var(--pink-2);
+    border-color: var(--pink-8);
   }
   /* The manager tile is white cardstock in --line, matching every other player
      row in the game. The wins chip is the color carrier — same six-rung ladder
@@ -386,12 +410,14 @@
     filter: saturate(0.7);
   }
   /* Armed Prime marks the open manager tile browsable with the same
-     amber-dashed look the player rows use — one "tappable for a powerup"
-     language. Owner and stadium tiles are never Prime targets. */
+     orange-dashed look the player rows use — one "tappable for a powerup"
+     language, and the same orange pair the armed pill itself wears (fill and
+     dash alike), so the armed control and its targets read as one flow.
+     Owner and stadium tiles are never Prime targets. */
   .srow.swap,
   .srow.prime {
-    background: var(--amber);
-    border: 2.5px dashed var(--ink);
+    background: var(--orange-2);
+    border: 2.5px dashed var(--orange-8);
     color: var(--ink);
     filter: none;
   }

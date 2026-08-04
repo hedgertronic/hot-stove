@@ -1,9 +1,11 @@
 /** Round 28: 🏠 Homegrown discount travels to ⭐ Prime Time (per-season rule).
+ * Round 31 layers THE INTERSECTION RULE on top: a season that fails 🏠's
+ * test is no longer full price — it is unsignable while 🏠 stays armed.
  *
  * The discount is PER SEASON, not per player. A career-sheet season signs at
  * $1M only when the season card's FRANCHISE matches the player's debut
  * franchise. On an A's card with 🏠 armed, McGwire's Oakland seasons get the
- * $1M; his Cardinals seasons pay full price. The check is
+ * $1M; his Cardinals seasons gray until 🏠 disarms. The check is
  * `primeDiscountEligible(p, card.franchise)` — the season's franchise id,
  * NOT the landed card and NOT the team code (see the renamed-club describe).
  *
@@ -191,13 +193,18 @@ describe("prime + hometown: eligible season (seasonTeam === debut franchise)", (
   });
 });
 
-describe("prime + hometown: ineligible season (seasonTeam !== debut franchise)", () => {
-  // Career key STL_1998 — different franchise from debut "OAK" → full price.
+describe("prime + hometown: ineligible season grays under the intersection rule", () => {
+  // Career key STL_1998 — different franchise from debut "OAK". THE
+  // INTERSECTION RULE (engine marketBlocks / primeFits) supersedes the old
+  // "list price travels" doctrine this file used to pin: with 🏠 armed
+  // beside ⭐, a season of another franchise is not merely full price — it
+  // is unsignable, grayed in the sheet and refused by applyPrime, until the
+  // discount is disarmed.
   function cleanSetup() {
     const mcgwire = player({ id: "mgw_inelig", debut: "OAK" });
     const landedCard = oakCard(2001, [mcgwire]);
 
-    // STL career season: seasonTeam "STL" !== debut "OAK" → full price
+    // STL career season: franchise "STL" !== debut "OAK" → fails 🏠's test
     const stlSeason = player({ id: "mgw_inelig", debut: "OAK", cost: 25 });
     fetchCards["STL_1998"] = stlCard(1998, [stlSeason]);
 
@@ -206,33 +213,35 @@ describe("prime + hometown: ineligible season (seasonTeam !== debut franchise)",
     return { g, mcgwire, stlSeason };
   }
 
-  it("applyPrime signs at list price (not $1M)", async () => {
+  it("primeFits grays the season and applyPrime refuses it", async () => {
     const { g, stlSeason } = cleanSetup();
-    const ok = await g.applyPrime("STL", 1998);
-    expect(ok).toBe(true);
+    expect(g.primeFits(stlSeason, "STL")).toBe(false);
+    expect(await g.applyPrime("STL", 1998)).toBe(false);
+    expect(g.slots[0]).toBe(null);
+  });
+
+  it("a refusal spends nothing — both powerups stay armed", async () => {
+    const { g } = cleanSetup();
+    await g.applyPrime("STL", 1998);
+    expect(g.powerups.prime).toBe("armed");
+    expect(g.powerups.hometown).toBe("armed");
+    expect(g.choicesUsed).toBe(0);
+  });
+
+  it("disarming 🏠 restores the season — it signs at list price, hero false", async () => {
+    const { g, mcgwire, stlSeason } = cleanSetup();
+    g.toggleHometown();
+    g.primeTapPlayer(mcgwire);
+    expect(g.primeFits(stlSeason, "STL")).toBe(true);
+    expect(await g.applyPrime("STL", 1998)).toBe(true);
     expect(g.slots[0]?.costPaid).toBe(stlSeason.cost); // $25M list
-  });
-
-  it("hero is false for the ineligible season", async () => {
-    const { g } = cleanSetup();
-    await g.applyPrime("STL", 1998);
     expect(g.slots[0]?.hero).toBe(false);
-  });
-
-  it("hometown powerup reverts to ready (endSpin resets unarmed)", async () => {
-    // hometown was armed, not spent → endSpin resets armed→ready
-    const { g } = cleanSetup();
-    await g.applyPrime("STL", 1998);
-    expect(g.powerups.hometown).toBe("ready");
-  });
-
-  it("prime powerup is spent", async () => {
-    const { g } = cleanSetup();
-    await g.applyPrime("STL", 1998);
     expect(g.powerups.prime).toBe("spent");
   });
 
-  it("primePriceFor returns list price for a STL season of an OAK-debut player", () => {
+  it("primePriceFor still quotes list price for the foreign season", () => {
+    // Pricing is unchanged by the intersection — the gray is a signability
+    // rule, not a repricing.
     const { g, stlSeason } = cleanSetup();
     expect(g.primePriceFor(stlSeason, "STL")).toBe(stlSeason.cost);
   });

@@ -28,13 +28,16 @@ describe("the front office wears teal / orange, on both of its surfaces", () => 
     expect(own).toContain("var(--teal-8)");
   });
 
-  it("stadium: --orange-2 fill and --orange-8 ring on tile and chip alike", () => {
+  it("stadium: --pink-2 fill and --pink-8 ring on tile and chip alike", () => {
+    // Pink, round 31: the tile's one-round orange turned out to be the armed
+    // voice (armed pills, hints, browsable targets), and a resting category
+    // row in the action color read as something asking to be tapped.
     const stad = rows.match(/\.srow\.stad \{[^}]*\}/)?.[0] ?? "";
-    expect(stad).toContain("var(--orange-2)");
-    expect(stad).toContain("var(--orange-8)");
+    expect(stad).toContain("var(--pink-2)");
+    expect(stad).toContain("var(--pink-8)");
     const chip = box.match(/\.chip\.stad \{[^}]*\}/)?.[0] ?? "";
-    expect(chip).toContain("var(--orange-2)");
-    expect(chip).toContain("var(--orange-8)");
+    expect(chip).toContain("var(--pink-2)");
+    expect(chip).toContain("var(--pink-8)");
   });
 
   it("the owner's bright gold is gone from the tile", () => {
@@ -48,7 +51,7 @@ describe("the front office wears teal / orange, on both of its surfaces", () => 
   it("the help sheet's bullets name the hues the tiles actually wear", () => {
     const help = read("components/HelpModal.svelte");
     expect(help).toContain("<b>💰 Owner</b> (teal)");
-    expect(help).toContain("<b>🏟️ Ballpark</b> (orange)");
+    expect(help).toContain("<b>🏟️ Ballpark</b> (pink)");
     expect(help).toContain("<b>🧢 Skipper</b> (white)");
   });
 });
@@ -109,12 +112,12 @@ describe("the powerup lattice's phone tiers", () => {
   const pill = read("components/PowerupPill.svelte");
   const row = read("components/PowerupRow.svelte");
 
-  it("carries the 360px tier that keeps 3+3 on 360–375pt phones", () => {
-    expect(pill).toContain("@container (max-width: 360px)");
-    expect(row).toContain("@container (max-width: 360px)");
+  it("carries the 390px tier that keeps 3+3 on real phones (iOS metric drift)", () => {
+    expect(pill).toContain("@container (max-width: 390px)");
+    expect(row).toContain("@container (max-width: 390px)");
     // Descending order: the narrower tier must be declared after the wider
-    // one — equal specificity, source order decides which wins at 360.
-    expect(pill.indexOf("@container (max-width: 360px)")).toBeGreaterThan(
+    // one — equal specificity, source order decides which wins below 390.
+    expect(pill.indexOf("@container (max-width: 390px)")).toBeGreaterThan(
       pill.indexOf("@container (max-width: 410px)"),
     );
   });

@@ -203,11 +203,14 @@
      ~327px at the small one — so base holds a 430pt phone's 402px box only
      just, and the middle tier alone left every 360–375pt phone wrapping to
      three lines. The 410px boundary buys the base tier real margin instead of
-     6px, and the 360px tier is what keeps the 3+3 lattice on the phones that
-     actually broke it. Armed labels are longer and may still wrap; the
-     two-row structure keeps every wrap's spacing uniform. (These blocks must
-     sit after the base .pp rule and in descending order — equal specificity,
-     source order decides.) */
+     6px, and the 390px tier is what keeps the 3+3 lattice on real phones.
+     390, NOT 360: the numbers above are desktop-Chrome measurements, and iOS
+     renders Nunito and its emoji a few px wider per pill — a 393pt iPhone's
+     365px box wrapped on-device with the middle tier's paper margin of 9px.
+     The small tier's ~38px of slack there is what survives the metric drift.
+     Armed labels are longer and may still wrap; the two-row structure keeps
+     every wrap's spacing uniform. (These blocks must sit after the base .pp
+     rule and in descending order — equal specificity, source order decides.) */
   @container (max-width: 410px) {
     .pp {
       font-size: 10px;
@@ -215,7 +218,7 @@
       letter-spacing: 0.02em;
     }
   }
-  @container (max-width: 360px) {
+  @container (max-width: 390px) {
     .pp {
       font-size: 9.5px;
       padding: 5px 6px;

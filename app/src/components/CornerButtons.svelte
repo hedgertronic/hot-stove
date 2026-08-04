@@ -314,6 +314,10 @@
     background: var(--orange-2);
     color: var(--ink);
     border-color: var(--orange-8);
+    /* The armed word matches QUIT?'s 10.5px/0.04em — the powerup pills' own
+       register (see App.svelte .quit.armed). */
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
     width: 62px;
     padding: 0 8px;
     z-index: 2;

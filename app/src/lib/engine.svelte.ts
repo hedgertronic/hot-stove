@@ -799,32 +799,72 @@ export class Game {
   }
 
   /** Whether a listed row is tappable right now — the single gate the UI
-   * uses for signing, Trade Deadline swaps, AND Prime Time browsing (an
-   * armed Prime follows the same gray-out rules as a plain sign). */
+   * uses for signing, Trade Deadline swaps, AND Prime Time browsing. */
   rowPlayable(p: CardPlayer): boolean {
     if (this.phase !== "landed" || this.choicesLeft === 0) return false;
-    if (this.hometownBlocks(p)) return false;
+    if (this.marketBlocks(p)) return false;
     return this.playerState(p) === "open" || this.tdCandidate(p);
   }
 
-  /** An armed 🏠 filters the market like Trade Deadline filters seats: only
-   * debut-eligible rows stay live; every other unsigned row is hard-gray and
-   * untappable until the discount is disarmed. */
-  private hometownBlocks(p: CardPlayer): boolean {
-    return this.powerups.hometown === "armed" && !this.discountEligible(p);
+  /** THE INTERSECTION RULE. Every armed market powerup narrows the market to
+   * its own targets — 🏠 to debut matches, 🔁 to trade candidates, ⭐ to
+   * browsable careers — and arming several narrows it to rows that answer
+   * ALL of them. Rows outside the intersection gray out and are untappable
+   * until a powerup is disarmed; rows inside it light the armed orange.
+   *
+   * The alternative (each armed powerup highlighting its own set and leaving
+   * everything else live) was tried and rejected: one orange channel cannot
+   * say WHICH powerup lit a row, and with 🔁 + 🏠 armed together the row
+   * that answers both — one tap that trades AND discounts, spending both —
+   * was indistinguishable from a row that answers either alone. Under the
+   * intersection, orange has exactly one meaning: "this row answers
+   * everything you have armed."
+   *
+   * The raw per-powerup target tests live beside this so no clause can
+   * recurse through the gates that consult it. */
+  private marketBlocks(p: CardPlayer): boolean {
+    if (this.powerups.hometown === "armed" && !this.discountEligible(p))
+      return true;
+    if (this.powerups.tradeDeadline === "armed" && !this.tdTargetRaw(p))
+      return true;
+    if (this.primeArmed && !this.primeTargetRaw(p)) return true;
+    return false;
+  }
+
+  /** 🔁's own target test, before the intersection: any unrostered player
+   * with at least one occupied eligible seat. */
+  /** The intersection rule's front-office arm: 🏠 has NO front-office
+   * targets — the discount reprices market rows and nothing else — so while
+   * it is armed the whole FRONT OFFICE grays: no hires, no 🔁 special
+   * swaps, no ⭐ manager browse, until the discount is disarmed. One
+   * predicate, consulted by every special-action entry point, so the UI's
+   * gray and the engine's refusal can never disagree. */
+  private frontOfficeBlocks(): boolean {
+    return this.powerups.hometown === "armed";
+  }
+
+  private tdTargetRaw(p: CardPlayer): boolean {
+    return !this.isRostered(p) && this.occupiedSlotsFor(p).length > 0;
+  }
+
+  /** ⭐'s own target test, before the intersection: an unrostered man whose
+   * listed season fits some seat (see primeBrowsable for why the listed
+   * season stands in for the career). */
+  private primeTargetRaw(p: CardPlayer): boolean {
+    return !this.isRostered(p) && this.primeSlotFor(p) !== null;
   }
 
   /** Whether an armed Trade Deadline claims this row's tap: any unrostered
    * player with at least one occupied eligible seat is a trade candidate —
    * even when an open seat could also take them directly (a catcher can
    * replace the rostered C while the FLEX seat sits open; disarm to sign
-   * plainly into the open seat instead). */
+   * plainly into the open seat instead). Intersected with the other armed
+   * powerups' targets per the rule above. */
   tdCandidate(p: CardPlayer): boolean {
     return (
       this.powerups.tradeDeadline === "armed" &&
-      !this.hometownBlocks(p) &&
-      !this.isRostered(p) &&
-      this.occupiedSlotsFor(p).length > 0
+      this.tdTargetRaw(p) &&
+      !this.marketBlocks(p)
     );
   }
 
@@ -1166,6 +1206,9 @@ export class Game {
   primeBrowsable(p: CardPlayer): boolean {
     if (this.phase !== "landed" || this.choicesLeft === 0) return false;
     if (!this.primeArmed || this.isRostered(p)) return false;
+    // The intersection rule: with 🏠 or 🔁 armed alongside ⭐, only rows
+    // that answer those too stay browsable — the rest gray with the market.
+    if (this.marketBlocks(p)) return false;
     return this.primeSlotFor(p) !== null;
   }
 
@@ -1181,6 +1224,7 @@ export class Game {
    * pure bank-shopping, and banning it is score-neutral). A taken tile
    * isn't browsable — the seat is filled. */
   primeTapSpecial(which: SpecialKey): void {
+    if (this.frontOfficeBlocks()) return;
     if (which !== "manager") return;
     if (!this.primeArmed || this.specialTaken(which) || !this.card) return;
     if (!this.managerAvailable) return;
@@ -1225,8 +1269,21 @@ export class Game {
 
   /** Whether a browsed career season can be signed right now — an open seat
    * fits it, or an armed 🔁 Trade Deadline can clear one for it. The career
-   * sheet grays every row this rejects. */
-  primeFits(p: CardPlayer): boolean {
+   * sheet grays every row this rejects.
+   *
+   * THE INTERSECTION RULE reaches inside the sheet: with 🏠 armed beside ⭐,
+   * only the discount's own seasons — the ones played for the debut
+   * franchise, priced at the flat $1M — stay signable, and every full-price
+   * season grays with the rest of the market. The caller passes the season
+   * card's FRANCHISE id (never its team code — see primeDiscountEligible for
+   * the rename trap). `applyPrime` re-checks the same condition, so the gray
+   * and the engine's refusal cannot disagree. */
+  primeFits(p: CardPlayer, seasonFranchise: string): boolean {
+    if (
+      this.powerups.hometown === "armed" &&
+      !this.primeDiscountEligible(p, seasonFranchise)
+    )
+      return false;
     return this.primeSlotFor(p) !== null;
   }
 
@@ -1259,6 +1316,10 @@ export class Game {
     const card = await loadCard(team, year);
     const p = card.players.find((pl) => pl.id === id);
     if (!p) return false;
+    // The intersection rule, engine-side: primeFits grays these rows in the
+    // sheet, and this is the refusal the gray cannot be allowed to disagree
+    // with — with 🏠 armed, only the discount's own seasons sign.
+    if (!this.primeFits(p, card.franchise)) return false;
     const idx = this.primeSlotFor(p);
     if (idx === null) return false;
     this.actionSig = `${this.slots[idx] !== null ? "swap" : "sign"}|${id}|${team}|${year}|${idx}`;
@@ -1452,7 +1513,7 @@ export class Game {
    * rail becomes a slot picker (DECISIONS.md #4) — re-call with slotIdx. */
   signPlayer(p: CardPlayer, slotIdx?: number): void {
     if (this.phase !== "landed" || this.choicesLeft === 0) return;
-    if (this.hometownBlocks(p)) return;
+    if (this.marketBlocks(p)) return;
     if (this.playerState(p) !== "open") return;
     const open = this.openSlotsFor(p);
     const specialist = open.filter((i) => SLOT_TYPES[i] !== "FLEX");
@@ -1487,6 +1548,17 @@ export class Game {
     this.consumeChoice({ kind: "sign", war: p.war });
   }
 
+  /** Tapping the pending row again answers an open picker with "never mind" —
+   * the same toggle gesture a SIGN confirm already honors. One method for
+   * both pickers: at most one of the two ids is ever set, and the caller has
+   * already matched the row to it. Clearing costs no choice and rewinds
+   * nothing — opening a picker committed nothing to rewind. */
+  cancelPick(): void {
+    this.slotPick = null;
+    this.releasePick = null;
+    this.save();
+  }
+
   /** Rail cells pickable during slotPick: open eligible specialist cells. */
   pickableSlotCells(p: CardPlayer): number[] {
     const specialist = this.openSlotsFor(p).filter(
@@ -1496,6 +1568,7 @@ export class Game {
   }
 
   hireOwner(): void {
+    if (this.frontOfficeBlocks()) return;
     if (this.fixedCap) return;
     if (
       this.phase !== "landed" ||
@@ -1522,6 +1595,7 @@ export class Game {
   }
 
   buyStadium(): void {
+    if (this.frontOfficeBlocks()) return;
     if (this.fixedCap) return;
     if (
       this.phase !== "landed" ||
@@ -1543,6 +1617,7 @@ export class Game {
   }
 
   hireManager(): void {
+    if (this.frontOfficeBlocks()) return;
     if (
       this.phase !== "landed" ||
       this.choicesLeft === 0 ||
@@ -1615,6 +1690,7 @@ export class Game {
 
   /** Armed TD, tap a taken special: 1-for-1 replacement, no picker. */
   tdTapSpecial(which: SpecialKey): void {
+    if (this.frontOfficeBlocks()) return;
     if (
       this.powerups.tradeDeadline !== "armed" ||
       this.choicesLeft === 0 ||

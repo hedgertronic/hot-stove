@@ -158,9 +158,9 @@
   <div class="pay disp">
     <div class="paymath">
       {#if bank === "moneyball"}
-        <span class="chip eff">⚾ {money(budget)} PAYROLL</span>
+        <span class="chip eff mb">⚾ {money(budget)} PAYROLL</span>
       {:else if bank === "blankcheck"}
-        <span class="chip eff">💸 {money(budget)} BLANK CHECK</span>
+        <span class="chip eff bc">💸 {money(budget)} BLANK CHECK</span>
       {:else if math || pending}
         {#if ownerBudget != null}
           <span class="chip own">💰 {money(ownerBudget)}</span>
@@ -245,12 +245,12 @@
      The chip and the tile MUST move together — the chip once read green while
      the tile read blue, which made the multiplier look like a different object
      from the thing that set it, and it went stale a second time when the tile
-     moved to orange and the chip stayed blue.
+     moved hues and the chip stayed blue.
      Ink type, not a tinted one: every chip in the game puts ink on a light
      fill, which is app.css's rule. */
   .chip.stad {
-    background: var(--orange-2);
-    border-color: var(--orange-8);
+    background: var(--pink-2);
+    border-color: var(--pink-8);
   }
   /* The owner's own hue — the same pair the FRONT OFFICE owner tile wears
      (`SpecialRows .srow` default: --teal-2 fill, --teal-8 ring). The chip and
@@ -260,12 +260,25 @@
     border-color: var(--teal-8);
   }
   /* The total-payroll result chip. Neutral cardstock keeps it from colliding
-     with either input: the owner chip is teal, the stadium chip is orange, and
+     with either input: the owner chip is teal, the stadium chip is pink, and
      the product chip is the plain surface both inputs sit on — the math reads
      as an equation rather than as three competing categories. */
   .chip.eff {
     background: var(--card);
     border-color: var(--line);
+  }
+  /* The fixed-cap banks' pill wears its mode's own pair — the exact fill and
+     ring the punched row on the home screen carries (Home .row.on.mb / .bc),
+     so the choice made there is the color the payroll wears all game. Only
+     these two: Clean House's payroll is a product of hires, and its result
+     chip stays the neutral surface the equation reads on. */
+  .chip.eff.mb {
+    background: var(--green-wash);
+    border-color: var(--green-8);
+  }
+  .chip.eff.bc {
+    background: var(--blue-2);
+    border-color: var(--blue-8);
   }
   .chip.ghost {
     border-style: dashed;

@@ -219,6 +219,23 @@ describe("signing and slots", () => {
     expect(g.slots[3]?.id).toBe(p.id);
   });
 
+  it("re-tapping the pending row cancels the picker at no cost", () => {
+    // The same toggle a SIGN confirm honors: opening the picker committed
+    // nothing, so cancelling rewinds nothing — the spin's choice is intact
+    // and the man can still be signed afterward.
+    const p = player({ posG: { c: 0, if: 117, of: 75, dh: 0 }, pos: "3B" });
+    const g = landedGame(card([p]));
+    g.signPlayer(p);
+    expect(g.slotPick).toBe(p.id);
+    g.cancelPick();
+    expect(g.slotPick).toBeNull();
+    expect(g.releasePick).toBeNull();
+    expect(g.choicesLeft).toBe(1);
+    expect(g.slots.every((s) => s === null)).toBe(true);
+    g.signPlayer(p, 1); // still signable, into an IF cell this time
+    expect(g.slots[1]?.id).toBe(p.id);
+  });
+
   it("FLEX is used only when specialist slots are full", () => {
     const a = player({ pos: "LF", posG: { c: 0, if: 0, of: 120, dh: 0 } });
     const b = player({ pos: "RF", posG: { c: 0, if: 0, of: 110, dh: 0 } });
@@ -613,6 +630,8 @@ describe("Homegrown (the hometown discount)", () => {
   });
 
   it("armed, a non-debut row grays out — unplayable and unsignable until disarm", () => {
+    // THE INTERSECTION RULE (engine.svelte.ts marketBlocks): an armed market
+    // powerup narrows the market to its own targets; everything else grays.
     const outsider = player({ debut: "SEA" });
     const g = landedGame(card([outsider]));
     expect(g.rowPlayable(outsider)).toBe(true);
@@ -661,14 +680,80 @@ describe("Homegrown (the hometown discount)", () => {
     expect(g.rowPlayable(b)).toBe(true);
   });
 
-  it("committing a special while armed disarms the discount without spending it", () => {
+  it("INTERSECTION: armed 🔁 alone grays rows with no seat to trade into", () => {
+    // The intersection rule with one member: an armed market powerup narrows
+    // the market to its own targets, so a row that cannot answer 🔁 grays
+    // even though its plain sign would have been legal — disarm to sign.
+    const inf = player({ posG: { c: 0, if: 100, of: 0, dh: 0 } });
+    const of1 = player({ pos: "LF", posG: { c: 0, if: 0, of: 120, dh: 0 }, pa: 400 });
+    const g = landedGame(card([inf, of1]));
+    g.signPlayer(inf);
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    expect(g.rowPlayable(of1)).toBe(true); // open OF seat, plain sign fine
+    g.toggleTradeDeadline();
+    expect(g.tdCandidate(of1)).toBe(false); // no occupied seat he fits
+    expect(g.rowPlayable(of1)).toBe(false); // …so the armed 🔁 grays him
+    g.signPlayer(of1); // no-op while filtered
+    expect(g.slots[3]).toBe(null);
+    g.toggleTradeDeadline();
+    expect(g.rowPlayable(of1)).toBe(true);
+  });
+
+  it("INTERSECTION: 🔁 + 🏠 armed together light only rows that answer both", () => {
+    const rp = (over: Partial<CardPlayer>) =>
+      player({ pos: "RP", posG: { c: 0, if: 0, of: 0, dh: 0 }, pa: 0, relIP: 55, ...over });
+    const seated = rp({ cost: 20, war: 1, relIP: 60 });
+    const both = rp({ debut: "CHC", cost: 12, war: 3 }); // candidate AND debut match
+    const tradeOnly = rp({ debut: "SEA", cost: 10, war: 2 }); // candidate, no discount
+    const homeOnly = player({ debut: "CHC", pa: 400 }); // debut match, open IF seat, no trade
+    const g = landedGame(card([seated, both, tradeOnly, homeOnly]));
+    g.signPlayer(seated);
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    g.toggleTradeDeadline();
+    g.toggleHometown();
+    expect(g.rowPlayable(both)).toBe(true); // the intersection row
+    expect(g.rowPlayable(tradeOnly)).toBe(false); // answers 🔁, fails 🏠
+    expect(g.rowPlayable(homeOnly)).toBe(false); // answers 🏠, fails 🔁
+    expect(g.tdCandidate(both)).toBe(true);
+    expect(g.tdCandidate(tradeOnly)).toBe(false);
+    // One tap on the intersection row is a DISCOUNTED TRADE, spending both.
+    g.tdTapPlayer(both);
+    const signed = g.slots.find((s) => s?.id === both.id);
+    expect(signed?.costPaid).toBeCloseTo(floor);
+    expect(signed?.hero).toBe(true);
+    expect(g.powerups.tradeDeadline).toBe("spent");
+    expect(g.powerups.hometown).toBe("spent");
+  });
+
+  it("INTERSECTION: ⭐ + 🏠 armed together browse only debut matches", () => {
+    const local = player({ debut: "CHC" });
+    const outsider = player({ debut: "SEA", pa: 400 });
+    const g = landedGame(card([local, outsider]));
+    g.togglePrime();
+    expect(g.primeBrowsable(local)).toBe(true);
+    expect(g.primeBrowsable(outsider)).toBe(true); // ⭐ alone browses anyone who fits
+    g.toggleHometown();
+    expect(g.primeBrowsable(local)).toBe(true); // answers both
+    expect(g.primeBrowsable(outsider)).toBe(false); // fails 🏠 → grays
+  });
+
+  it("an armed 🏠 grays the whole front office — no hire until it disarms", () => {
+    // The intersection rule's front-office arm (engine frontOfficeBlocks):
+    // 🏠 has no front-office targets, so arming it takes every tile's move
+    // off the table rather than leaving the hires live around the discount.
     const local = player({ debut: "CHC" });
     const g = landedGame(card([local]));
     g.toggleHometown();
-    g.hireOwner(); // specials stay live while armed — the filter is market-only
+    g.hireOwner(); // refused while 🏠 is armed
+    expect(g.owner).toBe(null);
+    expect(g.choicesUsed).toBe(0);
+    g.toggleHometown(); // disarm → the hire is a plain hire again
+    g.hireOwner();
     expect(g.owner).not.toBe(null);
     expect(g.choicesUsed).toBe(1);
-    expect(g.powerups.hometown).toBe("ready"); // disarmed at spin end, not spent
+    expect(g.powerups.hometown).toBe("ready"); // never spent
   });
 
   it("a reroll powerup disarms the discount without spending it", () => {
@@ -2294,34 +2379,44 @@ describe("the manager hired last", () => {
 
   // ---- ⭐ Prime Time + 🏠 Homegrown ----
 
-  it("lets an armed Prime browse a career an armed Homegrown grayed out", () => {
-    // The user's own example. 🏠 filters the LANDED CARD'S market; a career
-    // sheet is a different market at list prices, so the filter has no claim
-    // on it. Routing Prime through rowPlayable shrank it to debut players.
+  it("⭐ + 🏠 armed together browse only the intersection — the old cross-browse is retired", () => {
+    // THE INTERSECTION RULE reversed the earlier doctrine here (which let an
+    // armed ⭐ browse rows 🏠 had grayed): with both armed, only rows that
+    // answer BOTH stay live, and a non-debut career grays with its row.
+    // Disarm 🏠 to browse the whole market again.
     const away = player({ debut: "SEA" });
     const g = landedGame(card([away]));
     g.toggleHometown();
     g.togglePrime();
-    expect(g.rowPlayable(away)).toBe(false); // still grayed for a plain sign
-    expect(g.primeBrowsable(away)).toBe(true); // …and still browsable
-    g.primeTapPlayer(away);
-    expect(g.primePick).toBe(away.id);
+    expect(g.rowPlayable(away)).toBe(false);
+    expect(g.primeBrowsable(away)).toBe(false); // fails 🏠 → not browsable
+    g.primeTapPlayer(away); // no-op on a grayed row
+    expect(g.primePick).toBe(null);
+    g.toggleHometown(); // disarm → ⭐ alone browses anyone who fits
+    expect(g.primeBrowsable(away)).toBe(true);
   });
 
-  it("charges a Primed season list price and leaves Homegrown ready", async () => {
-    // Discount pricing does not travel (DECISIONS round 5): 🏠 is a claim
-    // about the card's own market. Unspent, it comes back ready at spin end.
+  it("⭐ + 🏠 keep only the debut franchise's $1M seasons signable in the sheet", async () => {
+    // THE INTERSECTION RULE inside the career sheet (supersedes the round-28
+    // "list price travels" doctrine): with 🏠 armed, a full-price season of
+    // another franchise grays and refuses, and the debut franchise's own
+    // season signs at the flat $1M, spending 🏠 alongside ⭐.
     const local = catcher({ debut: "CHC", cost: 3, war: 2 });
-    career("PRA", catcher({ war: 7, cost: 12, debut: "CHC" }));
+    const away = catcher({ war: 7, cost: 12, debut: "CHC" });
+    career("PRA", away); // franchise PRA ≠ debut CHC → full price → grayed
+    career("CHC", catcher({ war: 6, cost: 10, debut: "CHC" }));
     const g = landedGame(card([local]));
     g.toggleHometown();
     g.togglePrime();
     expect(g.discountEligible(local)).toBe(true); // the card row IS discounted
     g.primeTapPlayer(local);
-    expect(await g.applyPrime("PRA", 2014)).toBe(true);
-    expect(g.slots[0]).toMatchObject({ costPaid: 12, hero: false });
+    expect(g.primeFits(away, "PRA")).toBe(false); // grayed in the sheet
+    expect(await g.applyPrime("PRA", 2014)).toBe(false); // …and refused here
+    expect(g.powerups.prime).toBe("armed"); // nothing spent on a refusal
+    expect(await g.applyPrime("CHC", 2014)).toBe(true);
+    expect(g.slots[0]).toMatchObject({ costPaid: HOMEGROWN_PRICE_M, hero: true });
     expect(g.powerups.prime).toBe("spent");
-    expect(g.powerups.hometown).toBe("ready"); // returned, never spent
+    expect(g.powerups.hometown).toBe("spent");
   });
 
   // ---- 🔁 Trade Deadline + 🏠 Homegrown (DECISIONS gap rule 8) ----
@@ -2363,7 +2458,7 @@ describe("the manager hired last", () => {
     g.toggleTradeDeadline();
     g.togglePrime();
     expect(g.openSlotsFor(then)).toEqual([]);
-    expect(g.primeFits(then)).toBe(true); // the swap is the fit
+    expect(g.primeFits(then, "PRB")).toBe(true); // the swap is the fit
     g.primeTapPlayer(now);
     expect(await g.applyPrime("PRB", 2014)).toBe(true);
     expect(g.slots[0]).toMatchObject({ id: "star", year: 2014, costPaid: 12 });
@@ -2378,7 +2473,7 @@ describe("the manager hired last", () => {
     const g = landedGame(card([now]));
     fillSlots(g);
     g.togglePrime();
-    expect(g.primeFits(catcher({ war: 7 }))).toBe(false);
+    expect(g.primeFits(catcher({ war: 7 }), "PRC")).toBe(false);
     // …and the row does not open a sheet it could not sell anything from.
     expect(g.primeBrowsable(now)).toBe(false);
     g.primeTapPlayer(now);
@@ -2423,21 +2518,24 @@ describe("the manager hired last", () => {
 
   // ---- all three: 🔁 + ⭐ + 🏠 ----
 
-  it("resolves all three armed at once", async () => {
-    const now = catcher({ war: 2, cost: 3, debut: "CHC" });
-    career("PRF", catcher({ war: 7, cost: 12, debut: "CHC" }));
-    const g = landedGame(card([now]));
+  it("resolves all three armed at once — and all three spend", async () => {
+    // Under the intersection rule the only signable season is one that
+    // answers all three: a debut-franchise year (🏠, at $1M) taking an
+    // occupied chair (🔁) off the career sheet (⭐). The landed card is
+    // forged onto the player's own debut franchise so such a season exists.
+    const now = catcher({ war: 2, cost: 3, debut: "PRF" });
+    career("PRF", catcher({ war: 7, cost: 12, debut: "PRF" }));
+    const g = landedGame(card([now], { team: "PRF", franchise: "PRF" }));
     fillSlots(g);
     g.toggleTradeDeadline();
     g.togglePrime();
     g.toggleHometown();
     g.primeTapPlayer(now);
     expect(await g.applyPrime("PRF", 2014)).toBe(true);
-    // ⭐ and 🔁 were both used and are both spent; 🏠 was not, so it comes back.
     expect(g.powerups.prime).toBe("spent");
     expect(g.powerups.tradeDeadline).toBe("spent");
-    expect(g.powerups.hometown).toBe("ready");
-    expect(g.slots[0]).toMatchObject({ costPaid: 12, hero: false });
+    expect(g.powerups.hometown).toBe("spent");
+    expect(g.slots[0]).toMatchObject({ costPaid: HOMEGROWN_PRICE_M, hero: true });
   });
 
   // ---- ✌️ Double Play with each of them (DECISIONS item 6) ----
@@ -2516,14 +2614,20 @@ describe("the manager hired last", () => {
   });
 
   it("hands back every toggle the pick did not use", () => {
-    // Three armed, one spent: a discounted sign uses 🏠 and neither of the
-    // others, so the other two come back ready at spin end.
+    // Under the intersection rule, three armed powerups whose target sets
+    // do not overlap on a row leave it gray — the reliever has no occupied
+    // seat to trade into, so an armed 🔁 blocks even his discounted sign.
+    // Disarming 🔁 narrows the armed set to ⭐ + 🏠, which he answers; the
+    // discounted sign then uses 🏠 alone and ⭐ comes back ready at spin end.
     const local = reliever({ debut: "CHC", cost: 20 });
     const g = landedGame(card([local]));
     fillSlots(g, [7]);
     g.toggleTradeDeadline();
     g.togglePrime();
     g.toggleHometown();
+    g.signPlayer(local); // blocked: fails 🔁's target test while it is armed
+    expect(g.slots[7]).toBe(null);
+    g.toggleTradeDeadline(); // disarm the one he cannot answer
     g.signPlayer(local);
     expect(g.slots[7]).toMatchObject({ hero: true });
     expect(g.powerups.hometown).toBe("spent");

@@ -16,11 +16,13 @@
    a WAR rung, a rarity, a category, a team. Ink is not a hue and does not
    enter the system, so it keeps two jobs:
 
-     * ARMED / TAPPABLE — dashed. The DASH is the state channel and the HUE is
-       the value channel, and they ride the same border without colliding: a
-       tappable elite seat is a dashed gold line, a tappable empty seat is a
-       dashed ink one. Amber stays the armed fill for the same reason — it is a
-       state, not a hue with a rung.
+     * ARMED / TAPPABLE — dashed, in the armed pills' own orange pair:
+       orange-2 fill under an orange-8 dash, one voice from the pill that
+       armed to every target it lit. The DASH is the state channel; the rung,
+       where a target carries one, stays on the chip inside the seat. (The
+       fill was --amber and the dash was ink for a long while — amber now
+       belongs solely to the trophy-register surfaces, and ink's dash to the
+       gray empty-seat invitation.)
      * COMMITTED — a solid ink fill (the SIGN pill, the pitcher tag). An ink
        fill has no rung 2, so a pill built on one inverts instead: --brag.legend
        is ink under a light gold ring, which is why legend still reads as "off
@@ -47,10 +49,11 @@
        normal white + chip. The dash is safe HERE and only here: nothing at the
        finale is tappable or armed, so the ARMED channel — which the dash serves
        everywhere in play — has no traffic to collide with on that screen.
-     * FRONT OFFICE tiles (owner teal, ballpark orange, skipper white) are market
+     * FRONT OFFICE tiles (owner teal, ballpark pink, skipper white) are market
        rows whose hue is a CATEGORY, not a value — they say what the chair is,
-       not how good the hire would be. Neither teal nor orange is a WAR-chip
-       rung color, so neither tile can be mistaken for a high-rung chip. Teal
+       not how good the hire would be. Neither teal nor pink is a WAR-chip
+       rung color, so neither tile can be mistaken for a high-rung chip —
+       and neither is orange, which is the armed voice and no category's. Teal
        is banknote color on the money man; it replaced a bright saturated gold
        (--yellow) that shouted over the board — the same hue family as the
        pale-cream elite chip fill (--gold-2) at a very different saturation,
@@ -198,11 +201,22 @@
   --orange-6: #fd7e14;
   --orange-8: #e8590c;
   /* The owner's hue — banknote teal, the money man's own color. Off the WAR
-     ladder for the stadium's reason (a full-row fill in a rung hue reads as a
-     giant chip), and off orange because the ballpark holds it. Verbatim Open
-     Color teal-2/8. */
+     ladder because a full-row fill in a rung hue reads as a giant chip.
+     Verbatim Open Color teal-2/8. */
   --teal-2: #96f2d7;
   --teal-8: #099268;
+  /* The ballpark's hue. It wore orange for a round, and orange turned out to
+     be spoken for: it is the ARMED voice (armed pills, confirm hints, and the
+     browsable-target rows that now share it), and a resting stadium row in
+     the action color read as something asking to be tapped. Pink is off the
+     WAR ladder — the ladder's red is OC red, one family over — and off every
+     action channel. The fill is OFF-SCALE at Open Color pink-1, one step
+     lighter than the rule's rung 2: at pink-2 the tile sat close enough to a
+     red-2 WAR chip to read as its big sibling, and the lighter, cooler wash
+     is what buys the distance. The ring stays pink-8. NOT the legacy bare
+     --pink below, which IS red-2 and belongs to the ROY/MotY award chips. */
+  --pink-2: #ffdeeb;
+  --pink-8: #c2255c;
   /* OFF-SCALE, deliberately. Open Color's grays are cool; the cardstock ground
      is warm, so the app carries its own warm pair — and it is already exactly
      what the rule asks for, a fill plus the same family darker. Left alone. */

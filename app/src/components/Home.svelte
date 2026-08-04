@@ -260,15 +260,11 @@
               else if (e.key === "Escape") cancelSeed();
             }}
           />
-          <!-- GO and its way back out, as a pair on the right of the field: two
-               pills of the same shape, the filled one committing the code and the
-               outlined one dismissing it. ✕ is the app's one dismissal glyph (the
-               header's quit pill, every Sheet's corner). It stands beside GO
-               rather than in the field's leading slot so that the row's actions
-               are in one place instead of on either side of the thing they act
-               on. -->
+          <!-- GO alone on the right of the field. The dismissal has two paths
+               already — Escape and a tap anywhere outside the pill — and a ✕
+               crowded a capsule whose whole redesign was removing boxes from
+               inside it. -->
           <button class="seedgo" onclick={playSeed}>GO</button>
-          <button class="seedgo seedx" onclick={cancelSeed} aria-label="Cancel seed entry">✕</button>
         </div>
       {:else}
         <button class="ubtn" bind:this={seedBtn} onclick={() => (seedOpen = true)}
@@ -390,13 +386,20 @@
     background: var(--card);
     color: var(--ink);
   }
+  /* Each fixed-cap bank's punched row wears its club: Moneyball is Oakland's
+     own green (which happens to double as the thrift read), Blank Check is
+     Yankee pinstripe navy. The bright --yellow it used to wear is the same
+     shouting gold the owner tile gave up for teal — at row scale it drowned
+     the punch mark, and gold now belongs to the WAR ladder's elite chips.
+     PayrollBox tints its fixed-cap payroll pill with these same pairs, so
+     the color chosen here is the color the whole game wears. */
   .row.on.mb {
     background: var(--green-wash);
     border-color: var(--green-8);
   }
   .row.on.bc {
-    background: var(--yellow);
-    border-color: var(--gold-8);
+    background: var(--blue-2);
+    border-color: var(--blue-8);
   }
   /* The scorecard punch box: blank on unpunched rows, a stroked cross on the
      choice. The mark is SVG, sized and centered by the grid — no font metrics. */
@@ -569,7 +572,7 @@
     margin-top: 14px;
   }
   /* The seed pill sits below PLAY, centered. Width transitions between the
-     compact closed state (110px, "SEED 🌱") and the open state (200px, input
+     compact closed state (110px, "SEED 🌱") and the open state (180px, input
      row); both are pixel values so the Safari transition engine can interpolate
      without measuring — animating to/from `auto` or `fit-content` is not
      Safari-safe. `overflow:hidden` clips growing content during the transition.
@@ -598,7 +601,7 @@
     transition: width 0.18s ease, transform 0.08s;
   }
   .seedzone.open {
-    width: 200px;
+    width: 180px;
   }
   /* Open, the capsule IS the field: the input inside draws no box of its own
      (see .seedin), so the pill's border does the field's work. Focus and the
@@ -664,13 +667,18 @@
       font-size: 11px;
     }
   }
+  /* Asymmetric on purpose: GO is a pill inside a pill, and concentric shapes
+     want equal margins — the capsule leaves it ~2px above and below, so the
+     right inset matches at 3px instead of the text side's 12px. The input's
+     side keeps real inset because bare type against a curved stroke needs
+     it; a drawn box doesn't. */
   .seedrow {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     width: 100%;
-    padding: 0 8px;
+    padding: 0 3px 0 12px;
   }
   .seedrow.bad {
     animation: seedshake 0.45s;
@@ -718,9 +726,9 @@
     padding: 0;
     outline: none;
   }
-  /* GO, and the ✕ beside it in the same shape: one filled pill for the commit
-     and one outlined pill for the dismissal, which is the app's primary /
-     secondary pair at pill scale. */
+  /* GO, the field's one action: the filled ink pill that commits the code.
+     Dismissal has no button — Escape and a tap outside the capsule both
+     close it, and a ✕ crowded the capsule this used to be two boxes inside. */
   .seedgo {
     flex: none;
     border: 2px solid var(--ink);
@@ -740,15 +748,6 @@
     outline: 3px solid var(--blue);
     outline-offset: -3px;
   }
-  /* The secondary of the pair: same box, hollow, quiet type. It gives back
-     three of the pixels it costs the field by dropping to the glyph's own
-     width — a ✕ needs no side bearing the way two letters do. */
-  .seedgo.seedx {
-    background: transparent;
-    border-color: var(--gray-ink);
-    color: var(--muted);
-    padding: 5px 7px;
-  }
   /* Narrowest phones: the field's half is ~141px. At 16px with base 0.08em
      tracking, a full seven-character seed code still fits, but horizontal
      padding eats into the available glyph width. Drop tracking toward zero
@@ -761,9 +760,6 @@
     }
     .seedgo {
       padding: 5px 7px;
-    }
-    .seedgo.seedx {
-      padding: 5px 5px;
     }
   }
   /* The separator carries the section's 8px bottom padding, like the others. */

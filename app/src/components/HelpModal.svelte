@@ -271,7 +271,7 @@
     {
       label: "🔁 TRADE DEADLINE",
       armed: "🔁 TAP A TRADE…",
-      text: "Swap a signed player, owner or ballpark for this card's. Every row you could take goes amber; tap the one you want, then who he replaces.",
+      text: "Swap a signed player, owner or ballpark for this card's. Every row you could take goes orange; tap the one you want, then who he replaces.",
     },
     {
       label: "⭐ PRIMETIME",
@@ -386,10 +386,11 @@
      not one. A `{@render}` introduces no wrapper of its own, so the rows the
      snippet above draws are direct children like everything else. -->
 <div class="help">
-  <!-- No section rule above the opening list: the sheet's own title already
-       says HOW TO PLAY, and the first thing under a heading repeating that
-       heading was a rule spent on nothing. The list opens the sheet bare and
-       A PLAYER ROW is the first labeled section. -->
+  <!-- OVERVIEW, not HOW TO PLAY: the sheet's own title already says that, and
+       a first heading repeating it was a rule spent on nothing — but a bare
+       list opening the sheet left the intro as the one unlabeled stretch on a
+       page where every other block announces itself. -->
+  <div class="psep">OVERVIEW</div>
   <ul>
     <li>The stove spins you a real team-season, 1985–2025.</li>
     <li>Take <b>one</b> thing per spin: sign a player, or make a hire.</li>
@@ -487,13 +488,13 @@
   <div class="psep">FRONT OFFICE</div>
   <!-- The game's own tiles (SpecialRows), inert, off the same ATL 1995 card
        the rail drafts from. The hue is the chair, not a grade: owner teal,
-       ballpark orange, skipper white with a rung-colored chip. -->
+       ballpark pink, skipper white with a rung-colored chip. -->
   <div class="spec">
     <SpecialRows specimen={FRONT_OFFICE} />
   </div>
   <ul>
     <li><b>💰 Owner</b> (teal): sets your payroll budget.</li>
-    <li><b>🏟️ Ballpark</b> (orange): multiplies it, 0.85× to 1.15×.</li>
+    <li><b>🏟️ Ballpark</b> (pink): multiplies it, 0.85× to 1.15×.</li>
     <li>
       <b>🧢 Skipper</b> (white): adds (W−L) × {MANAGER_PER_NET_WIN} to your win total. The
       chip reads it in WINS.
@@ -810,13 +811,10 @@
   li b {
     font-weight: 800;
   }
-  /* The credit, in the caption's register rather than the body's — it is the
-     last thing on the sheet and the least of it. */
-  .src li {
-    font-size: 11px;
-    line-height: 1.4;
-    color: var(--muted);
-  }
+  /* The credits read in the body's own register — they used to drop to 11px
+     muted, and a section that whispers under its own heading read as broken
+     styling rather than as modesty. The .src class stays on the markup as the
+     section's name; it just no longer costs the type anything. */
   /* One line under a specimen, saying the one thing the picture cannot.
      Same size and leading as body text (li, .ptxt) — differs only in color. */
   .cap {

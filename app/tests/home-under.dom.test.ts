@@ -297,20 +297,19 @@ describe("the BEST card", () => {
 });
 
 describe("cancelling PLAY A SEED", () => {
-  it("stands its ✕ beside GO, both in the same pill shape", () => {
+  it("offers GO alone — dismissal is Escape or a tap outside, never a ✕", () => {
+    // The capsule used to carry a ✕ beside GO; it crowded a field whose whole
+    // redesign was removing boxes from inside the pill, and both dismissal
+    // paths below already cover the keyboard and the thumb.
     const ui = open();
     ui.seedBtn().click();
     flushSync();
-    const go = ui.go()!;
-    const x = ui.cancel()!;
-    // Same class, so the same box: the ✕ is GO's secondary, not a loose glyph.
-    expect(x.classList.contains("seedgo")).toBe(true);
-    // And it stands after GO, on the far side of the field from the input.
-    expect(go.nextElementSibling).toBe(x);
+    expect(ui.go()).not.toBeNull();
+    expect(ui.cancel()).toBeNull();
     ui.close();
   });
 
-  it("closes on the ✕, forgets what was typed, and hands focus back", async () => {
+  it("forgets what was typed once dismissed — reopening starts clean", () => {
     const ui = open();
     ui.seedBtn().click();
     flushSync();
@@ -318,15 +317,13 @@ describe("cancelling PLAY A SEED", () => {
     ui.input()!.dispatchEvent(new Event("input"));
     flushSync();
 
-    ui.cancel()!.click();
+    // Click-away dismissal, the thumb's path.
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     flushSync();
     expect(ui.input()).toBeNull();
     expect(ui.cells()).toHaveLength(2);
-    // Focus lands on the button that opened the field, not on the body.
-    await focused();
-    expect(document.activeElement).toBe(ui.seedBtn());
 
-    // Reopening starts clean: a half-typed code never comes back.
+    // A half-typed code never comes back.
     ui.seedBtn().click();
     flushSync();
     expect(ui.input()!.value).toBe("");
@@ -380,8 +377,8 @@ describe("click-outside closes the seed field", () => {
   });
 
   it("stays open on a pointerdown inside the pill", () => {
-    // The containment check in the away handler lets taps on the input,
-    // GO, and ✕ through — only presses outside the pill close the field.
+    // The containment check in the away handler lets taps on the input and
+    // GO through — only presses outside the pill close the field.
     const ui = open();
     ui.seedBtn().click();
     flushSync();

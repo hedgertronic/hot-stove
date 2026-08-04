@@ -52,10 +52,11 @@
     /** The chip's value as it should read — "5.2", "+14.0". Bare, no unit:
      * these rows are too small for a WAR/WINS suffix. Null draws no chip. */
     war?: string | null;
-    /** Armed by the release picker — amber, dashed, and nudging. Only a player
-     * seat is ever pickable; the manager is hired in the front office row. */
+    /** Armed by the release picker — the armed orange pair, dashed, nudging.
+     * Only a player seat is ever pickable; the manager is hired in the front
+     * office row. */
     pickable?: boolean;
-    /** A help-sheet diagram of the armed state: same markup, same amber, no
+    /** A help-sheet diagram of the armed state: same markup, same orange, no
      * tap. The native `inert` attribute takes the button out of the focus
      * order and swallows clicks; the cursor rule below withdraws the promise
      * of one. Only the pickable branch needs it — a resting seat is a div. */
@@ -141,9 +142,10 @@
      width it rides the right edge like the finale's rows.
 
      ARMED still outranks everything: the release picker's branch renders
-     `cell pickable` — amber fill, dashed ink line, nudging — and never
+     `cell pickable` — the armed orange pair, dashed, nudging — and never
      `filled`, so the two states cannot meet on one element. The chip stays
-     legible on the amber; the frame says "tappable" before anything says WAR. */
+     legible on the orange-2; the frame says "tappable" before anything says
+     WAR. */
   .rwar {
     align-self: center;
     margin-top: 3px;
@@ -192,14 +194,14 @@
     font-size: 11px;
     color: var(--gray-ink);
   }
-  /* Dashed INK over amber — the armed vocabulary the FRONT OFFICE's browsable
-     tiles already speak, and the hardest line on the page, so the state
-     outranks the white seats around it. The rung, when armed carries one,
-     stays on the chip inside. */
+  /* The armed pills' own orange pair, dashed — the vocabulary the market's
+     browsable rows speak, loud against the white seats around it without
+     borrowing ink's committed voice. The rung, when armed carries one, stays
+     on the chip inside. */
   .cell.pickable {
-    background: var(--amber);
+    background: var(--orange-2);
     border-style: dashed;
-    border-color: var(--ink);
+    border-color: var(--orange-8);
     cursor: pointer;
     animation: nudge 1s ease-in-out infinite;
   }

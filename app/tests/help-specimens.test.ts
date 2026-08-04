@@ -356,9 +356,10 @@ describe("the help sheet's scoring copy", () => {
     // checked: the point of the restructure is that TROPHY CASE and RING
     // CHASING stopped being sections of their own, and only a full reading
     // can show that no sixth level or stray top-level heading crept back.
-    // The sheet opens BARE: its title already says HOW TO PLAY, so the first
-    // rule repeating it was removed and A PLAYER ROW is the first section.
+    // OVERVIEW opens the sheet — it names the intro list without repeating
+    // the title the way the old HOW TO PLAY rule did.
     expect(OUTLINE).toEqual([
+      ["OVERVIEW", false],
       ["A PLAYER ROW", false],
       ["YOUR SQUAD", false],
       ["FRONT OFFICE", false],
@@ -511,8 +512,10 @@ describe("the help sheet's scoring copy", () => {
     expect(style).toMatch(/\.cap\s*\{[^}]*font-size:\s*12px/);
     // .cap must NOT still carry 11px (would mean the edit was not applied).
     expect(style).not.toMatch(/\.cap\s*\{[^}]*font-size:\s*11px/);
-    // .src li stays at 11px — the credits list is deliberately quieter.
-    expect(style).toMatch(/\.src\s+li\s*\{[^}]*font-size:\s*11px/);
+    // The credits read in the body's own register now — the 11px muted
+    // override read as broken styling under its own full-size heading, so the
+    // rule is gone entirely and the list inherits li's 12px ink.
+    expect(style).not.toMatch(/\.src\s+li\s*\{/);
   });
 
   it("names each data source exactly once", () => {

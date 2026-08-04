@@ -449,6 +449,13 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    /* The same press dip its three corner twins carry (CornerButtons .help)
+       — the ✕ was the one pill in the row that did not move under a tap.
+       app.css kills the transition for reduced-motion readers. */
+    transition: transform 0.08s;
+  }
+  .quit:active {
+    transform: translate(-1px, -1px);
   }
   /* Armed, the pill carries a word ("QUIT?") — it may outgrow the twin width,
      and reaches across the undo pill 32px inboard. That overlap is intended:
@@ -458,9 +465,13 @@
     background: var(--orange-2);
     color: var(--ink);
     border-color: var(--orange-8);
-    /* Fixed, not auto: "QUIT?" measures 35.5px in the bundled Nunito at
-       800/12px, so 56px seats it centered with the side room 8px padding used
-       to give. Pinning the number makes the confirm's footprint a CONSTANT the
+    /* The armed WORD drops to the powerup pills' own 10.5px/0.04em register —
+       at the glyphs' 12px it read as the largest pill text on the board. The
+       resting ✕ keeps 12px: it is a glyph sized to its twins, not a label. */
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    /* Fixed, not auto: "QUIT?" measures under its old 35.5px at this size,
+       and 56px still seats it centered with side room to spare. Pinning the number makes the confirm's footprint a CONSTANT the
        undo pill can push off from — CornerButtons slides its pill by exactly
        (56 + 4px resting gap − 32px anchor), and that arithmetic only holds if
        this width cannot drift with font rendering. Change either number with
