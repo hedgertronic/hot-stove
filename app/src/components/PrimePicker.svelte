@@ -17,6 +17,10 @@
 
   interface Season {
     team: string;
+    /** Franchise id of the season's card — the value 🏠 pricing compares
+     * against `p.debut`. Team codes drift across renames (CAL → ANA); the
+     * franchise id is the stable one. */
+    franchise: string;
     year: number;
     p: CardPlayer;
     /** Season fits an open roster seat → signable. */
@@ -46,6 +50,7 @@
             return p
               ? {
                   team: card.team,
+                  franchise: card.franchise,
                   year: card.year,
                   p,
                   // The engine decides, because reachability is now two rules:
@@ -96,6 +101,7 @@
       <div class="list">
         {#each seasons as sea ((sea.team + sea.year))}
           {@const plabel = posLabel(sea.p)}
+          {@const price = game.primePriceFor(sea.p, sea.franchise)}
           <button class="srow" disabled={!sea.fits || sea.here} onclick={() => pick(sea)}>
             <span class="pos" class:pit={isPitcher(sea.p)} class:long={plabel.length > 5}
               >{plabel}</span
@@ -114,8 +120,8 @@
                 >{/if}
             </span>
             <span class="right">
+              <span class="cost {costTier(price)}">{money(price)}</span>
               {#if game.showWar}<span class="warchip {warTier(sea.p.war)}">{sea.p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
-              <span class="cost {costTier(sea.p.cost)}">{money(sea.p.cost)}</span>
             </span>
           </button>
         {/each}
@@ -238,9 +244,15 @@
     flex: none;
   }
   /* The WAR chip is one ladder in app.css — this sheet used to carry a second
-     copy of it, which is how two markets drift apart. */
-  /* Structural right-alignment and tint tiers, same as the market rows'
-     price column. */
+     copy of it, which is how two markets drift apart.
+     Salary sits inboard; WAR chip is flush right, matching the market rows.
+     Same pinned min-inline-size as PlayerList: the chip is rightmost, so its
+     right edge must be consistent across values. */
+  .right .warchip {
+    min-inline-size: 64px;
+  }
+  /* Structural right-alignment and tint tiers, same as the market rows' price
+     column. Sits inboard of the WAR chip now (salary before WAR). */
   .cost {
     display: inline-flex;
     justify-content: flex-end;

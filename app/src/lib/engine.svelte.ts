@@ -18,7 +18,9 @@ import { Rng, randomSeed } from "./rng";
 import {
   GAMES,
   MARINERS_WINS,
+  WBC_CHAMPION_ID,
   WBC_CHAMPION_POINTS,
+  WBC_RUNNERUP_ID,
   WBC_RUNNERUP_POINTS,
   displayRecord,
   score,
@@ -208,6 +210,17 @@ export interface FinaleResult {
    * scores less than the ceiling printed above it, so "you matched the best club
    * we found" is the honest wording rather than "you were perfect". */
   playedTheCeiling?: boolean;
+  /** True when the player's final win total (from recordFromTotal) strictly
+   * exceeds the dream team's win total from the solver's unclamped answer. The
+   * comparison uses clamped wins [0,162] so it matches what the player reads on
+   * screen — two clubs that both exceed 162 points tie at 162 wins and neither
+   * beats the other. When true, scoutHits is upgraded to the dream club's own
+   * fill count so the scoring doesn't penalise the player for not copying a
+   * club they already beat.
+   *
+   * NOTE: a badges.ts agent keys a legendary badge off this field. The win
+   * comparison is win-based and clamps at 162 (round 28). */
+  beatCeiling?: boolean;
   /** True when the hired manager IS the dream team's manager. */
   managerHit: boolean;
   scoutHits: number;
@@ -229,6 +242,34 @@ export interface FinaleResult {
  * to the listed price — the discount must never cost MORE than a plain sign
  * (floor-priced players in cheap-floor years list below $1M). */
 export const HOMEGROWN_PRICE_M = 1.0;
+
+/** Decide whether the played club beat the dream team on wins and resolve the
+ * scout-hit count. Pure function, exported so tests can pin the boundary
+ * without running a full game.
+ *
+ * Comparison uses clamped wins [0,162], matching what the player reads on
+ * screen. Two clubs that both exceed 162 points tie at 162 wins and neither
+ * beats the other (beatCeiling false). When true, scoutHits upgrades to
+ * Math.max(rawScoutHits, dreamSeats) — monotone, never lowers the count.
+ *
+ * The caller must pass the INITIAL parts.total (before any scoutHits upgrade)
+ * so this is circular-free: it reads the total once, computes the verdict,
+ * and the caller re-scores only if the scout count changed. */
+export function beatCeilingDecision(
+  playerTotal: number,
+  solvedTotal: number | null,
+  rawScoutHits: number,
+  dreamSeats: number,
+): { beatCeiling: boolean; scoutHits: number } {
+  if (solvedTotal === null) return { beatCeiling: false, scoutHits: rawScoutHits };
+  const pw = recordFromTotal(playerTotal, GAMES, MARINERS_WINS).wins;
+  const dw = recordFromTotal(solvedTotal, GAMES, MARINERS_WINS).wins;
+  const beatCeiling = pw > dw;
+  return {
+    beatCeiling,
+    scoutHits: beatCeiling ? Math.max(rawScoutHits, dreamSeats) : rawScoutHits,
+  };
+}
 
 const SAVE_KEY = "hotstove.current";
 /** v6 = signings carry their seasonal age (the 🧓/🍼 input). v5 = 🏠 Homegrown
@@ -660,9 +701,9 @@ export class Game {
         this.slots.filter((s) => s?.ws).length + (this.manager?.ws ? 1 : 0),
       pennants:
         this.slots.filter((s) => s?.pen).length + (this.manager?.pen ? 1 : 0),
-      wbcChampions: this.slots.filter((s) => s?.wbc === WBC_CHAMPION_POINTS)
+      wbcChampions: this.slots.filter((s) => s?.wbc === WBC_CHAMPION_ID)
         .length,
-      wbcRunnersUp: this.slots.filter((s) => s?.wbc === WBC_RUNNERUP_POINTS)
+      wbcRunnersUp: this.slots.filter((s) => s?.wbc === WBC_RUNNERUP_ID)
         .length,
     };
   }
@@ -763,6 +804,27 @@ export class Game {
 
   priceFor(p: CardPlayer): number {
     return this.discountEligible(p)
+      ? Math.min(HOMEGROWN_PRICE_M, p.cost)
+      : p.cost;
+  }
+
+  /** Whether an armed 🏠 Homegrown reprices a SPECIFIC SEASON in the career
+   * sheet. The check is per-season, not per-player: only seasons played for
+   * the debut franchise are eligible. McGwire on the A's card — his Oakland
+   * seasons sign at $1M, his Cardinals seasons at full price. The landed card
+   * does NOT appear in this check; what matters is the season's own club.
+   *
+   * The season is identified by its card's FRANCHISE id, never its team code:
+   * `p.debut` is a franchise id, and clubs that renamed (CAL/ANA Angels,
+   * MON/WSN, FLA/MIA) have seasons whose team code will never equal any
+   * debut value. Comparing team to franchise priced every Angels season at
+   * list even with 🏠 armed. */
+  primeDiscountEligible(p: CardPlayer, seasonFranchise: string): boolean {
+    return this.powerups.hometown === "armed" && seasonFranchise === p.debut;
+  }
+
+  primePriceFor(p: CardPlayer, seasonFranchise: string): number {
+    return this.primeDiscountEligible(p, seasonFranchise)
       ? Math.min(HOMEGROWN_PRICE_M, p.cost)
       : p.cost;
   }
@@ -1129,11 +1191,13 @@ export class Game {
    * sheet. The browsed card does not count as scouted (`seen`): only cards the
    * reel landed on do.
    *
-   * The price is the browsed season's list price and `hero` is false, even
-   * with 🏠 Homegrown armed: discount pricing does not travel (DECISIONS.md
-   * round 5). The discount is a claim about the LANDED card's market, and a
-   * career sheet is a different market — so an armed 🏠 is neither charged nor
-   * spent here, and `endSpin` hands it back ready.
+   * With 🏠 Homegrown armed, the discount travels per-season: only seasons
+   * whose card FRANCHISE matches the player's debut franchise sign at $1M
+   * (DECISIONS.md round 28 supersedes round 5). A's McGwire on an OAK card —
+   * Oakland seasons cost $1M, Cardinals seasons cost full price. The check is
+   * `primeDiscountEligible(p, card.franchise)` off the loaded season card
+   * (franchise, not team code — see that method), and `primePriceFor`
+   * applies the $1M cap.
    *
    * 🔁 Trade Deadline armed and no seat open is the one combination that
    * resolves here rather than being refused: the season takes an occupied
@@ -1154,7 +1218,9 @@ export class Game {
     if (idx === null) return false;
     this.snapshot();
     const trade = this.slots[idx] !== null;
-    this.slots[idx] = this.makeSigned(card, p, p.cost, false);
+    const discounted = this.primeDiscountEligible(p, card.franchise);
+    this.slots[idx] = this.makeSigned(card, p, this.primePriceFor(p, card.franchise), discounted);
+    if (discounted) this.spendPowerup("hometown");
     this.spendPowerup("prime");
     if (trade) this.spendPowerup("tradeDeadline");
     this.primePick = null;
@@ -1632,8 +1698,11 @@ export class Game {
       this.manager !== null &&
       this.manager.team === bestManager.team &&
       this.manager.year === bestManager.year;
-    const scoutHits = playerHits + (managerHit ? 1 : 0);
-    const parts = score({
+    const scoutHitsRaw = playerHits + (managerHit ? 1 : 0);
+    // solvedTotal is computed here, before score(), so beatCeilingDecision can
+    // compare the initial parts.total against it without circularity.
+    const solvedTotal = best?.total ?? null;
+    let parts = score({
       totalWar: this.totalWar,
       spendM: this.spend,
       budgetM: this.effectiveBudget,
@@ -1643,11 +1712,40 @@ export class Game {
       managerRecord: this.manager
         ? [this.manager.wins, this.manager.losses]
         : null,
-      scoutHits,
+      scoutHits: scoutHitsRaw,
       managerMoty: this.manager?.moty === true,
       wbcChampions: this.pedigree.wbcChampions,
       wbcRunnersUp: this.pedigree.wbcRunnersUp,
     });
+    let stamp = recordFromTotal(parts.total, GAMES, MARINERS_WINS);
+    // beatCeiling: evaluated on the pre-upgrade total so the comparison is
+    // circular-free. If true, scoutHits upgrades to the dream club's fill count
+    // and the score is recomputed with the new count before anything else reads
+    // it — wins, losses, badges, and the finale object all use the final parts.
+    const { beatCeiling, scoutHits } = beatCeilingDecision(
+      parts.total,
+      solvedTotal,
+      scoutHitsRaw,
+      best?.dreamSeats ?? 0,
+    );
+    if (scoutHits !== scoutHitsRaw) {
+      parts = score({
+        totalWar: this.totalWar,
+        spendM: this.spend,
+        budgetM: this.effectiveBudget,
+        awardLists: players.map((p) => p.awards),
+        rings: this.pedigree.rings,
+        pennants: this.pedigree.pennants,
+        managerRecord: this.manager
+          ? [this.manager.wins, this.manager.losses]
+          : null,
+        scoutHits,
+        managerMoty: this.manager?.moty === true,
+        wbcChampions: this.pedigree.wbcChampions,
+        wbcRunnersUp: this.pedigree.wbcRunnersUp,
+      });
+      stamp = recordFromTotal(parts.total, GAMES, MARINERS_WINS);
+    }
     const [wins, losses] = displayRecord(parts.expectedWins);
     // 🗺️ reads the alignment each player's OWN season played in, off the index
     // rows: pre-1994 there was no Central, Houston was NL through 2012,
@@ -1666,14 +1764,13 @@ export class Game {
     // rungs are gated on both — the baseline names the rung, the stamp decides
     // whether it held — so this has to be built from the same call
     // `Finale.svelte` renders from or the badge and the screen can disagree.
-    const stamp = recordFromTotal(parts.total, GAMES, MARINERS_WINS);
+    // `stamp` is computed above (before and after any beatCeiling scout upgrade).
     // 🧠's fact, and it reads the solver's RAW answer rather than the ceiling
     // the finale prints. `bestPossibleTotal` below is `max(solved, total)` —
     // the played club is a proven-reachable incumbent, so the printed ceiling
     // can never sit under it — which means only `best.total` can say whether
     // the club actually passed the solve. Strictly greater: a tie is
     // `playedTheCeiling`, not a win.
-    const solvedTotal = best?.total ?? null;
     const beatDream = solvedTotal !== null && parts.total > solvedTotal;
     const badges = earnedBadges({
       baselineWins: wins,
@@ -1729,6 +1826,7 @@ export class Game {
         spent: powerupStates.filter((s) => s === "spent").length,
         total: powerupStates.length,
       },
+      beatCeiling,
     });
     // Strictly before recordHistory below, which appends this game's keys.
     // The very first game flags everything it earns, which is correct rather
@@ -1767,6 +1865,7 @@ export class Game {
           ? null
           : recordFromTotal(bestPossibleTotal, GAMES, MARINERS_WINS),
       playedTheCeiling: bestPossibleTotal !== null && bestPossibleTotal <= parts.total,
+      beatCeiling,
     };
     this.phase = "finale";
     // The id tying this season's log row to its archive record. Minted here,

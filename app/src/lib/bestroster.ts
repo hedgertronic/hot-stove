@@ -145,13 +145,15 @@ export interface BestPick {
   /** Listed price, $M — what this seat costs the dream club's payroll.
    * Optional so hand-built lab fixtures stay valid; the solver always sets it. */
   cost?: number;
-  /** World Baseball Classic medal for this season, in Ring-chasing points —
-   * 2 champion, 1 losing finalist, absent otherwise, exactly as the card
-   * carries it. Here for the same reason `ws`/`pen` are: the finale draws the
-   * dream club's seats with the same hardware its own squad shows, and a medal
-   * the solver dropped would make the ceiling look like it won less than it
-   * did. Optional because most player-seasons have none, not because the
-   * solver sometimes omits it. */
+  /** World Baseball Classic medal for this season — card-data discriminant,
+   * 2 (WBC_CHAMPION_ID) for a gold medal, 1 (WBC_RUNNERUP_ID) for silver,
+   * absent otherwise, exactly as the card carries it. NOT scoring points:
+   * use WBC_CHAMPION_ID / WBC_RUNNERUP_ID (not WBC_CHAMPION_POINTS /
+   * WBC_RUNNERUP_POINTS) to compare against this field. Here for the same
+   * reason `ws`/`pen` are: the finale draws the dream club's seats with the
+   * same hardware its own squad shows, and a medal the solver dropped would
+   * make the ceiling look like it won less than it did. Optional because most
+   * player-seasons have none, not because the solver sometimes omits it. */
   wbc?: number;
 }
 

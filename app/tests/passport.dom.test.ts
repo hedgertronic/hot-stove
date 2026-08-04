@@ -71,7 +71,7 @@ describe("tapping a stamp", () => {
     expect(panels(el)).toHaveLength(0);
     tap(buttons(el)[0]);
     const [panel] = panels(el);
-    expect(panel.textContent).toContain("Rostered a player from Japan");
+    expect(panel.textContent).toContain("Rostered a player from Japan.");
     // Measured: the panel is `visibility: hidden` until a placement exists, so
     // this class is the difference between a reveal and a tap that does
     // nothing visible.
@@ -202,7 +202,7 @@ describe("tapping a stamp", () => {
     for (const country of ["Japan", "Curaçao"]) {
       const el = board(stamp(country, { count: null, rarity: null, flag: "" }));
       tap(buttons(el)[0]);
-      expect(panels(el)[0].textContent?.trim()).toBe(`Rostered a player from ${country}`);
+      expect(panels(el)[0].textContent?.trim()).toBe(`Rostered a player from ${country}.`);
     }
   });
 });

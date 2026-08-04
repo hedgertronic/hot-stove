@@ -219,7 +219,7 @@
               count={stamp.count}
               rarity={stamp.rarity}
               shape="rect"
-              title={stampReveal(stamp)}
+              title={stamp.country}
               open={opened === key}
               ontoggle={() => toggle(key)}
             />

@@ -644,7 +644,7 @@ export interface PassportItem {
  * "A player", singular, at any count: the sentence says why the stamp EXISTS,
  * and how many men are behind it is already drawn on the stamp. */
 export function stampReveal(s: Pick<PassportItem, "country">): string {
-  return `Rostered a player from ${s.country}`;
+  return `Rostered a player from ${s.country}.`;
 }
 
 /** What a stamp announces to a screen reader.

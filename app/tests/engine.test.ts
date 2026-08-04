@@ -4,7 +4,9 @@ import { recordFromTotal } from "../src/lib/format";
 import {
   GAMES,
   MARINERS_WINS,
+  WBC_CHAMPION_ID,
   WBC_CHAMPION_POINTS,
+  WBC_RUNNERUP_ID,
   WBC_RUNNERUP_POINTS,
 } from "../src/lib/scoring";
 import {
@@ -1962,18 +1964,18 @@ describe("World Baseball Classic medals", () => {
   }
 
   it("counts a champion and a runner-up off the signed club", async () => {
-    const champ = await medalClub(WBC_CHAMPION_POINTS);
+    const champ = await medalClub(WBC_CHAMPION_ID);
     expect(champ.pedigree.wbcChampions).toBe(1);
     expect(champ.pedigree.wbcRunnersUp).toBe(0);
 
-    const second = await medalClub(WBC_RUNNERUP_POINTS);
+    const second = await medalClub(WBC_RUNNERUP_ID);
     expect(second.pedigree.wbcChampions).toBe(0);
     expect(second.pedigree.wbcRunnersUp).toBe(1);
   });
 
   it("pays a champion exactly WBC_CHAMPION_POINTS more than no medal", async () => {
     const plain = await medalClub();
-    const champ = await medalClub(WBC_CHAMPION_POINTS);
+    const champ = await medalClub(WBC_CHAMPION_ID);
     expect(champ.finale!.parts.ringPoints - plain.finale!.parts.ringPoints).toBe(
       WBC_CHAMPION_POINTS,
     );
@@ -1992,7 +1994,7 @@ describe("World Baseball Classic medals", () => {
 
   it("pays a runner-up exactly WBC_RUNNERUP_POINTS more", async () => {
     const plain = await medalClub();
-    const second = await medalClub(WBC_RUNNERUP_POINTS);
+    const second = await medalClub(WBC_RUNNERUP_ID);
     expect(
       second.finale!.parts.ringPoints - plain.finale!.parts.ringPoints,
     ).toBe(WBC_RUNNERUP_POINTS);
@@ -2014,7 +2016,7 @@ describe("World Baseball Classic medals", () => {
           posG: { c: 0, if: 0, of: 0, dh: 0 },
           war: 5,
           cost: 5,
-          wbc: WBC_CHAMPION_POINTS,
+          wbc: WBC_CHAMPION_ID,
           ws: true,
         }),
       ]),
@@ -2066,7 +2068,7 @@ describe("World Baseball Classic medals", () => {
       g.slots[i] = filler(i, {
         ws: i < 2,
         pen: i === 2,
-        wbc: WBC_CHAMPION_POINTS,
+        wbc: WBC_CHAMPION_ID,
       });
     expect(g.pedigree.rings).toBe(2);
     expect(g.pedigree.pennants).toBe(1);

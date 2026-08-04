@@ -662,8 +662,31 @@ describe("every new badge resolves to a definition", () => {
       "fieldgeneral",
       "minimum",
       "taxed",
+      "outscouted",
     ]) {
       expect(BADGE_BY_KEY[key], `${key} is undefined`).toBeDefined();
     }
+  });
+});
+
+describe("the outscouted badge", () => {
+  it("earns outscouted when beatCeiling is true", () => {
+    expect(earnedBadges(f({ beatCeiling: true }))).toContain("outscouted");
+  });
+
+  it("does not earn outscouted when beatCeiling is false", () => {
+    expect(earnedBadges(f({ beatCeiling: false }))).not.toContain("outscouted");
+  });
+
+  it("does not earn outscouted when beatCeiling is absent", () => {
+    // BASE has no beatCeiling; absent reads as "did not beat it" — the safe direction.
+    expect(earnedBadges(f({}))).not.toContain("outscouted");
+  });
+
+  it("stacks with perfect and beatdream when all conditions are met", () => {
+    const badges = earnedBadges(f({ total: 162, beatDream: true, beatCeiling: true }));
+    expect(badges).toContain("perfect");
+    expect(badges).toContain("beatdream");
+    expect(badges).toContain("outscouted");
   });
 });

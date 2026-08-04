@@ -79,10 +79,10 @@ import { GOAL_POINTS, MANAGER_PER_NET_WIN } from "./scoring";
 /** The collection ladder. `legendary` sits above `ultra` and holds the badges
  * that say "you maxed out an axis" rather than "this was rare" — the frequency
  * gap between them and ultra is small, the statement is not. Membership is the
- * top of an axis and nothing else: 👑 is the top of the on-field ladder, 🏆 the
- * top of the goal, 🌠 the top of scouting. It is styled
- * inverted from every other tier (ink fill, gold text) so it reads as beyond
- * the ladder rather than one more rung on it. */
+ * top of an axis: 👑 is the top of the on-field ladder, 🏆 the stated goal,
+ * 🌠 the top of scouting, 💰 the top of the goal axis (exceeding the solver's
+ * own ceiling). It is styled inverted from every other tier (ink fill, gold
+ * text) so it reads as beyond the ladder rather than one more rung on it. */
 /** Rarest first, anti-trophies last — the one ordering of the ladder.
  *
  * It is a value, not just a type, because three surfaces need the ORDER and
@@ -121,6 +121,10 @@ export interface BadgeDef {
   emoji: string;
   /** Finale pill and trophy-case text, sans emoji. */
   label: string;
+  /** Human-readable display name for tooltips, in title case. Matches label for
+   * pure acronyms (WBC, MVP) but uses mixed case for everything else — "Bet on
+   * Baseball" not "BET ON BASEBALL". */
+  name: string;
   rarity: Rarity;
   axis: BadgeAxis;
   /** An anti-trophy. It sits outside the progress fraction — nobody chases a
@@ -246,6 +250,15 @@ export interface BadgeFacts {
    * beat it", which is also what a game whose dream solve could not run should
    * report. */
   beatDream?: boolean;
+  /** The season outscored the solver's own ceiling — the highest total possible
+   * given the cards in play, which can be exceeded by Double Play when a
+   * dominant card appears in both slots.
+   *
+   * Optional for the same "fail-safe" reason as `beatDream`. Absent reads as
+   * "did not beat it", consistent with a game whose ceiling solve could not run.
+   * Populated by the engine; the field is declared here so `earnedBadges` can
+   * guard against it before the engine agent's commit lands. */
+  beatCeiling?: boolean;
   spendM: number;
   budgetM: number;
   /** `ScoreParts.budgetBonus`; 💵 wants it near its 10-point ceiling. */
@@ -802,12 +815,9 @@ export const SUSPENDED: ReadonlySet<string> = new Set([
  *
  * The label is BET ON BASEBALL — the phrase the sport itself uses for the rule
  * on the clubhouse wall, and the owner's call. It is a category, not a verdict
- * on any one man, and the `how` string is where the four men's actual statuses
- * are spelled out one at a time: two findings, two open cases. That division
- * of labor is deliberate rather than a compromise. The label is shorthand
- * carried on a pill and into a share string; the `how` is the sentence a
- * player reads when they tap the badge, so precision is cheap there and
- * nothing in it asserts guilt against Clase or Ortiz.
+ * on any one man. The `how` names the class (MLB gambling suspensions) rather
+ * than each man's individual status, which dates quickly and cannot be
+ * summarized without risking an assertion of guilt on open cases.
  *
  * The status copy has already gone stale once on this subject and would again:
  * Manfred removed Rose from the permanently ineligible list in May 2025,
@@ -1073,6 +1083,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "👑",
     label: "BEST RECORD OF ALL TIME",
+    name: "Best Record of All Time",
     rarity: "legendary",
     axis: "onfield",
     freq: 1.33,
@@ -1095,6 +1106,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🔱",
     label: "MATCHED THE 2001 MARINERS",
+    name: "Matched the 2001 Mariners",
     rarity: "ultra",
     axis: "onfield",
     freq: 0.63,
@@ -1105,6 +1117,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🗽",
     label: "MATCHED THE 1998 YANKEES",
+    name: "Matched the 1998 Yankees",
     rarity: "ultra",
     axis: "onfield",
     freq: 1.4,
@@ -1119,6 +1132,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🍎",
     label: "MATCHED THE 1986 METS",
+    name: "Matched the 1986 Mets",
     rarity: "rare",
     axis: "onfield",
     freq: 4.29,
@@ -1129,6 +1143,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🚀",
     label: "MATCHED THE 2022 ASTROS",
+    name: "Matched the 2022 Astros",
     rarity: "rare",
     axis: "onfield",
     freq: 4.92,
@@ -1139,6 +1154,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🐻",
     label: "MATCHED THE 2016 CUBS",
+    name: "Matched the 2016 Cubs",
     rarity: "uncommon",
     axis: "onfield",
     freq: 5.95,
@@ -1149,6 +1165,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🧦",
     label: "MATCHED THE 2004 RED SOX",
+    name: "Matched the 2004 Red Sox",
     rarity: "uncommon",
     axis: "onfield",
     freq: 4.99,
@@ -1161,6 +1178,7 @@ export const BADGES: BadgeDef[] = [
     key: "hundred",
     emoji: "💯",
     label: "100-WIN CLUB",
+    name: "100-Win Club",
     rarity: "common",
     axis: "onfield",
     freq: 47.37,
@@ -1175,6 +1193,7 @@ export const BADGES: BadgeDef[] = [
     key: "dayjob",
     emoji: "👔",
     label: "DON'T QUIT YOUR DAY JOB",
+    name: "Don't Quit Your Day Job",
     rarity: "ironic",
     axis: "onfield",
     ironic: true,
@@ -1193,6 +1212,7 @@ export const BADGES: BadgeDef[] = [
     key: "worst",
     emoji: "📉",
     label: "WORST RECORD OF ALL TIME",
+    name: "Worst Record of All Time",
     rarity: "ironic",
     axis: "onfield",
     ironic: true,
@@ -1203,6 +1223,7 @@ export const BADGES: BadgeDef[] = [
     key: "skull",
     emoji: "💀",
     label: "100-LOSS CLUB",
+    name: "100-Loss Club",
     rarity: "ironic",
     axis: "onfield",
     ironic: true,
@@ -1243,6 +1264,7 @@ export const BADGES: BadgeDef[] = [
     key: "taxed",
     emoji: "💳",
     label: "THE BILL CAME DUE",
+    name: "The Bill Came Due",
     rarity: "ironic",
     axis: "onfield",
     ironic: true,
@@ -1261,6 +1283,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🏆",
     label: "PERFECT SEASON",
+    name: "Perfect Season",
     rarity: "legendary",
     axis: "goal",
     freq: 1.01,
@@ -1301,10 +1324,32 @@ export const BADGES: BadgeDef[] = [
     key: "beatdream",
     emoji: "🧠",
     label: "BEAT THE DREAM TEAM",
+    name: "Beat the Dream Team",
     rarity: "rare",
     axis: "goal",
     freq: 2.5,
     how: "Outscored the dream team the finale solved off your own cards.",
+  },
+  /* The peak of the goal axis: outscoring the solver's own theoretical
+   * ceiling, not merely the dream team it printed. The ceiling is the best
+   * the solver can find given the cards in play; exceeding it requires that
+   * the cards contain something the solver's model missed — most commonly a
+   * Double Play pairing that lets one dominant card fill two seats.
+   *
+   * `secret` for 👑's reason: the reward is the discovery, not the target.
+   * Named OUTSCOUTED rather than anything money-flavored: "moneyball" is
+   * already the OAK-2002 payroll mode's id, and a badge sharing that word
+   * would read as a mode reward instead of what it is. */
+  {
+    key: "outscouted",
+    secret: true,
+    emoji: "🦉",
+    label: "OUTSCOUTED",
+    name: "Outscouted",
+    rarity: "legendary",
+    axis: "goal",
+    freq: null,
+    how: "Won more games than the dream team — the scouts owe you their notes.",
   },
 
   // ---- payroll: exactly one fires ----
@@ -1312,6 +1357,7 @@ export const BADGES: BadgeDef[] = [
     key: "farm",
     emoji: "💸",
     label: "MORTGAGED THE FARM",
+    name: "Mortgaged the Farm",
     rarity: "ironic",
     axis: "payroll",
     ironic: true,
@@ -1322,6 +1368,7 @@ export const BADGES: BadgeDef[] = [
     key: "dime",
     emoji: "💵",
     label: "SPENT EVERY DIME",
+    name: "Spent Every Dime",
     rarity: "uncommon",
     axis: "payroll",
     freq: 4.98,
@@ -1331,6 +1378,7 @@ export const BADGES: BadgeDef[] = [
     key: "pinch",
     emoji: "🧮",
     label: "PINCHED EVERY PENNY",
+    name: "Pinched Every Penny",
     rarity: "rare",
     axis: "payroll",
     freq: 2.33,
@@ -1340,6 +1388,7 @@ export const BADGES: BadgeDef[] = [
     key: "pocket",
     emoji: "🧾",
     label: "POCKETED THE DIFFERENCE",
+    name: "Pocketed the Difference",
     rarity: "ironic",
     axis: "payroll",
     ironic: true,
@@ -1371,6 +1420,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🌠",
     label: "THE DREAM TEAM",
+    name: "The Dream Team",
     rarity: "legendary",
     axis: "scout",
     // Null for the 🔮 population's own reason inverted. Study 10 measures the
@@ -1401,6 +1451,7 @@ export const BADGES: BadgeDef[] = [
     key: "crystal",
     emoji: "🔮",
     label: "CRYSTAL BALL",
+    name: "Crystal Ball",
     rarity: "uncommon",
     axis: "scout",
     freq: 9.6,
@@ -1413,6 +1464,7 @@ export const BADGES: BadgeDef[] = [
     key: "allstars",
     emoji: "🏅",
     label: "ALL-STAR ROSTER",
+    name: "All-Star Roster",
     rarity: "uncommon",
     axis: "roster",
     freq: 6.05,
@@ -1423,6 +1475,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🃏",
     label: "THE TWO-WAY GUY",
+    name: "The Two-Way Guy",
     rarity: "rare",
     axis: "roster",
     freq: 3.79,
@@ -1448,6 +1501,7 @@ export const BADGES: BadgeDef[] = [
     key: "noweak",
     emoji: "🧼",
     label: "NO SCRUBS",
+    name: "No Scrubs",
     rarity: "rare",
     freq: 3.04,
     axis: "roster",
@@ -1457,6 +1511,7 @@ export const BADGES: BadgeDef[] = [
     key: "topheavy",
     emoji: "⛰️",
     label: "STARS AND SCRUBS",
+    name: "Stars and Scrubs",
     rarity: "rare",
     axis: "roster",
     // Null on purpose, and it will stay null. Every bot arm maximizes WAR, and
@@ -1472,6 +1527,7 @@ export const BADGES: BadgeDef[] = [
     key: "balanced",
     emoji: "⚖️",
     label: "NO DROP-OFF",
+    name: "No Drop-Off",
     rarity: "rare",
     axis: "roster",
     freq: null,
@@ -1481,6 +1537,7 @@ export const BADGES: BadgeDef[] = [
     key: "gold",
     emoji: "🌟",
     label: "MURDERERS' ROW",
+    name: "Murderers' Row",
     rarity: "ultra",
     axis: "roster",
     // Null for the ⛰️ reason inverted: this one the bot is BETTER at than a
@@ -1521,6 +1578,7 @@ export const BADGES: BadgeDef[] = [
     key: "cooperstown",
     emoji: "🎖️",
     label: "HARDWARE STORE",
+    name: "Hardware Store",
     rarity: "rare",
     axis: "roster",
     // Unchanged: same trigger, same threshold, same measured rate. Only the
@@ -1554,6 +1612,7 @@ export const BADGES: BadgeDef[] = [
     key: "hall",
     emoji: "🏛️",
     label: "COOPERSTOWN CLASS",
+    name: "Cooperstown Class",
     rarity: "uncommon",
     axis: "roster",
     freq: null,
@@ -1570,6 +1629,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🌎",
     label: "THE WORLD TOUR",
+    name: "The World Tour",
     rarity: "rare",
     axis: "roster",
     freq: null,
@@ -1579,6 +1639,7 @@ export const BADGES: BadgeDef[] = [
     key: "rings",
     emoji: "💍",
     label: "RING BEARERS",
+    name: "Ring Bearers",
     rarity: "ultra",
     axis: "roster",
     freq: 1.48,
@@ -1588,6 +1649,7 @@ export const BADGES: BadgeDef[] = [
     key: "brothers",
     emoji: "👬",
     label: "BROTHERLY LOVE",
+    name: "Brotherly Love",
     rarity: "rare",
     axis: "roster",
     secret: true,
@@ -1598,6 +1660,7 @@ export const BADGES: BadgeDef[] = [
     key: "fatherson",
     emoji: "👨‍👦",
     label: "LIKE FATHER, LIKE SON",
+    name: "Like Father, Like Son",
     rarity: "ultra",
     axis: "roster",
     secret: true,
@@ -1608,6 +1671,7 @@ export const BADGES: BadgeDef[] = [
     key: "threebrothers",
     emoji: "👨‍👨‍👦",
     label: "FAMILY REUNION",
+    name: "Family Reunion",
     rarity: "ultra",
     axis: "roster",
     secret: true,
@@ -1619,6 +1683,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "📋",
     label: "PLAYER-MANAGER",
+    name: "Player-Manager",
     rarity: "ultra",
     axis: "roster",
     // 0.05% measured over 25,000 games: hiring a skipper who ALSO played is
@@ -1631,6 +1696,7 @@ export const BADGES: BadgeDef[] = [
     key: "skipper",
     emoji: "🧢",
     label: "PUSHED THE RIGHT BUTTONS",
+    name: "Pushed the Right Buttons",
     rarity: "uncommon",
     axis: "roster",
     freq: 9.91,
@@ -1671,6 +1737,7 @@ export const BADGES: BadgeDef[] = [
     key: "fearless",
     emoji: "🫡",
     label: "FEARLESS LEADER",
+    name: "Fearless Leader",
     rarity: "uncommon",
     axis: "roster",
     freq: 8.63,
@@ -1700,6 +1767,7 @@ export const BADGES: BadgeDef[] = [
     key: "interim",
     emoji: "🪑",
     label: "THE INTERIM",
+    name: "The Interim",
     rarity: "ironic",
     axis: "roster",
     ironic: true,
@@ -1721,6 +1789,7 @@ export const BADGES: BadgeDef[] = [
     key: "oldheads",
     emoji: "🧓",
     label: "OLD HEADS",
+    name: "Old Heads",
     rarity: "ultra",
     axis: "roster",
     freq: 0.95,
@@ -1730,6 +1799,7 @@ export const BADGES: BadgeDef[] = [
     key: "youngguns",
     emoji: "🍼",
     label: "YOUNG GUNS",
+    name: "Young Guns",
     rarity: "ultra",
     axis: "roster",
     freq: 1.73,
@@ -1739,6 +1809,7 @@ export const BADGES: BadgeDef[] = [
     key: "division",
     emoji: "🗺️",
     label: "RAIDED THE DIVISION",
+    name: "Raided the Division",
     rarity: "rare",
     axis: "roster",
     freq: 3.83,
@@ -1748,6 +1819,7 @@ export const BADGES: BadgeDef[] = [
     key: "homefield",
     emoji: "⛲",
     label: "HOME FIELD ADVANTAGE",
+    name: "Home Field Advantage",
     rarity: "rare",
     axis: "roster",
     freq: 2.98,
@@ -1757,6 +1829,7 @@ export const BADGES: BadgeDef[] = [
     key: "companytown",
     emoji: "🏭",
     label: "COMPANY TOWN",
+    name: "Company Town",
     rarity: "rare",
     axis: "roster",
     freq: 1.9,
@@ -1766,6 +1839,7 @@ export const BADGES: BadgeDef[] = [
     key: "franchiseplayer",
     emoji: "💎",
     label: "THE FRANCHISE PLAYER",
+    name: "The Franchise Player",
     rarity: "uncommon",
     axis: "roster",
     freq: 6.47,
@@ -1782,6 +1856,7 @@ export const BADGES: BadgeDef[] = [
     key: "fireman",
     emoji: "🚒",
     label: "THE FIREMAN",
+    name: "The Fireman",
     rarity: "ultra",
     axis: "roster",
     // 1.07% over 4,000 reference seasons, and the least settled number added
@@ -1800,6 +1875,7 @@ export const BADGES: BadgeDef[] = [
     key: "fieldgeneral",
     emoji: "🧤",
     label: "THE FIELD GENERAL",
+    name: "The Field General",
     rarity: "uncommon",
     axis: "roster",
     // 7.35%, against 1.07% for the reliever, and the gap is SEATS rather than
@@ -1816,6 +1892,7 @@ export const BADGES: BadgeDef[] = [
     key: "minimum",
     emoji: "🪙",
     label: "LEAGUE MINIMUM",
+    name: "League Minimum",
     rarity: "uncommon",
     axis: "roster",
     freq: 10.22,
@@ -1850,6 +1927,7 @@ export const BADGES: BadgeDef[] = [
     key: "flyingblind",
     emoji: "🕶️",
     label: "FLYING BLIND",
+    name: "Flying Blind",
     rarity: "rare",
     axis: "roster",
     // Likely null permanently, for the 🧗 / 🧰 reason: every bot arm carries
@@ -1879,6 +1957,7 @@ export const BADGES: BadgeDef[] = [
     key: "blindbust",
     emoji: "🙈",
     label: "DIDN'T ASK THE PRICE",
+    name: "Didn't Ask the Price",
     rarity: "ironic",
     axis: "roster",
     ironic: true,
@@ -1899,6 +1978,7 @@ export const BADGES: BadgeDef[] = [
     key: "homegrown",
     emoji: "🌱",
     label: "HOMEGROWN SUPERSTAR",
+    name: "Homegrown Superstar",
     rarity: "uncommon",
     axis: "roster",
     freq: null,
@@ -1908,6 +1988,7 @@ export const BADGES: BadgeDef[] = [
     key: "hardway",
     emoji: "🧗",
     label: "THE HARD WAY",
+    name: "The Hard Way",
     rarity: "rare",
     axis: "roster",
     freq: null,
@@ -1917,6 +1998,7 @@ export const BADGES: BadgeDef[] = [
     key: "toolbox",
     emoji: "🧰",
     label: "THE WHOLE TOOLBOX",
+    name: "The Whole Toolbox",
     rarity: "common",
     axis: "roster",
     freq: null,
@@ -1926,6 +2008,7 @@ export const BADGES: BadgeDef[] = [
     key: "nohardware",
     emoji: "🕸️",
     label: "EMPTY TROPHY CASE",
+    name: "Empty Trophy Case",
     rarity: "ironic",
     axis: "roster",
     ironic: true,
@@ -1936,6 +2019,7 @@ export const BADGES: BadgeDef[] = [
     key: "noallstars",
     emoji: "🏖️",
     label: "NOBODY MADE THE TRIP",
+    name: "Nobody Made the Trip",
     rarity: "ironic",
     axis: "roster",
     ironic: true,
@@ -1949,6 +2033,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "✊",
     label: "PICKET LINE",
+    name: "Picket Line",
     rarity: "uncommon",
     axis: "era",
     freq: 19.14,
@@ -1959,6 +2044,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🦠",
     label: "SOCIAL DISTANCING",
+    name: "Social Distancing",
     rarity: "uncommon",
     axis: "era",
     freq: 18.51,
@@ -1969,6 +2055,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🗑️",
     label: "STOLEN SIGNS",
+    name: "Stolen Signs",
     rarity: "rare",
     axis: "era",
     freq: 4.31,
@@ -1979,6 +2066,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🏦",
     label: "DEFERRED MONEY",
+    name: "Deferred Money",
     rarity: "rare",
     axis: "era",
     freq: null,
@@ -1989,6 +2077,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🚧",
     label: "CROSSED THE LINE",
+    name: "Crossed the Line",
     rarity: "ultra",
     axis: "era",
     freq: 0.74,
@@ -1999,6 +2088,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "📖",
     label: "REWROTE THE RECORD BOOK",
+    name: "Rewrote the Record Book",
     rarity: "ultra",
     axis: "era",
     freq: null,
@@ -2009,6 +2099,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "💥",
     label: "THE CHASE",
+    name: "The Chase",
     rarity: "rare",
     axis: "era",
     freq: null,
@@ -2023,6 +2114,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "💊",
     label: "FAILED THE TEST",
+    name: "Failed the Test",
     rarity: "uncommon",
     axis: "era",
     // Measured, and much higher than it looks like it should be: 18.3% of
@@ -2040,21 +2132,18 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🎲",
     label: "BET ON BASEBALL",
+    name: "Bet on Baseball",
     rarity: "ultra",
     axis: "era",
     // Eleven of the 1,188 cards can trip it, and the manager path carries most
     // of that: two of the four men have four draftable player-seasons between
     // them, against Rose's five seasons in the Reds dugout.
     freq: 1.0,
-    // The longest string in the file, and it earns every character. The label
-    // is a category — the rule on the clubhouse wall — and this is where the
-    // four men stop being a category and become their actual statuses: two
-    // findings, two open cases. It says "charged", never "caught"; it names
-    // the pleas, the pending trial and the paid leave; and it says in so many
-    // words that Major League Baseball has found nothing against the two
-    // Guardians pitchers. Nothing here may be shortened into an assertion of
-    // guilt, whatever the label above it says.
-    how: "Signed or hired one of the four men in this game's window on baseball's betting rules. Pete Rose was banned in 1989 for betting on his own club. Tucupita Marcano was banned in 2024. Emmanuel Clase and Luis Ortiz were charged in 2025 over rigged pitches: both pleaded not guilty, both re-entered those pleas in February 2026, both are awaiting trial and have been on non-disciplinary paid leave since July 2025, and Major League Baseball has made no finding against either.",
+    // The label is a category — the rule on the clubhouse wall — and the `how`
+    // keeps it that way: it names the class (MLB suspensions under its gambling
+    // rules) without detailing each man's status, which dates quickly and
+    // cannot be shortened without risking an assertion of guilt on open cases.
+    how: "Signed or hired a player MLB suspended under its gambling rules.",
   },
 
   /* …and the shape of the years themselves, rather than any one of them. The
@@ -2069,6 +2158,7 @@ export const BADGES: BadgeDef[] = [
     key: "decade",
     emoji: "📆",
     label: "ALL-DECADE TEAM",
+    name: "All-Decade Team",
     rarity: "uncommon",
     axis: "era",
     freq: 9.43,
@@ -2078,6 +2168,7 @@ export const BADGES: BadgeDef[] = [
     key: "fortyyears",
     emoji: "🕰️",
     label: "FORTY YEARS APART",
+    name: "Forty Years Apart",
     rarity: "rare",
     axis: "era",
     freq: 2.95,
@@ -2101,6 +2192,7 @@ export const BADGES: BadgeDef[] = [
     key: "packedin",
     emoji: "🧳",
     label: "PACKED IT IN",
+    name: "Packed It In",
     rarity: "ironic",
     axis: "meta",
     ironic: true,
@@ -2120,6 +2212,7 @@ export const BADGES: BadgeDef[] = [
     // withhold the name, and no shipped badge carries both.
     emoji: "✳️",
     label: "THE ASTERISK",
+    name: "The Asterisk",
     rarity: "ironic",
     axis: "meta",
     ironic: true,
@@ -2145,6 +2238,7 @@ export const BADGES: BadgeDef[] = [
     key: "wordofmouth",
     emoji: "🤝",
     label: "WORD OF MOUTH",
+    name: "Word of Mouth",
     rarity: "rare",
     axis: "meta",
     // Unmeasurable for the ✳️ reason: no bot arm types a seed in.
@@ -2176,6 +2270,7 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     emoji: "🎮",
     label: "CHEAT CODES",
+    name: "Cheat Codes",
     rarity: "ultra",
     axis: "meta",
     // Unmeasurable for the ✳️ / 🤝 reason, one step further along: a bot arm
@@ -2205,6 +2300,7 @@ export const BADGES: BadgeDef[] = [
     key: "secondthoughts",
     emoji: "↩️",
     label: "SECOND THOUGHTS",
+    name: "Second Thoughts",
     rarity: "ironic",
     axis: "meta",
     ironic: true,
@@ -2362,6 +2458,9 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // Stacks with 🏆 on purpose: one says the season hit the game's stated goal,
   // the other says it beat the best club those same cards could have built.
   if (f.beatDream === true) out.push("beatdream");
+  // Stacks with both above: exceeding the solver's own ceiling is a strictly
+  // stronger claim than hitting the goal or beating the dream team's score.
+  if (f.beatCeiling === true) out.push("outscouted");
 
   // Four faces of one axis, ordered from busted to stingiest.
   if (f.spendM - f.budgetM >= FARM_TAX_M) out.push("farm");

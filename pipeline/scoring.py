@@ -39,8 +39,10 @@ PENNANT_POINTS = 1   # per player whose team won the pennant but lost the Series
 # rosters of NPB players with almost no MLB seasons, so WBC points are far
 # scarcer than rings. Pricing a gold medal at a ring's value would let the
 # handful of eligible card years own the axis outright.
-WBC_CHAMPION_POINTS = 2   # per player on the World Baseball Classic winner that year
-WBC_RUNNERUP_POINTS = 1   # per player on the Classic's losing finalist
+WBC_CHAMPION_POINTS = 1.5  # per player on the World Baseball Classic winner that year
+WBC_RUNNERUP_POINTS = 0.5  # per player on the Classic's losing finalist
+# A Classic is worth half a Series at both rungs (WS ring 3 / pennant 1):
+# round 28 set gold = 1.5 and silver = 0.5 (supersedes round 5's 2 / 1).
 # Hired manager: (team W - team L) x this, negative allowed. 0.2 makes the
 # hire a real decision (policy-aware bot sweep: 0.1 -> 116+ on-field 0.1%,
 # 0.2 -> 2.8% "rare but chaseable", 162+ 0.2% -> 0.75%; bots chase better

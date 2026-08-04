@@ -55,7 +55,7 @@
   {fresh}
   {animate}
   {delay}
-  title={badge.label}
+  title={badge.name}
   {open}
   {ontoggle}
 />

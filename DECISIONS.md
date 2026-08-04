@@ -2088,3 +2088,65 @@ fail on a change to `SCOUT_HIT_POINTS`, and neither could at 1.0 either. The
 comments now say what the cases actually pin. Recorded rather than fixed,
 because a case that discriminates on the constant would be a different case, not
 a tuned version of these.
+
+## Round 28
+
+### Homegrown Discount Travels to Prime Time (supersedes round 5)
+
+Round 5 ruled that 🏠 Homegrown's discount did not travel to ⭐ Prime Time:
+the discount was described as a claim about the LANDED card's market, not the
+career sheet. Round 28 reverses this. The mechanism that was the obstacle
+(`discountEligible` needing to read `debut` from the career-sheet season) was
+never actually a problem — `CardPlayer.debut` is a required field on every
+card season, and `this.card` in `discountEligible` is the LANDED card (not the
+career sheet's browsed card), so the eligibility check works identically for
+prime picks. The only change is intent: a player who debuted at this franchise
+is hometown-eligible whether you sign the landed season or a career year. The
+display in `PrimePicker.svelte` routes through `game.priceFor(sea.p)` so the
+green "$1M" price appears before the player clicks.
+
+When discounted, `spendPowerup("hometown")` is called inside `applyPrime`,
+before `consumeChoice`, mirroring `signPlayer`'s existing order.
+
+### WBC Ring Values Halved
+
+World Baseball Classic gold medals drop from 2 → 1.5 and silvers from 1 → 0.5.
+A Classic is now worth half a World Series at both rungs (WS ring 3 / pennant
+1). Only five Classics land inside the 1985–2025 card window, and their rarity
+made the original 2/1 values distort the ring-chasing axis for a handful of
+seasons. At 1.5/0.5 the medals remain meaningful (a gold + ring season like
+2017 Bregman is still +4.5) while bringing the Classic into proportion with
+October hardware.
+
+**Discriminant split**: `CardPlayer.wbc` and `Signed.wbc` store 2 (gold) / 1
+(silver) as card-data values — unchanged. New constants `WBC_CHAMPION_ID = 2`
+and `WBC_RUNNERUP_ID = 1` in `scoring.ts` serve as filter discriminants;
+`WBC_CHAMPION_POINTS = 1.5` and `WBC_RUNNERUP_POINTS = 0.5` are the scoring
+weights. Comparison code must use the ID constants, not the point constants.
+`Finale.svelte` (not owned by this agent) uses the point constants as
+discriminants — those four comparisons need to be updated to the ID constants
+by the Finale agent.
+
+### Per-Season Refinement of the Homegrown + Prime Time Rule (addendum to round 28)
+
+The initial round 28 implementation treated the discount as per-player: if the
+player's debut franchise matched the landed card's franchise, every career season
+on the career sheet received the $1M price. That is wrong.
+
+**The correct rule: the discount is per season.** Only seasons whose card
+FRANCHISE matches the player's debut franchise sign at $1M. On an A's card with 🏠
+armed, McGwire's 1987 OAK season costs $1M; his 1998 STL season costs full price.
+
+**Mechanism**: the comparison runs on the season card's `franchise`, never its
+team code. `p.debut` is a franchise id, and renamed clubs (CAL → ANA Angels,
+MON → WSN, FLA → MIA) have seasons whose team code equals no debut value —
+the first cut of this rule compared `sea.team` and priced every 1986 Angels
+season at list with 🏠 armed, caught live in Chrome. `applyPrime(team, year)`
+loads the season card and checks `primeDiscountEligible(p, card.franchise)`;
+`primePriceFor(p, card.franchise)` applies the $1M cap. `PrimePicker.svelte`
+threads `card.franchise` onto each season row and renders
+`game.primePriceFor(sea.p, sea.franchise)` so the correct price (full or $1M)
+shows before the user clicks.
+
+The original round 28 text above incorrectly described the display as routing
+through `game.priceFor(sea.p)`.

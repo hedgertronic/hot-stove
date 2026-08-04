@@ -187,16 +187,17 @@ describe("the badge table itself", () => {
       "ultra",
       "uncommon",
     ]);
-    // One per axis it is possible to max out: the top of the on-field ladder,
-    // the goal itself, and a perfect scouting match. A fourth legendary is a
-    // claim that some fourth axis has a top, and that has to be argued rather
-    // than typed.
+    // Each legendary is the peak of an axis: 👑 on-field, 🏆 the stated goal,
+    // 🌠 scouting, 💰 the goal axis ceiling (exceeding the solver's own best).
+    // The goal axis carries two legendaries because it has two distinct peaks:
+    // hitting 162 points (the game's stated target) and surpassing the solver's
+    // theoretical ceiling. Adding a fifth legendary requires the same argument.
     expect(
       BADGES.filter((b) => b.rarity === "legendary").map((b) => b.key),
-    ).toEqual(["crown", "perfect", "dreamteam"]);
+    ).toEqual(["crown", "perfect", "outscouted", "dreamteam"]);
     expect(
       BADGES.filter((b) => b.rarity === "legendary").map((b) => b.axis),
-    ).toEqual(["onfield", "goal", "scout"]);
+    ).toEqual(["onfield", "goal", "goal", "scout"]);
   });
 
   /** The claim badges.ts makes when it sends 🧓/🍼 to `ultra` rather than
@@ -1760,19 +1761,14 @@ describe("the how copy names its measure", () => {
   });
 
   it("keeps 🎲's label a category and its trigger copy exact", () => {
-    // The label is shorthand and travels into the share string; the `how` is
-    // where the four men's actual statuses live, and it must not flatten a
-    // charge into a finding.
+    // The label names the rule on the clubhouse wall; the `how` keeps it as a
+    // class (MLB gambling suspensions) rather than naming individual statuses,
+    // which date quickly and cannot be compressed without risking a verdict on
+    // open cases. The non-guilty assertion below survives the shortening.
     expect(BADGE_BY_KEY.gambling.label).toBe("BET ON BASEBALL");
     const s = BADGE_BY_KEY.gambling.how;
-    expect(s).toContain("Pete Rose was banned in 1989");
-    expect(s).toContain("Tucupita Marcano was banned in 2024");
-    expect(s).toContain("charged in 2025");
-    expect(s).toContain("pleaded not guilty");
-    expect(s).toContain("February 2026");
-    expect(s).toContain("paid leave since July 2025");
-    expect(s).toContain("no finding against either");
-    // Nothing in it may read as a verdict on the two open cases.
+    expect(s).toBe("Signed or hired a player MLB suspended under its gambling rules.");
+    // Nothing in it may assert a verdict on any player's open case.
     expect(s).not.toMatch(/Clase[^.]*(caught|convicted|banned)/);
   });
 
@@ -1785,5 +1781,33 @@ describe("the how copy names its measure", () => {
     // And it collides with nothing else in the set.
     const glyphs = BADGES.map((b) => b.emoji);
     expect(new Set(glyphs).size).toBe(glyphs.length);
+  });
+
+  it("gives every badge a non-empty name in mixed case", () => {
+    // `name` is the tooltip shown on hover — title case rather than all-caps.
+    // Pure acronyms (WBC, MVP) would be ≤4 chars and are the only names allowed
+    // to be fully uppercase. Everything else must differ from its label
+    // (which is always all-caps) so the tooltip reads naturally.
+    for (const b of BADGES) {
+      expect(b.name, `${b.key}.name is empty`).toBeTruthy();
+      // Not identical to the all-caps label unless it is a ≤4-char acronym.
+      const isSingleAcronym =
+        !b.label.includes(" ") && b.label.length <= 4 && b.label === b.label.toUpperCase();
+      if (!isSingleAcronym) {
+        expect(b.name, `${b.key}.name matches all-caps label`).not.toBe(b.label);
+      }
+      // No name is fully uppercase unless it is ≤4 chars (a pure acronym).
+      if (b.name.length > 4) {
+        expect(b.name, `${b.key}.name is all-caps`).not.toBe(b.name.toUpperCase());
+      }
+    }
+  });
+
+  it("ends every how string with a period", () => {
+    // Punctuation-invariant: a sentence that does not end with a period reads
+    // as truncated. Every future badge addition must satisfy this too.
+    for (const b of BADGES) {
+      expect(b.how, `${b.key}.how missing terminal period`).toMatch(/\.$/);
+    }
   });
 });

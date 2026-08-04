@@ -851,7 +851,7 @@ describe("the passport board", () => {
     // The blank is the whole claim about the number. The detail names the
     // country and says what the stamp is for; it does not stand in for a count
     // the stamp is deliberately not showing.
-    expect(el.getAttribute("title")).toBe("Rostered a player from Japan");
+    expect(el.getAttribute("title")).toBe("Japan");
   });
 
   it("carries no prose at all — the stamp explains itself", () => {
@@ -871,22 +871,13 @@ describe("the passport board", () => {
     expect(p).not.toContain("across");
   });
 
-  it("says one sentence on the stamp, and the same one on both surfaces", () => {
-    // It names the country because the stamp does not print one: a bare flag,
-    // tapped or hovered, has to answer "which country" before anything else.
-    // The tooltip and the panel say the same sentence — the pointer and the tap
-    // are two ways to the one fact, not two facts.
-    //
-    // And the CASE and the FINALE say it identically, which is the rule this
-    // test exists for. The case used to spell out a career here while the
-    // finale said the country's name alone, so one stamp meant two different
-    // amounts depending on the screen it was read from. Two players fielded and
-    // the sentence still says "a player": it says why the stamp exists, and the
-    // number of men behind it is already drawn on the stamp.
+  it("shows the country name as the hover tooltip, on both surfaces", () => {
+    // A bare flag on hover answers "which country?" with just the name — brief
+    // enough to read without interrupting the eye. The tapped panel gives the
+    // full sentence. Both surfaces (trophy case and finale) agree on the tooltip.
     seed(rostered({ Japan: ["ohtansh01", "suzukii01"] }, "2026-01-01"));
-    const sentence = "Rostered a player from Japan";
-    expect(stampFor(modal(), "Japan").getAttribute("title")).toBe(sentence);
-    expect(stampFor(finale("Japan", "Japan"), "Japan").getAttribute("title")).toBe(sentence);
+    expect(stampFor(modal(), "Japan").getAttribute("title")).toBe("Japan");
+    expect(stampFor(finale("Japan", "Japan"), "Japan").getAttribute("title")).toBe("Japan");
   });
 });
 
@@ -965,6 +956,6 @@ describe("the finale's passport", () => {
     const el = stampFor(finale("Japan"), "Japan");
     expect(el.tagName).toBe("BUTTON");
     expect(el.getAttribute("aria-expanded")).toBe("false");
-    expect(el.getAttribute("title")).toBe("Rostered a player from Japan");
+    expect(el.getAttribute("title")).toBe("Japan");
   });
 });

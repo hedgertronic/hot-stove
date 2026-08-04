@@ -68,7 +68,7 @@
       fresh={s.fresh}
       {animate}
       delay={i * step}
-      title={stampReveal(s)}
+      title={s.country}
       open={open === s.country}
       ontoggle={() => (open = open === s.country ? null : s.country)}
     />

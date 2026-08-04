@@ -1,1069 +1,1069 @@
 [
- {
-  "args": {
-   "total_war": 118.0,
-   "spend_m": 150.0,
-   "budget_m": 160.0,
-   "award_lists": [
-    [
-     "MVP",
-     "AS"
-    ],
-    [
-     "CY",
-     "AS"
-    ],
-    [
-     "AS"
-    ]
-   ],
-   "rings": 2,
-   "pennants": 0,
-   "manager_record": [
-    116,
-    46
-   ],
-   "scout_hits": 9,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 118.0,
+      "spend_m": 150.0,
+      "budget_m": 160.0,
+      "award_lists": [
+        [
+          "MVP",
+          "AS"
+        ],
+        [
+          "CY",
+          "AS"
+        ],
+        [
+          "AS"
+        ]
+      ],
+      "rings": 2,
+      "pennants": 0,
+      "manager_record": [
+        116,
+        46
+      ],
+      "scout_hits": 9,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 162,
+      "managerWins": 14.0,
+      "budgetBonus": 8.8,
+      "awardPoints": 7.5,
+      "ringPoints": 6,
+      "scoutBonus": 9,
+      "luxuryTax": 0.0,
+      "total": 193.3
+    }
   },
-  "expect": {
-   "expectedWins": 162,
-   "managerWins": 14.0,
-   "budgetBonus": 8.8,
-   "awardPoints": 7.5,
-   "ringPoints": 6,
-   "scoutBonus": 9,
-   "luxuryTax": 0.0,
-   "total": 193.3
-  }
- },
- {
-  "args": {
-   "total_war": 45.0,
-   "spend_m": 214.6,
-   "budget_m": 108.8,
-   "award_lists": [
-    [
-     "MVP3"
-    ],
-    [
-     "CY3",
-     "AS"
-    ]
-   ],
-   "rings": 1,
-   "pennants": 1,
-   "manager_record": [
-    95,
-    67
-   ],
-   "scout_hits": 2,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 45.0,
+      "spend_m": 214.6,
+      "budget_m": 108.8,
+      "award_lists": [
+        [
+          "MVP3"
+        ],
+        [
+          "CY3",
+          "AS"
+        ]
+      ],
+      "rings": 1,
+      "pennants": 1,
+      "manager_record": [
+        95,
+        67
+      ],
+      "scout_hits": 2,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 100.6,
+      "managerWins": 5.6,
+      "budgetBonus": 0.0,
+      "awardPoints": 2.5,
+      "ringPoints": 4,
+      "scoutBonus": 2,
+      "luxuryTax": 105.8,
+      "total": 3.3
+    }
   },
-  "expect": {
-   "expectedWins": 100.6,
-   "managerWins": 5.6,
-   "budgetBonus": 0.0,
-   "awardPoints": 2.5,
-   "ringPoints": 4,
-   "scoutBonus": 2,
-   "luxuryTax": 105.8,
-   "total": 3.3
-  }
- },
- {
-  "args": {
-   "total_war": 33.3,
-   "spend_m": 61.0,
-   "budget_m": 122.0,
-   "award_lists": [
-    [
-     "AS"
-    ],
-    [
-     "AS",
-     "GG"
-    ]
-   ],
-   "rings": 0,
-   "pennants": 0,
-   "manager_record": [
-    60,
-    102
-   ],
-   "scout_hits": 0,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 33.3,
+      "spend_m": 61.0,
+      "budget_m": 122.0,
+      "award_lists": [
+        [
+          "AS"
+        ],
+        [
+          "AS",
+          "GG"
+        ]
+      ],
+      "rings": 0,
+      "pennants": 0,
+      "manager_record": [
+        60,
+        102
+      ],
+      "scout_hits": 0,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 74.9,
+      "managerWins": -8.4,
+      "budgetBonus": 0.0,
+      "awardPoints": 2.0,
+      "ringPoints": 0,
+      "scoutBonus": 0,
+      "luxuryTax": 0.0,
+      "total": 76.9
+    }
   },
-  "expect": {
-   "expectedWins": 74.9,
-   "managerWins": -8.4,
-   "budgetBonus": 0.0,
-   "awardPoints": 2.0,
-   "ringPoints": 0,
-   "scoutBonus": 0,
-   "luxuryTax": 0.0,
-   "total": 76.9
-  }
- },
- {
-  "args": {
-   "total_war": 0.0,
-   "spend_m": 0.0,
-   "budget_m": 0.0,
-   "award_lists": [],
-   "rings": 0,
-   "pennants": 0,
-   "manager_record": null,
-   "scout_hits": 0,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 0.0,
+      "spend_m": 0.0,
+      "budget_m": 0.0,
+      "award_lists": [],
+      "rings": 0,
+      "pennants": 0,
+      "manager_record": null,
+      "scout_hits": 0,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 50.0,
+      "managerWins": 0.0,
+      "budgetBonus": 0.0,
+      "awardPoints": 0,
+      "ringPoints": 0,
+      "scoutBonus": 0,
+      "luxuryTax": 0.0,
+      "total": 50.0
+    }
   },
-  "expect": {
-   "expectedWins": 50.0,
-   "managerWins": 0.0,
-   "budgetBonus": 0.0,
-   "awardPoints": 0,
-   "ringPoints": 0,
-   "scoutBonus": 0,
-   "luxuryTax": 0.0,
-   "total": 50.0
-  }
- },
- {
-  "args": {
-   "total_war": 44.8,
-   "spend_m": 45.5,
-   "budget_m": 152.1,
-   "award_lists": [],
-   "rings": 3,
-   "pennants": 0,
-   "manager_record": [
-    59,
-    103
-   ],
-   "scout_hits": 2,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 44.8,
+      "spend_m": 45.5,
+      "budget_m": 152.1,
+      "award_lists": [],
+      "rings": 3,
+      "pennants": 0,
+      "manager_record": [
+        59,
+        103
+      ],
+      "scout_hits": 2,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 86.0,
+      "managerWins": -8.8,
+      "budgetBonus": -4.0,
+      "awardPoints": 0,
+      "ringPoints": 9,
+      "scoutBonus": 2,
+      "luxuryTax": 0.0,
+      "total": 93.0
+    }
   },
-  "expect": {
-   "expectedWins": 86.0,
-   "managerWins": -8.8,
-   "budgetBonus": -4.0,
-   "awardPoints": 0,
-   "ringPoints": 9,
-   "scoutBonus": 2,
-   "luxuryTax": 0.0,
-   "total": 93.0
-  }
- },
- {
-  "args": {
-   "total_war": 24.8,
-   "spend_m": 154.0,
-   "budget_m": 138.3,
-   "award_lists": [
-    [],
-    [
-     "MVP3"
-    ],
-    [
-     "CY2",
-     "SS",
-     "ROY"
-    ],
-    [
-     "CY2"
-    ],
-    []
-   ],
-   "rings": 0,
-   "pennants": 3,
-   "manager_record": [
-    75,
-    87
-   ],
-   "scout_hits": 6,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 24.8,
+      "spend_m": 154.0,
+      "budget_m": 138.3,
+      "award_lists": [
+        [],
+        [
+          "MVP3"
+        ],
+        [
+          "CY2",
+          "SS",
+          "ROY"
+        ],
+        [
+          "CY2"
+        ],
+        []
+      ],
+      "rings": 0,
+      "pennants": 3,
+      "manager_record": [
+        75,
+        87
+      ],
+      "scout_hits": 6,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 72.4,
+      "managerWins": -2.4,
+      "budgetBonus": 0.0,
+      "awardPoints": 8,
+      "ringPoints": 3,
+      "scoutBonus": 6,
+      "luxuryTax": 15.7,
+      "total": 73.7
+    }
   },
-  "expect": {
-   "expectedWins": 72.4,
-   "managerWins": -2.4,
-   "budgetBonus": 0.0,
-   "awardPoints": 8,
-   "ringPoints": 3,
-   "scoutBonus": 6,
-   "luxuryTax": 15.7,
-   "total": 73.7
-  }
- },
- {
-  "args": {
-   "total_war": 17.3,
-   "spend_m": 251.9,
-   "budget_m": 210.6,
-   "award_lists": [
-    [
-     "AS"
-    ],
-    [],
-    [],
-    [
-     "MVP2"
-    ],
-    [],
-    [],
-    [
-     "CY"
-    ]
-   ],
-   "rings": 1,
-   "pennants": 2,
-   "manager_record": [
-    90,
-    72
-   ],
-   "scout_hits": 0,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 17.3,
+      "spend_m": 251.9,
+      "budget_m": 210.6,
+      "award_lists": [
+        [
+          "AS"
+        ],
+        [],
+        [],
+        [
+          "MVP2"
+        ],
+        [],
+        [],
+        [
+          "CY"
+        ]
+      ],
+      "rings": 1,
+      "pennants": 2,
+      "manager_record": [
+        90,
+        72
+      ],
+      "scout_hits": 0,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 70.9,
+      "managerWins": 3.6,
+      "budgetBonus": 0.0,
+      "awardPoints": 5.5,
+      "ringPoints": 5,
+      "scoutBonus": 0,
+      "luxuryTax": 41.3,
+      "total": 40.1
+    }
   },
-  "expect": {
-   "expectedWins": 70.9,
-   "managerWins": 3.6,
-   "budgetBonus": 0.0,
-   "awardPoints": 5.5,
-   "ringPoints": 5,
-   "scoutBonus": 0,
-   "luxuryTax": 41.3,
-   "total": 40.1
-  }
- },
- {
-  "args": {
-   "total_war": 45.1,
-   "spend_m": 187.8,
-   "budget_m": 172.6,
-   "award_lists": [
-    [],
-    [
-     "ROY",
-     "CY"
-    ],
-    [],
-    [
-     "ROY"
-    ],
-    [
-     "CY3",
-     "CY2"
-    ],
-    [
-     "SS",
-     "GG"
-    ],
-    [
-     "MVP",
-     "MVP3",
-     "GG"
-    ]
-   ],
-   "rings": 3,
-   "pennants": 1,
-   "manager_record": [
-    95,
-    67
-   ],
-   "scout_hits": 6,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 45.1,
+      "spend_m": 187.8,
+      "budget_m": 172.6,
+      "award_lists": [
+        [],
+        [
+          "ROY",
+          "CY"
+        ],
+        [],
+        [
+          "ROY"
+        ],
+        [
+          "CY3",
+          "CY2"
+        ],
+        [
+          "SS",
+          "GG"
+        ],
+        [
+          "MVP",
+          "MVP3",
+          "GG"
+        ]
+      ],
+      "rings": 3,
+      "pennants": 1,
+      "manager_record": [
+        95,
+        67
+      ],
+      "scout_hits": 6,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 100.7,
+      "managerWins": 5.6,
+      "budgetBonus": 0.0,
+      "awardPoints": 17,
+      "ringPoints": 10,
+      "scoutBonus": 6,
+      "luxuryTax": 15.2,
+      "total": 118.5
+    }
   },
-  "expect": {
-   "expectedWins": 100.7,
-   "managerWins": 5.6,
-   "budgetBonus": 0.0,
-   "awardPoints": 17,
-   "ringPoints": 10,
-   "scoutBonus": 6,
-   "luxuryTax": 15.2,
-   "total": 118.5
-  }
- },
- {
-  "args": {
-   "total_war": 30.0,
-   "spend_m": 156.1,
-   "budget_m": 195.5,
-   "award_lists": [
-    [],
-    [
-     "MVP3"
-    ],
-    [],
-    [
-     "MVP"
-    ]
-   ],
-   "rings": 3,
-   "pennants": 0,
-   "manager_record": [
-    75,
-    87
-   ],
-   "scout_hits": 3,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 30.0,
+      "spend_m": 156.1,
+      "budget_m": 195.5,
+      "award_lists": [
+        [],
+        [
+          "MVP3"
+        ],
+        [],
+        [
+          "MVP"
+        ]
+      ],
+      "rings": 3,
+      "pennants": 0,
+      "manager_record": [
+        75,
+        87
+      ],
+      "scout_hits": 3,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 77.6,
+      "managerWins": -2.4,
+      "budgetBonus": 6.0,
+      "awardPoints": 4,
+      "ringPoints": 9,
+      "scoutBonus": 3,
+      "luxuryTax": 0.0,
+      "total": 99.6
+    }
   },
-  "expect": {
-   "expectedWins": 77.6,
-   "managerWins": -2.4,
-   "budgetBonus": 6.0,
-   "awardPoints": 4,
-   "ringPoints": 9,
-   "scoutBonus": 3,
-   "luxuryTax": 0.0,
-   "total": 99.6
-  }
- },
- {
-  "args": {
-   "total_war": 69.1,
-   "spend_m": 253.2,
-   "budget_m": 146.2,
-   "award_lists": [
-    [
-     "MVP2",
-     "AS",
-     "MVP"
-    ]
-   ],
-   "rings": 2,
-   "pennants": 3,
-   "manager_record": [
-    90,
-    72
-   ],
-   "scout_hits": 9,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 69.1,
+      "spend_m": 253.2,
+      "budget_m": 146.2,
+      "award_lists": [
+        [
+          "MVP2",
+          "AS",
+          "MVP"
+        ]
+      ],
+      "rings": 2,
+      "pennants": 3,
+      "manager_record": [
+        90,
+        72
+      ],
+      "scout_hits": 9,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 122.7,
+      "managerWins": 3.6,
+      "budgetBonus": 0.0,
+      "awardPoints": 5.5,
+      "ringPoints": 9,
+      "scoutBonus": 9,
+      "luxuryTax": 107.0,
+      "total": 39.2
+    }
   },
-  "expect": {
-   "expectedWins": 122.7,
-   "managerWins": 3.6,
-   "budgetBonus": 0.0,
-   "awardPoints": 5.5,
-   "ringPoints": 9,
-   "scoutBonus": 9,
-   "luxuryTax": 107.0,
-   "total": 39.2
-  }
- },
- {
-  "args": {
-   "total_war": 49.2,
-   "spend_m": 99.5,
-   "budget_m": 135.2,
-   "award_lists": [
-    [
-     "CY3"
-    ],
-    [],
-    []
-   ],
-   "rings": 3,
-   "pennants": 3,
-   "manager_record": [
-    103,
-    58
-   ],
-   "scout_hits": 9,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 49.2,
+      "spend_m": 99.5,
+      "budget_m": 135.2,
+      "award_lists": [
+        [
+          "CY3"
+        ],
+        [],
+        []
+      ],
+      "rings": 3,
+      "pennants": 3,
+      "manager_record": [
+        103,
+        58
+      ],
+      "scout_hits": 9,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 108.2,
+      "managerWins": 9.0,
+      "budgetBonus": 4.7,
+      "awardPoints": 1,
+      "ringPoints": 12,
+      "scoutBonus": 9,
+      "luxuryTax": 0.0,
+      "total": 134.9
+    }
   },
-  "expect": {
-   "expectedWins": 108.2,
-   "managerWins": 9.0,
-   "budgetBonus": 4.7,
-   "awardPoints": 1,
-   "ringPoints": 12,
-   "scoutBonus": 9,
-   "luxuryTax": 0.0,
-   "total": 134.9
-  }
- },
- {
-  "args": {
-   "total_war": 55.0,
-   "spend_m": 132.3,
-   "budget_m": 60.0,
-   "award_lists": [
-    [
-     "CY"
-    ]
-   ],
-   "rings": 3,
-   "pennants": 2,
-   "manager_record": [
-    103,
-    58
-   ],
-   "scout_hits": 4,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 55.0,
+      "spend_m": 132.3,
+      "budget_m": 60.0,
+      "award_lists": [
+        [
+          "CY"
+        ]
+      ],
+      "rings": 3,
+      "pennants": 2,
+      "manager_record": [
+        103,
+        58
+      ],
+      "scout_hits": 4,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 114.0,
+      "managerWins": 9.0,
+      "budgetBonus": 0.0,
+      "awardPoints": 3,
+      "ringPoints": 11,
+      "scoutBonus": 4,
+      "luxuryTax": 72.3,
+      "total": 59.7
+    }
   },
-  "expect": {
-   "expectedWins": 114.0,
-   "managerWins": 9.0,
-   "budgetBonus": 0.0,
-   "awardPoints": 3,
-   "ringPoints": 11,
-   "scoutBonus": 4,
-   "luxuryTax": 72.3,
-   "total": 59.7
-  }
- },
- {
-  "args": {
-   "total_war": 7.1,
-   "spend_m": 29.6,
-   "budget_m": 123.0,
-   "award_lists": [
-    [],
-    [
-     "CY",
-     "MVP2",
-     "MVP"
-    ],
-    [
-     "MVP"
-    ],
-    [
-     "GG"
-    ],
-    []
-   ],
-   "rings": 0,
-   "pennants": 3,
-   "manager_record": [
-    95,
-    67
-   ],
-   "scout_hits": 2,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 7.1,
+      "spend_m": 29.6,
+      "budget_m": 123.0,
+      "award_lists": [
+        [],
+        [
+          "CY",
+          "MVP2",
+          "MVP"
+        ],
+        [
+          "MVP"
+        ],
+        [
+          "GG"
+        ],
+        []
+      ],
+      "rings": 0,
+      "pennants": 3,
+      "manager_record": [
+        95,
+        67
+      ],
+      "scout_hits": 2,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 62.7,
+      "managerWins": 5.6,
+      "budgetBonus": -5.2,
+      "awardPoints": 12,
+      "ringPoints": 3,
+      "scoutBonus": 2,
+      "luxuryTax": 0.0,
+      "total": 74.5
+    }
   },
-  "expect": {
-   "expectedWins": 62.7,
-   "managerWins": 5.6,
-   "budgetBonus": -5.2,
-   "awardPoints": 12,
-   "ringPoints": 3,
-   "scoutBonus": 2,
-   "luxuryTax": 0.0,
-   "total": 74.5
-  }
- },
- {
-  "args": {
-   "total_war": 25.0,
-   "spend_m": 67.2,
-   "budget_m": 222.5,
-   "award_lists": [
-    [],
-    [
-     "CY"
-    ]
-   ],
-   "rings": 1,
-   "pennants": 0,
-   "manager_record": [
-    59,
-    103
-   ],
-   "scout_hits": 9,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 25.0,
+      "spend_m": 67.2,
+      "budget_m": 222.5,
+      "award_lists": [
+        [],
+        [
+          "CY"
+        ]
+      ],
+      "rings": 1,
+      "pennants": 0,
+      "manager_record": [
+        59,
+        103
+      ],
+      "scout_hits": 9,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 66.2,
+      "managerWins": -8.8,
+      "budgetBonus": -4.0,
+      "awardPoints": 3,
+      "ringPoints": 3,
+      "scoutBonus": 9,
+      "luxuryTax": 0.0,
+      "total": 77.2
+    }
   },
-  "expect": {
-   "expectedWins": 66.2,
-   "managerWins": -8.8,
-   "budgetBonus": -4.0,
-   "awardPoints": 3,
-   "ringPoints": 3,
-   "scoutBonus": 9,
-   "luxuryTax": 0.0,
-   "total": 77.2
-  }
- },
- {
-  "args": {
-   "total_war": 24.6,
-   "spend_m": 14.6,
-   "budget_m": 110.1,
-   "award_lists": [],
-   "rings": 2,
-   "pennants": 2,
-   "manager_record": [
-    75,
-    87
-   ],
-   "scout_hits": 3,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 24.6,
+      "spend_m": 14.6,
+      "budget_m": 110.1,
+      "award_lists": [],
+      "rings": 2,
+      "pennants": 2,
+      "manager_record": [
+        75,
+        87
+      ],
+      "scout_hits": 3,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 72.2,
+      "managerWins": -2.4,
+      "budgetBonus": -7.3,
+      "awardPoints": 0,
+      "ringPoints": 8,
+      "scoutBonus": 3,
+      "luxuryTax": 0.0,
+      "total": 75.9
+    }
   },
-  "expect": {
-   "expectedWins": 72.2,
-   "managerWins": -2.4,
-   "budgetBonus": -7.3,
-   "awardPoints": 0,
-   "ringPoints": 8,
-   "scoutBonus": 3,
-   "luxuryTax": 0.0,
-   "total": 75.9
-  }
- },
- {
-  "args": {
-   "total_war": 72.4,
-   "spend_m": 217.8,
-   "budget_m": 80.5,
-   "award_lists": [
-    [],
-    [
-     "AS"
-    ],
-    [
-     "CY2",
-     "GG"
-    ],
-    [],
-    [],
-    [
-     "SS",
-     "AS"
-    ],
-    [
-     "ROY"
-    ],
-    [
-     "CY3",
-     "MVP2",
-     "CY"
-    ]
-   ],
-   "rings": 2,
-   "pennants": 1,
-   "manager_record": null,
-   "scout_hits": 2,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 72.4,
+      "spend_m": 217.8,
+      "budget_m": 80.5,
+      "award_lists": [
+        [],
+        [
+          "AS"
+        ],
+        [
+          "CY2",
+          "GG"
+        ],
+        [],
+        [],
+        [
+          "SS",
+          "AS"
+        ],
+        [
+          "ROY"
+        ],
+        [
+          "CY3",
+          "MVP2",
+          "CY"
+        ]
+      ],
+      "rings": 2,
+      "pennants": 1,
+      "manager_record": null,
+      "scout_hits": 2,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 122.4,
+      "managerWins": 0.0,
+      "budgetBonus": 0.0,
+      "awardPoints": 13.0,
+      "ringPoints": 7,
+      "scoutBonus": 2,
+      "luxuryTax": 137.3,
+      "total": 7.1
+    }
   },
-  "expect": {
-   "expectedWins": 122.4,
-   "managerWins": 0.0,
-   "budgetBonus": 0.0,
-   "awardPoints": 13.0,
-   "ringPoints": 7,
-   "scoutBonus": 2,
-   "luxuryTax": 137.3,
-   "total": 7.1
-  }
- },
- {
-  "args": {
-   "total_war": 12.7,
-   "spend_m": 135.4,
-   "budget_m": 136.2,
-   "award_lists": [
-    [],
-    [
-     "CY"
-    ],
-    []
-   ],
-   "rings": 3,
-   "pennants": 1,
-   "manager_record": [
-    59,
-    103
-   ],
-   "scout_hits": 6,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 12.7,
+      "spend_m": 135.4,
+      "budget_m": 136.2,
+      "award_lists": [
+        [],
+        [
+          "CY"
+        ],
+        []
+      ],
+      "rings": 3,
+      "pennants": 1,
+      "manager_record": [
+        59,
+        103
+      ],
+      "scout_hits": 6,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 53.9,
+      "managerWins": -8.8,
+      "budgetBonus": 9.9,
+      "awardPoints": 3,
+      "ringPoints": 10,
+      "scoutBonus": 6,
+      "luxuryTax": 0.0,
+      "total": 82.8
+    }
   },
-  "expect": {
-   "expectedWins": 53.9,
-   "managerWins": -8.8,
-   "budgetBonus": 9.9,
-   "awardPoints": 3,
-   "ringPoints": 10,
-   "scoutBonus": 6,
-   "luxuryTax": 0.0,
-   "total": 82.8
-  }
- },
- {
-  "args": {
-   "total_war": 9.0,
-   "spend_m": 131.5,
-   "budget_m": 55.4,
-   "award_lists": [
-    [],
-    [],
-    [],
-    [
-     "SS",
-     "ROY",
-     "GG"
-    ],
-    []
-   ],
-   "rings": 2,
-   "pennants": 3,
-   "manager_record": [
-    59,
-    103
-   ],
-   "scout_hits": 0,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 9.0,
+      "spend_m": 131.5,
+      "budget_m": 55.4,
+      "award_lists": [
+        [],
+        [],
+        [],
+        [
+          "SS",
+          "ROY",
+          "GG"
+        ],
+        []
+      ],
+      "rings": 2,
+      "pennants": 3,
+      "manager_record": [
+        59,
+        103
+      ],
+      "scout_hits": 0,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 50.2,
+      "managerWins": -8.8,
+      "budgetBonus": 0.0,
+      "awardPoints": 4,
+      "ringPoints": 9,
+      "scoutBonus": 0,
+      "luxuryTax": 76.1,
+      "total": -12.9
+    }
   },
-  "expect": {
-   "expectedWins": 50.2,
-   "managerWins": -8.8,
-   "budgetBonus": 0.0,
-   "awardPoints": 4,
-   "ringPoints": 9,
-   "scoutBonus": 0,
-   "luxuryTax": 76.1,
-   "total": -12.9
-  }
- },
- {
-  "args": {
-   "total_war": 64.2,
-   "spend_m": 78.9,
-   "budget_m": 54.6,
-   "award_lists": [
-    []
-   ],
-   "rings": 0,
-   "pennants": 1,
-   "manager_record": null,
-   "scout_hits": 0,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 64.2,
+      "spend_m": 78.9,
+      "budget_m": 54.6,
+      "award_lists": [
+        []
+      ],
+      "rings": 0,
+      "pennants": 1,
+      "manager_record": null,
+      "scout_hits": 0,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 114.2,
+      "managerWins": 0.0,
+      "budgetBonus": 0.0,
+      "awardPoints": 0,
+      "ringPoints": 1,
+      "scoutBonus": 0,
+      "luxuryTax": 24.3,
+      "total": 90.9
+    }
   },
-  "expect": {
-   "expectedWins": 114.2,
-   "managerWins": 0.0,
-   "budgetBonus": 0.0,
-   "awardPoints": 0,
-   "ringPoints": 1,
-   "scoutBonus": 0,
-   "luxuryTax": 24.3,
-   "total": 90.9
-  }
- },
- {
-  "args": {
-   "total_war": 8.5,
-   "spend_m": 37.3,
-   "budget_m": 210.3,
-   "award_lists": [],
-   "rings": 1,
-   "pennants": 2,
-   "manager_record": [
-    82,
-    80
-   ],
-   "scout_hits": 9,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 8.5,
+      "spend_m": 37.3,
+      "budget_m": 210.3,
+      "award_lists": [],
+      "rings": 1,
+      "pennants": 2,
+      "manager_record": [
+        82,
+        80
+      ],
+      "scout_hits": 9,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 58.9,
+      "managerWins": 0.4,
+      "budgetBonus": -6.5,
+      "awardPoints": 0,
+      "ringPoints": 5,
+      "scoutBonus": 9,
+      "luxuryTax": 0.0,
+      "total": 66.4
+    }
   },
-  "expect": {
-   "expectedWins": 58.9,
-   "managerWins": 0.4,
-   "budgetBonus": -6.5,
-   "awardPoints": 0,
-   "ringPoints": 5,
-   "scoutBonus": 9,
-   "luxuryTax": 0.0,
-   "total": 66.4
-  }
- },
- {
-  "args": {
-   "total_war": 40.0,
-   "spend_m": 80.0,
-   "budget_m": 100.0,
-   "award_lists": [
-    [
-     "MVP"
-    ]
-   ],
-   "rings": 0,
-   "pennants": 0,
-   "manager_record": [
-    97,
-    65
-   ],
-   "scout_hits": 0,
-   "manager_moty": true,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 40.0,
+      "spend_m": 80.0,
+      "budget_m": 100.0,
+      "award_lists": [
+        [
+          "MVP"
+        ]
+      ],
+      "rings": 0,
+      "pennants": 0,
+      "manager_record": [
+        97,
+        65
+      ],
+      "scout_hits": 0,
+      "manager_moty": true,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 96.4,
+      "managerWins": 6.4,
+      "budgetBonus": 6.0,
+      "awardPoints": 5,
+      "ringPoints": 0,
+      "scoutBonus": 0,
+      "luxuryTax": 0.0,
+      "total": 107.4
+    }
   },
-  "expect": {
-   "expectedWins": 96.4,
-   "managerWins": 6.4,
-   "budgetBonus": 6.0,
-   "awardPoints": 5,
-   "ringPoints": 0,
-   "scoutBonus": 0,
-   "luxuryTax": 0.0,
-   "total": 107.4
-  }
- },
- {
-  "args": {
-   "total_war": 25.0,
-   "spend_m": 50.0,
-   "budget_m": 100.0,
-   "award_lists": [],
-   "rings": 0,
-   "pennants": 0,
-   "manager_record": [
-    88,
-    74
-   ],
-   "scout_hits": 0,
-   "manager_moty": true,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 25.0,
+      "spend_m": 50.0,
+      "budget_m": 100.0,
+      "award_lists": [],
+      "rings": 0,
+      "pennants": 0,
+      "manager_record": [
+        88,
+        74
+      ],
+      "scout_hits": 0,
+      "manager_moty": true,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 77.8,
+      "managerWins": 2.8,
+      "budgetBonus": 0.0,
+      "awardPoints": 2,
+      "ringPoints": 0,
+      "scoutBonus": 0,
+      "luxuryTax": 0.0,
+      "total": 79.8
+    }
   },
-  "expect": {
-   "expectedWins": 77.8,
-   "managerWins": 2.8,
-   "budgetBonus": 0.0,
-   "awardPoints": 2,
-   "ringPoints": 0,
-   "scoutBonus": 0,
-   "luxuryTax": 0.0,
-   "total": 79.8
-  }
- },
- {
-  "args": {
-   "total_war": 30.0,
-   "spend_m": 90.0,
-   "budget_m": 100.0,
-   "award_lists": [
-    [
-     "AS"
-    ]
-   ],
-   "rings": 0,
-   "pennants": 1,
-   "manager_record": [
-    78,
-    84
-   ],
-   "scout_hits": 1,
-   "manager_moty": true,
-   "wbc_champions": 0,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 30.0,
+      "spend_m": 90.0,
+      "budget_m": 100.0,
+      "award_lists": [
+        [
+          "AS"
+        ]
+      ],
+      "rings": 0,
+      "pennants": 1,
+      "manager_record": [
+        78,
+        84
+      ],
+      "scout_hits": 1,
+      "manager_moty": true,
+      "wbc_champions": 0,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 78.8,
+      "managerWins": -1.2,
+      "budgetBonus": 8.0,
+      "awardPoints": 2.5,
+      "ringPoints": 1,
+      "scoutBonus": 1,
+      "luxuryTax": 0.0,
+      "total": 91.3
+    }
   },
-  "expect": {
-   "expectedWins": 78.8,
-   "managerWins": -1.2,
-   "budgetBonus": 8.0,
-   "awardPoints": 2.5,
-   "ringPoints": 1,
-   "scoutBonus": 1,
-   "luxuryTax": 0.0,
-   "total": 91.3
-  }
- },
- {
-  "args": {
-   "total_war": 30.0,
-   "spend_m": 50.0,
-   "budget_m": 100.0,
-   "award_lists": [
-    [
-     "AS"
-    ]
-   ],
-   "rings": 0,
-   "pennants": 0,
-   "manager_record": null,
-   "scout_hits": 0,
-   "manager_moty": false,
-   "wbc_champions": 1,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 30.0,
+      "spend_m": 50.0,
+      "budget_m": 100.0,
+      "award_lists": [
+        [
+          "AS"
+        ]
+      ],
+      "rings": 0,
+      "pennants": 0,
+      "manager_record": null,
+      "scout_hits": 0,
+      "manager_moty": false,
+      "wbc_champions": 1,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 80.0,
+      "managerWins": 0.0,
+      "budgetBonus": 0.0,
+      "awardPoints": 0.5,
+      "ringPoints": 1.5,
+      "scoutBonus": 0,
+      "luxuryTax": 0.0,
+      "total": 82.0
+    }
   },
-  "expect": {
-   "expectedWins": 80.0,
-   "managerWins": 0.0,
-   "budgetBonus": 0.0,
-   "awardPoints": 0.5,
-   "ringPoints": 2,
-   "scoutBonus": 0,
-   "luxuryTax": 0.0,
-   "total": 82.5
-  }
- },
- {
-  "args": {
-   "total_war": 30.0,
-   "spend_m": 50.0,
-   "budget_m": 100.0,
-   "award_lists": [
-    [
-     "AS"
-    ]
-   ],
-   "rings": 0,
-   "pennants": 0,
-   "manager_record": null,
-   "scout_hits": 0,
-   "manager_moty": false,
-   "wbc_champions": 0,
-   "wbc_runners_up": 1
+  {
+    "args": {
+      "total_war": 30.0,
+      "spend_m": 50.0,
+      "budget_m": 100.0,
+      "award_lists": [
+        [
+          "AS"
+        ]
+      ],
+      "rings": 0,
+      "pennants": 0,
+      "manager_record": null,
+      "scout_hits": 0,
+      "manager_moty": false,
+      "wbc_champions": 0,
+      "wbc_runners_up": 1
+    },
+    "expect": {
+      "expectedWins": 80.0,
+      "managerWins": 0.0,
+      "budgetBonus": 0.0,
+      "awardPoints": 0.5,
+      "ringPoints": 0.5,
+      "scoutBonus": 0,
+      "luxuryTax": 0.0,
+      "total": 81.0
+    }
   },
-  "expect": {
-   "expectedWins": 80.0,
-   "managerWins": 0.0,
-   "budgetBonus": 0.0,
-   "awardPoints": 0.5,
-   "ringPoints": 1,
-   "scoutBonus": 0,
-   "luxuryTax": 0.0,
-   "total": 81.5
-  }
- },
- {
-  "args": {
-   "total_war": 41.5,
-   "spend_m": 88.0,
-   "budget_m": 120.0,
-   "award_lists": [
-    [
-     "AS"
-    ],
-    []
-   ],
-   "rings": 1,
-   "pennants": 0,
-   "manager_record": null,
-   "scout_hits": 0,
-   "manager_moty": false,
-   "wbc_champions": 1,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 41.5,
+      "spend_m": 88.0,
+      "budget_m": 120.0,
+      "award_lists": [
+        [
+          "AS"
+        ],
+        []
+      ],
+      "rings": 1,
+      "pennants": 0,
+      "manager_record": null,
+      "scout_hits": 0,
+      "manager_moty": false,
+      "wbc_champions": 1,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 91.5,
+      "managerWins": 0.0,
+      "budgetBonus": 4.7,
+      "awardPoints": 0.5,
+      "ringPoints": 4.5,
+      "scoutBonus": 0,
+      "luxuryTax": 0.0,
+      "total": 101.2
+    }
   },
-  "expect": {
-   "expectedWins": 91.5,
-   "managerWins": 0.0,
-   "budgetBonus": 4.7,
-   "awardPoints": 0.5,
-   "ringPoints": 5,
-   "scoutBonus": 0,
-   "luxuryTax": 0.0,
-   "total": 101.7
-  }
- },
- {
-  "args": {
-   "total_war": 22.0,
-   "spend_m": 64.0,
-   "budget_m": 90.0,
-   "award_lists": [],
-   "rings": 0,
-   "pennants": 1,
-   "manager_record": null,
-   "scout_hits": 0,
-   "manager_moty": false,
-   "wbc_champions": 1,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 22.0,
+      "spend_m": 64.0,
+      "budget_m": 90.0,
+      "award_lists": [],
+      "rings": 0,
+      "pennants": 1,
+      "manager_record": null,
+      "scout_hits": 0,
+      "manager_moty": false,
+      "wbc_champions": 1,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 72.0,
+      "managerWins": 0.0,
+      "budgetBonus": 4.2,
+      "awardPoints": 0,
+      "ringPoints": 2.5,
+      "scoutBonus": 0,
+      "luxuryTax": 0.0,
+      "total": 78.7
+    }
   },
-  "expect": {
-   "expectedWins": 72.0,
-   "managerWins": 0.0,
-   "budgetBonus": 4.2,
-   "awardPoints": 0,
-   "ringPoints": 3,
-   "scoutBonus": 0,
-   "luxuryTax": 0.0,
-   "total": 79.2
-  }
- },
- {
-  "args": {
-   "total_war": 38.4,
-   "spend_m": 143.0,
-   "budget_m": 150.0,
-   "award_lists": [
-    [
-     "MVP"
-    ],
-    [
-     "AS"
-    ],
-    [],
-    [
-     "GG"
-    ],
-    [],
-    [
-     "AS"
-    ],
-    []
-   ],
-   "rings": 2,
-   "pennants": 1,
-   "manager_record": [
-    101,
-    61
-   ],
-   "scout_hits": 3,
-   "manager_moty": false,
-   "wbc_champions": 5,
-   "wbc_runners_up": 2
+  {
+    "args": {
+      "total_war": 38.4,
+      "spend_m": 143.0,
+      "budget_m": 150.0,
+      "award_lists": [
+        [
+          "MVP"
+        ],
+        [
+          "AS"
+        ],
+        [],
+        [
+          "GG"
+        ],
+        [],
+        [
+          "AS"
+        ],
+        []
+      ],
+      "rings": 2,
+      "pennants": 1,
+      "manager_record": [
+        101,
+        61
+      ],
+      "scout_hits": 3,
+      "manager_moty": false,
+      "wbc_champions": 5,
+      "wbc_runners_up": 2
+    },
+    "expect": {
+      "expectedWins": 96.4,
+      "managerWins": 8.0,
+      "budgetBonus": 9.1,
+      "awardPoints": 5.0,
+      "ringPoints": 15.5,
+      "scoutBonus": 3,
+      "luxuryTax": 0.0,
+      "total": 129.0
+    }
   },
-  "expect": {
-   "expectedWins": 96.4,
-   "managerWins": 8.0,
-   "budgetBonus": 9.1,
-   "awardPoints": 5.0,
-   "ringPoints": 19,
-   "scoutBonus": 3,
-   "luxuryTax": 0.0,
-   "total": 132.5
-  }
- },
- {
-  "args": {
-   "total_war": 12.0,
-   "spend_m": 20.0,
-   "budget_m": 80.0,
-   "award_lists": [],
-   "rings": 0,
-   "pennants": 0,
-   "manager_record": null,
-   "scout_hits": 0,
-   "manager_moty": false,
-   "wbc_champions": 8,
-   "wbc_runners_up": 0
+  {
+    "args": {
+      "total_war": 12.0,
+      "spend_m": 20.0,
+      "budget_m": 80.0,
+      "award_lists": [],
+      "rings": 0,
+      "pennants": 0,
+      "manager_record": null,
+      "scout_hits": 0,
+      "manager_moty": false,
+      "wbc_champions": 8,
+      "wbc_runners_up": 0
+    },
+    "expect": {
+      "expectedWins": 62.0,
+      "managerWins": 0.0,
+      "budgetBonus": -5.0,
+      "awardPoints": 0,
+      "ringPoints": 12.0,
+      "scoutBonus": 0,
+      "luxuryTax": 0.0,
+      "total": 69.0
+    }
   },
-  "expect": {
-   "expectedWins": 62.0,
-   "managerWins": 0.0,
-   "budgetBonus": -5.0,
-   "awardPoints": 0,
-   "ringPoints": 16,
-   "scoutBonus": 0,
-   "luxuryTax": 0.0,
-   "total": 73.0
-  }
- },
- {
-  "args": {
-   "total_war": 55.3,
-   "spend_m": 199.4,
-   "budget_m": 175.0,
-   "award_lists": [
-    [
-     "CY",
-     "AS"
-    ],
-    [
-     "MVP2"
-    ],
-    [],
-    [
-     "SS"
-    ],
-    [],
-    [],
-    [
-     "ROY"
-    ],
-    []
-   ],
-   "rings": 3,
-   "pennants": 2,
-   "manager_record": [
-    95,
-    67
-   ],
-   "scout_hits": 4,
-   "manager_moty": true,
-   "wbc_champions": 2,
-   "wbc_runners_up": 3
+  {
+    "args": {
+      "total_war": 55.3,
+      "spend_m": 199.4,
+      "budget_m": 175.0,
+      "award_lists": [
+        [
+          "CY",
+          "AS"
+        ],
+        [
+          "MVP2"
+        ],
+        [],
+        [
+          "SS"
+        ],
+        [],
+        [],
+        [
+          "ROY"
+        ],
+        []
+      ],
+      "rings": 3,
+      "pennants": 2,
+      "manager_record": [
+        95,
+        67
+      ],
+      "scout_hits": 4,
+      "manager_moty": true,
+      "wbc_champions": 2,
+      "wbc_runners_up": 3
+    },
+    "expect": {
+      "expectedWins": 110.9,
+      "managerWins": 5.6,
+      "budgetBonus": 0.0,
+      "awardPoints": 10.5,
+      "ringPoints": 15.5,
+      "scoutBonus": 4,
+      "luxuryTax": 24.4,
+      "total": 116.5
+    }
   },
-  "expect": {
-   "expectedWins": 110.9,
-   "managerWins": 5.6,
-   "budgetBonus": 0.0,
-   "awardPoints": 10.5,
-   "ringPoints": 18,
-   "scoutBonus": 4,
-   "luxuryTax": 24.4,
-   "total": 119.0
+  {
+    "args": {
+      "total_war": 18.9,
+      "spend_m": 233.1,
+      "budget_m": 96.0,
+      "award_lists": [
+        [
+          "AS"
+        ]
+      ],
+      "rings": 1,
+      "pennants": 0,
+      "manager_record": [
+        70,
+        92
+      ],
+      "scout_hits": 0,
+      "manager_moty": false,
+      "wbc_champions": 1,
+      "wbc_runners_up": 1
+    },
+    "expect": {
+      "expectedWins": 64.5,
+      "managerWins": -4.4,
+      "budgetBonus": 0.0,
+      "awardPoints": 0.5,
+      "ringPoints": 5.0,
+      "scoutBonus": 0,
+      "luxuryTax": 137.1,
+      "total": -67.1
+    }
   }
- },
- {
-  "args": {
-   "total_war": 18.9,
-   "spend_m": 233.1,
-   "budget_m": 96.0,
-   "award_lists": [
-    [
-     "AS"
-    ]
-   ],
-   "rings": 1,
-   "pennants": 0,
-   "manager_record": [
-    70,
-    92
-   ],
-   "scout_hits": 0,
-   "manager_moty": false,
-   "wbc_champions": 1,
-   "wbc_runners_up": 1
-  },
-  "expect": {
-   "expectedWins": 64.5,
-   "managerWins": -4.4,
-   "budgetBonus": 0.0,
-   "awardPoints": 0.5,
-   "ringPoints": 6,
-   "scoutBonus": 0,
-   "luxuryTax": 137.1,
-   "total": -66.1
-  }
- }
 ]

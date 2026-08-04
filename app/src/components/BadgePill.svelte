@@ -66,5 +66,5 @@
   fresh={fresh && !locked}
   {animate}
   {delay}
-  title={locked ? undefined : badge.label}
+  title={locked ? undefined : badge.name}
 />
