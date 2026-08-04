@@ -23,7 +23,7 @@ export const AWARD_POINTS: Record<string, number> = {
   MVP3: 1,
   CY3: 1,
   ROY: 2,
-  AS: 1,
+  AS: 0.5,
   GG: 1,
   SS: 1,
 };
@@ -50,7 +50,7 @@ export const MANAGER_PER_NET_WIN = 0.2; // hired manager: (team W − team L) ×
 /** Hired manager won the BBWAA Manager of the Year that season. Hardware, not
  * wins: it joins the awardPoints (trophy case) sum, never the managerWins term. */
 export const MANAGER_MOTY_POINTS = 2;
-export const SCOUT_HIT_POINTS = 0.5; // per drafted pick who's in the dream team
+export const SCOUT_HIT_POINTS = 1; // per drafted pick who's in the dream team
 
 export const LUXURY_TAX_PER_M = 1.0;
 export const BUDGET_BONUS_MAX = 10.0;

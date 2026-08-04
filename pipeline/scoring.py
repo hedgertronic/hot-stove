@@ -21,7 +21,7 @@ GAMES = 162
 # MVP2/CY2 (MVP3/CY3) are award-vote 2nd (3rd) place finishers on their
 # league's ballot; AS is an All-Star selection.
 AWARD_POINTS = {"MVP": 3, "CY": 3, "MVP2": 2, "CY2": 2, "MVP3": 1, "CY3": 1,
-                "ROY": 2, "AS": 1, "GG": 1, "SS": 1}
+                "ROY": 2, "AS": 0.5, "GG": 1, "SS": 1}
 RING_POINTS = 3      # per player whose team won the World Series that season
 PENNANT_POINTS = 1   # per player whose team won the pennant but lost the Series
 # World Baseball Classic medals, on the same Ring-chasing axis as the October
@@ -49,7 +49,7 @@ MANAGER_PER_NET_WIN = 0.2
 # Hired manager won the BBWAA Manager of the Year that season. Hardware, not
 # wins: it joins the awardPoints (trophy case) sum, never the managerWins term.
 MANAGER_MOTY_POINTS = 2
-SCOUT_HIT_POINTS = 0.5  # per drafted player who's in the WAR-optimal roster
+SCOUT_HIT_POINTS = 1  # per drafted player who's in the WAR-optimal roster
 
 LUXURY_TAX_PER_M = 1.0
 BUDGET_BONUS_MAX = 10.0

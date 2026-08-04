@@ -32,11 +32,11 @@
    "expectedWins": 162,
    "managerWins": 14.0,
    "budgetBonus": 8.8,
-   "awardPoints": 9,
+   "awardPoints": 7.5,
    "ringPoints": 6,
-   "scoutBonus": 4.5,
+   "scoutBonus": 9,
    "luxuryTax": 0.0,
-   "total": 190.3
+   "total": 193.3
   }
  },
  {
@@ -68,11 +68,11 @@
    "expectedWins": 100.6,
    "managerWins": 5.6,
    "budgetBonus": 0.0,
-   "awardPoints": 3,
+   "awardPoints": 2.5,
    "ringPoints": 4,
-   "scoutBonus": 1.0,
+   "scoutBonus": 2,
    "luxuryTax": 105.8,
-   "total": 2.8
+   "total": 3.3
   }
  },
  {
@@ -104,11 +104,11 @@
    "expectedWins": 74.9,
    "managerWins": -8.4,
    "budgetBonus": 0.0,
-   "awardPoints": 3,
+   "awardPoints": 2.0,
    "ringPoints": 0,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 0.0,
-   "total": 77.9
+   "total": 76.9
   }
  },
  {
@@ -131,7 +131,7 @@
    "budgetBonus": 0.0,
    "awardPoints": 0,
    "ringPoints": 0,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 0.0,
    "total": 50.0
   }
@@ -159,9 +159,9 @@
    "budgetBonus": -4.0,
    "awardPoints": 0,
    "ringPoints": 9,
-   "scoutBonus": 1.0,
+   "scoutBonus": 2,
    "luxuryTax": 0.0,
-   "total": 92.0
+   "total": 93.0
   }
  },
  {
@@ -201,9 +201,9 @@
    "budgetBonus": 0.0,
    "awardPoints": 8,
    "ringPoints": 3,
-   "scoutBonus": 3.0,
+   "scoutBonus": 6,
    "luxuryTax": 15.7,
-   "total": 70.7
+   "total": 73.7
   }
  },
  {
@@ -241,11 +241,11 @@
    "expectedWins": 70.9,
    "managerWins": 3.6,
    "budgetBonus": 0.0,
-   "awardPoints": 6,
+   "awardPoints": 5.5,
    "ringPoints": 5,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 41.3,
-   "total": 40.6
+   "total": 40.1
   }
  },
  {
@@ -294,9 +294,9 @@
    "budgetBonus": 0.0,
    "awardPoints": 17,
    "ringPoints": 10,
-   "scoutBonus": 3.0,
+   "scoutBonus": 6,
    "luxuryTax": 15.2,
-   "total": 115.5
+   "total": 118.5
   }
  },
  {
@@ -331,9 +331,9 @@
    "budgetBonus": 6.0,
    "awardPoints": 4,
    "ringPoints": 9,
-   "scoutBonus": 1.5,
+   "scoutBonus": 3,
    "luxuryTax": 0.0,
-   "total": 98.1
+   "total": 99.6
   }
  },
  {
@@ -363,11 +363,11 @@
    "expectedWins": 122.7,
    "managerWins": 3.6,
    "budgetBonus": 0.0,
-   "awardPoints": 6,
+   "awardPoints": 5.5,
    "ringPoints": 9,
-   "scoutBonus": 4.5,
+   "scoutBonus": 9,
    "luxuryTax": 107.0,
-   "total": 35.2
+   "total": 39.2
   }
  },
  {
@@ -399,9 +399,9 @@
    "budgetBonus": 4.7,
    "awardPoints": 1,
    "ringPoints": 12,
-   "scoutBonus": 4.5,
+   "scoutBonus": 9,
    "luxuryTax": 0.0,
-   "total": 130.4
+   "total": 134.9
   }
  },
  {
@@ -431,9 +431,9 @@
    "budgetBonus": 0.0,
    "awardPoints": 3,
    "ringPoints": 11,
-   "scoutBonus": 2.0,
+   "scoutBonus": 4,
    "luxuryTax": 72.3,
-   "total": 57.7
+   "total": 59.7
   }
  },
  {
@@ -473,9 +473,9 @@
    "budgetBonus": -5.2,
    "awardPoints": 12,
    "ringPoints": 3,
-   "scoutBonus": 1.0,
+   "scoutBonus": 2,
    "luxuryTax": 0.0,
-   "total": 73.5
+   "total": 74.5
   }
  },
  {
@@ -506,9 +506,9 @@
    "budgetBonus": -4.0,
    "awardPoints": 3,
    "ringPoints": 3,
-   "scoutBonus": 4.5,
+   "scoutBonus": 9,
    "luxuryTax": 0.0,
-   "total": 72.7
+   "total": 77.2
   }
  },
  {
@@ -534,9 +534,9 @@
    "budgetBonus": -7.3,
    "awardPoints": 0,
    "ringPoints": 8,
-   "scoutBonus": 1.5,
+   "scoutBonus": 3,
    "luxuryTax": 0.0,
-   "total": 74.4
+   "total": 75.9
   }
  },
  {
@@ -580,9 +580,9 @@
    "expectedWins": 122.4,
    "managerWins": 0.0,
    "budgetBonus": 0.0,
-   "awardPoints": 14,
+   "awardPoints": 13.0,
    "ringPoints": 7,
-   "scoutBonus": 1.0,
+   "scoutBonus": 2,
    "luxuryTax": 137.3,
    "total": 7.1
   }
@@ -616,9 +616,9 @@
    "budgetBonus": 9.9,
    "awardPoints": 3,
    "ringPoints": 10,
-   "scoutBonus": 3.0,
+   "scoutBonus": 6,
    "luxuryTax": 0.0,
-   "total": 79.8
+   "total": 82.8
   }
  },
  {
@@ -654,7 +654,7 @@
    "budgetBonus": 0.0,
    "awardPoints": 4,
    "ringPoints": 9,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 76.1,
    "total": -12.9
   }
@@ -681,7 +681,7 @@
    "budgetBonus": 0.0,
    "awardPoints": 0,
    "ringPoints": 1,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 24.3,
    "total": 90.9
   }
@@ -709,9 +709,9 @@
    "budgetBonus": -6.5,
    "awardPoints": 0,
    "ringPoints": 5,
-   "scoutBonus": 4.5,
+   "scoutBonus": 9,
    "luxuryTax": 0.0,
-   "total": 61.9
+   "total": 66.4
   }
  },
  {
@@ -741,7 +741,7 @@
    "budgetBonus": 6.0,
    "awardPoints": 5,
    "ringPoints": 0,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 0.0,
    "total": 107.4
   }
@@ -769,7 +769,7 @@
    "budgetBonus": 0.0,
    "awardPoints": 2,
    "ringPoints": 0,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 0.0,
    "total": 79.8
   }
@@ -799,9 +799,9 @@
    "expectedWins": 78.8,
    "managerWins": -1.2,
    "budgetBonus": 8.0,
-   "awardPoints": 3,
+   "awardPoints": 2.5,
    "ringPoints": 1,
-   "scoutBonus": 0.5,
+   "scoutBonus": 1,
    "luxuryTax": 0.0,
    "total": 91.3
   }
@@ -828,11 +828,11 @@
    "expectedWins": 80.0,
    "managerWins": 0.0,
    "budgetBonus": 0.0,
-   "awardPoints": 1,
+   "awardPoints": 0.5,
    "ringPoints": 2,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 0.0,
-   "total": 83.0
+   "total": 82.5
   }
  },
  {
@@ -857,11 +857,11 @@
    "expectedWins": 80.0,
    "managerWins": 0.0,
    "budgetBonus": 0.0,
-   "awardPoints": 1,
+   "awardPoints": 0.5,
    "ringPoints": 1,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 0.0,
-   "total": 82.0
+   "total": 81.5
   }
  },
  {
@@ -887,11 +887,11 @@
    "expectedWins": 91.5,
    "managerWins": 0.0,
    "budgetBonus": 4.7,
-   "awardPoints": 1,
+   "awardPoints": 0.5,
    "ringPoints": 5,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 0.0,
-   "total": 102.2
+   "total": 101.7
   }
  },
  {
@@ -914,7 +914,7 @@
    "budgetBonus": 4.2,
    "awardPoints": 0,
    "ringPoints": 3,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 0.0,
    "total": 79.2
   }
@@ -956,11 +956,11 @@
    "expectedWins": 96.4,
    "managerWins": 8.0,
    "budgetBonus": 9.1,
-   "awardPoints": 6,
+   "awardPoints": 5.0,
    "ringPoints": 19,
-   "scoutBonus": 1.5,
+   "scoutBonus": 3,
    "luxuryTax": 0.0,
-   "total": 132.0
+   "total": 132.5
   }
  },
  {
@@ -983,7 +983,7 @@
    "budgetBonus": -5.0,
    "awardPoints": 0,
    "ringPoints": 16,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 0.0,
    "total": 73.0
   }
@@ -1027,11 +1027,11 @@
    "expectedWins": 110.9,
    "managerWins": 5.6,
    "budgetBonus": 0.0,
-   "awardPoints": 11,
+   "awardPoints": 10.5,
    "ringPoints": 18,
-   "scoutBonus": 2.0,
+   "scoutBonus": 4,
    "luxuryTax": 24.4,
-   "total": 117.5
+   "total": 119.0
   }
  },
  {
@@ -1059,11 +1059,11 @@
    "expectedWins": 64.5,
    "managerWins": -4.4,
    "budgetBonus": 0.0,
-   "awardPoints": 1,
+   "awardPoints": 0.5,
    "ringPoints": 6,
-   "scoutBonus": 0.0,
+   "scoutBonus": 0,
    "luxuryTax": 137.1,
-   "total": -65.6
+   "total": -66.1
   }
  }
 ]
