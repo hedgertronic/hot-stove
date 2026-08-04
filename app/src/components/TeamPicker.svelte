@@ -14,6 +14,14 @@
     game.card ? divisionsForYear(game.teamsForYear(game.card.year)) : [],
   );
 
+  // Column count for the team grid: derived from the widest division in this
+  // season so every group fills exactly one row. Pre-expansion eras can have
+  // 4-team divisions (orphan tile in a 5-column grid); current MLB has 5.
+  // Falls back to 5 if the divisions array is empty (no card loaded yet).
+  const pickCols = $derived(
+    divisions.length === 0 ? 5 : Math.max(1, ...divisions.map((d) => d.teams.length)),
+  );
+
   function pick(team: string) {
     onclose();
     game.relocate(team);
@@ -28,7 +36,7 @@
 >
   {#each divisions as d (d.label)}
     <div class="div-h">{d.label}</div>
-    <div class="pickgrid">
+    <div class="pickgrid" style="--div-cols: {pickCols}">
       {#each d.teams as t (t.team)}
         <button
           class="pickopt teambtn"
@@ -62,11 +70,16 @@
   .div-h:first-child {
     margin-top: 0;
   }
-  /* Six division grids stacked, so this one sets the gap under itself; the
-     five columns, the tile and the pedigree glyph are app.css's `.pickgrid` /
-     `.pickopt`, shared with the season-ticket sheet. */
+  /* Six division grids stacked (four in pre-1994 seasons), so this one sets
+     the gap under itself. The tile and the pedigree glyph are app.css's
+     `.pickgrid` / `.pickopt`, shared with the season-ticket sheet.
+     Column count is overridden here via --div-cols (set per grid from the
+     widest division in this season), so every group fills exactly one row
+     rather than orphaning tiles in a fixed 5-column shell. The scoped rule
+     wins over app.css's unscoped `.pickgrid` due to Svelte's specificity bump. */
   .pickgrid {
     margin-bottom: 4px;
+    grid-template-columns: repeat(var(--div-cols, 5), 1fr);
   }
   /* Each tile is a club color, so it wears the pair — the accent thinned into
      the cardstock for the fill, the accent itself for the line. Same derivation

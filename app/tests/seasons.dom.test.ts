@@ -61,7 +61,8 @@ function open(onopen = vi.fn()) {
     // markup, and an unscoped query would count the best seasons twice.
     rows: () => [...target.querySelectorAll(".rows .row")] as HTMLButtonElement[],
     shelf: () => [...target.querySelectorAll(".shelf .row")] as HTMLButtonElement[],
-    caps: () => [...target.querySelectorAll(".cap")].map((c) => c.textContent?.trim()),
+    // Section labels now use the app's global .psep device (dashed rule).
+    caps: () => [...target.querySelectorAll(".psep")].map((c) => c.textContent?.trim()),
     subtitle: () => target.querySelector(".sub")?.textContent ?? "",
     close: () => {
       unmount(app);
@@ -104,9 +105,10 @@ describe("which rows appear", () => {
     season("g1");
     appendHistory({ date: "2026-08-03", badges: ["packedin"] });
     const ui = open();
+    // Only the one finished season appears — quits are excluded.
     expect(ui.rows()).toHaveLength(1);
-    // And the subtitle counts what is listed, not what is logged.
-    expect(ui.subtitle()).toBe("1 PLAYED");
+    // No "N PLAYED" subtitle is shown.
+    expect(ui.subtitle()).toBe("");
     ui.close();
   });
 
@@ -117,12 +119,14 @@ describe("which rows appear", () => {
     ui.close();
   });
 
-  it("prints the date the log wrote, not a timezone's opinion of it", () => {
-    // `new Date("2026-08-02")` is midnight UTC, which is August 1st for anyone
-    // west of Greenwich. The row reads the digits.
+  it("keeps the date in the aria-label (screen readers) but not as a visible span", () => {
+    // The date is intentionally absent from the visual row but still present
+    // in aria-label so the reading order works for screen readers.
     season("g0", { date: "2026-08-02" });
     const ui = open();
-    expect(ui.rows()[0].querySelector(".date")!.textContent).toBe("AUG 2 '26");
+    const row = ui.rows()[0];
+    expect(row.querySelector(".date")).toBeNull();
+    expect(row.getAttribute("aria-label")).toContain("AUG 2 '26");
     ui.close();
   });
 
@@ -240,16 +244,20 @@ describe("how a row is laid out", () => {
    * the only part of the layout jsdom can actually see. Order ONLY: the tier
    * class riding along on `.rec` is the subject of its own test above, and a
    * layout assertion that also checked the color would pass or fail for two
-   * unrelated reasons. */
-  const ZONES = ["date", "mode", "seed", "rec"];
+   * unrelated reasons.
+   *
+   * Row order after redesign: seed far left, then mode emojis, then record far
+   * right. No date span (date lives only in aria-label). */
+  const ZONES = ["seed", "mode", "rec"];
   function zones(row: HTMLButtonElement): (string | undefined)[] {
     return [...row.children].map((c) => ZONES.find((z) => c.classList.contains(z)));
   }
 
-  it("runs date, then modes, then seed, then the record on the right", () => {
+  it("runs seed, then modes, then the record — no date element", () => {
     season("g0", { seed: 42, bank: "moneyball", difficulty: "scout" });
     const ui = open();
     expect(zones(ui.rows()[0])).toEqual(ZONES);
+    expect(ui.rows()[0].querySelector(".date")).toBeNull();
     ui.close();
   });
 
@@ -327,10 +335,20 @@ describe("the record book shelf", () => {
     ui.close();
   });
 
-  it("labels the two sections so the surface reads as one book", () => {
+  it("labels the two sections using the .psep device so the surface reads as one book", () => {
     season("g0");
     const ui = open();
+    // .psep is the app's global dashed-separator component (app.css).
     expect(ui.caps()).toEqual(["RECORD BOOK", "ALL SEASONS"]);
+    ui.close();
+  });
+
+  it("shows no N PLAYED subtitle on the sheet header", () => {
+    season("g0");
+    season("g1");
+    const ui = open();
+    // Subtitle prop is omitted — .sub element is absent from the DOM.
+    expect(ui.subtitle()).toBe("");
     ui.close();
   });
 

@@ -123,15 +123,22 @@
       <span class="mid">
         <span class="nameline">
           <span class="pname">{p.name}</span>
-          {#if wbc}<span
-              class="wbc"
-              role="img"
-              aria-label="World Baseball Classic {wbc === 2 ? 'champion' : 'finalist'}"
-              >{wbc === 2 ? "🌐" : "🎌"}</span
-            >{/if}
         </span>
         {#if hasBadges(p)}<span class="badges"
             >{#each sortAwards(p.awards) as a}<AwardPill code={a} small />{/each}</span
+          >{/if}
+        <!-- WBC medal follows award chips, mirroring the Finale's own order:
+             award pills → WS ring → pennant → WBC gold → WBC silver.
+             Team rings and pennants live on the finale's squad rows; what
+             belongs here is the individual hardware only, so the order is
+             award chips then the medal. The medal is a sibling of .badges
+             so it remains in the mid flex and wraps independently — placing
+             it inside .badges would hide it for players with no award chips. -->
+        {#if wbc}<span
+            class="wbc"
+            role="img"
+            aria-label="World Baseball Classic {wbc === 2 ? 'champion' : 'finalist'}"
+            >{wbc === 2 ? "🌐" : "🎌"}</span
           >{/if}
       </span>
       <span class="right">
@@ -152,8 +159,8 @@
         {:else if confirmKey === `t:${p.id}` && swappable && !primeable}
           <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => e.key === "Enter" && commitTrade(p)}>TRADE FOR {money(price)}</span>
         {:else}
-          {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
           <span class="cost {discounted ? 'cheap' : costTier(price)}">{money(price)}</span>
+          {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
         {/if}
       </span>
     </button>
@@ -302,12 +309,20 @@
     flex: none;
     min-height: 26.3px;
   }
-  /* WAR is the decision number — biggest thing on the right. The chip itself
-     lives in app.css, because PrimePicker draws the same ladder and two copies
-     of six rules drift. */
-  /* Structural right-alignment (flex, not text-align) so every engine agrees,
-     and a box wide enough for "$20.5M"-class prices — the WAR chips form a
-     straight column because the price column never grows. */
+  /* Salary sits inboard; the WAR chip is flush right, the last thing the eye
+     lands on. The chip lives in app.css because PrimePicker draws the same
+     ladder and two copies of six rules drift.
+     The chip is the rightmost item now, so its right edge has to be consistent
+     or the WAR column jitters as values vary. app.css's `min-inline-size: 42px`
+     is a floor, not a fixed width — "12.3 WAR" is wider than that. 64px seats
+     the widest values the visible-players filter passes (above-replacement only)
+     with the same side room the salary's 56px floor provided. A separate scoped
+     rule rather than touching app.css: the global chip is shared by the finale,
+     the rail, and the career sheet, none of which need PlayerList's column pin. */
+  .right .warchip {
+    min-inline-size: 64px;
+  }
+  /* Structural right-alignment (flex, not text-align) so every engine agrees. */
   .cost {
     display: inline-flex;
     justify-content: flex-end;

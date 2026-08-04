@@ -8,8 +8,8 @@
     GAMES,
     MANAGER_PER_NET_WIN,
     MARINERS_WINS,
-    WBC_CHAMPION_POINTS,
-    WBC_RUNNERUP_POINTS,
+    WBC_CHAMPION_ID,
+    WBC_RUNNERUP_ID,
   } from "../lib/scoring";
   import { shareText as shareResult } from "../lib/share";
   import { countryDef, passport, type PassportItem } from "../lib/settings";
@@ -601,7 +601,7 @@
      screen. -->
 <div class="fin-cols">
 <div class="fin-main">
-<div class="psep">THE LEDGER</div>
+<div class="psep">THE SCORECARD</div>
 <div class="ledger">
   {#each rows as row, i (row.key)}
     <div class="lrow disp" class:show={i < shownRows}>
@@ -659,80 +659,55 @@
   <span class="tpts">{dispTotal} PTS</span>
 </div>
 
-{#if bragsShown && brags.length > 0}
-  <div class="brags">
-    {#each brags as b, i (b.def.key)}
-      <!-- The pill and the tap-to-explain are BadgeSlot's, shared with the home
-           trophy case, so a badge looks and behaves the same the moment it is
-           earned as it does in the case. `animate` asks for the thunk-in
-           entrance and `delay` deals the row left to right.
-           The stagger is a NUMBER rather than a selector or a wrapper, and both
-           of those were tried. A `:nth-of-type` rule has to be written out once
-           per seat, which stopped working when the row uncapped; a span
-           carrying an index broke BadgeSlot outright, because it measures its
-           reveal panel against `btnEl.parentElement` and a `display: contents`
-           wrapper is a parent with no box to measure. The order is still the
-           row's business — the row just hands it over instead of encoding it in
-           the DOM. -->
-      <BadgeSlot
-        badge={b.def}
-        animate={!resolved}
-        delay={i * BRAG_STEP}
-        fresh={b.fresh}
-        open={openBrag === b.def.key}
-        ontoggle={() => (openBrag = openBrag === b.def.key ? null : b.def.key)}
-      />
-    {/each}
-  </div>
-{/if}
+{#if brags.length > 0 || clubCountries.length > 0}
+  <!-- badge-strip: shared flex row for badge pills and passport stamps.
+       .brags holds badge BadgeSlots (conditional on beat); .clubpass holds
+       Passport's .stamps via display:contents so .stamps becomes a flex item
+       of this row. visibility:hidden on .clubpass gates stamps before their
+       beat — visibility IS inherited through display:contents, unlike opacity,
+       which is why the old opacity:0 let stamp animations run silently. -->
+  <div class="badge-strip">
+    {#if bragsShown && brags.length > 0}
+      <div class="brags">
+        {#each brags as b, i (b.def.key)}
+          <!-- The pill and the tap-to-explain are BadgeSlot's, shared with the
+               home trophy case. `animate` asks for the thunk-in entrance and
+               `delay` deals the row left to right.
+               The stagger is a NUMBER rather than a selector or a wrapper — a
+               `:nth-of-type` rule has to be written out once per seat; a span
+               carrying an index broke BadgeSlot because it measures its reveal
+               panel against `btnEl.parentElement` and a `display: contents`
+               wrapper has no box to measure. -->
+          <BadgeSlot
+            badge={b.def}
+            animate={!resolved}
+            delay={i * BRAG_STEP}
+            fresh={b.fresh}
+            open={openBrag === b.def.key}
+            ontoggle={() => (openBrag = openBrag === b.def.key ? null : b.def.key)}
+          />
+        {/each}
+      </div>
+    {/if}
 
-{#if clubCountries.length > 0}
-  <!-- Directly under the badges, unlabelled and in the same column, because it
-       is the same kind of object: what this season turned up that is worth
-       keeping. A stamp is already legibly a stamp — small, square-cornered,
-       flag-led — where the badges above it are capsules, so the shape does the
-       work a "PASSPORT" header used to do and the row costs no vertical rhythm
-       to introduce.
-       It sat beside the roster for one round, on the reasoning that a birth
-       country belongs to the men listed there. True, and beside the point: next
-       to eight seats a row of flags reads as a ninth fact about the club rather
-       than as a souvenir of it. Here it closes the payoff stack — record,
-       badges, stamps — and is the last thing read before the exits.
-       Nothing renders at all for a club whose seats carry no country — every
-       save written before the field existed, and every restored finale older
-       than it. -->
-  <!-- `disp` because Passport sets no font of its own — it inherits, so the
-       same stamp renders in Nunito inside the trophy sheet and would have
-       dropped to system sans out here the moment it left the `.squad disp`
-       block it used to sit in.
-       MOUNTED FROM THE FIRST FRAME, revealed by a class — the reveal's fourth
-       beat, and the one block that must not be `{#if}`d in when its turn comes.
-       Its box is the whole distance between the badges and the buttons, so a
-       block that appeared mid-reveal would shove the action row down under a
-       thumb already reaching for it. Held at `opacity: 0` instead, the row sits
-       where it will end up before the ledger has dealt a single line.
-       The BOX fades; the STAMPS deal. The wrapper used to carry a spring of its
-       own, which put a staggered row inside a moving container and read as
-       neither — so the entrance moved onto the stamps, at the badge row's own
-       BRAG_STEP, and this block is left gating nothing but opacity. The last
-       beat of the ceremony now lands the way the beat before it did: one mark
-       at a time, left to right. -->
-  <div class="clubpass disp" class:show={passShown}>
-    <!-- `animate` waits for `passShown`, and that is a correctness condition
-         rather than tidiness. This row is MOUNTED from the first frame at
-         `opacity: 0`, and a CSS animation on a child of a transparent box runs
-         anyway — opacity defers nothing. Asking for the entrance at mount meant
-         every stamp finished its thunk-in inside the first second and the row
-         then faded up already settled, which is the all-at-once the stagger
-         exists to replace. Applied at the beat, the delays deal the row.
-         The badge row above needs no such guard: it is `{#if}`d in at its own
-         beat, so its pills cannot animate before they exist. -->
-    <Passport
-      stamps={clubCountries}
-      label="Countries fielded"
-      animate={!resolved && passShown}
-      step={BRAG_STEP}
-    />
+    {#if clubCountries.length > 0}
+      <!-- `disp` because Passport sets no font of its own.
+           MOUNTED FROM THE FIRST FRAME — display:contents on .clubpass makes
+           .stamps a direct flex item of .badge-strip, so it reserves its space
+           and flows inline with the badges from the start. visibility:hidden
+           holds it invisible before the passport beat; .show flips it visible.
+           `animate` waits for passShown: applied at the beat the stamps deal
+           left to right; applied at mount they would finish inside the first
+           second and the row would appear already settled. -->
+      <div class="clubpass disp" class:show={passShown}>
+        <Passport
+          stamps={clubCountries}
+          label="Countries fielded"
+          animate={!resolved && passShown}
+          step={BRAG_STEP}
+        />
+      </div>
+    {/if}
   </div>
 {/if}
 
@@ -790,7 +765,7 @@
                  `BestPick` has no `wbc` field, so the solver's club knows
                  nothing about medals — a gap in bestroster.ts, not something
                  this component can answer. -->
-            {#if slot.wbc === WBC_CHAMPION_POINTS}<span class="emo">🌐</span>{:else if slot.wbc === WBC_RUNNERUP_POINTS}<span
+            {#if slot.wbc === WBC_CHAMPION_ID}<span class="emo">🌐</span>{:else if slot.wbc === WBC_RUNNERUP_ID}<span
                 class="emo">🎌</span
               >{/if}
           </span>
@@ -880,7 +855,7 @@
       {@const mine =
         pick != null &&
         game.slots.some((s) => s && s.id === pick.id && s.year === pick.year && s.team === pick.team)}
-      <div class="qrow" class:missed={pick != null && !mine}>
+      <div class="qrow" class:missed={pick != null && !mine} class:signed={pick != null && mine}>
         <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
         {#if pick}
           <!-- Awards show WHY the solver chose this season — they count in
@@ -894,9 +869,9 @@
               {#each sortAwards(pick.awards) as a}
                 <AwardPill code={a} />
               {/each}
-              {#if pick.ws}<span class="emo">💍</span>{:else if pick.pen}<span class="emo">🚩</span>{/if}{#if pick.wbc === WBC_CHAMPION_POINTS}<span
+              {#if pick.ws}<span class="emo">💍</span>{:else if pick.pen}<span class="emo">🚩</span>{/if}{#if pick.wbc === WBC_CHAMPION_ID}<span
                   class="emo">🌐</span
-                >{:else if pick.wbc === WBC_RUNNERUP_POINTS}<span class="emo">🎌</span>{/if}
+                >{:else if pick.wbc === WBC_RUNNERUP_ID}<span class="emo">🎌</span>{/if}
             </span>
           </span>
           <span class="warchip sm {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
@@ -910,7 +885,7 @@
       <!-- The skipper answers to the same treatment as the seats: solid and
            full-strength when the player's own hire IS the dream skipper,
            dashed-and-washed when the dream club found a better one. -->
-      <div class="qrow" class:missed={!fin.managerHit}>
+      <div class="qrow" class:missed={!fin.managerHit} class:signed={fin.managerHit}>
         <span class="qpos">MGR</span>
         <span class="qmid">
           <span class="qname"
@@ -969,27 +944,42 @@
       max-width: 1020px;
       margin: 0 auto;
     }
+    /* Left score-story column sticks while the taller squads column scrolls.
+       align-items: start on .fin-cols is the prerequisite — a stretch item
+       can't stick. Scroller is the document; no overflow ancestor to break it.
+       top: 10px matches the game board's .gleft sticky offset. */
+    .fin-main {
+      position: sticky;
+      top: 10px;
+    }
     /* Both columns open with a psep header, so the first squad sheds its
-       stacked-layout gap to sit level with THE LEDGER. */
+       stacked-layout gap to sit level with THE SCORECARD. */
     .fin-side > .squad:first-child {
       margin-top: 0;
     }
   }
-  /* Brag badges pop with the total, right under the stamp they qualify —
-     up to four pills on one wrapping, centered line. Every pill is nowrap, so
-     the row breaks between pills and never inside one — which costs nothing,
-     because the widest pill in the set (🔱 MATCHED THE 2001 MARINERS, 232px)
-     still fits the row's width on a 360px screen. The pills themselves are
-     BadgeSlot's; this rule owns layout only.
-     `position: relative` is BadgeSlot's contract: the row is the containing
-     block for an opened badge's panel, so the panel is clamped to this box and
-     floats over the stamp and the buttons instead of displacing them. */
+  /* Outer wrapping row shared by badge pills and passport stamps.
+     Flex-wrap so both kinds flow together on the same visual line, with the
+     stamps continuing right after the last badge. Margin-top here (not on
+     .brags) because the strip as a whole opens the space, whether badges,
+     stamps, or both are present. */
+  .badge-strip {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 6px 8px;
+    margin-top: 12px;
+  }
+  /* Badge pills inside the strip. `position: relative` is BadgeSlot's contract:
+     the row is the containing block for an opened badge's panel, clamped here
+     so the panel floats over the stamp and the buttons instead of displacing
+     them. margin-top removed — the strip's own margin-top covers it. */
   .brags {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 6px 8px;
-    margin-top: 12px;
     position: relative;
   }
   .ledger {
@@ -1008,7 +998,9 @@
     min-height: 44px;
     border: 2.5px solid var(--line);
     border-radius: 11px;
-    background: var(--card);
+    /* Subtle warm-gray tint distinguishes scorecard rows from player card rows
+       (.qrow uses bare --card). color-mix avoids introducing a new token. */
+    background: color-mix(in srgb, var(--gray-bg) 18%, var(--card));
     padding: 6px 12px;
     opacity: 0;
     transform: translateY(10px) scale(0.97);
@@ -1173,7 +1165,7 @@
     cursor: pointer;
     text-align: center;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.14em;
     color: var(--muted);
@@ -1212,15 +1204,12 @@
      award pill or the WAR chip, all of which are drawn against --card's ink
      ratio and keep it. 3px on a 9px period: wide enough not to shimmer at
      small sizes, fine enough to stay texture rather than pattern.
-     `background-color` stays --card underneath, so the row keeps its own paper
-     if a gradient ever fails to paint. */
-  .squad.dream .qrow {
-    background-color: var(--card);
-    background-image: repeating-linear-gradient(
-      45deg,
-      color-mix(in srgb, var(--gray-bg) 45%, var(--card)) 0 3px,
-      var(--card) 3px 9px
-    );
+     signed rows tinted green, missed rows keep dashed border and faded contents. */
+  /* A dream row the player DID sign: quiet green wash so signed seats read
+     apart from the plain card without competing with the WAR chip's own color.
+     Empty seats (pick == null) carry neither .signed nor .missed. */
+  .squad.dream .qrow.signed {
+    background: color-mix(in srgb, var(--green-wash) 30%, var(--card));
   }
   .squad.dream {
     /* Held until the fifth beat; see below. */
@@ -1333,15 +1322,22 @@
      in a keyframe and resolves back to none, where a transitioned `transform`
      would have to sit in the resting rule and re-origin every panel opened
      afterwards. */
+  /* display:contents makes .clubpass generate no box — Passport's .stamps
+     becomes a direct flex item of .badge-strip, so stamps flow inline with
+     the badge pills. visibility:hidden (NOT opacity:0) gates stamps before
+     the passport beat: visibility is an inherited CSS property and propagates
+     through display:contents to .stamps and every pill inside it; opacity
+     does not inherit, so the old opacity:0 let stamp animations run silently
+     inside an invisible wrapper. The stamp entrance runs on the STAMPS (via
+     the Passport animate prop), not on this wrapper. */
   .clubpass {
-    margin: 8px 0 0;
-    opacity: 0;
+    display: contents;
+    visibility: hidden;
   }
-  /* The fourth beat gates VISIBILITY and nothing else. The entrance belongs to
-     the stamps inside, which deal one at a time — a box that also sprang would
-     be a second motion over the top of theirs. */
+  /* The fourth beat flips visibility on. No layout shift: the stamps already
+     reserved their space (display:contents still lets .stamps take up room). */
   .clubpass.show {
-    opacity: 1;
+    visibility: visible;
   }
   /* Every row's WAR rides the chip's small cut (app.css's .warchip.sm — a
      modifier on the one chip, sized for these tighter rows). Only layout facts

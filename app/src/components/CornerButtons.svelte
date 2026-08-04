@@ -264,12 +264,12 @@
      37px of overlap at 320px, still 2px at 390px. `right: 32px` is clear
      everywhere but 320px-with-a-chip, where it grazes by 5px.
 
-     What this corner costs is a confirm's armed state. Either pill armed drops
-     the twin width for `width: auto; padding: 0 8px` and grows its word
-     leftward — "QUIT?" to about 55px, "UNDO?" to about 62px — which is wider
-     than the 32px gap between the two anchors. So an armed pill WILL reach
-     across its neighbour, and the answer is that the neighbour gets out of the
-     way (see `.pushed`) rather than that the pill is stopped from growing.
+     What this corner costs is a confirm's armed state. Either pill armed grows
+     its word leftward — "QUIT?" to about 56px (pinned in App.svelte), "UNDO?"
+     to about 62px (pinned below) — which is wider than the 32px gap between
+     the two anchors. So an armed pill WILL reach across its neighbour, and the
+     answer is that the neighbour gets out of the way (see `.pushed`) rather
+     than that the pill is stopped from growing.
      Neither anchor moves: a confirm that slid this pill into the ✕'s corner
      would put a rewind under the thumb aimed at a quit, and walk the quit
      target 32px sideways when the confirm lapsed — the same hazard
@@ -282,21 +282,31 @@
        renders it after this component — and a ghosted ✕ would sit on top of the
        "UNDO?" it is stepping back from. */
     z-index: 1;
-    /* Arming and lapsing read as one motion rather than a jump; app.css kills
+    /* Width transitions alongside opacity and transform so arming and lapsing
+       read as one motion rather than a snap. QUIT? in App.svelte does NOT
+       transition width (only opacity/transform), so UNDO? animates slightly
+       more — that is the right tradeoff: the pill grows leftward into the
+       wordmark, and an animated expand reads gentler than a snap. app.css kills
        every transition for reduced-motion readers, who get the same end states
        instantly. */
     transition:
+      width 0.12s ease,
       opacity 0.12s ease,
       transform 0.12s ease;
   }
   /* Armed, the pill carries a word ("UNDO?") in the ✕'s confirm colors — one
      confirm language for the pair, so the second tap means the same thing
-     wherever it is asked for. */
+     wherever it is asked for.
+     Width is pinned to a number (not `auto`) so the transition can interpolate
+     it. "UNDO?" measures about 38px in bundled Nunito at 800/12px; 62px seats
+     it centered with the same side room QUIT?'s 56px provides. The .help.pushed
+     arithmetic uses QUIT?'s 56px ((56 + 4px gap − 32px anchor) = 27px push)
+     and is unaffected by this pill's own armed width. */
   .undo.armed {
     background: var(--orange-2);
     color: var(--ink);
     border-color: var(--orange-8);
-    width: auto;
+    width: 62px;
     padding: 0 8px;
     z-index: 2;
   }

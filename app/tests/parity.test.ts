@@ -411,8 +411,8 @@ describe("Finale parity", () => {
     const a = ssr(Finale, props(std));
     const b = ssr(Finale, props(sct));
     expect(b).toBe(a);
-    // Full reveal: ledger, WAR figures, award pills, pedigree, 🏠 marker.
-    expect(a).toContain("THE LEDGER");
+    // Full reveal: scorecard, WAR figures, award pills, pedigree, 🏠 marker.
+    expect(a).toContain("THE SCORECARD");
     expect(a).toContain("8.5"); // A-Rod's WAR on the squad card
     expect(a).toContain("MVP");
     expect(a).toContain("💍");

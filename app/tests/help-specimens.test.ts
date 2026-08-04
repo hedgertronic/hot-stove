@@ -32,6 +32,7 @@ import {
   luxuryTax,
   round1,
 } from "../src/lib/scoring";
+import { slotLabel } from "../src/lib/format";
 import { SLOT_TYPES } from "../src/lib/engine.svelte";
 import { money, posLabel, signed, statValue, warTier } from "../src/lib/format";
 import { eligibleTypes } from "../src/lib/eligibility";
@@ -118,12 +119,11 @@ const seatsOf = (name: string): string[] =>
  * silently: give RailSeat a wrapper element and every match truncates at the
  * wrong closing tag, `seatsOf` returns nothing for everybody, and a test whose
  * every assertion is "each seat found wears the right rung" passes over an
- * empty set. Pinning the count is what makes that failure loud instead — seven
- * chairs: five in the rail (the manager plus four seats) and two lit by the
- * slot picker. A specimen added or removed lands here first, which is the
- * correct place for it to land. */
+ * empty set. Pinning the count is what makes that failure loud instead — eleven
+ * chairs: nine in the rail (the manager plus the full eight player seats) and
+ * two lit by the slot picker. A specimen added or removed lands here first. */
 it("finds every chair the sheet draws", () => {
-  expect(SEATS).toHaveLength(7);
+  expect(SEATS).toHaveLength(11);
 });
 
 describe("the help sheet's player specimens", () => {
@@ -210,6 +210,30 @@ describe("the help sheet's manager specimen", () => {
     expect(seatsOf("Cox")).toEqual([expect.stringContaining(`war-${warTier(wins)}`)]);
     expect(warTier(wins)).toBe("star");
   });
+
+  it("renders the WAR chip inside the manager's chair", () => {
+    // The chip gates on `war` being truthy in RailSeat — `war={statValue(wins)}`
+    // = "7.2" satisfies that. This test pins it scoped to the manager's own
+    // chair element, not the page as a whole, because `rwar warchip sm` also
+    // appears on filled player seats (Piazza, Maddux).
+    const mgrSeat = SEATS.find(([cls]) => cls.startsWith("mgr"));
+    expect(mgrSeat, "manager chair not found in SEATS").toBeDefined();
+    // Svelte appends a scoping hash to class names in SSR, so check for the
+    // class-name substring rather than the exact attribute value.
+    expect(mgrSeat![1]).toContain('rwar warchip sm');
+  });
+
+  it("orders the player-row specimen salary-then-WAR, the way the market does", () => {
+    // The specimen is HelpModal's own markup, not PlayerList — it CAN drift.
+    // Round 28 put the WAR chip far right on real market rows; a sheet still
+    // teaching WAR-then-salary is teaching a row that no longer exists.
+    const row = BODY.slice(BODY.indexOf("Pedro Martínez"), BODY.indexOf("Pedro Martínez") + 600);
+    const cost = row.indexOf('class="cost');
+    const war = row.indexOf('class="warchip');
+    expect(cost).toBeGreaterThan(-1);
+    expect(war).toBeGreaterThan(-1);
+    expect(cost).toBeLessThan(war);
+  });
 });
 
 describe("the help sheet's front-office specimens", () => {
@@ -287,13 +311,14 @@ describe("the help sheet's scoring copy", () => {
     (m): [string, boolean] => [m[2].trim(), / sub\b| sub /.test(` ${m[1]} `)],
   );
 
-  it("nests the four scoring subsections under SCORING and nothing else", () => {
+  it("nests the five scoring subsections under SCORING and nothing else", () => {
     // The whole outline, in order, at its levels. Pinned rather than spot
     // checked: the point of the restructure is that TROPHY CASE and RING
     // CHASING stopped being sections of their own, and only a full reading
-    // can show that no fifth level or stray top-level heading crept back.
+    // can show that no sixth level or stray top-level heading crept back.
+    // HOW TO PLAY is the renamed THE LOOP; WINS is the new first subsection.
     expect(OUTLINE).toEqual([
-      ["THE LOOP", false],
+      ["HOW TO PLAY", false],
       ["A PLAYER ROW", false],
       ["YOUR SQUAD", false],
       ["FRONT OFFICE", false],
@@ -301,6 +326,7 @@ describe("the help sheet's scoring copy", () => {
       ["BALL KNOWLEDGE", false],
       ["POWERUPS · ONE USE EACH", false],
       ["SCORING", false],
+      ["WINS", true],
       ["PAYROLL BONUS", true],
       ["SCOUTING", true],
       ["TROPHY CASE", true],
@@ -308,6 +334,7 @@ describe("the help sheet's scoring copy", () => {
       ["DATA SOURCES", false],
     ]);
     expect(BODY).not.toContain("hsec");
+    expect(BODY).not.toContain(">THE LOOP<");
   });
 
   it("prices the payroll meters off the game's own bonus and tax", () => {
@@ -356,6 +383,88 @@ describe("the help sheet's scoring copy", () => {
     expect(BODY).not.toContain("TAP WHO TO TRADE");
     // The slot picker's is the sheet's one remaining instruction pill.
     expect(BODY).toContain("↑ PICK A SLOT");
+  });
+
+  it("removes the armed sample pills from the POWERUPS table", () => {
+    // The resting pill and the copy are enough. The armed state (orange,
+    // dashed) in mid-use added no information the resting pill + copy did not
+    // already carry, and removing it shortens the table significantly.
+    // The prose descriptions contain "PICK TWO" etc. WITHOUT the emoji;
+    // the armed pill labels carry the emoji prefix — only those are gone.
+    expect(BODY).not.toContain("✌️ PICK TWO");
+    expect(BODY).not.toContain("🔁 TAP A TRADE");
+    expect(BODY).not.toContain("⭐ TAP A PLAYER");
+    expect(BODY).not.toContain("🏠 SIGN AT $1M");
+  });
+
+  it("uses WINS as the first scoring subsection with the formula grid", () => {
+    // WINS is now a .psep.sub heading, making the outline five subsections.
+    // The replacement baseline and the cap constant must both appear.
+    const winsIdx = BODY.indexOf('>WINS<');
+    expect(winsIdx, "no WINS subsection heading").toBeGreaterThan(-1);
+    const payrollIdx = BODY.indexOf('>PAYROLL BONUS<');
+    expect(winsIdx).toBeLessThan(payrollIdx);
+    // The formula grid content — all four rows visible.
+    expect(BODY).toContain(">+WAR<");
+    expect(BODY).toContain(">+MGR<");
+    // No old single-bullet wins prose
+    expect(BODY).not.toContain("That is your record, and the rest of this section");
+  });
+
+  it("shows percentages, not dollar figures, in the payroll mini bar labels", () => {
+    // The spend=$40M figure only ever appeared in the mini meter label; after
+    // switching to percentages it should not be anywhere on the sheet.
+    expect(BODY).not.toContain("$40M");
+    // Percentage signs appear in the meter labels.
+    expect(BODY).toContain("%");
+    // The bonus/tax points values are still present (colored now, not removed).
+    const c = card("ATL", 1995);
+    const budget = c.budget * c.stadiumMult;
+    expect(BODY).toContain(`>${signed(round1(budgetBonus(40, budget)))}<`);
+    expect(BODY).toContain(`>${signed(-luxuryTax(111, budget))}<`);
+    // Both bars are still the real component.
+    const meters = [...BODY.matchAll(/<div class="pmeter[^"]*"/g)].map((m) => m[0]);
+    expect(meters.filter((m) => m.includes("mini"))).toHaveLength(2);
+  });
+
+  it("shows the HOW TO PLAY heading and position badges for each seat type", () => {
+    // Section renamed from THE LOOP.
+    expect(BODY).toContain('>HOW TO PLAY<');
+    // The slot-badges div holds one chip per slot plus MGR.
+    // Svelte appends a scoping hash to class names in SSR output, so match
+    // on the class name string rather than the exact attribute value.
+    expect(BODY).toContain('slot-badges');
+    // Extract the badges div content (children are <span>s, no inner </div>).
+    const badgesMarker = BODY.indexOf('slot-badges');
+    const divOpen = BODY.lastIndexOf('<div', badgesMarker);
+    const divClose = BODY.indexOf('</div>', badgesMarker);
+    const badgesHtml = BODY.slice(divOpen, divClose);
+    // Every unique slot label appears as a position chip inside the div.
+    for (const slot of SLOT_TYPES) {
+      expect(badgesHtml, `slot "${slot}" missing from badges`).toContain(`>${slotLabel(slot)}<`);
+    }
+    // MGR badge rounds out the nine seats.
+    expect(badgesHtml).toContain(">MGR<");
+  });
+
+  it("consolidates body prose to 12px, keeping chip/ledger sizes as-is", () => {
+    // Read the scoped style block out of the component source — SSR gives HTML,
+    // not computed styles. The consolidation merged .cap (was 11px) into the
+    // same 12px as li and .ptxt. Chip and ledger typography (.ledger at 11px,
+    // .lgnd .lt and .klbl at 8.5px) is explicitly kept at its own size.
+    const src = fs.readFileSync(
+      path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../src/components/HelpModal.svelte"),
+      "utf8",
+    );
+    const styleBlock = src.match(/<style>([\s\S]*?)<\/style>/);
+    expect(styleBlock, "no <style> block found").not.toBeNull();
+    const style = styleBlock![1];
+    // .cap must now carry 12px — the merge from 11px into the prose register.
+    expect(style).toMatch(/\.cap\s*\{[^}]*font-size:\s*12px/);
+    // .cap must NOT still carry 11px (would mean the edit was not applied).
+    expect(style).not.toMatch(/\.cap\s*\{[^}]*font-size:\s*11px/);
+    // .src li stays at 11px — the credits list is deliberately quieter.
+    expect(style).toMatch(/\.src\s+li\s*\{[^}]*font-size:\s*11px/);
   });
 
   it("names each data source exactly once", () => {

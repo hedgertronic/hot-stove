@@ -319,10 +319,7 @@
      at the row's own size. The skipper's value is not: it is a `.warchip`, and
      a chip owns its type, border, wash and 13.5px scale the way it does on
      every other row in the game. Excluding it here is what lets it — the same
-     collision, and the same fix, as the career sheet's `.mid:not(.warchip)`.
-     A rung chip does put a rung fill inside the tile's identity hue, and on the
-     skipper's red that is a deliberate second signal rather than a clash to
-     design around: the tile's hue says WHAT this is, the chip says HOW GOOD. */
+     collision, and the same fix, as the career sheet's `.mid:not(.warchip)`. */
   .val:not(.warchip) {
     font-size: 14px;
   }
@@ -330,9 +327,17 @@
     background: var(--sky);
     border-color: var(--blue-8);
   }
+  /* The manager tile is white cardstock in --line, matching every other player
+     row in the game. The wins chip is the color carrier — same six-rung ladder
+     as a player's WAR, one chip per row, the chip says WHAT and HOW GOOD.
+     Owner (gold) and stadium (blue) keep their identity hues because those are
+     categorical: the budget and the multiplier are not on the talent scale and
+     cannot be compared through a WAR chip. The skipper's contribution IS
+     measurable as net wins, so the chip carries the entire color read and the
+     row itself stays white. */
   .srow.skip {
-    background: var(--pink);
-    border-color: var(--red-8);
+    background: var(--card);
+    border-color: var(--line);
   }
   /* Already gone: the warm gray pair, matching the market's dead rows, which
      is the same "you can't have this" state one section down the page. */

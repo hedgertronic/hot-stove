@@ -207,6 +207,8 @@
     >
     <!-- The seed zone sits below PLAY. The compact button swaps for the field
          in place: the zone keeps its shape, so PLAY above it stays still. -->
+    <!-- The seed zone keeps a fixed min-height so opening the field never
+         shifts the record book below it. Both states are the same height. -->
     <div class="seedzone">
       {#if seedOpen}
         <div class="seedrow" class:bad={seedBad}>
@@ -272,17 +274,13 @@
         : "Open the record book and every season played"}
       onclick={() => (seasonsOpen = true)}
     >
+      <!-- Two rows: mode-scoped count big, global total small beneath.
+           `.btotal` is always rendered — `invis` reserves the space without
+           the text so the card height holds steady when no seasons exist. -->
       <div class="bcol">
-        <div class="bcap">G</div>
+        <div class="bcap">GAMES</div>
         <div class="bn" class:empty={best.games === 0}>{best.games}</div>
-      </div>
-      <!-- The one thing the card gains by becoming a control: a footer that
-           says what is behind it, and counts what is there. -->
-      <div class="bmore">
-        {seasons === 0 ? "NO SEASONS YET" : seasons === 1 ? "1 SEASON · ALL MODES" : `${seasons} SEASONS · ALL MODES`}
-        <!-- Not a `.bic`: that class is the 19px glyph a button LABEL carries,
-             and this rides a 9px eyebrow. -->
-        <span class="bmic">🧾</span>
+        <div class="btotal" class:invis={seasons === 0}>{seasons} TOTAL</div>
       </div>
     </button>
     <button
@@ -546,15 +544,29 @@
     gap: 9px;
     margin-top: 14px;
   }
-  /* The seed zone sits below PLAY, right-aligned when the button is visible.
-     When the field is open, seedrow expands to fill it. */
+  /* The seed zone sits below PLAY, centered. Fixed min-height matches the
+     taller open state so opening the field never shifts content below it.
+     The fade-in keyframe runs on both the button and the seedrow on mount
+     (i.e., on every {#if} swap). app.css's prefers-reduced-motion rule
+     disables it via `animation: none !important`. */
   .seedzone {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
+    min-height: 36px;
   }
   .seedzone .seedrow {
     flex: 1;
+  }
+  /* Fade-in on mount. The shake animation on .seedrow.bad overrides this
+     for the error state (higher specificity, source order). */
+  @keyframes seedfade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .seedzone .seedrow,
+  .seedzone .ubtn {
+    animation: seedfade 0.15s ease-out;
   }
   /* The secondary entry point: smaller than PLAY, compact, right-aligned.
      Uses the same `.btn` base (border, radius, background, transition) but
@@ -715,37 +727,17 @@
   .book:disabled:active {
     transform: none;
   }
-  /* What is behind the GAMES card, and how much of it. Sits on a dashed line
-     that separates the count from the footer, the same ruled-sheet language
-     the old single card used. */
-  .bmore {
-    margin-top: 9px;
-    padding-top: 7px;
-    border-top: 2px dashed var(--dash);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    color: var(--muted);
-  }
-  .bmic {
-    font-size: 12px;
-    line-height: 1;
-  }
   /* Each card stacks cap-over-numeral and centers its content vertically. */
   .bcol {
     display: flex;
     flex-direction: column;
     align-items: center;
   }
-  /* The hidden half of the BEST card's height reserve: `.bpts` is always in
-     the DOM so the card's height does not change between modes that have a
-     best season and ones that do not. `visibility: hidden` reserves the space
-     without showing the empty string. */
-  .bpts.invis {
+  /* The hidden halves of each card's height reserve: both `.bpts` and
+     `.btotal` are always in the DOM so card heights do not change between
+     modes. `visibility: hidden` reserves the space without showing the value. */
+  .bpts.invis,
+  .btotal.invis {
     visibility: hidden;
   }
   /* Eyebrow over numeral — the finale total stamp's shape in miniature. */
@@ -782,6 +774,16 @@
      .tpts voice sized down to the miniature. */
   .bpts {
     margin-top: 1px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  /* Global total under the mode-scoped count on the GAMES card. Same quiet
+     voice as .bpts so the two cards read in the same register. */
+  .btotal {
+    margin-top: 2px;
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.1em;

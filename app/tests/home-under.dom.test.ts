@@ -2,14 +2,17 @@
 /** The row under the mode pickers — PLAY above SEED — and the two record-book
  * cards (GAMES and BEST) that replace the single card.
  *
- * GAMES (`.book-g`): shows this combo's game count and the global log total;
- * disabled when nothing has ever been finished; tapping opens the seasons
- * sheet.
+ * GAMES (`.book-g`): shows this combo's game count (`.bn`) big and the global
+ * log total (`.btotal`) small beneath; disabled when nothing has ever been
+ * finished; tapping opens the seasons sheet.
  *
- * BEST (`.book-b`): shows the best season for the punched combo; disabled when
- * no season has been played in that combo; tapping opens that season's finale
- * directly via the archive, or falls back to the seasons sheet when the record
- * has aged out.
+ * BEST (`.book-b`): shows the best season for the punched combo (`.brec` big,
+ * `.bpts` small beneath); disabled when no season has been played in that
+ * combo; tapping opens that season's finale directly via the archive, or falls
+ * back to the seasons sheet when the record has aged out.
+ *
+ * SEED zone: centered below PLAY, fixed min-height so opening the input never
+ * shifts content beneath it.
  *
  * What only a mounted component can show: an empty log reaches the DOM as a
  * real `disabled` attribute rather than a fade; a career played entirely in
@@ -19,7 +22,9 @@
  * combo has been played.
  *
  * Geometry (card heights not jumping between states) is a screenshot job:
- * jsdom has no layout, so a height assertion here would pass on zeroes.
+ * jsdom has no layout, so a height assertion here would pass on zeroes. The
+ * structural contract — a fixed-height .seedzone container that holds both
+ * states — is verified by DOM-presence assertions below.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
@@ -98,6 +103,24 @@ describe("the play row", () => {
     ui.close();
   });
 
+  it("seed zone is centered and wrapped in a fixed-height container", () => {
+    // The structural contract for height parity: both button and input states
+    // render inside the same .seedzone wrapper. jsdom has no layout, so the
+    // min-height CSS cannot be verified here — that is a screenshot job. What
+    // can be verified is that .seedzone exists and wraps the seed content.
+    const ui = open();
+    const zone = ui.under.querySelector(".seedzone");
+    expect(zone).not.toBeNull();
+    // With no field open, the SEED button lives inside .seedzone.
+    expect(zone!.querySelector(".ubtn")).not.toBeNull();
+    ui.seedBtn().click();
+    flushSync();
+    // After opening, the input row lives inside the same .seedzone.
+    expect(ui.under.querySelector(".seedzone")).not.toBeNull();
+    expect(ui.under.querySelector(".seedzone .seedin")).not.toBeNull();
+    ui.close();
+  });
+
   it("keeps two children in the row while the seed field is open, so PLAY holds still", () => {
     const ui = open();
     ui.seedBtn().click();
@@ -113,7 +136,9 @@ describe("the GAMES card", () => {
   it("is disabled, not absent, when nothing has ever been finished", () => {
     const ui = open();
     expect(ui.gamesCard().disabled).toBe(true);
-    expect(ui.gamesCard().textContent).toContain("NO SEASONS YET");
+    // Count shows 0 for the current mode; no "ALL MODES" footer text.
+    expect(ui.gamesCard().querySelector(".bn")!.textContent).toBe("0");
+    expect(ui.gamesCard().textContent).not.toContain("ALL MODES");
     ui.close();
   });
 
@@ -149,24 +174,35 @@ describe("the GAMES card", () => {
   });
 
   it("stays a door for a career played entirely in another combo", () => {
-    // The card's own G is scoped to the PUNCHED combo, and this season is not
-    // in it — G reads 0. The book behind the card is global, so it is still
-    // openable.
+    // The card's own count is scoped to the PUNCHED combo — this season is not
+    // in it so the big number reads 0. The book behind the card is global, so
+    // the card is still a door. The small .btotal line shows the global total.
     season({ bank: "moneyball" });
     const ui = open();
     expect(ui.gamesCard().disabled).toBe(false);
     expect(ui.gamesCard().querySelector(".bn")!.textContent).toBe("0");
-    expect(ui.gamesCard().textContent).toContain("1 SEASON");
+    expect(ui.gamesCard().querySelector(".btotal")!.textContent).toContain("1 TOTAL");
     ui.close();
   });
 
-  it("counts every season played, whatever mode, in its footer", () => {
+  it("shows the global count in .btotal, whatever mode each season was played", () => {
     season();
     season({ bank: "moneyball" });
     season({ difficulty: "scout" });
     appendHistory({ date: "2026-08-04", badges: ["packedin"] }); // a quit counts for nothing
     const ui = open();
-    expect(ui.gamesCard().textContent).toContain("3 SEASONS");
+    expect(ui.gamesCard().querySelector(".btotal")!.textContent).toContain("3 TOTAL");
+    // The "ALL MODES" footer is gone.
+    expect(ui.gamesCard().textContent).not.toContain("ALL MODES");
+    ui.close();
+  });
+
+  it("has a .bn count and a .btotal line — no ALL MODES text", () => {
+    season();
+    const ui = open();
+    expect(ui.gamesCard().querySelector(".bn")).not.toBeNull();
+    expect(ui.gamesCard().querySelector(".btotal")).not.toBeNull();
+    expect(ui.gamesCard().textContent).not.toContain("ALL MODES");
     ui.close();
   });
 
@@ -204,6 +240,16 @@ describe("the BEST card", () => {
     season(); // standard/classic
     const ui = open();
     expect(ui.bestCard().disabled).toBe(false);
+    ui.close();
+  });
+
+  it("has .brec and .bpts — record big, points small", () => {
+    // Structural contract: these two elements are always in the DOM on the
+    // BEST card regardless of whether a season exists in this combo.
+    const ui = open();
+    const card = ui.bestCard();
+    expect(card.querySelector(".brec")).not.toBeNull();
+    expect(card.querySelector(".bpts")).not.toBeNull();
     ui.close();
   });
 

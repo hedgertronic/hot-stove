@@ -168,12 +168,10 @@
      there was nothing to go back to. A season the archive no longer holds is
      still a real season with a real record; it is just not a door.
 
-     The zones read left to right as when · what · how it went: the date
-     indexes the row, the mode emojis say which game it was, and the value —
-     the tier-colored record, the only place a value may show on a market row —
-     lands on the right edge where the eye scans a column of them. The seed
-     rides just ahead of the record in the quiet mono voice, because it is a
-     thing to be copied rather than a thing to be compared. -->
+     The zones read left to right: seed code far left in mono, then the mode
+     emojis, then the tier-colored record far right where the eye scans a
+     column of them. Date is omitted from the visual row but remains in the
+     aria-label for screen readers. -->
 {#snippet row(r: (typeof rows)[number], best: boolean)}
   <button
     class="row"
@@ -184,11 +182,10 @@
       if (r.rec) onopen(r.rec, r.id);
     }}
   >
-    <span class="date">{r.date}</span>
+    <span class="seed">{r.seed}</span>
     <span class="mode" aria-hidden="true"
       >{r.bank}{r.scout ? ` ${DIFFICULTIES.scout.emoji}` : ""}</span
     >
-    <span class="seed">{r.seed}</span>
     <span class="rec {r.tier}">{r.wins}–{r.losses}</span>
   </button>
 {/snippet}
@@ -197,7 +194,6 @@
   {onclose}
   label="Past seasons"
   title="SEASONS"
-  subtitle={rows.length === 1 ? "1 PLAYED" : `${rows.length} PLAYED`}
   confirmLabel="CLOSE"
 >
   <div>
@@ -207,14 +203,16 @@
 
     {#if shelf.length > 0}
       <!-- The record book, pinned above the log it is drawn from. Keyed by the
-           combo, which is unique by construction and stable across a mount. -->
-      <div class="cap">RECORD BOOK</div>
+           combo, which is unique by construction and stable across a mount.
+           Section labels use the app's standard .psep device (global in
+           app.css: dashed rule with centered text). -->
+      <div class="psep">RECORD BOOK</div>
       <div class="shelf">
         {#each shelf as r (r.combo)}
           {@render row(r, true)}
         {/each}
       </div>
-      <div class="cap">ALL SEASONS</div>
+      <div class="psep">ALL SEASONS</div>
     {/if}
 
     <div class="rows">
@@ -242,20 +240,10 @@
     display: grid;
     gap: 7px;
   }
-  /* The two section eyebrows, in the home screen's own separator voice — the
-     one that names PAYROLL and RECORD BOOK there. They only ever appear as a
-     pair, so neither has to explain the other. */
-  .cap {
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    padding: 0 2px 6px;
-  }
-  /* The gap between the two sections, hung off the shelf it follows rather
-     than off "not the first one": the caption's spacing then depends on what is
-     actually above it and not on what else the sheet happens to have drawn. */
-  .shelf + .cap {
+  /* Section labels use the app's global .psep device (dashed rule with
+     centered text, defined in app.css). The gap between the shelf and ALL
+     SEASONS adds top padding only where there is a shelf above it. */
+  .shelf + .psep {
     padding-top: 16px;
   }
   /* A market row: you are choosing among these, so it is white cardstock on the
@@ -310,9 +298,10 @@
      channel of the WAR ladder, and what the six rules that used to sit here
      were a hand copy of. The record's own color is the only place a value may
      show on a market row; the size is the only part of it this surface
-     decides. */
+     decides. `margin-left: auto` pushes it to the far-right edge of the row. */
   .rec {
     flex: none;
+    margin-left: auto;
     font-size: 19px;
     font-weight: 900;
     line-height: 1.05;
@@ -331,27 +320,17 @@
     letter-spacing: 0.02em;
   }
   /* The seed in the quiet mono voice the finale's GAME #XXXX chip uses — this
-     is where a code gets copied from. `margin-left: auto` is the row's only
-     gap: everything ahead of it hugs the left edge and this carries the seed
-     and the record it rides ahead of over to the right. */
+     is where a code gets copied from. Far-left anchor: `margin-left: auto` has
+     moved to `.rec` so the record is what jumps to the right edge. */
   .seed {
-    margin-left: auto;
+    flex: none;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--muted);
     white-space: nowrap;
   }
-  .date {
-    flex: none;
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    color: var(--gray-ink);
-    white-space: nowrap;
-  }
-  /* Narrowest phones: the row is four zones across ~276px of sheet. Everything
-     tightens by a step and the date drops its tracking; nothing wraps. */
+  /* Narrowest phones: the row is three zones across ~276px of sheet. */
   @media (max-width: 359px) {
     .row {
       gap: 6px;
@@ -364,11 +343,7 @@
       font-size: 12px;
     }
     .seed {
-      font-size: 10px;
-    }
-    .date {
-      font-size: 8.5px;
-      letter-spacing: 0.03em;
+      font-size: 11px;
     }
   }
 </style>

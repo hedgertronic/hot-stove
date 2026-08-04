@@ -19,6 +19,7 @@
     MANAGER_MOTY_POINTS,
     MANAGER_PER_NET_WIN,
     PENNANT_POINTS,
+    GAMES,
     REPLACEMENT_WINS,
     RING_POINTS,
     SCOUT_HIT_POINTS,
@@ -146,14 +147,20 @@
     cost: 1,
   };
 
-  /** Four of the eight chairs: two filled, two waiting. Four rather than eight
-   * because the phone grid is 2×4 and this is 2×2 — the same object at a size
-   * that leaves room for a caption. */
+  /** All eight player seats in the order SLOT_TYPES defines them: two filled
+   * (Piazza and Maddux at their real numbers), six empty waiting seats. The
+   * four-column phone grid and the stacked wide layout both draw this same set,
+   * so the sheet shows the club as the board shows it. `slotLabel` maps FLEX to
+   * UTIL, the same way the live rail labels it. */
   const SEATS = [
-    { label: "C", name: "Piazza", meta: "1997 LAD", war: 8.7 },
-    { label: "IF", name: null, meta: null, war: null },
-    { label: "SP", name: "Maddux", meta: "1995 ATL", war: 10.8 },
-    { label: "RP", name: null, meta: null, war: null },
+    { label: slotLabel("C"),    name: "Piazza", meta: "1997 LAD", war: 8.7 },
+    { label: slotLabel("IF"),   name: null,     meta: null,       war: null },
+    { label: slotLabel("IF"),   name: null,     meta: null,       war: null },
+    { label: slotLabel("OF"),   name: null,     meta: null,       war: null },
+    { label: slotLabel("FLEX"), name: null,     meta: null,       war: null },
+    { label: slotLabel("SP"),   name: "Maddux", meta: "1995 ATL", war: 10.8 },
+    { label: slotLabel("SP"),   name: null,     meta: null,       war: null },
+    { label: slotLabel("RP"),   name: null,     meta: null,       war: null },
   ];
 
   /** Bobby Cox's 1995 Braves, 90–54, through the engine's own expression — so
@@ -287,6 +294,12 @@
     spend > FO_BUDGET
       ? signed(-luxuryTax(spend, FO_BUDGET))
       : signed(round1(budgetBonus(spend, FO_BUDGET)));
+  /** Spend as a percentage of the payroll cap, rounded to the nearest whole
+   * number. The mini bar can read "109% of payroll" even though the bar itself
+   * clamps at 100% — the number and the bar intentionally disagree, and that
+   * disagreement is the lesson: the overage the bar cannot show is what the tax
+   * charges. */
+  const meterPct = (spend: number) => Math.round((spend / FO_BUDGET) * 100);
 
   /** How many ⭐ the scouting row can hold: every seat plus the skipper. Owner
    * and ballpark are not scoutable (bestroster.ts counts players and the
@@ -341,8 +354,8 @@
       {#if hint}
         <span class="confirm hint">{hint}</span>
       {:else}
-        <span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>
         <span class="cost {costTier(p.cost)}">{money(p.cost)}</span>
+        <span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>
       {/if}
     </span>
   </div>
@@ -356,16 +369,28 @@
      not one. A `{@render}` introduces no wrapper of its own, so the rows the
      snippet above draws are direct children like everything else. -->
 <div class="help">
-  <div class="psep">THE LOOP</div>
+  <div class="psep">HOW TO PLAY</div>
   <ul>
     <li>The stove spins you a real team-season, 1985–2025.</li>
     <li>Take <b>one</b> thing per spin: sign a player, or make a hire.</li>
     <li>
-      Play until the club is finished: {SLOT_TYPES.length} seats ({SEAT_LINE}) plus a manager.
+      Play until the club is finished: {SLOT_TYPES.length} seats plus a manager.
       Clean House adds an owner and a ballpark.
     </li>
     <li>Then the season is scored. <b>162 points is a perfect season.</b></li>
   </ul>
+  <!-- One badge per seat type, in the order the rail draws them. Same .pos chips
+       the market rows use — the same color, weight and border — so a player
+       already knows what they are reading. Pitchers get no dark fill here:
+       the fill on a market row means "this player is a pitcher"; on a seat
+       badge it would mean "this seat takes pitchers," which is a different claim
+       and a wrong one for SP (any pitcher, not just starters). -->
+  <div class="slot-badges">
+    {#each SLOT_TYPES as slot, i (i)}
+      <span class="pos">{slotLabel(slot)}</span>
+    {/each}
+    <span class="pos">MGR</span>
+  </div>
 
   <div class="psep">A PLAYER ROW</div>
   {@render prow(MARKET)}
@@ -378,8 +403,8 @@
     <span class="pos lt">position</span>
     <span class="mid lt">name + hardware</span>
     <span class="right">
-      <span class="warchip lt">WAR</span>
       <span class="cost lt">salary</span>
+      <span class="warchip lt">WAR</span>
     </span>
   </div>
   {@render prow(MARKET_DEAD)}
@@ -399,7 +424,7 @@
       tier={warTier(MGR_WINS)}
       war={statValue(MGR_WINS)}
     />
-    {#each SEATS as s (s.label)}
+    {#each SEATS as s, i (i)}
       <RailSeat
         label={s.label}
         name={s.name}
@@ -516,7 +541,6 @@
     {#each POWERUPS as pu (pu.label)}
       <span class="pstack">
         <PowerupPill label={pu.label} />
-        {#if pu.armed}<PowerupPill label={pu.armed} state="armed" />{/if}
       </span>
       <span class="ptxt">{pu.text}</span>
     {/each}
@@ -543,22 +567,34 @@
     More than one can be armed on the same spin. A powerup never costs you a spin.
   </p>
 
-  <!-- SCORING is the sheet's one nested section: the wins line is the whole
-       total's spine, and the four things that move it off that spine each get
-       a subsection under it. The level is the same .psep device with a `sub`
-       modifier, not a header style private to this sheet — one dashed rule
-       instead of two, indented, so a reader can see at a glance that PAYROLL
-       BONUS sits under SCORING rather than beside it.
+  <!-- SCORING is the sheet's one nested section: five things each get a
+       subsection — WINS is the spine, and the four after it are what moves it.
+       The level is the same .psep device with a `sub` modifier, not a header
+       style private to this sheet — one dashed rule instead of two, indented,
+       so a reader can see at a glance that PAYROLL BONUS sits under SCORING
+       rather than beside it.
        Every subsection is a DIRECT child of .help, wrapper-free: the vertical
        rhythm is written once over .help's children, and a container around a
        subsection would silently drop every gap inside it. -->
   <div class="psep">SCORING</div>
-  <ul>
-    <li>
-      <b>Wins:</b> {REPLACEMENT_WINS} base + roster WAR + skipper (W−L) × {MANAGER_PER_NET_WIN}.
-      That is your record, and the rest of this section is what moves it.
-    </li>
-  </ul>
+
+  <div class="psep sub">WINS</div>
+  <!-- The three addends and the cap, in a two-column formula grid: the bold
+       number on the left, what it names on the right. GAMES is the win cap —
+       the same constant `expectedWins` clamps to — not the point goal (both
+       are 162, but they are two different things that happen to share a
+       number). No em dash, no "−" between rows: the formula reads vertically,
+       not as a sentence. -->
+  <div class="wgrid">
+    <span class="wnum">{REPLACEMENT_WINS}</span>
+    <span class="wlbl">replacement baseline</span>
+    <span class="wnum">+WAR</span>
+    <span class="wlbl">sum of every player's WAR</span>
+    <span class="wnum">+MGR</span>
+    <span class="wlbl">skipper (W−L) ×{MANAGER_PER_NET_WIN}</span>
+    <span class="wnum">={GAMES} max</span>
+    <span class="wlbl">a perfect season</span>
+  </div>
 
   <div class="psep sub">PAYROLL BONUS</div>
   <!-- The bar at two fills, which is the one thing a sentence about a sliding
@@ -570,8 +606,10 @@
       <div class="mtr">
         <PayrollBox mini bank="classic" budget={FO_BUDGET} spend={m.spend} />
         <span class="mlbl">
-          <span>{money(m.spend)} of {money(FO_BUDGET)}</span>
-          <span><b>{meterPts(m.spend)}</b> PTS</span>
+          <span>{meterPct(m.spend)}% of payroll</span>
+          <span>
+            <b class:mbonus={m.spend <= FO_BUDGET} class:mtax={m.spend > FO_BUDGET}>{meterPts(m.spend)}</b> PTS
+          </span>
         </span>
       </div>
     {/each}
@@ -741,11 +779,12 @@
     line-height: 1.4;
     color: var(--muted);
   }
-  /* One line under a specimen, saying the one thing the picture cannot. */
+  /* One line under a specimen, saying the one thing the picture cannot.
+     Same size and leading as body text (li, .ptxt) — differs only in color. */
   .cap {
     margin: 0;
-    font-size: 11px;
-    line-height: 1.4;
+    font-size: 12px;
+    line-height: 1.45;
     color: var(--muted);
   }
   /* ---------- anchored labels ----------
@@ -922,20 +961,19 @@
   }
 
   /* ---------- the seat and pill specimens' CONTAINERS ---------- */
-  /* The seats and the pills are the real components now; only the boxes that
-     arrange them live here, and each one mirrors its screen's own arrangement.
-     Two seat columns rather than four: the phone rail is 2×4 and this is 2×2,
-     the same object at a size that leaves room for a caption. */
+  /* Four seat columns matching RosterRail's phone grid exactly: `auto` holds
+     the manager's chair, `repeat(4, 1fr)` holds the 8 player seats across 2
+     rows. RailSeat spans the manager row with its own grid-row declaration,
+     the same way it does on the live board. Fewer columns made each seat too
+     wide and the manager too short — the reader wasn't seeing the real thing. */
   .rail {
     display: grid;
-    grid-template-columns: auto repeat(2, 1fr);
+    grid-template-columns: auto repeat(4, 1fr);
     gap: 6px;
   }
-  /* And the rail's OTHER arrangement at the width the rail changes at, because
-     a help sheet has to teach the screen the reader is about to be looking at.
-     RailSeat turns itself into a full-width row here; a seat drawn that way
-     inside a two-column grid is a row with no room, and the names clip. Same
-     breakpoint, same flex column, same manager-first order as RosterRail. */
+  /* At width RailSeat turns itself into a full-width card row; a full-width row
+     inside a grid column has no room, and the names clip. Same breakpoint, same
+     flex column, same manager-first order as RosterRail. */
   @media (min-width: 760px) {
     .rail {
       display: flex;
@@ -1073,9 +1111,15 @@
     font-size: 13px;
     line-height: 1;
   }
+  /* Joins the ledger register its sibling rows live in: 700 weight (same as
+     .mlbl) and the body's 1.45 leading. Without weight the honour name was the
+     only 400-weight run in the whole SCORING section, reading lighter than its
+     neighbours even at the same pixel size. Line-height 1.3 made it feel
+     compressed against the 1.45 above and below. Both fixed here. */
   .rlbl {
     font-size: 12px;
-    line-height: 1.3;
+    font-weight: 700;
+    line-height: 1.45;
   }
   .rpts,
   .spts {
@@ -1084,5 +1128,46 @@
   }
   .rpts {
     justify-self: end;
+  }
+
+  /* ---------- the WINS formula ----------
+     Two-column grid: a bold numeral or symbol on the left, a body-weight
+     label on the right. Same size as the body so it reads as structured text
+     rather than a chart — it IS structured text. */
+  .wgrid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 9px;
+    align-items: center;
+  }
+  .wnum {
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .wlbl {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  /* ---------- HOW TO PLAY: position badges ----------
+     Flex-wrap row of .pos chips — the same chips the market rows use. They
+     carry no pit fill (see template comment on why pitchers stay card-white). */
+  .slot-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  /* ---------- payroll meter: bonus and tax colors ----------
+     The bold points value turns green in budget-bonus territory and orange in
+     tax territory, matching the bar's own under/over colors. Specificity
+     (.mlbl .mbonus = 0,2,0) beats .mlbl b (0,1,1) so the color overrides the
+     baseline ink value without needing !important. */
+  .mlbl .mbonus {
+    color: var(--green);
+  }
+  .mlbl .mtax {
+    color: var(--orange);
   }
 </style>

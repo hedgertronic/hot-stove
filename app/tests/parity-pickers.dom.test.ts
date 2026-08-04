@@ -240,9 +240,11 @@ describe("the help sheet teaches with the real parts", () => {
     // $111M spent against the ATL 1995 payroll the FRONT OFFICE specimen
     // sets ($93.2M × 1.09): the overrun the alarm face quotes.
     expect(ui.target.querySelector(".paylbl .warn")?.textContent).toContain("$9.4M");
-    // A powerup pill in each of its three states.
-    for (const cls of [".pp", ".pp.armed", ".pp.spent"])
-      expect(ui.target.querySelector(cls)).not.toBeNull();
+    // A powerup pill ready and spent. The armed samples are gone from the
+    // sheet — arming is taught by playing, not by a mock — so their absence
+    // is asserted rather than their presence.
+    for (const cls of [".pp", ".pp.spent"]) expect(ui.target.querySelector(cls)).not.toBeNull();
+    expect(ui.target.querySelector(".pp.armed")).toBeNull();
     // A badge, earned and locked, through the real BadgePill.
     expect(ui.target.querySelector(".brag:not(.locked)")).not.toBeNull();
     expect(ui.target.querySelector(".brag.locked")).not.toBeNull();

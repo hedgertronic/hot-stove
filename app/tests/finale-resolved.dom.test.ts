@@ -11,10 +11,18 @@
  * not tell the two paths apart.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { flushSync, mount, unmount } from "svelte";
 import Finale from "../src/components/Finale.svelte";
 import { finaleCeilingAbove, finaleOver } from "../src/lab/fixtures";
 import type { Game } from "../src/lib/engine.svelte";
+
+const FINALE_SRC = fs.readFileSync(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src/components/Finale.svelte"),
+  "utf-8",
+);
 
 const store = new Map<string, string>();
 (globalThis as Record<string, unknown>).localStorage = {
@@ -244,5 +252,74 @@ describe("the dream team waits for the record", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/** STYLING AND LAYOUT CONTRACTS.
+ *
+ * Six items, all requiring tests per the spec. Four of these are CSS-only
+ * claims that jsdom cannot verify via getComputedStyle (it does not parse
+ * color-mix(), and component <style> blocks are not injected into the
+ * test document). Those are asserted against the component source text —
+ * the only assertion form that fails when the old value is restored. */
+describe("styling and layout contracts", () => {
+  /** Seats with birth countries so the finale draws a passport strip. */
+  function withCountries(): Game {
+    const g = finaleCeilingAbove();
+    ["Japan", "Cuba", "Peru"].forEach((bc, i) => {
+      const seat = g.slots[i];
+      if (seat) seat.bc = bc;
+    });
+    return g;
+  }
+
+  it("(item 1) heading reads THE SCORECARD, not THE LEDGER", () => {
+    const el = render(true);
+    const headings = [...el.querySelectorAll(".psep")].map((p) => p.textContent?.trim());
+    expect(headings).toContain("THE SCORECARD");
+    expect(headings).not.toContain("THE LEDGER");
+  });
+
+  it("(item 3) signed dream rows carry .signed; missed rows never do", () => {
+    // .signed is the class that carries the green wash — its presence on the
+    // right rows is the contract, even if jsdom can't verify the color itself.
+    const el = render(true);
+    const dream = el.querySelector(".squad.dream");
+    expect(dream).not.toBeNull();
+    // The fixture earns at least one signed dream pick.
+    const signed = [...(dream?.querySelectorAll(".qrow.signed") ?? [])];
+    expect(signed.length).toBeGreaterThan(0);
+    // A missed row is never also .signed — that would double-style it.
+    const missedAndSigned = dream?.querySelectorAll(".qrow.missed.signed") ?? [];
+    expect(missedAndSigned.length).toBe(0);
+  });
+
+  it("(item 5) stamps and badges flow inside the shared .badge-strip", () => {
+    // With both badges and countries, .brags and .clubpass must share the
+    // same .badge-strip parent so their pills lie in the same flex row.
+    const el = render(true, withCountries());
+    expect(el.querySelector(".badge-strip")).not.toBeNull();
+    expect(el.querySelector(".badge-strip > .brags")).not.toBeNull();
+    expect(el.querySelector(".badge-strip > .clubpass")).not.toBeNull();
+    // Both share the same DOM parent — the strip itself.
+    const bragsParent = el.querySelector(".brags")?.parentElement;
+    const clubpassParent = el.querySelector(".clubpass")?.parentElement;
+    expect(bragsParent).toBe(clubpassParent);
+  });
+
+  it("(items 2, 3, 4, 6) source: sticky, seed 12px, no stripe, green-wash, lrow tint", () => {
+    // Item 2: left column sticky on desktop
+    expect(FINALE_SRC).toContain("position: sticky");
+    expect(FINALE_SRC).toContain("top: 10px");
+    // Item 3: crosshatch removed; signed rows tinted green
+    expect(FINALE_SRC).not.toContain("repeating-linear-gradient");
+    expect(FINALE_SRC).toContain(".squad.dream .qrow.signed");
+    expect(FINALE_SRC).toContain("var(--green-wash)");
+    // Item 4: .lrow uses a gray-tinted mix, not bare --card
+    expect(FINALE_SRC).not.toMatch(/\.lrow\s*\{[^}]*background:\s*var\(--card\)/s);
+    expect(FINALE_SRC).toContain("color-mix(in srgb, var(--gray-bg) 18%, var(--card))");
+    // Item 6: seed chip font larger than the old 10px
+    const seedMatch = FINALE_SRC.match(/\.seedchip\s*\{[^}]*font-size:\s*(\d+)px/s);
+    expect(parseInt(seedMatch?.[1] ?? "0", 10)).toBeGreaterThan(10);
   });
 });
