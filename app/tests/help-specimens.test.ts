@@ -22,6 +22,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "svelte/server";
 import HelpModal from "../src/components/HelpModal.svelte";
 import {
+  BUDGET_BONUS_MAX,
   MANAGER_PER_NET_WIN,
   PENNANT_POINTS,
   RING_POINTS,
@@ -234,6 +235,34 @@ describe("the help sheet's manager specimen", () => {
     expect(war).toBeGreaterThan(-1);
     expect(cost).toBeLessThan(war);
   });
+
+  it("spaces the specimen's price column by the market's chip inset rule", () => {
+    // Same drift risk as the order test above, for the row's geometry: the
+    // market's `.right` holds a 10px salary↔chip gap and pulls the chip 4px
+    // toward the row's stroke (box-against-box wants less air than type).
+    // Source-text on both files because jsdom computes no layout.
+    const read = (f: string) =>
+      fs.readFileSync(
+        path.resolve(path.dirname(fileURLToPath(import.meta.url)), `../src/components/${f}`),
+        "utf8",
+      );
+    for (const f of ["HelpModal.svelte", "PlayerList.svelte", "PrimePicker.svelte"]) {
+      // The base rule is the one anchoring the column (`margin-left: auto`);
+      // matching bare `.right {` could land on a media-tier override instead.
+      const right = read(f).match(/\.right \{[^}]*margin-left: auto[^}]*\}/)?.[0] ?? "";
+      expect(right, `${f} .right gap`).toContain("gap: 10px");
+      expect(right, `${f} .right inset`).toContain("margin-right: -4px");
+    }
+    // The wide tier pads player and front-office rows 14px, so both deepen the
+    // inset to −8 — the same 6px seat — or the manager's WINS chip and the
+    // market's WAR column stop sharing a right edge. The two files must move
+    // together; this is the vertical-alignment complaint, pinned.
+    // Whole-file check rather than carving out the media block: both files
+    // keep several 760px blocks and the −8 lives in exactly one of them.
+    for (const f of ["PlayerList.svelte", "SpecialRows.svelte"]) {
+      expect(read(f), `${f} wide chip inset`).toContain("margin-right: -8px");
+    }
+  });
 });
 
 describe("the help sheet's front-office specimens", () => {
@@ -288,11 +317,14 @@ describe("the help sheet is a diagram, not a control surface", () => {
 
 describe("the help sheet's scoring copy", () => {
   it("prices each ring-chasing emoji off its own scoring constant", () => {
+    // 🌐 → 🥇, 🎌 → 🥈: WBC markers switched to medal emojis this round.
+    // Keep the row-scoped regex — 🥇 also appears on AwardPill MVP pills, so
+    // a page-wide toContain("🥇") would be satisfied by the trophy-case copy.
     const RINGS: [string, number][] = [
       ["💍", RING_POINTS],
       ["🚩", PENNANT_POINTS],
-      ["🌐", WBC_CHAMPION_POINTS],
-      ["🎌", WBC_RUNNERUP_POINTS],
+      ["🥇", WBC_CHAMPION_POINTS],
+      ["🥈", WBC_RUNNERUP_POINTS],
     ];
     for (const [emo, pts] of RINGS) {
       // The glyph, its label, then its price — read off the rendered row so a
@@ -316,9 +348,9 @@ describe("the help sheet's scoring copy", () => {
     // checked: the point of the restructure is that TROPHY CASE and RING
     // CHASING stopped being sections of their own, and only a full reading
     // can show that no sixth level or stray top-level heading crept back.
-    // HOW TO PLAY is the renamed THE LOOP; WINS is the new first subsection.
+    // The sheet opens BARE: its title already says HOW TO PLAY, so the first
+    // rule repeating it was removed and A PLAYER ROW is the first section.
     expect(OUTLINE).toEqual([
-      ["HOW TO PLAY", false],
       ["A PLAYER ROW", false],
       ["YOUR SQUAD", false],
       ["FRONT OFFICE", false],
@@ -338,23 +370,31 @@ describe("the help sheet's scoring copy", () => {
   });
 
   it("prices the payroll meters off the game's own bonus and tax", () => {
-    // Two fills of PayrollBox's `mini` bar, both against the ATL 1995 payroll
-    // the rest of the sheet quotes. The figure beside each is what the game
-    // would actually award, computed here the same way the component does —
-    // a hand-typed points figure is the payroll half of the invented-WAR
-    // failure this file exists for.
+    // Four fills of PayrollBox's `mini` bar against the ATL 1995 payroll —
+    // the full arc a payroll can travel: gold below half, green from there to
+    // the cap, orange past it. The figure beside each is what the game awards,
+    // computed the same way the component does — a hand-typed value is the
+    // payroll half of the invented-WAR failure this file exists for.
     const c = card("ATL", 1995);
     const budget = c.budget * c.stadiumMult;
-    expect(budgetBonus(40, budget)).toBeLessThan(0); // underfilled: the bar costs points
-    expect(luxuryTax(40, budget)).toBe(0);
-    expect(budgetBonus(111, budget)).toBe(0); // over: the bonus is gone outright
-    expect(luxuryTax(111, budget)).toBeGreaterThan(0);
-    expect(BODY).toContain(`>${signed(round1(budgetBonus(40, budget)))}<`);
-    expect(BODY).toContain(`>${signed(-luxuryTax(111, budget))}<`);
-    // Both bars are the real component: two mini meters, the over one alarmed.
+    // Verify the four spend levels produce the expected tier.
+    expect(budgetBonus(40, budget)).toBeLessThan(0);    // 39% → negative (−2.1)
+    expect(budgetBonus(76, budget)).toBeGreaterThan(0); // 75% → positive (+5.0)
+    expect(budgetBonus(96.5, budget)).toBeGreaterThan(0); // 95% → positive (+9.0)
+    expect(111).toBeGreaterThan(budget);                // 109% → the luxury tax
+    // All four rendered on the sheet — the over row shows the TAX, negated.
+    expect(BODY).toContain(`>${signed(round1(budgetBonus(40, budget)))}<`);   // −2.1
+    expect(BODY).toContain(`>${signed(round1(budgetBonus(76, budget)))}<`);   // +5.0
+    expect(BODY).toContain(`>${signed(round1(budgetBonus(96.5, budget)))}<`); // +9.0
+    expect(BODY).toContain(`>${signed(-round1(luxuryTax(111, budget)))}<`);   // −9.4
+    // Four mini meters wearing the arc's own states: exactly one gold (below
+    // break-even) and exactly one orange (over the cap) — the sheet shows the
+    // real component in the real states the live board and the finale ledger
+    // show them in.
     const meters = [...BODY.matchAll(/<div class="pmeter[^"]*"/g)].map((m) => m[0]);
-    expect(meters.filter((m) => m.includes("mini"))).toHaveLength(2);
+    expect(meters.filter((m) => m.includes("mini"))).toHaveLength(4);
     expect(meters.filter((m) => m.includes("mini") && m.includes("pover"))).toHaveLength(1);
+    expect(meters.filter((m) => m.includes("mini") && m.includes("plow"))).toHaveLength(1);
   });
 
   it("prices the scouting stars off SCOUT_HIT_POINTS and counts them off the seats", () => {
@@ -411,20 +451,20 @@ describe("the help sheet's scoring copy", () => {
     expect(BODY).not.toContain("That is your record, and the rest of this section");
   });
 
-  it("shows percentages, not dollar figures, in the payroll mini bar labels", () => {
-    // The spend=$40M figure only ever appeared in the mini meter label; after
-    // switching to percentages it should not be anywhere on the sheet.
+  it("shows percentages inline with the mini bar, with no 'of payroll' wording", () => {
+    // The spend dollar figures never appear — only percentages and point totals.
     expect(BODY).not.toContain("$40M");
+    expect(BODY).not.toContain("of payroll");
     // Percentage signs appear in the meter labels.
     expect(BODY).toContain("%");
-    // The bonus/tax points values are still present (colored now, not removed).
+    // Four mini bars — three under budget, one past the cap.
+    const meters = [...BODY.matchAll(/<div class="pmeter[^"]*"/g)].map((m) => m[0]);
+    expect(meters.filter((m) => m.includes("mini"))).toHaveLength(4);
+    // The 95% example (spend=96.5) is present and shows its bonus.
     const c = card("ATL", 1995);
     const budget = c.budget * c.stadiumMult;
-    expect(BODY).toContain(`>${signed(round1(budgetBonus(40, budget)))}<`);
-    expect(BODY).toContain(`>${signed(-luxuryTax(111, budget))}<`);
-    // Both bars are still the real component.
-    const meters = [...BODY.matchAll(/<div class="pmeter[^"]*"/g)].map((m) => m[0]);
-    expect(meters.filter((m) => m.includes("mini"))).toHaveLength(2);
+    expect(BODY).toContain(`>${signed(round1(budgetBonus(96.5, budget)))}<`);
+    expect(BODY).toContain("95%");
   });
 
   it("shows the HOW TO PLAY heading and position badges for each seat type", () => {
@@ -478,5 +518,77 @@ describe("the help sheet's scoring copy", () => {
 
   it("carries no em dash anywhere in the rendered sheet", () => {
     expect(BODY).not.toContain("—");
+  });
+});
+
+describe("the help sheet's position chip updates (round 1.0.0)", () => {
+  /** The slot-badges HTML: from the opening <div class="slot-badges"> to its
+   * closing </div>. Inner elements are <span>s, so the first </div> after the
+   * class marker closes the container itself, not a nested div. */
+  const badgesMarker = BODY.indexOf("slot-badges");
+  const badgesOpen = BODY.lastIndexOf("<div", badgesMarker);
+  const badgesClose = BODY.indexOf("</div>", badgesMarker);
+  const BADGES_HTML = BODY.slice(badgesOpen, badgesClose);
+
+  /** All .pos chip spans in the badge row, as [label, classAttr] pairs.
+   * Uses <span class=...> rather than a pos-substring filter so Svelte SSR
+   * comment markers (<!--[-->, <!--]--> ) don't confuse the extractor.
+   * The \bpos\b word-boundary test keeps sbadge and scnt spans out. */
+  const posChips = [...BADGES_HTML.matchAll(/<span class="([^"]+)"[^>]*>([^<]+)</g)]
+    .filter(([, cls]) => /\bpos\b/.test(cls))
+    .map((m): [string, string] => [m[2].trim(), m[1]]);
+  const chipMap = new Map(posChips);
+
+  it("shows SP and RP chips with the pit (inverted) class", () => {
+    // Market rows mark pitchers with an ink-on-card fill (.pos.pit); the seat
+    // badges must match so the help sheet doesn't teach a different visual.
+    // Svelte SSR: class="svelte-HASH pit" — match word boundary, not prefix.
+    expect(chipMap.has("SP"), "SP chip not in slot-badges").toBe(true);
+    expect(chipMap.get("SP")).toMatch(/\bpit\b/);
+    expect(chipMap.has("RP"), "RP chip not in slot-badges").toBe(true);
+    expect(chipMap.get("RP")).toMatch(/\bpit\b/);
+    // Position-player seats must NOT be inverted.
+    expect(chipMap.get("C"), "C chip not in slot-badges").toBeDefined();
+    expect(chipMap.get("C")).not.toMatch(/\bpit\b/);
+    expect(chipMap.get("IF"), "IF chip not in slot-badges").toBeDefined();
+    expect(chipMap.get("IF")).not.toMatch(/\bpit\b/);
+  });
+
+  it("shows one IF chip with a ×2 count rather than two IF chips", () => {
+    // One chip + a count beside it reads more cleanly than two separate chips
+    // for the same seat. SEAT_BADGE_RUNS collapses duplicate labels.
+    const ifChips = posChips.filter(([label]) => label === "IF");
+    expect(ifChips).toHaveLength(1); // collapsed from two SLOT_TYPES entries
+    // The ×2 count sits in an .scnt span beside the IF chip.
+    expect(BADGES_HTML).toContain("×2");
+    // SP is also collapsed (two SP slots → one chip + ×2).
+    const spChips = posChips.filter(([label]) => label === "SP");
+    expect(spChips).toHaveLength(1);
+  });
+
+  it("labels the negative bonus example with the mneg (red) class", () => {
+    // spend=40 → bonus −2.1, which is negative. The mneg class drives
+    // --red-8 coloring to show the bar is actively costing points.
+    // Svelte SSR places the scope hash before the component class, so
+    // class="svelte-HASH mneg" — match the word boundary, not the start.
+    const c = card("ATL", 1995);
+    const budget = c.budget * c.stadiumMult;
+    const negVal = signed(round1(budgetBonus(40, budget))); // "−2.1"
+    expect(BODY, `negative bonus value "${negVal}" not on sheet`).toContain(`>${negVal}<`);
+    // Find the <b> element carrying the mneg class (scope hash may precede it).
+    const mnegEl = BODY.match(/<b class="[^"]*\bmneg\b[^"]*"[^>]*>([^<]+)<\/b>/);
+    expect(mnegEl, "no <b class=...mneg...> element found").not.toBeNull();
+    expect(mnegEl![1], "mneg element does not contain the negative bonus value").toBe(negVal);
+  });
+
+  it("shows a 95% example with a large positive bonus", () => {
+    // spend=96.5 → 95% of ATL 1995 payroll → +9.0 PTS.
+    const c = card("ATL", 1995);
+    const budget = c.budget * c.stadiumMult;
+    const highBonus = signed(round1(budgetBonus(96.5, budget))); // "+9.0"
+    expect(BODY).toContain("95%");
+    expect(BODY).toContain(`>${highBonus}<`);
+    // The max bonus is BUDGET_BONUS_MAX; 95% earns close to it (9.0 vs 10.0).
+    expect(round1(budgetBonus(96.5, budget))).toBeGreaterThan(BUDGET_BONUS_MAX * 0.85);
   });
 });

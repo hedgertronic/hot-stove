@@ -230,13 +230,15 @@ describe("the help sheet teaches with the real parts", () => {
     expect(ui.target.querySelectorAll(".paylbl .left")).toHaveLength(2);
     expect(ui.target.querySelectorAll(".pay .pmeter.pnocap")).toHaveLength(1);
     expect(ui.target.querySelectorAll(".pay .pmeter.pover")).toHaveLength(1);
-    // And the payroll BONUS, taught under SCORING as two fills of the same
-    // component's `mini` bar: one under the payroll, one past it. Scoped away
-    // from the three boxes above, since both surfaces draw a `pover` meter and
-    // an unscoped count could not say which one it had found.
+    // And the payroll BONUS, taught under SCORING as four fills of the same
+    // component's `mini` bar: low (39%, gold), mid (75%), high (95%), and one
+    // past the cap (109%, orange — the luxury-tax face). Scoped away from the
+    // three full-size boxes above, since both surfaces draw a `pover` meter
+    // and an unscoped count could not say which one it had found.
     const minis = ui.target.querySelectorAll(".meters .pmeter.mini");
-    expect(minis).toHaveLength(2);
+    expect(minis).toHaveLength(4);
     expect(ui.target.querySelectorAll(".meters .pmeter.mini.pover")).toHaveLength(1);
+    expect(ui.target.querySelectorAll(".meters .pmeter.mini.plow")).toHaveLength(1);
     // $111M spent against the ATL 1995 payroll the FRONT OFFICE specimen
     // sets ($93.2M × 1.09): the overrun the alarm face quotes.
     expect(ui.target.querySelector(".paylbl .warn")?.textContent).toContain("$9.4M");

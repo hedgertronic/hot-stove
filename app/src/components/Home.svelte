@@ -79,6 +79,9 @@
   /** The button the field replaced, so cancelling can hand focus back to it
    * rather than dropping the keyboard user on the body. */
   let seedBtn = $state<HTMLButtonElement | null>(null);
+  /** The pill container — present in both open and closed states, so the
+   * click-outside handler can check containment without reading the DOM. */
+  let seedZoneEl = $state<HTMLDivElement | null>(null);
 
   function playSeed() {
     const seed = parseSeedCode(seedInput);
@@ -89,6 +92,30 @@
     }
     onplay({ difficulty, bank }, seed);
   }
+
+  /** Resets seed entry state without moving focus — used by the click-outside
+   * handler, which must not steal focus from whatever the user just tapped. */
+  function closeSeed() {
+    seedOpen = false;
+    seedInput = "";
+    seedBad = false;
+  }
+
+  // Click-outside: a pointerdown anywhere beyond the pill collapses the field
+  // without consuming the tap, so the element the user aimed at still receives
+  // its click. Gated on seedOpen so the listener only lives while the field
+  // is open — no idle overhead. Capture phase matches CornerButtons' UNDO?
+  // handler: it hears taps whose click a component swallows with
+  // stopPropagation.
+  $effect(() => {
+    if (!seedOpen) return;
+    const away = (e: Event) => {
+      if (e.target instanceof Node && seedZoneEl?.contains(e.target)) return;
+      closeSeed();
+    };
+    window.addEventListener("pointerdown", away, true);
+    return () => window.removeEventListener("pointerdown", away, true);
+  });
 
   /** Open the best season for this mode directly via the archive, or fall back
    * to the seasons sheet when that record has aged out of the bounded tail.
@@ -110,13 +137,11 @@
     }
   }
 
-  /** Close the field and forget what was typed: reopening starts clean, and a
-   * half-typed code never returns to shake at someone who has moved on. */
+  /** Closes the field, clears the input, and hands focus back to the SEED
+   * button — the keyboard path that opened the field, reversed. */
   async function cancelSeed() {
-    seedOpen = false;
-    seedInput = "";
-    seedBad = false;
-    // The button only exists again once the swap has rendered.
+    closeSeed();
+    // The button re-enters the DOM on the next tick once the {#if} swap renders.
     await tick();
     seedBtn?.focus();
   }
@@ -205,11 +230,10 @@
     <button class="btn hot playbtn" onclick={() => onplay({ difficulty, bank })}
       >PLAY <span class="bic">🔥</span></button
     >
-    <!-- The seed zone sits below PLAY. The compact button swaps for the field
-         in place: the zone keeps its shape, so PLAY above it stays still. -->
-    <!-- The seed zone keeps a fixed min-height so opening the field never
-         shifts the record book below it. Both states are the same height. -->
-    <div class="seedzone">
+    <!-- The seed pill sits below PLAY. The compact button swaps for the field
+         in place: the pill grows in width but holds its height, so PLAY above
+         it and the record book below it never move under the thumb. -->
+    <div class="seedzone" class:open={seedOpen} bind:this={seedZoneEl}>
       {#if seedOpen}
         <div class="seedrow" class:bad={seedBad}>
           <!-- svelte-ignore a11y_autofocus -->
@@ -217,7 +241,7 @@
             class="seedin"
             type="text"
             maxlength="8"
-            placeholder="KF12OY"
+            placeholder="0KF12OY"
             inputmode="text"
             autocapitalize="none"
             autocorrect="off"
@@ -247,7 +271,7 @@
           <button class="seedgo seedx" onclick={cancelSeed} aria-label="Cancel seed entry">✕</button>
         </div>
       {:else}
-        <button class="btn ubtn" bind:this={seedBtn} onclick={() => (seedOpen = true)}
+        <button class="ubtn" bind:this={seedBtn} onclick={() => (seedOpen = true)}
           >SEED <span class="bic">🌱</span></button
         >
       {/if}
@@ -544,20 +568,47 @@
     gap: 9px;
     margin-top: 14px;
   }
-  /* The seed zone sits below PLAY, centered. Fixed min-height matches the
-     taller open state so opening the field never shifts content below it.
-     The fade-in keyframe runs on both the button and the seedrow on mount
-     (i.e., on every {#if} swap). app.css's prefers-reduced-motion rule
-     disables it via `animation: none !important`. */
+  /* The seed pill sits below PLAY, centered. Width transitions between the
+     compact closed state (110px, "SEED 🌱") and the open state (280px, input
+     row); both are pixel values so the Safari transition engine can interpolate
+     without measuring — animating to/from `auto` or `fit-content` is not
+     Safari-safe. `overflow:hidden` clips growing content during the transition.
+     height:34px pins the pill to the natural height of the SEED button
+     (2.5px border + 5px padding + 18.6px line-height + 5px padding + 2.5px),
+     giving both states an identical box — the root cause of the prior
+     "shorter" reading was that UA stylesheets reset `line-height` to `normal`
+     on <input> elements (~19px at 16px font), leaving the input row ~7px
+     shorter than the pill. Moving the border here removes that disparity.
+     The focus ring lives on the pill element itself — `outline` is painted
+     outside the element's border-box and is NOT clipped by the element's own
+     `overflow:hidden`. app.css's prefers-reduced-motion rule disables the
+     fade-in animation via `animation: none !important`. */
   .seedzone {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 36px;
+    height: 34px;
+    width: 110px;
+    max-width: 100%;
+    margin: 0 auto;
+    border: 2.5px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    overflow: hidden;
+    transition: width 0.18s ease, transform 0.08s;
   }
-  .seedzone .seedrow {
-    flex: 1;
+  .seedzone.open {
+    width: 210px;
   }
+  /* Press dip on the closed pill only — clicking GO or the input should not
+     dip the pill while entry is in progress. */
+  .seedzone:not(.open):active {
+    transform: translateY(2px);
+  }
+  /* Focus ring: inset outlines on the individual interactive children so the
+     ring appears only for keyboard navigation, not for touch/mouse. An inset
+     outline (outline-offset: -3px) is painted inside the border box and is
+     therefore not clipped by overflow: hidden on the pill container. */
   /* Fade-in on mount. The shake animation on .seedrow.bad overrides this
      for the error state (higher specificity, source order). */
   @keyframes seedfade {
@@ -568,21 +619,38 @@
   .seedzone .ubtn {
     animation: seedfade 0.15s ease-out;
   }
-  /* The secondary entry point: smaller than PLAY, compact, right-aligned.
-     Uses the same `.btn` base (border, radius, background, transition) but
-     overrides size so it reads as "rare path" beside the dominant PLAY. */
+  /* The SEED label inside the pill — no border or background of its own;
+     the pill provides the card shape and the press dip. Full width and height
+     fill the tap target to the pill's edges. */
   .ubtn {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
-    padding: 5px 12px;
+    padding: 0 12px;
     font-size: 12px;
+    font-family: inherit;
+    font-weight: 800;
     letter-spacing: 0.04em;
     white-space: nowrap;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+  /* Inset ring follows the pill's rounded shape; border-radius matches the
+     pill's full-round value so the ring hugs the curve rather than cutting
+     a rectangle inside it. */
+  .ubtn:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: -3px;
+    border-radius: 999px;
   }
   @media (max-width: 359px) {
     .ubtn {
-      padding: 5px 8px;
+      padding: 0 8px;
       font-size: 11px;
     }
   }
@@ -591,6 +659,8 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
+    width: 100%;
+    padding: 0 8px;
   }
   .seedrow.bad {
     animation: seedshake 0.45s;
@@ -655,9 +725,11 @@
     padding: 5px 10px;
     cursor: pointer;
   }
+  /* Inset ring — same pattern as .ubtn. border-radius on .seedgo is already
+     set above (11px). */
   .seedgo:focus-visible {
     outline: 3px solid var(--blue);
-    outline-offset: 2px;
+    outline-offset: -3px;
   }
   /* The secondary of the pair: same box, hollow, quiet type. It gives back
      three of the pixels it costs the field by dropping to the glyph's own

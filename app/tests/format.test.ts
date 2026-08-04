@@ -89,7 +89,16 @@ describe("seedCode / parseSeedCode", () => {
     for (const s of [0, 1, 42, 0x7fffffff, 0xfffffffe, 0xffffffff]) {
       expect(parseSeedCode(seedCode(s))).toBe(s);
     }
-    expect(seedCode(0xffffffff)).toBe("1Z141Z3"); // 7 chars max
+    expect(seedCode(0xffffffff)).toBe("1Z141Z3"); // the range's full 7 chars
+  });
+
+  it("pads every code to 7 chars — one length wherever seeds are listed", () => {
+    // Display-only padding: parseInt reads the leading zeros as insignificant,
+    // so codes shared before the padding still resolve to the same seed.
+    expect(seedCode(42)).toBe("0000016");
+    expect(seedCode(0)).toBe("0000000");
+    for (const s of [0, 1, 42, 0xffffffff]) expect(seedCode(s)).toHaveLength(7);
+    expect(parseSeedCode("16")).toBe(parseSeedCode("0000016"));
   });
 
   it("accepts lowercase, whitespace, and a leading #", () => {

@@ -317,11 +317,17 @@
     /* The chip moves to the right edge via `margin-left: auto`. DOM order has
        the chip last (b, span, i, em.rwar for cells; same for the manager since
        the markup was simplified to the same structure), so no `order` override
-       is needed — the chip is already the last flex item. */
+       is needed — the chip is already the last flex item.
+       The negative inline-end margin is the CHIP INSET RULE (PlayerList's
+       `.right` documents it): a bordered chip riding against the row's own
+       border wants less air than type does, so the chip sits 6px inside the
+       stroke — the row's 10px padding minus this 4px — while its text stays
+       centered in its own box like every other chip. */
     .rwar {
       align-self: auto;
       margin-top: 0;
       margin-left: auto;
+      margin-right: -4px;
     }
     /* The 34px label column is what aligns every row's second field, and both
        chairs speak it in the same tracked caps — MGR is a code like the rest. */

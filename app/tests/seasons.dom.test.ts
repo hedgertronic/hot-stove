@@ -115,7 +115,7 @@ describe("which rows appear", () => {
   it("prints the seed as the code PLAY A SEED takes back", () => {
     season("g0", { seed: 42 });
     const ui = open();
-    expect(ui.rows()[0].querySelector(".seed")!.textContent).toBe("#16");
+    expect(ui.rows()[0].querySelector(".seed")!.textContent).toBe("#0000016");
     ui.close();
   });
 
@@ -277,7 +277,7 @@ describe("how a row is laid out", () => {
     season("g0", { seed: 42, bank: "moneyball", difficulty: "scout" });
     const ui = open();
     expect(ui.rows()[0].getAttribute("aria-label")).toBe(
-      "AUG 2 '26, Moneyball · Eye Test, seed 16, 120–42",
+      "AUG 2 '26, Moneyball · Eye Test, seed 0000016, 120–42",
     );
     ui.close();
   });

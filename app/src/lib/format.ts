@@ -107,9 +107,13 @@ export function statValue(n: number, digits = 1): string {
   return n < 0 ? signed(n, digits) : n.toFixed(digits);
 }
 
-/** Game seed ⇄ shareable code: uppercase base36 of the uint32 seed (≤7 chars). */
+/** Game seed ⇄ shareable code: uppercase base36 of the uint32 seed, padded to
+ * the 7 chars the largest uint32 needs. The padding is DISPLAY only — stored
+ * seeds are raw uint32 numbers, and `parseSeedCode`'s parseInt reads leading
+ * zeros as insignificant — so every seed the app has ever shown or shared
+ * round-trips unchanged; the codes just stop varying in length between rows. */
 export function seedCode(seed: number): string {
-  return (seed >>> 0).toString(36).toUpperCase();
+  return (seed >>> 0).toString(36).toUpperCase().padStart(7, "0");
 }
 
 /** Parse a user-entered seed code (case-insensitive, optional leading #).

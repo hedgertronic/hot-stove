@@ -88,6 +88,35 @@ describe("item 1 — manager tile: wins chip is the color carrier", () => {
   });
 });
 
+// ── item 6: stadium row uses orange, not sky/blue ────────────────────────────
+
+describe("item 6 — stadium row: orange identity hue, not sky/blue", () => {
+  function specialBody(): string {
+    const game = forgeGame(CLASSIC, (g) => {
+      g.card = mkCard();
+    });
+    return ssr(SpecialRows, { game, confirmKey: null, setConfirm: () => {} });
+  }
+
+  it("the stadium srow has class 'stad'", () => {
+    const body = specialBody();
+    expect(body).toContain("srow stad");
+  });
+
+  it("the .srow.stad element does not reference --sky or --blue in its class or inline style", () => {
+    // The hue is now orange (--orange-2 / --orange-8) applied via the .stad CSS
+    // rule in SpecialRows.svelte. No --sky or --blue-8 token may appear on the
+    // stadium button's opening tag — those tokens lived in the old CSS rule and
+    // the old comment; confirming the source text changed is a build-time check.
+    const body = specialBody();
+    // The stad button's opening tag must not carry a --sky or --blue inline style.
+    const stadMatch = body.match(/<button class="srow stad[^"]*"[^>]*/);
+    const stadTag = stadMatch?.[0] ?? "";
+    expect(stadTag).not.toContain("--sky");
+    expect(stadTag).not.toContain("--blue");
+  });
+});
+
 // ── item 2: WAR chip is the rightmost element in a player market row ──────────
 
 describe("item 2 — column order: salary inboard, WAR chip far right", () => {
@@ -155,12 +184,12 @@ describe("item 3 — WBC medal order: award chips → WBC medal", () => {
     const body = ssr(PlayerList, { game, confirmKey: null, setConfirm: () => {} });
     // Award chip pill (MVP) is rendered via AwardPill inside .badges.
     expect(body).toContain("badges");
-    // WBC globe glyph is the WBC champion medal.
-    expect(body).toContain("🌐");
+    // WBC gold medal glyph is the WBC champion medal.
+    expect(body).toContain("🥇");
     // .badges span must come BEFORE the .wbc span in the HTML string,
     // mirroring the Finale's own order: award pills → WBC gold → WBC silver.
     const badgesIdx = body.indexOf("badges");
-    const wbcIdx = body.indexOf("🌐");
+    const wbcIdx = body.indexOf("🥇");
     expect(badgesIdx).toBeLessThan(wbcIdx);
   });
 
@@ -177,7 +206,7 @@ describe("item 3 — WBC medal order: award chips → WBC medal", () => {
     });
     const body = ssr(PlayerList, { game, confirmKey: null, setConfirm: () => {} });
     // The medal shows even without any .badges span.
-    expect(body).toContain("🎌");
+    expect(body).toContain("🥈");
     // No .badges section (no awards → hasBadges is false, badges span is absent).
     expect(body).not.toContain("badges");
   });

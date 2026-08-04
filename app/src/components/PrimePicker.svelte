@@ -236,18 +236,23 @@
     gap: 3px;
     flex: none;
   }
+  /* PlayerList's CHIP INSET RULE, copied whole: 10px of type-against-box air
+     between salary and chip, and the chip pulled to 6px inside the row's 10px
+     padding because box-against-box wants less. */
   .right {
     margin-left: auto;
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 10px;
+    margin-right: -4px;
     flex: none;
   }
   /* The WAR chip is one ladder in app.css — this sheet used to carry a second
      copy of it, which is how two markets drift apart.
      Salary sits inboard; WAR chip is flush right, matching the market rows.
      Same pinned min-inline-size as PlayerList: the chip is rightmost, so its
-     right edge must be consistent across values. */
+     right edge must be consistent across values. Text stays centered in the
+     box — the outer margins are the inset rule's job, not the type's. */
   .right .warchip {
     min-inline-size: 64px;
   }

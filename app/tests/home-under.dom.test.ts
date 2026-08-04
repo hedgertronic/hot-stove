@@ -11,8 +11,8 @@
  * combo; tapping opens that season's finale directly via the archive, or falls
  * back to the seasons sheet when the record has aged out.
  *
- * SEED zone: centered below PLAY, fixed min-height so opening the input never
- * shifts content beneath it.
+ * SEED zone: centered below PLAY, pinned to a fixed height pill so both the
+ * closed button and the open input row share the same box — no height dip.
  *
  * What only a mounted component can show: an empty log reaches the DOM as a
  * real `disabled` attribute rather than a fade; a career played entirely in
@@ -28,6 +28,9 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import Home from "../src/components/Home.svelte";
 import { appendHistory } from "../src/lib/history";
 
@@ -106,7 +109,7 @@ describe("the play row", () => {
   it("seed zone is centered and wrapped in a fixed-height container", () => {
     // The structural contract for height parity: both button and input states
     // render inside the same .seedzone wrapper. jsdom has no layout, so the
-    // min-height CSS cannot be verified here — that is a screenshot job. What
+    // pinned height cannot be verified here — that is a screenshot job. What
     // can be verified is that .seedzone exists and wraps the seed content.
     const ui = open();
     const zone = ui.under.querySelector(".seedzone");
@@ -357,5 +360,74 @@ describe("cancelling PLAY A SEED", () => {
     flushSync();
     expect(ui.under.innerHTML).toBe(before);
     ui.close();
+  });
+});
+
+describe("click-outside closes the seed field", () => {
+  it("collapses on a pointerdown anywhere outside the pill", () => {
+    // Capture-phase pointerdown on the document body (outside the pill)
+    // reaches the window listener and closes the field without consuming
+    // the event — the same behavior as CornerButtons' UNDO? dismiss.
+    const ui = open();
+    ui.seedBtn().click();
+    flushSync();
+    expect(ui.input()).not.toBeNull();
+
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    flushSync();
+    expect(ui.input()).toBeNull();
+    ui.close();
+  });
+
+  it("stays open on a pointerdown inside the pill", () => {
+    // The containment check in the away handler lets taps on the input,
+    // GO, and ✕ through — only presses outside the pill close the field.
+    const ui = open();
+    ui.seedBtn().click();
+    flushSync();
+
+    ui.input()!.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    flushSync();
+    expect(ui.input()).not.toBeNull();
+    ui.close();
+  });
+
+  it("does not install the listener while the field is closed", () => {
+    // The $effect is gated on seedOpen; no window listener runs at rest.
+    const ui = open();
+    expect(ui.input()).toBeNull();
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    flushSync();
+    // Closed before and after the event — the listener was never installed.
+    expect(ui.input()).toBeNull();
+    expect(ui.seedBtn()).not.toBeNull();
+    ui.close();
+  });
+});
+
+describe("seed zone geometry contract (CSS source text)", () => {
+  // jsdom has no layout engine; computed heights cannot be verified here.
+  // The source-text assertions below pin the CSS rules that enforce height
+  // parity between the closed button and the open input row, and the
+  // Safari-safe transition contract — the visual proof is a screenshot.
+  const src = fs.readFileSync(
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src/components/Home.svelte"),
+    "utf8",
+  );
+  const style = src.slice(src.indexOf("<style>"), src.indexOf("</style>"));
+
+  it("gives .seedzone an explicit pixel height so both states share the same pill box", () => {
+    // min-height was the prior approach — it reserves container space but
+    // does not make the <input> fill it, because UA stylesheets reset
+    // line-height to 'normal' on inputs regardless of inherited values.
+    // A hard height: NNpx on the pill element is the correct fix.
+    expect(style).toMatch(/\.seedzone\s*\{[^}]*\bheight\s*:\s*\d+px/);
+    expect(style).not.toMatch(/\.seedzone\s*\{[^}]*\bmin-height\b/);
+  });
+
+  it("pins .seedzone.open width as a px literal for Safari-safe transition", () => {
+    // CSS cannot interpolate transitions to/from 'auto' or 'fit-content'
+    // in Safari. Both the closed and open widths must be concrete px values.
+    expect(style).toMatch(/\.seedzone\.open\s*\{[^}]*width\s*:\s*\d+px/);
   });
 });

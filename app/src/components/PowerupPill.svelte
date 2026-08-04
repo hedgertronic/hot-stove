@@ -27,10 +27,27 @@
    * THE CONTAINER QUERY at the foot of this file needs an ancestor declaring
    * `container-type: inline-size`. Every caller sets it on the row that holds
    * the pills; without one the pill silently stays at base size, and on a
-   * 390px phone that is the difference between a 3+3 lattice and a wrap. */
+   * 390px phone that is the difference between a 3+3 lattice and a wrap.
+   *
+   * ARM ANIMATION. When `label` changes (arm/disarm), the CSS `transition:
+   * width` interpolates between the old and new widths — the same technique
+   * CornerButtons' UNDO? pill uses, except that pill pins a fixed number while
+   * these pills vary. The $effect below measures the label's scrollWidth after
+   * every DOM update and pins it as an explicit pixel width on the pill element,
+   * giving the transition two concrete numbers to interpolate. `calc-size` and
+   * `interpolate-size` (the CSS-only approaches to `width: auto` animation) are
+   * not used because Safari does not support them. The measurement reads the
+   * actual computed padding and border via `getComputedStyle`, so it
+   * self-corrects at every container-query tier without a resize observer. The
+   * ::after tap extension and the ellipsis fallback are unaffected: the pill's
+   * width is merely pinned, not restructured. */
+  // The prop stays `state` for every caller; the LOCAL name is aliased away
+  // because `$state(...)` in a scope where `state` is a variable parses as a
+  // store auto-subscription of that variable — which is also why the DOM refs
+  // below could not be runes until the alias existed.
   let {
     label,
-    state = "ready",
+    state: mode = "ready",
     onclick,
   }: {
     /** Emoji and words, as one string — the powerup's whole name. Armed labels
@@ -39,22 +56,73 @@
     state?: "ready" | "armed" | "off" | "spent";
     onclick?: (e: MouseEvent) => void;
   } = $props();
+
+  let pillEl = $state<HTMLElement | undefined>();
+  let lbEl = $state<HTMLElement | undefined>();
+
+  // After every `label` change: measure the label span's scrollWidth and pin it
+  // as an explicit pixel width on the pill so `transition: width` has two
+  // concrete numbers to interpolate rather than animating from auto.
+  //
+  // `void label` is the explicit reactive dependency — when label changes
+  // (arm/disarm), Svelte re-runs this effect and picks up the new scrollWidth.
+  // scrollWidth reads the full content width even when `.lb` clips via
+  // `overflow: hidden`. getComputedStyle reads the ACTUAL padding and border
+  // after the container query may have adjusted them, so the measurement
+  // self-corrects at every width without a resize observer.
+  // Only runs in the browser — $effect never fires during SSR.
+  //
+  // TWO STALENESS PATHS the label dependency cannot see, both re-measured:
+  //  · the bundled Nunito swaps in AFTER first mount (font-display: swap), and
+  //    a width measured against the fallback face is wrong for the life of the
+  //    pill — document.fonts.ready is the signal that the real glyphs landed;
+  //  · a resize can cross the container-query tier below, which changes the
+  //    pill's own padding and type size while the label stays put.
+  $effect(() => {
+    void label;
+    if (!pillEl || !lbEl) return;
+    const pill = pillEl;
+    const lb = lbEl;
+    const measure = () => {
+      const cs = getComputedStyle(pill);
+      const pw = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      const bw = parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+      // +1 covers scrollWidth's integer truncation. The real run is fractional
+      // (letter-spacing at 10.5px type lands on tenths), scrollWidth floors it,
+      // and text-overflow fires its ellipsis on ANY shortfall — measured live,
+      // a 73.4px label in a 73px pin ellipsized. One invisible pixel of slack
+      // beats a visible "RELOCA…" on every pill.
+      pill.style.width = `${lb.scrollWidth + pw + bw + 1}px`;
+    };
+    measure();
+    let stale = false;
+    document.fonts?.ready.then(() => {
+      if (!stale) measure();
+    });
+    window.addEventListener("resize", measure);
+    return () => {
+      stale = true;
+      window.removeEventListener("resize", measure);
+    };
+  });
 </script>
 
 {#if onclick}
   <button
+    bind:this={pillEl}
     class="pp"
-    class:spent={state === "spent"}
-    class:off={state === "off"}
-    class:armed={state === "armed"}
-    {onclick}><span class="lb">{label}</span></button
+    class:spent={mode === "spent"}
+    class:off={mode === "off"}
+    class:armed={mode === "armed"}
+    {onclick}><span class="lb" bind:this={lbEl}>{label}</span></button
   >
 {:else}
   <span
+    bind:this={pillEl}
     class="pp"
-    class:spent={state === "spent"}
-    class:off={state === "off"}
-    class:armed={state === "armed"}><span class="lb">{label}</span></span
+    class:spent={mode === "spent"}
+    class:off={mode === "off"}
+    class:armed={mode === "armed"}><span class="lb" bind:this={lbEl}>{label}</span></span
   >
 {/if}
 
@@ -63,6 +131,11 @@
     display: inline-flex;
     align-items: center;
     min-width: 0;
+    /* The $effect pins an explicit width, which would otherwise outrank flex
+       shrink — this clamp is what keeps the documented safety below true: a
+       pinned pill can never grow past its row, so an over-long armed label
+       still ellipsizes instead of overflowing the lattice. */
+    max-width: 100%;
     text-align: center;
     border: 2px solid var(--line);
     border-radius: 999px;
@@ -71,7 +144,15 @@
     font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.04em;
-    transition: transform 0.08s;
+    /* Width transitions alongside transform so arming/disarming eases rather
+       than snapping. The $effect pins an explicit pixel width after each label
+       change, giving the transition two concrete values to interpolate — the
+       same approach CornerButtons' UNDO? pill uses, but measured rather than
+       pinned, because powerup labels vary in length. app.css kills both
+       transitions for prefers-reduced-motion readers. */
+    transition:
+      width 0.12s ease,
+      transform 0.08s;
     font-family: inherit;
     color: inherit;
     position: relative;

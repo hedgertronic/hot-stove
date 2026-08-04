@@ -94,9 +94,9 @@
   const hasBadges = (p: CardPlayer) => game.showAwards && p.awards.length > 0;
   // A World Baseball Classic medal IS individual hardware — he won it in March
   // with his country, and the club he is carded with had no part in it — so the
-  // row wears it, on the award pills' own `showAwards` gate. 🌐 champion, 🎌
-  // losing finalist: the two glyphs the finale's pedigree chips already spend on
-  // these same two honours, where 🥇🥈 are spoken for by the MVP and CY pills.
+  // row wears it, on the award pills' own `showAwards` gate. 🥇 champion, 🥈
+  // losing finalist: the MVP and CY award pills also use 🥇, which the user
+  // approved — the medal is a separate entry on a different axis.
   // It stays off the team overview, which is the club's record and not his.
 </script>
 
@@ -138,7 +138,7 @@
             class="wbc"
             role="img"
             aria-label="World Baseball Classic {wbc === 2 ? 'champion' : 'finalist'}"
-            >{wbc === 2 ? "🌐" : "🎌"}</span
+            >{wbc === 2 ? "🥇" : "🥈"}</span
           >{/if}
       </span>
       <span class="right">
@@ -211,11 +211,18 @@
     transform: translate(-1px, -1px);
   }
   /* Wide: the market rows are the core read — give the name/sub line and the
-     chips a touch more air (phone packs them by necessity). */
+     chips a touch more air (phone packs them by necessity). The chip inset
+     deepens with the padding (−8 against 14px, the same 6px seat the phone's
+     −4 buys against 10px) — SpecialRows' skipper chip runs the identical pair,
+     and the two columns must share one right edge or the FRONT OFFICE chip
+     floats 4px off the market's. */
   @media (min-width: 760px) {
     .prow {
       padding: 8px 14px;
       gap: 12px;
+    }
+    .right {
+      margin-right: -8px;
     }
   }
   /* Position is a filter cue, not the headline: a compact fixed-width tag so
@@ -301,11 +308,20 @@
   /* min-height = the WAR chip's exact height (13.5px × 1.65 line + 4px
      border), so swapping the chip+price for the shorter confirm pill can't
      change the row height — the tap must not make the card twitch. */
+  /* THE CHIP INSET RULE, stated once and copied by every row that ends in a
+     chip (PrimePicker's .right, the rail's .rwar, SpecialRows' manager chip,
+     the finale squads): the gap between salary and chip is TYPE-against-box
+     and reads at 10px; the gap between chip and row edge is BOX-against-box —
+     two drawn strokes — and wants less air, so the negative margin pulls the
+     chip to 6px inside the row's 10px padding. Before this rule the two were
+     reversed (7px inboard, 10px+ outboard), and the row read as if the chip
+     had drifted off the salary toward nothing. */
   .right {
     margin-left: auto;
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 10px;
+    margin-right: -4px;
     flex: none;
     min-height: 26.3px;
   }
@@ -318,7 +334,10 @@
      the widest values the visible-players filter passes (above-replacement only)
      with the same side room the salary's 56px floor provided. A separate scoped
      rule rather than touching app.css: the global chip is shared by the finale,
-     the rail, and the career sheet, none of which need PlayerList's column pin. */
+     the rail, and the career sheet, none of which need PlayerList's column pin.
+     The text stays CENTERED in that box, like every other chip in the game —
+     the outer margins are the inset rule's job (see .right above), not the
+     type's. */
   .right .warchip {
     min-inline-size: 64px;
   }

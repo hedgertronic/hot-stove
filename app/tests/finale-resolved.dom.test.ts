@@ -315,9 +315,9 @@ describe("styling and layout contracts", () => {
     expect(FINALE_SRC).not.toContain("repeating-linear-gradient");
     expect(FINALE_SRC).toContain(".squad.dream .qrow.signed");
     expect(FINALE_SRC).toContain("var(--green-wash)");
-    // Item 4: .lrow uses a gray-tinted mix, not bare --card
+    // Item 4: .lrow uses the app's parchment ground tinted into --card, not bare --card
     expect(FINALE_SRC).not.toMatch(/\.lrow\s*\{[^}]*background:\s*var\(--card\)/s);
-    expect(FINALE_SRC).toContain("color-mix(in srgb, var(--gray-bg) 18%, var(--card))");
+    expect(FINALE_SRC).toContain("color-mix(in srgb, var(--ground) 55%, var(--card))");
     // Item 6: seed chip font larger than the old 10px
     const seedMatch = FINALE_SRC.match(/\.seedchip\s*\{[^}]*font-size:\s*(\d+)px/s);
     expect(parseInt(seedMatch?.[1] ?? "0", 10)).toBeGreaterThan(10);

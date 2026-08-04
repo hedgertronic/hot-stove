@@ -211,7 +211,7 @@ describe("shareText golden strings", () => {
   it("trails the record line with a seed code; badges stay on their own line", () => {
     // Seed only (no badges): five lines, seed on line five.
     expect(shareText({ ...BASE, seed: 0xa3f2 })).toBe(
-      ["HOT STOVE 📊💼", "🟩🟢🔵", "🟢🔵⚪", "🟣🟢⚪", "💚 104–58 #WDU"].join(
+      ["HOT STOVE 📊💼", "🟩🟢🔵", "🟢🔵⚪", "🟣🟢⚪", "💚 104–58 #0000WDU"].join(
         "\n",
       ),
     );
@@ -221,7 +221,7 @@ describe("shareText golden strings", () => {
       seed: 0xa3f2,
       badges: ["mariners", "perfect"],
     }).split("\n");
-    expect(lines[4]).toBe("💚 104–58 #WDU");
+    expect(lines[4]).toBe("💚 104–58 #0000WDU");
     expect(lines[5]).toBe("🔱🏆");
   });
 });
@@ -349,7 +349,7 @@ describe("no trailing whitespace", () => {
     }
     // Seed stays on the record line; the badge line remains spaceless.
     const lines = shareText({ ...BASE, badges: FOUR, seed: 0xa3f2 }).split("\n");
-    expect(lines[4].split(" ")).toHaveLength(3); // "💚 104–58 #WDU"
+    expect(lines[4].split(" ")).toHaveLength(3); // "💚 104–58 #0000WDU"
     expect(lines[5].split(" ")).toHaveLength(1); // "🔱🏆💵🔮"
   });
 });
@@ -376,7 +376,7 @@ describe("shareRecordLine", () => {
   });
 
   it("appends the seed code on the same line as the record", () => {
-    expect(shareRecordLine(104.3, 0xa3f2)).toBe("💚 104–58 #WDU");
+    expect(shareRecordLine(104.3, 0xa3f2)).toBe("💚 104–58 #0000WDU");
   });
 
   it("reads tier from the record ladder, not from warTier(wins)", () => {

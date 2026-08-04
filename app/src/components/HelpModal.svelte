@@ -201,19 +201,23 @@
    * multiplication, so the payroll specimens below quote the same club. */
   const FO_BUDGET = FO_OWNER_BUDGET * FO_PARK_MULT;
 
-  /** The eight seats, counted off SLOT_TYPES rather than written out: "C · IF
-   * ×2 · OF · UTIL · SP ×2 · RP". A seat added to the game must not need this
-   * sentence found and edited — that is precisely the drift the specimens above
-   * were extracted to end, and copy drifts the same way markup does. */
-  const SEAT_LINE = (() => {
-    const runs: [string, number][] = [];
+  /** One run per unique slot label — [label, count, isPitcher] — with duplicates
+   * collapsed. Built once so the slot-badges chips and any prose summary share
+   * the same derived array; a seat added to SLOT_TYPES moves both with it.
+   * SP and RP are the pitcher seats; their chips wear the inverted fill the
+   * market rows use, matching the established read a player brings to the sheet.
+   * eligibility.ts's isPitcher() works on CardPlayer.pos, not a slot type
+   * string, so the pitcher check lives here as its own two literals. */
+  const SEAT_BADGE_RUNS: [string, number, boolean][] = (() => {
+    const runs: [string, number, boolean][] = [];
     for (const t of SLOT_TYPES) {
       const label = slotLabel(t);
+      const pit = t === "SP" || t === "RP";
       const last = runs[runs.length - 1];
       if (last && last[0] === label) last[1] += 1;
-      else runs.push([label, 1]);
+      else runs.push([label, 1, pit]);
     }
-    return runs.map(([l, n]) => (n > 1 ? `${l} ×${n}` : l)).join(" · ");
+    return runs;
   })();
 
   /** The WAR ladder, one chip per rung. The label is written out; the COLOR is
@@ -277,34 +281,43 @@
     },
   ];
 
-  /** The payroll bonus, drawn as the bar itself at two fills — the ONE thing a
-   * sentence about a sliding scale cannot show, which is where on the bar a
-   * number sits. Both quote the same ATL 1995 payroll the box specimens above
-   * do, and both figures are run through the game's own `budgetBonus` and
-   * `luxuryTax` rather than typed out, so a retuned constant moves the captions
-   * with it. `mini` is PayrollBox's ledger-row bar, the same object under the
-   * same rules at a third the height. */
+  /** The payroll bonus, drawn as the bar itself at three fills spanning the
+   * bonus range — the ONE thing a sentence about a sliding scale cannot show
+   * is where on the bar a number sits. All three quote the ATL 1995 payroll
+   * the box specimens above do, and every figure is run through the game's own
+   * `budgetBonus` rather than typed out, so a retuned constant moves the
+   * captions with it. `mini` is PayrollBox's ledger-row bar, the same object
+   * under the same rules at a third the height.
+   *
+   * The fourth row crosses the cap on purpose: the meter goes orange, the
+   * percent runs past 100, and the figure switches from the bonus to the
+   * luxury tax — the full arc a payroll can travel, gold to green to orange,
+   * in four bars. (The full-size PayrollBox up in YOUR PAYROLL shows the same
+   * over state with its SPENT/OVER labels.) */
   const METERS: { spend: number; label: string }[] = [
-    { spend: 40, label: "under" },
-    { spend: 111, label: "over" },
+    { spend: 40,   label: "low"  },  // 39%  →  −2.1 PTS  (below half: bar costs points)
+    { spend: 76,   label: "mid"  },  // 75%  →  +5.0 PTS
+    { spend: 96.5, label: "high" },  // 95%  →  +9.0 PTS
+    { spend: 111,  label: "over" },  // 109% →  −9.4 PTS  (past the cap: luxury tax)
   ];
-  /** Above the payroll the bonus is gone outright, so the row's number is the
-   * tax it turns into rather than a bonus of zero. */
+  /** The budget bonus at this spend level, rounded. Negative below half the
+   * cap, zero at half, positive right at it. Keyed to the formula's zero
+   * crossing (spend = budget/2) rather than a 50% literal so the percent
+   * warning and the red points can never disagree at a rounding edge. */
+  const meterBonus = (spend: number) => round1(budgetBonus(spend, FO_BUDGET));
+  /** Points string: bonus below the cap, tax above it. */
   const meterPts = (spend: number) =>
     spend > FO_BUDGET
       ? signed(-luxuryTax(spend, FO_BUDGET))
-      : signed(round1(budgetBonus(spend, FO_BUDGET)));
+      : signed(meterBonus(spend));
   /** Spend as a percentage of the payroll cap, rounded to the nearest whole
-   * number. The mini bar can read "109% of payroll" even though the bar itself
-   * clamps at 100% — the number and the bar intentionally disagree, and that
-   * disagreement is the lesson: the overage the bar cannot show is what the tax
-   * charges. */
+   * number. */
   const meterPct = (spend: number) => Math.round((spend / FO_BUDGET) * 100);
 
   /** How many ⭐ the scouting row can hold: every seat plus the skipper. Owner
    * and ballpark are not scoutable (bestroster.ts counts players and the
    * skipper only), and the count is derived off SLOT_TYPES for the same reason
-   * SEAT_LINE is — a seat added to the game must not need this number found. */
+   * SEAT_BADGE_RUNS is — a seat added to the game must not need this number found. */
   const DREAM_SEATS = SLOT_TYPES.length + 1;
   /** A middling scouting report, drawn the way the finale draws one: a run of
    * stars, one per find, against what the run is worth. */
@@ -328,8 +341,8 @@
   const RINGS: [string, string, number][] = [
     ["💍", "World Series ring", RING_POINTS],
     ["🚩", "Pennant, Series lost", PENNANT_POINTS],
-    ["🌐", "World Baseball Classic gold", WBC_CHAMPION_POINTS],
-    ["🎌", "World Baseball Classic silver", WBC_RUNNERUP_POINTS],
+    ["🥇", "World Baseball Classic gold", WBC_CHAMPION_POINTS],
+    ["🥈", "World Baseball Classic silver", WBC_RUNNERUP_POINTS],
   ];
 
   const EARNED = BADGE_BY_KEY.hundred;
@@ -369,7 +382,10 @@
      not one. A `{@render}` introduces no wrapper of its own, so the rows the
      snippet above draws are direct children like everything else. -->
 <div class="help">
-  <div class="psep">HOW TO PLAY</div>
+  <!-- No section rule above the opening list: the sheet's own title already
+       says HOW TO PLAY, and the first thing under a heading repeating that
+       heading was a rule spent on nothing. The list opens the sheet bare and
+       A PLAYER ROW is the first labeled section. -->
   <ul>
     <li>The stove spins you a real team-season, 1985–2025.</li>
     <li>Take <b>one</b> thing per spin: sign a player, or make a hire.</li>
@@ -379,17 +395,20 @@
     </li>
     <li>Then the season is scored. <b>162 points is a perfect season.</b></li>
   </ul>
-  <!-- One badge per seat type, in the order the rail draws them. Same .pos chips
-       the market rows use — the same color, weight and border — so a player
-       already knows what they are reading. Pitchers get no dark fill here:
-       the fill on a market row means "this player is a pitcher"; on a seat
-       badge it would mean "this seat takes pitchers," which is a different claim
-       and a wrong one for SP (any pitcher, not just starters). -->
+  <!-- SEAT_BADGE_RUNS: one chip per unique seat label, duplicate labels
+       collapsed to a ×N count beside the chip. SP and RP get the inverted
+       ink-on-card fill the market rows use — a player who has already signed
+       Pedro Martínez already knows that glyph means "pitcher"; it says the
+       same thing on a seat badge. Counts appear beside the chip, not inside
+       it, so the chip's fixed 38px width is not disturbed. -->
   <div class="slot-badges">
-    {#each SLOT_TYPES as slot, i (i)}
-      <span class="pos">{slotLabel(slot)}</span>
+    {#each SEAT_BADGE_RUNS as [label, count, pit] (label)}
+      <span class="sbadge">
+        <span class="pos" class:pit>{label}</span>
+        {#if count > 1}<span class="scnt">×{count}</span>{/if}
+      </span>
     {/each}
-    <span class="pos">MGR</span>
+    <span class="sbadge"><span class="pos">MGR</span></span>
   </div>
 
   <div class="psep">A PLAYER ROW</div>
@@ -597,26 +616,38 @@
   </div>
 
   <div class="psep sub">PAYROLL BONUS</div>
-  <!-- The bar at two fills, which is the one thing a sentence about a sliding
-       scale cannot show: where on the bar a number sits. PayrollBox's own
-       `mini` bar, so the under bar's green cut edge and the over bar's orange
-       hatch are the states the board itself draws. -->
+  <!-- Three fills of the mini bar — meter, percent, and points inline on one
+       line. The 39% row teaches the whole below-break-even register at once:
+       PayrollBox draws its bar GOLD there (the meter's own `plow` state — the
+       live game board and the finale ledger wear the identical hue at the
+       identical threshold, so this is a specimen, not an illustration), the
+       percent goes --gray-ink, and the points go --red-8, the register the WAR
+       chip uses for a below-replacement season. Together: gold bar, losing
+       points, add more.
+       .mbar wraps PayrollBox's root (.pmeter, a child-component root scoped
+       CSS cannot reach) so flex layout can size the bar and the label jointly. -->
   <div class="meters">
     {#each METERS as m (m.label)}
       <div class="mtr">
-        <PayrollBox mini bank="classic" budget={FO_BUDGET} spend={m.spend} />
+        <span class="mbar">
+          <PayrollBox mini bank="classic" budget={FO_BUDGET} spend={m.spend} />
+        </span>
         <span class="mlbl">
-          <span>{meterPct(m.spend)}% of payroll</span>
-          <span>
-            <b class:mbonus={m.spend <= FO_BUDGET} class:mtax={m.spend > FO_BUDGET}>{meterPts(m.spend)}</b> PTS
-          </span>
+          <span class="mpct" class:mwarn={meterBonus(m.spend) < 0}>{meterPct(m.spend)}%</span>
+          <b
+            class:mbonus={m.spend <= FO_BUDGET && meterBonus(m.spend) >= 0}
+            class:mneg={m.spend <= FO_BUDGET && meterBonus(m.spend) < 0}
+            class:mtax={m.spend > FO_BUDGET}
+          >{meterPts(m.spend)}</b>
+          <span class="munit">PTS</span>
         </span>
       </div>
     {/each}
   </div>
   <p class="cap">
     The fuller the bar, the better it pays: −{BUDGET_BONUS_MAX} for spending nothing, 0 at
-    half your payroll, +{BUDGET_BONUS_MAX} right at it.
+    half your payroll, +{BUDGET_BONUS_MAX} right at it. Below half the bar wears gold, the
+    zone where the bonus still runs negative; from half on it wears green.
   </p>
   <p class="cap">
     Past the end the bonus is gone and the luxury tax runs instead, at {LUXURY_TAX_PER_M}
@@ -938,11 +969,15 @@
     gap: 3px;
     flex: none;
   }
+  /* PlayerList's CHIP INSET RULE, copied so the specimen teaches the row the
+     market actually draws: 10px of air between salary and chip, chip pulled
+     to 6px inside the row's stroke. */
   .right {
     margin-left: auto;
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 10px;
+    margin-right: -4px;
     flex: none;
   }
   .cost {
@@ -1055,34 +1090,54 @@
     gap: 3px;
   }
 
-  /* ---------- the payroll bonus, as two fills of the bar ----------
-     PayrollBox's `mini` draws the bar and nothing else, and the width belongs
-     to whoever places it — so each fill gets a column of its own with the
-     figure that fill is worth beneath it. The label is the box's own
-     SPENT/LEFT row down to the 4px that ties a label to its specimen, the
-     10.5px muted words and the bare figure carrying the size: this is that
-     box's bar, and it should read like it. */
+  /* ---------- the payroll bonus, as three fills of the bar ----------
+     Each row: mini bar + percent + points, all inline. .mbar wraps the
+     PayrollBox root (a child-component root this file's scoped CSS cannot
+     reach) so the flex row can size bar and label jointly. .mlbl is
+     flex: none / white-space: nowrap so it never wraps mid-row. */
   .meters {
     display: grid;
     gap: 8px;
   }
   .mtr {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  /* Absorbs the remaining flex width; PayrollBox's .pmeter uses width: 100%
+     inside it, so the bar fills the track. */
+  .mbar {
+    flex: 1;
+    min-width: 0;
   }
   .mlbl {
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: 4px;
+    gap: 4px;
     font-size: 10.5px;
     font-weight: 700;
     color: var(--muted);
+    flex: none;
+    white-space: nowrap;
   }
   .mlbl b {
     font-size: 12px;
     font-weight: 800;
     color: var(--ink);
+  }
+  /* The sub-50% percent borrows --gray-ink, the pre-hire payroll box's own
+     label color: "you are in the zone where the bar has not started paying
+     off." The gray percent plus the red points below read together — low fill,
+     actively losing points — so neither signal has to carry the full message
+     alone. */
+  .mlbl .mpct.mwarn {
+    color: var(--gray-ink);
+  }
+  /* Negative budget bonus: the bar is costing points. --red-8 matches
+     --war-neg, the same register the WAR chip uses for a below-replacement
+     season. */
+  .mlbl .mneg {
+    color: var(--red-8);
   }
 
   /* ---------- the emoji scoring lines ----------
@@ -1151,19 +1206,35 @@
   }
 
   /* ---------- HOW TO PLAY: position badges ----------
-     Flex-wrap row of .pos chips — the same chips the market rows use. They
-     carry no pit fill (see template comment on why pitchers stay card-white). */
+     Flex-wrap row of .sbadge pairs — each pair is a .pos chip with an
+     optional ×N count beside it. The gap is between sbadge units; the 2px
+     gap inside each pair keeps the count close to its chip without touching.
+     SP and RP chips carry the .pit fill from .pos.pit above. */
   .slot-badges {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 5px;
   }
+  .sbadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  /* The repeat count beside a chip: same font size as the chip's label,
+     bold to match the chip's weight, ink-colored so it reads as part of
+     the same unit. */
+  .scnt {
+    font-size: 9.5px;
+    font-weight: 800;
+    color: var(--ink);
+  }
 
-  /* ---------- payroll meter: bonus and tax colors ----------
-     The bold points value turns green in budget-bonus territory and orange in
-     tax territory, matching the bar's own under/over colors. Specificity
-     (.mlbl .mbonus = 0,2,0) beats .mlbl b (0,1,1) so the color overrides the
-     baseline ink value without needing !important. */
+  /* ---------- payroll meter: bonus, negative-bonus, and tax colors ----------
+     Specificity (.mlbl .mbonus = 0,2,0) beats .mlbl b (0,1,1) so the color
+     overrides the baseline ink value without !important. .mneg and .mpct.mwarn
+     are declared above alongside .mbar and .mlbl to keep the layout block
+     together. */
   .mlbl .mbonus {
     color: var(--green);
   }

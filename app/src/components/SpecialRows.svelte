@@ -323,14 +323,33 @@
   .val:not(.warchip) {
     font-size: 14px;
   }
+  /* PlayerList's CHIP INSET RULE: the skipper's chip is a drawn box ending a
+     drawn row, so it sits 6px inside the stroke where the owner's and
+     stadium's plain-type values keep the full padding. */
+  .val.warchip {
+    margin-right: -4px;
+  }
+  @media (min-width: 760px) {
+    /* The wide tier pads 14px, so the same 6px seat needs a deeper pull. */
+    .val.warchip {
+      margin-right: -8px;
+    }
+  }
+  /* Stadium moves to orange — not a WAR-chip rung color (the ladder runs
+     red/gray/green/blue/violet/gold), so the stadium tile cannot be mistaken for
+     a high-WAR chip the way the previous sky blue could. Orange is the app's
+     armed/alarm hue as pills, not as full-row fills, so a resting stadium row
+     reads as warm and energetic rather than urgent. Owner keeps its gold
+     (--yellow fill, --gold-8 ring), which is a bright saturated yellow distinct
+     from the pale-cream --gold-2 chip fill at the scales they share the screen. */
   .srow.stad {
-    background: var(--sky);
-    border-color: var(--blue-8);
+    background: var(--orange-2);
+    border-color: var(--orange-8);
   }
   /* The manager tile is white cardstock in --line, matching every other player
      row in the game. The wins chip is the color carrier — same six-rung ladder
      as a player's WAR, one chip per row, the chip says WHAT and HOW GOOD.
-     Owner (gold) and stadium (blue) keep their identity hues because those are
+     Owner (gold) and stadium (orange) keep their identity hues because those are
      categorical: the budget and the multiplier are not on the talent scale and
      cannot be compared through a WAR chip. The skipper's contribution IS
      measurable as net wins, so the chip carries the entire color read and the

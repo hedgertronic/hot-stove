@@ -47,12 +47,13 @@
        normal white + chip. The dash is safe HERE and only here: nothing at the
        finale is tappable or armed, so the ARMED channel — which the dash serves
        everywhere in play — has no traffic to collide with on that screen.
-     * FRONT OFFICE tiles (owner gold, ballpark blue, skipper red) are market
+     * FRONT OFFICE tiles (owner gold, ballpark orange, skipper white) are market
        rows whose hue is a CATEGORY, not a value — they say what the chair is,
-       not how good the hire would be. Those three identity hues are the same
-       hexes as three WAR rungs, and that is safe precisely because the rule
-       keeps them apart: no ROW anywhere is ever rung-tinted, so an identity
-       fill and a rung fill can never appear at the same scale side by side.
+       not how good the hire would be. Orange is not a WAR-chip rung color, so
+       the stadium tile cannot be mistaken for a high-rung chip. Owner gold
+       (--yellow) is bright and saturated; the elite chip fill (--gold-2) is a
+       pale cream — the same hue family at very different saturations, visually
+       distinct at the row vs chip scale.
 
    The rung is applied through --rung-fill / --rung-line rather than by
    repeating the ladder in every component. A .war-* class sets the pair and
@@ -73,7 +74,8 @@
    warm gray pair, and --gold-8. One more is held in place: the payroll meter's
    fill stays saturated --green, because green-2 against the white track is
    1.26:1 and a bar that can't be seen is not a bar. The meter's BORDER carries
-   the tinting instead, and turns orange when the payroll does.
+   the tinting instead: gold while spend sits below break-even, orange when
+   the payroll goes over.
 
    ---------- THE OPTICAL CENTERING RULE ----------
 
@@ -182,6 +184,11 @@
      reads gold. Gold is the one hue whose line rung is a judgement call, so it
      is made once, here, and every gold ring in the game reads it. */
   --gold-8: #c98a08;
+  /* The payroll meter's below-break-even rungs — the same 5/6/8 anatomy the
+     green bar spends (area, stripe, edge), one hue over. Open Color yellow-5/6,
+     sitting between --yellow (OC yellow-4) and --gold-8. */
+  --gold-5: #fcc419;
+  --gold-6: #fab005;
   --orange-2: #ffd8a8;
   /* The over-payroll hatch's two tones — the same middle-of-the-ramp choice the
      green meter rung makes, so the alarm state stays the same kind of object as

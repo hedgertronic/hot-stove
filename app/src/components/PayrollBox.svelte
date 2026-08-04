@@ -126,6 +126,14 @@
   /** How far past the payroll — and with no owner hired the payroll is $0, so
    * everything committed is the overrun. */
   const overBy = $derived(spend - (capKnown ? budget : 0));
+  /** Below break-even: the payroll bonus is 10·(2·spend/budget − 1), so under
+   * HALF the payroll it runs negative and the bar wears gold — the meter's
+   * "not enough yet" register, distinct from the blank state's gray (no
+   * quantity at all) and the over state's orange (past the end). Spending
+   * NOTHING against a known cap is the deepest form of it (−10), so an empty
+   * bar with an owner in the chair goes gold too; exactly half is bonus zero
+   * and reads green. Display only, like `over` — the scoring never reads it. */
+  const low = $derived(capKnown && !over && spend * 2 < budget);
   /** The full × = line needs both halves; one alone is not a multiplication. */
   const math = $derived(ownerBudget != null && parkMult != null);
 </script>
@@ -133,7 +141,7 @@
 <!-- The bar, alone, so the box and the finale's ledger row hold the SAME object
      rather than two that agree by hand. -->
 {#snippet meter()}
-  <div class="pmeter" class:mini class:pover={over} class:pnocap={blank}>
+  <div class="pmeter" class:mini class:pover={over} class:pnocap={blank} class:plow={low}>
     {#if blank}
       <!-- Nothing hired and nothing spent: no quantity in either direction, so
            a drifting hatch reads as the empty page it is. -->
@@ -353,6 +361,22 @@
   }
   .pmeter.pover {
     border-color: var(--orange-8);
+  }
+  /* Below break-even the whole state goes gold, the same way over goes orange:
+     ring, fill and edge together, because the border is what carries state
+     tinting on this meter (app.css's held-off rule). The bar still encodes its
+     quantity — area, cut edge, stripes one rung apart, exactly the green
+     anatomy at gold-5/6/8 — so the POSITION still reads while the hue says
+     "the bonus is running negative until this bar reaches half." */
+  .pmeter.plow {
+    border-color: var(--gold-8);
+  }
+  .pmeter.plow .pfill {
+    background: var(--gold-5);
+    border-right-color: var(--gold-8);
+  }
+  .pmeter.plow .pfill::before {
+    background: repeating-linear-gradient(-45deg, transparent 0 12px, var(--gold-6) 12px 24px);
   }
   /* No quantity yet to be under or over, so neither hue is honest. */
   .pmeter.pnocap {

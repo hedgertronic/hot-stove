@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
-/** The Logo component: small HUD variant and big marquee masthead variant.
+/** The Logo component: small HUD variant and big masthead variant.
  *
- * The marquee treatment (dark panel, bulb dots via CSS pseudo-elements) is
- * purely stylistic — jsdom has no layout and cannot verify computed styles or
- * pseudo-elements. What can be verified is the DOM structure: the big variant
- * renders inside the expected container hierarchy with the right classes, the
- * BETA pill is present, and the small variant is unchanged.
+ * The visual treatment is purely stylistic — jsdom has no layout and cannot
+ * verify computed styles. What can be verified is the DOM structure: the big
+ * variant renders inside the expected container hierarchy with the right
+ * classes, the BETA pill is present, and the small variant is unchanged.
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
@@ -47,10 +46,10 @@ describe("small HUD variant (big=false)", () => {
   });
 });
 
-describe("big marquee variant (big=true)", () => {
-  it("renders with the .logo.big class — the marquee container", () => {
+describe("big masthead variant (big=true)", () => {
+  it("renders with the .logo.big class — the masthead container", () => {
     const { target, close } = open(true);
-    // The big class is what gates the marquee CSS (dark panel, bulb dots).
+    // The big class is what gates the masthead scale-up CSS.
     expect(target.querySelector(".logo.big")).not.toBeNull();
     close();
   });
@@ -91,7 +90,7 @@ describe("big marquee variant (big=true)", () => {
 
   it("small HUD variant is unchanged when big is later set to false", () => {
     // Verify that the small variant (no big class) is structurally different
-    // — this guards against the marquee styles leaking into the HUD.
+    // — this guards against the masthead styles leaking into the HUD.
     const small = open(false);
     expect(small.target.querySelector(".logo.big")).toBeNull();
     expect(small.target.querySelector(".logo")).not.toBeNull();

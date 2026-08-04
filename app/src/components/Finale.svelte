@@ -120,7 +120,7 @@
       cls: p.awardPoints > 0 ? "plus" : "zero",
     });
     const { rings, pennants, wbcChampions, wbcRunnersUp } = game.pedigree;
-    // One emoji per honour the club's seasons won — 💍💍🚩🌐 reads as the
+    // One emoji per honour the club's seasons won — 💍💍🚩🥇 reads as the
     // actual trophy case. October's rings and pennants and March's Classic
     // medals share this row because they share this ledger line, so the glyph
     // count is all four and so is the fallback's threshold: past 8 emojis (a
@@ -130,13 +130,13 @@
     if (rings + pennants + wbcChampions + wbcRunnersUp > 8) {
       if (rings) pedigreeChips.push({ code: "💍", n: rings });
       if (pennants) pedigreeChips.push({ code: "🚩", n: pennants });
-      if (wbcChampions) pedigreeChips.push({ code: "🌐", n: wbcChampions });
-      if (wbcRunnersUp) pedigreeChips.push({ code: "🎌", n: wbcRunnersUp });
+      if (wbcChampions) pedigreeChips.push({ code: "🥇", n: wbcChampions });
+      if (wbcRunnersUp) pedigreeChips.push({ code: "🥈", n: wbcRunnersUp });
     } else {
       if (rings) pedigreeChips.push({ code: "💍".repeat(rings), n: 1 });
       if (pennants) pedigreeChips.push({ code: "🚩".repeat(pennants), n: 1 });
-      if (wbcChampions) pedigreeChips.push({ code: "🌐".repeat(wbcChampions), n: 1 });
-      if (wbcRunnersUp) pedigreeChips.push({ code: "🎌".repeat(wbcRunnersUp), n: 1 });
+      if (wbcChampions) pedigreeChips.push({ code: "🥇".repeat(wbcChampions), n: 1 });
+      if (wbcRunnersUp) pedigreeChips.push({ code: "🥈".repeat(wbcRunnersUp), n: 1 });
     }
     out.push({
       key: "pedigree",
@@ -614,7 +614,7 @@
                  emoji the ledger can emit is listed here, so a new one — a
                  Classic medal, say — has to be added or it falls through to
                  AwardPill and renders as an unknown award. -->
-            {#if c.code.startsWith("💍") || c.code.startsWith("🚩") || c.code.startsWith("⭐") || c.code.startsWith("🌐") || c.code.startsWith("🎌")}
+            {#if c.code.startsWith("💍") || c.code.startsWith("🚩") || c.code.startsWith("⭐") || c.code.startsWith("🥇") || c.code.startsWith("🥈")}
               <span class="pedchip"
                 >{c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
               >
@@ -754,19 +754,13 @@
             <!-- March's medal beside October's, and INDEPENDENT of it: the
                  Classic is played in the spring of the same card season, so one
                  man can wear a ring and a medal both (2017 Alex Bregman did).
-                 🌐 champion, 🎌 finalist — the globe for the tournament that
-                 puts the whole world in one bracket, the crossed flags for the
-                 side that got there and lost. Not 🥇/🥈: those are the glyphs
-                 inside the MVP and CY award pills sitting on this very row, and
-                 a bare medal next to them reads as a pill that failed to
-                 render. Until now the medal was worth points on the ledger and
-                 had no mark on the man who won it.
-                 YOUR SQUAD only. The dream team's rows below cannot carry one:
-                 `BestPick` has no `wbc` field, so the solver's club knows
-                 nothing about medals — a gap in bestroster.ts, not something
-                 this component can answer. -->
-            {#if slot.wbc === WBC_CHAMPION_ID}<span class="emo">🌐</span>{:else if slot.wbc === WBC_RUNNERUP_ID}<span
-                class="emo">🎌</span
+                 🥇 champion, 🥈 finalist — medal glyphs that read as WBC
+                 hardware at a glance. YOUR SQUAD only. The dream team's rows
+                 below cannot carry one: `BestPick` has no `wbc` field, so the
+                 solver's club knows nothing about medals — a gap in
+                 bestroster.ts, not something this component can answer. -->
+            {#if slot.wbc === WBC_CHAMPION_ID}<span class="emo">🥇</span>{:else if slot.wbc === WBC_RUNNERUP_ID}<span
+                class="emo">🥈</span
               >{/if}
           </span>
         </span>
@@ -870,8 +864,8 @@
                 <AwardPill code={a} />
               {/each}
               {#if pick.ws}<span class="emo">💍</span>{:else if pick.pen}<span class="emo">🚩</span>{/if}{#if pick.wbc === WBC_CHAMPION_ID}<span
-                  class="emo">🌐</span
-                >{:else if pick.wbc === WBC_RUNNERUP_ID}<span class="emo">🎌</span>{/if}
+                  class="emo">🥇</span
+                >{:else if pick.wbc === WBC_RUNNERUP_ID}<span class="emo">🥈</span>{/if}
             </span>
           </span>
           <span class="warchip sm {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
@@ -998,9 +992,11 @@
     min-height: 44px;
     border: 2.5px solid var(--line);
     border-radius: 11px;
-    /* Subtle warm-gray tint distinguishes scorecard rows from player card rows
-       (.qrow uses bare --card). color-mix avoids introducing a new token. */
-    background: color-mix(in srgb, var(--gray-bg) 18%, var(--card));
+    /* Scorecard rows wear the app's own parchment ground (--ground) stepped
+       down from the player card surface (--card). Two distinct materials —
+       near-white cardstock for .qrow, warm parchment for .lrow — with no
+       shadows, fully within the flat-ink aesthetic. */
+    background: color-mix(in srgb, var(--ground) 55%, var(--card));
     padding: 6px 12px;
     opacity: 0;
     transform: translateY(10px) scale(0.97);
@@ -1346,6 +1342,9 @@
   .qrow .warchip {
     margin-left: auto;
     flex: none;
+    /* PlayerList's CHIP INSET RULE: box-against-box wants less air than type,
+       so the chip sits 6px inside the stroke (the row pads 9px). */
+    margin-right: -3px;
   }
   /* A dream seat the player never signed: the outline goes dashed and the row's
      CONTENTS wash out — name, year, award pills, chip, every part of it at one
