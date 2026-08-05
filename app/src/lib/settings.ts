@@ -385,8 +385,13 @@ export interface CountryDef {
  * default-ignorable, so a platform that does not know the sequence draws the
  * base 🏴 and drops the rest. A black flag beside the word ENGLAND is a poorer
  * stamp than a perfect one and is still a stamp; the name is printed on every
- * one of them, so no stamp is ever ambiguous about which country it is. This
- * is a phone-first game, and iOS renders both.
+ * one of them, so no stamp is ever ambiguous about which country it is.
+ * iOS, macOS and Android render everything here natively. WINDOWS RENDERS NO
+ * FLAG AT ALL — a regional-indicator pair draws as two letter glyphs — so
+ * main.ts runs the country-flag-emoji-polyfill: on flag-less platforms it
+ * registers "Twemoji Country Flags" (flags only, tag sequences included),
+ * which leads the --disp stack in app.css. Everywhere else it is a no-op
+ * that fetches nothing.
  *
  * A country this table does not know — a data regen that adds a fortieth —
  * degrades to no flag and no tier: the stamp renders its name on the plain

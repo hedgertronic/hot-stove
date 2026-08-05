@@ -1,6 +1,22 @@
+import { polyfillCountryFlagEmojis } from "country-flag-emoji-polyfill";
+import flagFontUrl from "./assets/TwemojiCountryFlags.woff2?url";
 import { mount } from "svelte";
 import "./app.css";
 import App from "./App.svelte";
+
+// Windows ships no country-flag glyphs: Chrome and Edge there draw a
+// regional-indicator pair (🇺🇸) as two letter glyphs out of Segoe UI Emoji, so
+// every passport stamp read "US" in a face that isn't even ours. The polyfill
+// self-detects — on a platform whose emoji font already draws flags (iOS,
+// macOS, Android) it does nothing and fetches nothing; where flags are
+// missing it registers "Twemoji Country Flags", a font containing ONLY the
+// flag sequences (including the 🏴 England/Scotland tag flags), which app.css
+// puts first in the display stack. Every other codepoint falls through it,
+// so Nunito and the platform emoji font keep everything else.
+// The font URL is OUR bundled copy of the package's woff2 (~78KB, fetched
+// only if the @font-face is ever used): the package's default is a CDN, and
+// this site serves everything it needs itself.
+polyfillCountryFlagEmojis("Twemoji Country Flags", flagFontUrl);
 
 // iOS Safari only fires :active on elements when a touchstart listener exists
 // somewhere in the ancestor chain. A passive no-op on the document enables the

@@ -308,7 +308,11 @@
   --brick-wash: #f2ded7;
   --amber: #fff4d6;
   --dash: #d5cdb6;
-  --disp: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  /* "Twemoji Country Flags" leads the stack but exists only on platforms
+     where main.ts's polyfill registered it (Windows has no flag glyphs); it
+     contains nothing but the flag sequences, so every letter and every other
+     emoji falls straight through to Nunito and the platform's emoji font. */
+  --disp: "Twemoji Country Flags", "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
 }
 
 * {

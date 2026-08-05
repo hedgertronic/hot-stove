@@ -22,6 +22,7 @@
     "vitest": "4.1.10"
   },
   "dependencies": {
-    "canvas-confetti": "1.9.4"
+    "canvas-confetti": "1.9.4",
+    "country-flag-emoji-polyfill": "0.1.10"
   }
 }
