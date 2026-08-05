@@ -861,7 +861,18 @@ async function execute(g: Game, d: HarnessData, c: Candidate): Promise<void> {
     case "prime":
       g.togglePrime();
       g.primeTapPlayer(c.p!);
-      if (!(await g.applyPrime(c.team!, c.year!)) && g.primeArmed) g.togglePrime();
+      await g.applyPrime(c.team!, c.year!);
+      // A two-way season with more than one open seat type hands off to the
+      // rail's slot picker instead of signing — the bot answers it the way
+      // `doSign` answers the market's, on cheapest seat EV.
+      if (g.primeSlotPending) {
+        const cells = g.pickableSlotCells(c.p!);
+        const cell = cells.reduce((a, b) =>
+          d.seatEV[SLOT_TYPES[b]] < d.seatEV[SLOT_TYPES[a]] ? b : a,
+        );
+        g.signPlayer(c.p!, cell);
+      }
+      if (g.primeArmed) g.togglePrime();
       break;
     case "primeSpecial":
       g.togglePrime();

@@ -98,6 +98,11 @@
     busy = true;
     try {
       await game.applyPrime(sea.team, sea.year);
+      // A two-way season with more than one open seat type hands off to the
+      // rail's pick-a-slot flow: the engine has already closed this sheet and
+      // is holding ⭐ armed for the seat tap, so `onclose` — which disarms —
+      // must not run.
+      if (game.primeSlotPending) return;
       onclose();
     } catch {
       /* offline mid-tap: stay open, rows re-enable */

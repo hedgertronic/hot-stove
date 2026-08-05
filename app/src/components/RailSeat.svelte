@@ -427,12 +427,15 @@
       margin-right: -4px;
     }
     /* The 34px label column is what aligns every row's second field, and both
-       chairs speak it in the same tracked caps — MGR is a code like the rest. */
+       chairs speak it in the same tracked caps — MGR is a code like the rest.
+       Centered within the column, the market rows' .pos treatment: the code
+       floats in its lane rather than hugging its left edge. */
     .cell b,
     .mgr b {
       width: 34px;
       flex: none;
       font-size: 9.5px;
+      text-align: center;
     }
     .cell span:not(.chips),
     .mgr span {

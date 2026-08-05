@@ -401,9 +401,9 @@ describe("click-outside closes the seed field", () => {
 });
 
 describe("seed input placeholder and paste formats", () => {
-  it("placeholder starts with # — matches the format copy produces", () => {
-    // copySeed() on the finale writes "#CODE" to the clipboard. The placeholder
-    // must show that same format so the field looks right for a paste.
+  it("placeholder starts with # — matches the seed format a paste produces", () => {
+    // Seeds are #-prefixed; the placeholder must start with # so a pasted seed
+    // looks right in the field.
     const ui = open();
     ui.seedBtn().click();
     flushSync();
@@ -412,7 +412,7 @@ describe("seed input placeholder and paste formats", () => {
   });
 
   it("accepts a hash-prefixed code (#CODE) and calls onplay with the parsed seed", () => {
-    // The exact string copySeed() puts on the clipboard: "#" + 7-char base36.
+    // Seeds are shared as "#" + 7-char base36.
     // 0xa3f2 → seedCode → "0000WDU" → token "#0000WDU"
     const onplay = vi.fn();
     const target = document.createElement("div");
@@ -459,7 +459,7 @@ describe("seed input placeholder and paste formats", () => {
     target.remove();
   });
 
-  it("pins the placeholder text to the hash-prefixed format", () => {
+  it("pins the placeholder text to the seed-format example", () => {
     // Snapshot the exact placeholder so a future rename is a conscious choice.
     const ui = open();
     ui.seedBtn().click();

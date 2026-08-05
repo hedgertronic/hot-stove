@@ -410,37 +410,38 @@
     shareTimer = setTimeout(() => (shareState = "idle"), 1200);
   }
 
-  /** Copies "#CODE" — the leading # is fine, parseSeedCode strips it.
-   * Feedback swaps the chip's own text (no toast line, no layout shift). */
-  let seedState = $state<"idle" | "copied" | "failed">("idle");
-  let seedTimer: ReturnType<typeof setTimeout> | undefined;
-  async function copySeed() {
-    const code = `#${seedCode(game.seed)}`;
-    try {
-      await navigator.clipboard.writeText(code);
-      seedState = "copied";
-    } catch {
-      seedState = "failed";
-    }
-    clearTimeout(seedTimer);
-    seedTimer = setTimeout(() => (seedState = "idle"), 1200);
-  }
-
-  /** Copies the whole decision log — the string the home screen's SEED field
-   * replays. Read off the game itself rather than storage, so a season reopened
-   * out of the archive hands over ITS code and not the last one played. Same
-   * feedback shape as the seed chip beside it: the label swaps in place. */
+  /** Copies the whole decision log prefixed with `@` — the @ is the game-code
+   * sigil, telling the home entry to route the paste straight to replay rather
+   * than testing it for seed shape. Prefix added here so game.debugLog() stays
+   * unprefixed and `window.__hotstove.debugLog()` pastes the same way. Read off
+   * the game itself rather than storage, so a season reopened out of the archive
+   * hands over ITS code and not the last one played. Label swaps in place — no
+   * toast, no layout shift. */
   let gameState = $state<"idle" | "copied" | "failed">("idle");
   let gameTimer: ReturnType<typeof setTimeout> | undefined;
   async function copyGame() {
     try {
-      await navigator.clipboard.writeText(game.debugLog());
+      await navigator.clipboard.writeText(`@${game.debugLog()}`);
       gameState = "copied";
     } catch {
       gameState = "failed";
     }
     clearTimeout(gameTimer);
     gameTimer = setTimeout(() => (gameState = "idle"), 1200);
+  }
+  /** The seed alone, #-prefixed — the string the home entry deals a fresh
+   * counting game from, beside the game code's read-only replay. */
+  let seedState = $state<"idle" | "copied" | "failed">("idle");
+  let seedTimer: ReturnType<typeof setTimeout> | undefined;
+  async function copySeed() {
+    try {
+      await navigator.clipboard.writeText(`#${seedCode(game.seed)}`);
+      seedState = "copied";
+    } catch {
+      seedState = "failed";
+    }
+    clearTimeout(seedTimer);
+    seedTimer = setTimeout(() => (seedState = "idle"), 1200);
   }
 
   /** Signed players who are also on the dream team get the ⭐. */
@@ -777,17 +778,16 @@
   </button>
 </div>
 
-<!-- Two codes, two different offers, so the labels say which is which. SEED
-     hands over the CARDS — play the same reel yourself, from scratch. COPY GAME
-     hands over THIS SEASON: every decision, replayable exactly as it happened.
-     The game code is never printed. It runs 50–70 characters, which is a wall
-     of noise on a screen whose other numbers are a record and a total, and
-     nobody retypes one — the clipboard is the only way it travels. -->
+<!-- The two codes a season answers to, told apart by sigil. SEED # copies the
+     bare seed — the home entry deals a fresh counting game from it. GAME @
+     shows the same 7 chars as a short id and copies the FULL game code with
+     its @ prefix (never printed — 50–70 characters), which the home entry
+     replays read-only. Labels swap in place as feedback. -->
 <div class="codes">
   <button
     class="seedchip disp"
     class:ok={seedState === "copied"}
-    title="Copy this season's seed code"
+    title="Copy the seed code for these cards"
     aria-label="Copy the seed code for these cards"
     onclick={copySeed}
   >
@@ -797,10 +797,10 @@
     class="seedchip disp"
     class:ok={gameState === "copied"}
     title="Copy the full game code — replays this exact season"
-    aria-label="Copy the full game code, which replays this exact season"
+    aria-label="Copy the full game code — replays this exact season"
     onclick={copyGame}
   >
-    {gameState === "idle" ? "COPY GAME" : gameState === "copied" ? "COPIED ✓" : "COPY FAILED"}
+    {gameState === "idle" ? `GAME @${seedCode(game.seed)}` : gameState === "copied" ? "COPIED ✓" : "COPY FAILED"}
   </button>
 </div>
 </div>
@@ -1238,12 +1238,13 @@
     color: var(--muted);
   }
   /* The two code chips sit on one line under the button row, centered, and
-     wrap on a narrow phone rather than shrinking their labels. */
+     wrap on a narrow phone rather than shrinking their labels. 14px of air
+     between them: they read as two different offers, not one split label. */
   .codes {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 4px 14px;
     margin-top: 10px;
   }
   /* The season's codes — quiet, mono; tap to copy. */
@@ -1260,8 +1261,8 @@
     font-weight: 700;
     letter-spacing: 0.14em;
     color: var(--muted);
-    /* Wide enough for the longest label either chip can show ("SEED #0KF12OY")
-       so the copy feedback can't jiggle the pair. */
+    /* Wide enough for the longest label the chip can show ("GAME @0KF12OY")
+       so the copy feedback can't jiggle the chip. */
     min-width: 13ch;
   }
   .seedchip.ok {
@@ -1355,6 +1356,7 @@
     letter-spacing: 0.05em;
     color: var(--muted-2);
     flex: none;
+    text-align: center;
   }
   /* Name and badges share a line when they fit; the badges wrap below when a
      decorated player runs out of room (narrow phones). The name never shrinks

@@ -1,21 +1,20 @@
 // @vitest-environment jsdom
-/** The two ways into a shared season: the home screen's SEED field, which now
- * takes a full game code as well as a seed, and the finale's two code chips.
+/** The two ways into a shared season: the home screen's SEED field and the
+ * finale's two code chips.
  *
- * THE DISCRIMINATION RULE IS SHAPE, and nothing else. A bare or #-prefixed
- * base36 token of 7 characters or fewer is a SEED — a new game on those cards,
- * counting toward the record book exactly as it always did. Anything longer is
- * a GAME CODE, replayed read-only. The two cannot overlap: a shortcode's header
- * alone is 12 characters.
+ * TWO SIGILS, one field. `@`-prefixed input is an explicit game code — the
+ * sigil is stripped and the remainder handed to the replay host. `#`-prefixed
+ * or bare ≤7-char base36 is a SEED — a new game on those cards, counting
+ * toward the record book. Bare strings ≥12 chars fall through to replay by
+ * shape (backward compat for codes copied before the @ sigil existed).
  *
  * A mistyped seed keeps the shake it always had. The one failure that gets
- * words is a game code this build cannot replay — nothing about a 60-character
- * string says why it was refused.
+ * words is a game code this build cannot replay.
  *
- * On the finale: the seed chip says SEED, not GAME, because the code beside it
- * is the game. The game code is never PRINTED — only copied — so the assertions
- * here check that the button exists, is labelled, and hands the clipboard the
- * string `Game#debugLog()` produces.
+ * On the finale: two chips share the 7-char seed id, told apart by sigil.
+ * SEED # copies the bare #seed (a fresh counting game on these cards); GAME @
+ * copies the FULL game code with a leading @ so a paste routes straight to
+ * replay. The full code is never printed on screen.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
@@ -137,8 +136,35 @@ describe("the SEED field takes both kinds of code", () => {
   it("holds a whole shortcode — the field's maxlength fits one", () => {
     const ui = openHome();
     expect(Number(ui.input.getAttribute("maxlength"))).toBeGreaterThanOrEqual(120);
-    // The placeholder still advertises the common case.
+    // The placeholder keeps the seed-format example (#0KF12OY).
     expect(ui.input.getAttribute("placeholder")).toBe("#0KF12OY");
+    ui.close();
+  });
+
+  it("routes an @-prefixed paste straight to replay, stripping the sigil", async () => {
+    const onreplay = vi.fn(async () => true);
+    const ui = openHome(onreplay);
+    await ui.go(`@${CODE}`);
+    // The @ is stripped before the code reaches the replay host.
+    expect(onreplay).toHaveBeenCalledWith(CODE);
+    expect(ui.onplay).not.toHaveBeenCalled();
+    expect(ui.err()).toBeNull();
+    ui.close();
+  });
+
+  it("shows the error when an @-prefixed code cannot be replayed", async () => {
+    const ui = openHome(async () => false);
+    await ui.go(`@${CODE}`);
+    expect(ui.err()?.textContent).toContain("can't be replayed on this version");
+    ui.close();
+  });
+
+  it("#-prefixed seed still plays a new game after the @ branch was added", async () => {
+    const onreplay = vi.fn(async () => true);
+    const ui = openHome(onreplay);
+    await ui.go("#0KF12OY");
+    expect(ui.onplay).toHaveBeenCalledTimes(1);
+    expect(onreplay).not.toHaveBeenCalled();
     ui.close();
   });
 });
@@ -238,49 +264,41 @@ function openFinale(game: Game, replay = false) {
 }
 
 describe("the finale's code chips", () => {
-  it("labels the seed chip SEED, and copies just the seed", async () => {
+  it("SEED # copies the bare seed; GAME @ copies the @-prefixed full code", async () => {
     const g = await finishedGame();
     const written: string[] = [];
     vi.stubGlobal("navigator", { clipboard: { writeText: async (s: string) => void written.push(s) } });
     const ui = openFinale(g);
-    const [seed, code] = ui.chips();
-    expect(seed.textContent).toContain("SEED #");
-    expect(seed.textContent).not.toContain("GAME #");
-    expect(seed.getAttribute("aria-label")).toBeTruthy();
-    seed.click();
-    await vi.waitFor(() => {
-      flushSync();
-      expect(seed.textContent).toContain("COPIED");
-    });
-    expect(written).toEqual([expect.stringMatching(/^#[0-9A-Z]{7}$/)]);
-    expect(code).toBeDefined();
-    ui.close();
-  });
-
-  it("copies the whole game code without ever printing it", async () => {
-    const g = await finishedGame();
-    const written: string[] = [];
-    vi.stubGlobal("navigator", { clipboard: { writeText: async (s: string) => void written.push(s) } });
-    const ui = openFinale(g);
-    const code = ui.chips()[1];
-    expect(code.textContent).toContain("COPY GAME");
-    expect(code.getAttribute("aria-label")).toBeTruthy();
-    // The string itself is nowhere on the screen — it is 50–70 characters.
+    const chips = ui.chips();
+    expect(chips).toHaveLength(2);
+    const [seedChip, gameChip] = chips;
+    // Both labels show the short id, told apart by sigil; the full code is
+    // never printed anywhere on screen.
+    expect(seedChip.textContent).toContain("SEED #");
+    expect(gameChip.textContent).toContain("GAME @");
     expect(ui.target.textContent).not.toContain(g.debugLog());
-    code.click();
+    seedChip.click();
     await vi.waitFor(() => {
       flushSync();
-      expect(code.textContent).toContain("COPIED");
+      expect(seedChip.textContent).toContain("COPIED");
     });
-    expect(written).toEqual([g.debugLog()]);
+    gameChip.click();
+    await vi.waitFor(() => {
+      flushSync();
+      expect(gameChip.textContent).toContain("COPIED");
+    });
+    // The seed pastes as a #seed (fresh counting game); the game code pastes
+    // as an @code the home entry routes straight to replay. The two agree by
+    // construction: the code's header carries the same 7 base36 chars.
+    expect(written).toEqual([`#${g.debugLog().slice(1, 8)}`, `@${g.debugLog()}`]);
     ui.close();
   });
 
   it("both chips are real buttons", async () => {
     const g = await finishedGame();
     const ui = openFinale(g);
-    for (const chip of ui.chips()) expect(chip.tagName).toBe("BUTTON");
     expect(ui.chips()).toHaveLength(2);
+    for (const c of ui.chips()) expect(c.tagName).toBe("BUTTON");
     ui.close();
   });
 });
@@ -302,6 +320,8 @@ describe("a replayed finale's button row", () => {
     const g = await finishedGame();
     const ui = openFinale(g, true);
     expect(ui.chips()).toHaveLength(2);
+    expect(ui.chips()[0].textContent).toContain("SEED #");
+    expect(ui.chips()[1].textContent).toContain("GAME @");
     ui.close();
   });
 

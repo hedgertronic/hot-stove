@@ -95,15 +95,18 @@
    * click-outside handler can check containment without reading the DOM. */
   let seedZoneEl = $state<HTMLDivElement | null>(null);
 
-  /** The field takes two kinds of code, told apart by SHAPE — no prefix, no
+  /** The field takes two kinds of code, told apart by SIGIL or SHAPE — no
    * second input, no mode toggle.
    *
-   * A bare (or #-prefixed) base36 token of 7 characters or fewer is a SEED:
-   * new game, these cards, your own decisions, counting toward the record book
-   * exactly as it always has. Anything longer is a GAME CODE: a 12-char header
-   * plus decision tokens, replayed read-only. The two shapes cannot overlap —
-   * the header alone is 12 characters — so the order of these two branches is
-   * not load-bearing.
+   * `@`-prefixed: explicit game code. The sigil is stripped and the remainder
+   * is handed to the replay host. If replay fails, the error is shown — the
+   * @ makes intent unambiguous, so no fallback to seed-parse.
+   *
+   * `#`-prefixed or bare ≤7-char base36: a SEED. New game, these cards, your
+   * own decisions, counting toward the record book exactly as it always has.
+   *
+   * Anything else that is ≥12 chars is treated as a bare game code (backward
+   * compat for codes copied before the @ sigil was added).
    *
    * The game code is NOT uppercased on the way through. `parseSeedCode` folds
    * case because a seed is base36 either way; a shortcode's verbs are uppercase
@@ -111,6 +114,14 @@
   async function playSeed() {
     seedErr = "";
     const typed = seedInput.trim();
+    // Explicit game-code sigil: strip @ and route straight to replay.
+    if (typed.startsWith("@")) {
+      const code = typed.slice(1);
+      if (onreplay && (await onreplay(code))) return;
+      badSeed();
+      seedErr = "This game code can't be replayed on this version";
+      return;
+    }
     const bare = typed.replace(/^#/, "");
     if (/^[0-9A-Za-z]{1,7}$/.test(bare)) {
       const seed = parseSeedCode(typed);

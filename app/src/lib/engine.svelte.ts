@@ -174,6 +174,22 @@ export interface SpinLogEntry {
   war?: number;
 }
 
+/** A ⭐ Prime Time season the player has confirmed but not yet seated — the
+ * career sheet's handoff to the rail's pick-a-slot flow. The season's card and
+ * player ride along so the seat tap commits without a second fetch, and
+ * `cells` is the pool the rail arms (computed off the CONFIRMED season, whose
+ * eligibility need not match the listed one's). */
+interface PrimePending {
+  /** The man's id — the same id the LISTED row carries, which is what the
+   * rail and the market row match against. */
+  id: string;
+  team: string;
+  year: number;
+  card: Card;
+  p: CardPlayer;
+  cells: number[];
+}
+
 /** A single committed action in the compact decision log — position indexes
  * rather than ids/codes keep the encoded string to ~50–70 chars for a full game.
  * See the grammar comment block in share.ts for the encoding spec. */
@@ -640,6 +656,13 @@ export class Game {
   releasePick = $state<string | null>(null);
   /** Prime picker: id of the LISTED player whose career is being browsed. */
   primePick = $state<string | null>(null);
+  /** A confirmed ⭐ season still choosing its seat. The career sheet keeps its
+   * no-nested-picker rule: a season eligible for more than one open seat TYPE
+   * closes the sheet and hands off to the rail's existing pick-a-slot flow
+   * (`slotPick` is set alongside this), and the seat tap commits at the prime
+   * price. Transient like `slotPick` — never serialized, so a reload mid-pick
+   * lands back before the handoff with ⭐ unspent. */
+  primeSlot = $state<PrimePending | null>(null);
   /** Prime picker, front-office flavor: the manager tile is the only
    * browsable special — owner and stadium are never Prime targets. */
   primeSpecial = $state<"manager" | null>(null);
@@ -1265,6 +1288,7 @@ export class Game {
    * pick refunds it. */
   toggleDoublePlay(): void {
     if (this.phase !== "landed") return;
+    this.abandonPrimeSlot();
     if (this.powerups.doublePlay === "ready") {
       if (this.choicesUsed > 0) return;
       this.powerups.doublePlay = "armed";
@@ -1293,6 +1317,7 @@ export class Game {
   /** 🔁 Trade Deadline arming toggle: gray rows become swappable. */
   toggleTradeDeadline(): void {
     if (this.phase !== "landed" || this.choicesLeft === 0) return;
+    this.abandonPrimeSlot();
     if (this.powerups.tradeDeadline === "ready") {
       this.powerups.tradeDeadline = "armed";
     } else if (this.powerups.tradeDeadline === "armed") {
@@ -1307,6 +1332,7 @@ export class Game {
    * career-browsable. Browsing costs nothing until a season is signed. */
   togglePrime(): void {
     if (this.phase !== "landed" || this.choicesLeft === 0) return;
+    this.abandonPrimeSlot();
     if (this.powerups.prime === "ready") {
       this.powerups.prime = "armed";
     } else if (this.powerups.prime === "armed") {
@@ -1331,6 +1357,7 @@ export class Game {
    * powerup key stays "hometown".) */
   toggleHometown(): void {
     if (this.phase !== "landed" || this.choicesLeft === 0) return;
+    this.abandonPrimeSlot();
     // Logged for ✌️'s reason: the discount CHANGES WHAT COMMITS — the price
     // paid — and price is the one thing a replay's own log cannot check itself
     // against, so it has to be recorded rather than inferred. Inside the
@@ -1381,6 +1408,9 @@ export class Game {
   /** Armed Prime, tap a listed player: browse their whole career. */
   primeTapPlayer(p: CardPlayer): void {
     if (!this.primeBrowsable(p)) return;
+    // Walking off to another career abandons a pending seat pick, the way any
+    // armed state clears when the next gesture goes elsewhere — ⭐ unspent.
+    if (this.primeSlot) this.cancelPick();
     this.primePick = p.id;
   }
 
@@ -1455,9 +1485,10 @@ export class Game {
 
   /** Sign a DIFFERENT season of the browsed player's career, at that season's
    * real cost. Consumes the powerup and the spin's choice. Slot ambiguity
-   * auto-resolves (see `primeSlotFor`) — no nested picker inside the career
-   * sheet. The browsed card does not count as scouted (`seen`): only cards the
-   * reel landed on do.
+   * auto-resolves (see `primeSlotFor`) except for a two-way season with more
+   * than one open seat type, which hands off to the rail's pick-a-slot flow —
+   * either way no picker nests inside the career sheet. The browsed card does
+   * not count as scouted (`seen`): only cards the reel landed on do.
    *
    * With 🏠 Homegrown armed, the discount travels per-season: only seasons
    * whose card FRANCHISE matches the player's debut franchise sign at $1M
@@ -1473,7 +1504,7 @@ export class Game {
    * pair resolves and spends both. Without it the pair is armable, the row
    * lights up as Prime-able, the sheet opens, and every season in it is dead —
    * a state the player can enter and cannot resolve. */
-  async applyPrime(team: string, year: number): Promise<boolean> {
+  async applyPrime(team: string, year: number, slotIdx?: number): Promise<boolean> {
     if (this.powerups.prime !== "armed" || this.primePick === null)
       return false;
     if (this.phase !== "landed" || this.choicesLeft === 0) return false;
@@ -1486,22 +1517,98 @@ export class Game {
     // sheet, and this is the refusal the gray cannot be allowed to disagree
     // with — with 🏠 armed, only the discount's own seasons sign.
     if (!this.primeFits(p, card.franchise)) return false;
+    // Confirming a season abandons any earlier season's pending seat pick.
+    this.primeSlot = null;
+    // An explicit seat is the replay driver's path (the P/V token carries the
+    // `si` it recorded) and the rail's, and it skips the handoff entirely.
+    if (slotIdx !== undefined) {
+      if (!this.primeSeatAllowed(p, slotIdx)) return false;
+      this.commitPrime(card, p, slotIdx, team, year);
+      return true;
+    }
+    // THE HANDOFF. A season eligible for more than one open seat TYPE is the
+    // same question the market's two-way signings ask (DECISIONS.md #4), and
+    // the answer is the same rail picker — not a picker nested in the sheet.
+    // Nothing commits here: the sheet closes, the seats arm orange, and ⭐
+    // stays armed until the seat tap spends it (cancel leaves it re-armable).
+    const cells = this.pickableSlotCells(p);
+    if (new Set(cells.map((i) => SLOT_TYPES[i])).size > 1) {
+      this.primeSlot = { id, team, year, card, p, cells };
+      this.slotPick = id;
+      this.primePick = null;
+      // The market's shape changed under the open pick, exactly as an arm or
+      // disarm does — any live SIGN/TRADE pill goes with it.
+      this.armVersion += 1;
+      this.save();
+      return false;
+    }
     const idx = this.primeSlotFor(p);
     if (idx === null) return false;
-    this.actionSig = `${this.slots[idx] !== null ? "swap" : "sign"}|${id}|${team}|${year}|${idx}`;
-    this.snapshot();
+    this.commitPrime(card, p, idx, team, year);
+    return true;
+  }
+
+  /** Seats an explicitly named ⭐ commit may take: any open eligible seat, or
+   * — with no seat open and 🔁 armed — the one occupied chair `primeSlotFor`
+   * resolves the swap to. The rail can only offer open seats, and a replayed
+   * V token can only have recorded that swap's own seat. */
+  private primeSeatAllowed(p: CardPlayer, idx: number): boolean {
+    const open = this.openSlotsFor(p);
+    if (open.length > 0) return open.includes(idx);
+    return this.primeSlotFor(p) === idx;
+  }
+
+  /** Seat a confirmed ⭐ season and spend what it spends. One body for both
+   * entries — the sheet's auto-resolved commit and the rail's seat tap — so
+   * the price, the powerups, and the P/V token cannot drift apart. The token
+   * is appended HERE, with the seat that was actually taken, which is what
+   * makes the handoff replayable. */
+  private commitPrime(
+    card: Card,
+    p: CardPlayer,
+    idx: number,
+    team: string,
+    year: number,
+  ): void {
     const trade = this.slots[idx] !== null;
+    this.actionSig = `${trade ? "swap" : "sign"}|${p.id}|${team}|${year}|${idx}`;
+    this.snapshot();
     const discounted = this.primeDiscountEligible(p, card.franchise);
     this.slots[idx] = this.makeSigned(card, p, this.primePriceFor(p, card.franchise), discounted);
     if (discounted) this.spendPowerup("hometown");
     this.spendPowerup("prime");
     if (trade) this.spendPowerup("tradeDeadline");
     this.primePick = null;
+    this.primeSlot = null;
     const _primeCI = this.index.cards.findIndex((c) => c.team === team && c.year === year);
-    const _primePI = card.players.findIndex((pl) => pl.id === id);
+    const _primePI = card.players.findIndex((pl) => pl.id === p.id);
     this.appendDecision({ verb: trade ? "V" : "P", ci: _primeCI, pi: _primePI, si: idx });
     this.consumeChoice({ kind: trade ? "swap" : "sign", war: p.war });
-    return true;
+  }
+
+  /** A confirmed ⭐ season is waiting on a seat tap in the rail. */
+  get primeSlotPending(): boolean {
+    return this.primeSlot !== null;
+  }
+
+  /** Drop a pending ⭐ seat pick, spending nothing and committing nothing.
+   *
+   * EVERY POWERUP TOGGLE CALLS THIS, disarming ⭐ itself most of all: the
+   * season was confirmed under the pills that were armed while the sheet was
+   * open, and 🏠 alone decides both its price and whether it is signable at
+   * all. A pick that outlived the pills it was made under would seat a season
+   * at a price the player never saw. Dropping it costs nothing — the handoff
+   * committed nothing, and ⭐ is still armed (or, after its own disarm, ready)
+   * for the next attempt.
+   *
+   * The rail's `slotPick` goes with it: it is the same pending pick seen from
+   * the board, and a `slotPick` left pointing at a man with no pending season
+   * behind him is exactly the dangling state an ordinary sign could walk into.
+   */
+  private abandonPrimeSlot(): void {
+    if (this.primeSlot === null) return;
+    this.primeSlot = null;
+    this.slotPick = null;
   }
 
   /** Hire a DIFFERENT season of the browsed manager's career — that
@@ -1585,6 +1692,7 @@ export class Game {
     this.slotPick = null;
     this.releasePick = null;
     this.primePick = null;
+    this.primeSlot = null;
     this.primeSpecial = null;
   }
 
@@ -1700,6 +1808,17 @@ export class Game {
    * re-call with slotIdx. */
   signPlayer(p: CardPlayer, slotIdx?: number): void {
     if (this.phase !== "landed" || this.choicesLeft === 0) return;
+    // A pending ⭐ handoff owns this man's rail taps. Same human, different
+    // season: what seats is the CONFIRMED career season, at the prime price,
+    // and the market guards below — which speak for the LANDED season's row,
+    // its eligibility and its price — have no claim on it. First, so no
+    // market refusal can strand a pick the rail is visibly offering.
+    const pend = this.primeSlot;
+    if (pend && pend.id === p.id) {
+      if (slotIdx === undefined || !pend.cells.includes(slotIdx)) return;
+      this.commitPrime(pend.card, pend.p, slotIdx, pend.team, pend.year);
+      return;
+    }
     if (this.marketBlocks(p)) return;
     if (this.playerState(p) !== "open") return;
     const open = this.openSlotsFor(p);
@@ -1743,6 +1862,9 @@ export class Game {
   cancelPick(): void {
     this.slotPick = null;
     this.releasePick = null;
+    // A ⭐ handoff cancels the same way, and spends nothing: the season is
+    // dropped, the powerup is still armed, and the row is browsable again.
+    this.primeSlot = null;
     this.save();
   }
 
@@ -1758,6 +1880,11 @@ export class Game {
    * his arm, which is a choice the club makes, so his open FLEX seat joins the
    * pool alongside his pitcher seats and the rail asks. */
   pickableSlotCells(p: CardPlayer): number[] {
+    // A pending ⭐ handoff answers for its own season: the rail arms the seats
+    // the CONFIRMED career season is eligible for, which are not necessarily
+    // the ones the listed season would offer.
+    const pend = this.primeSlot;
+    if (pend && pend.id === p.id) return pend.cells;
     const open = this.openSlotsFor(p);
     if (isTwoWay(p)) return open;
     const specialist = open.filter((i) => SLOT_TYPES[i] !== "FLEX");
@@ -2499,7 +2626,11 @@ export class Game {
           this.toggleTradeDeadline();
         this.togglePrime();
         this.primeTapPlayer(listed);
-        await this.applyPrime(entry.team, entry.year);
+        // The recorded seat is passed explicitly, which is what a two-way
+        // season needs: at the tap it went to the rail's picker and the player
+        // chose, so there is nothing here to re-resolve — `si` IS the choice.
+        // Seats ⭐ resolves by itself record the same index it would compute.
+        await this.applyPrime(entry.team, entry.year, a.si);
         if (this.powerups.prime === "armed") this.togglePrime();
         return;
       }
