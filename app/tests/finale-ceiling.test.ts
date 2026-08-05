@@ -12,14 +12,12 @@
  * 1. The ceiling is TWO NUMBERS AND NOTHING ELSE — a record and its exact
  *    points, the stamp's own two lines. No tagline, no near-miss callout, no
  *    congratulation. The gap between the two records is the message.
- * 2. The numbers on screen can never contradict each other. The record is READ
- *    from `bestPossibleRecord` (the engine's own recordFromTotal call), never
- *    recomputed, and the one state where a printed ceiling would be a score the
- *    club below it does not have prints a short label instead.
- * 3. That state is `playedTheCeiling` with the search having lost to a line it
- *    does not model — `best.total < parts.total` is the discriminator, and an
- *    ABSENT `best.total` must fall the same way, because the two are then
- *    indistinguishable.
+ * 2. The caption is true of the ROSTER IT SITS ON: it prints the solved
+ *    total (`best.total`) — the club actually listed — and only falls back to
+ *    the stored `bestPossibleTotal` when a finale predates the field.
+ * 3. The dream club's record prints even when the player's club beat it.
+ *    🦉 OUTSCOUTED is a claim about exactly this number, and the badge only
+ *    lands if the number it beat is on screen to be beaten.
  * 4. Each club's front office is a PAYROLL BLOCK, not two more roster rows —
  *    owner × ballpark = payroll, over the spend meter, in the bank box's own
  *    vocabulary. Both lists get one, in the same place, so they compare. Owner
@@ -146,7 +144,7 @@ describe("the ceiling block", () => {
   });
 });
 
-describe("a ceiling the club below it does not score", () => {
+describe("a solver club the player outbuilt", () => {
   it("the solver agreeing with the club built prints the numbers like any other", () => {
     const g = finaleCeilingMet();
     const fin = g.finale!;
@@ -158,30 +156,30 @@ describe("a ceiling the club below it does not score", () => {
     expect(dream).toContain(`${fin.parts.total.toFixed(1)} PTS`);
   });
 
-  it("the solver's own club scoring LESS prints a label instead of a number", () => {
+  it("the solver's own club scoring LESS prints ITS OWN numbers, beaten and all", () => {
     const g = finaleCeilingMatched();
     const fin = g.finale!;
     expect(fin.playedTheCeiling).toBe(true);
-    // The discriminator: the search lost to a line it does not model.
+    // The search lost to a line it does not model — the player outbuilt it.
     expect(fin.best!.total!).toBeLessThan(fin.parts.total);
-    // The ceiling is floored at the club built, so it equals the stamp exactly
-    // — printing it would claim a score this roster does not have.
-    expect(fin.bestPossibleTotal).toBe(fin.parts.total);
     const dream = dreamOf(g);
-    expect(dream).toContain("BEST CLUB WE FOUND");
-    expect(dream).not.toContain("PTS");
-    expect(dream).not.toContain(stampRecord(g));
+    // The caption is the SOLVED club's record and points, not the clamped
+    // ceiling: it captions the roster listed beneath it, and a beaten number
+    // on screen is what makes 🦉 OUTSCOUTED legible as an achievement.
+    const solvedRec = recordFromTotal(fin.best!.total!, GAMES, MARINERS_WINS);
+    expect(dream).toContain(`${solvedRec.wins}–${solvedRec.losses}`);
+    expect(dream).toContain(`${fin.best!.total!.toFixed(1)} PTS`);
+    expect(dream).not.toContain("BEST CLUB WE FOUND");
   });
 
-  it("no solved total to check falls the same way — the two states are one", () => {
-    // best.total is optional: absent on saves and fixtures that predate it. A
-    // ceiling that cannot be verified against the search's own club is not
-    // printed as a number.
+  it("no solved total falls back to the stored ceiling number", () => {
+    // best.total is optional: absent on saves and fixtures that predate it.
+    // The stored bestPossibleTotal is the only number left, so it prints.
     const g = finaleCeilingMet();
     delete g.finale!.best!.total;
     const dream = dreamOf(g);
-    expect(dream).toContain("BEST CLUB WE FOUND");
-    expect(dream).not.toContain("PTS");
+    expect(dream).toContain(`${g.finale!.bestPossibleTotal!.toFixed(1)} PTS`);
+    expect(dream).not.toContain("BEST CLUB WE FOUND");
   });
 });
 
@@ -305,14 +303,16 @@ describe("a finale older than any of this", () => {
     }
   });
 
-  it("a ceiling total whose record is missing renders nothing", () => {
-    // The two fields are written together by the engine, but a half-migrated
-    // record could carry one without the other; the block needs both or it
-    // draws nothing.
+  it("a missing stored record cannot hollow the caption — it derives its own", () => {
+    // The caption computes its record from the total it prints
+    // (recordFromTotal over the solved total), so a half-migrated record —
+    // total present, `bestPossibleRecord` gone — still renders both lines,
+    // and the two can never disagree.
     const g = finaleCeilingAbove();
     g.finale!.bestPossibleRecord = null;
     const dream = dreamOf(g);
-    expect(dream).not.toContain("PTS");
+    expect(dream).toContain("PTS");
     expect(dream).not.toContain("undefined");
+    expect(dream).not.toContain("NaN");
   });
 });

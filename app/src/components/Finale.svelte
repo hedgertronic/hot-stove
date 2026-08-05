@@ -455,13 +455,12 @@
 
   /* ---- THE CEILING: what the dream club would have gone.
    *
-   * Read, never recomputed. `bestPossibleRecord` came out of the same
-   * lib/format.recordFromTotal the stamp above is built from, so the two
-   * records sit on one ladder by construction rather than by two call sites
-   * agreeing. Both fields are optional: a finale restored from a save written
-   * before the ceiling existed has no answer, and "no ceiling known" renders
-   * nothing at all rather than a hole. */
-  const ceilRec = $derived(fin.bestPossibleRecord ?? null);
+   * The caption prints the dream club's OWN score and derives its record from
+   * it through the same lib/format.recordFromTotal the stamp above is built
+   * from, so the two records sit on one ladder by construction. Every source
+   * field is optional: a finale restored from a save written before the
+   * ceiling existed has no answer, and "no ceiling known" renders nothing at
+   * all rather than a hole. */
   const ceilTotal = $derived(fin.bestPossibleTotal ?? null);
   /** The solver's own UNCLAMPED total. `bestPossibleTotal` is floored at the
    * club the player actually built, so the two differ exactly when the search
@@ -470,15 +469,18 @@
    * dream club listed below genuinely scores less than the ceiling. Absent on
    * old saves and on fixtures that predate the field. */
   const solved = $derived(fin.best?.total ?? null);
-  /** When the printed ceiling would be a number the club below it does not
-   * score. `playedTheCeiling` covers two situations: the search confirming the
-   * club the player built, and the search losing to a line it does not model —
-   * and only in the second does the dream club on screen score LESS than the
-   * ceiling floored at the player's total. With no solved total to check, the
-   * two are indistinguishable, so the same suppression applies. Compared at the
-   * tenth the finale renders. */
-  const ceilUnsound = $derived(
-    fin.playedTheCeiling === true && (solved == null || fin.parts.total - solved > 0.05),
+  /** What the caption prints: the SOLVED total when the finale carries one —
+   * the club actually listed beneath it — falling back to the stored ceiling
+   * for finales saved before the field existed. The engine's
+   * `bestPossibleTotal` is floored at the player's own total, so on a season
+   * that beat the search it names the wrong club; the caption's one job is to
+   * be true of the roster it sits on. Showing the dream club's real record
+   * even when the player's beats it is the point — 🦉 OUTSCOUTED is a claim
+   * about exactly this number, and a suppressed record made the badge read as
+   * a bug. */
+  const capTotal = $derived(solved ?? ceilTotal);
+  const capRec = $derived(
+    capTotal === null ? null : recordFromTotal(capTotal, GAMES, MARINERS_WINS),
   );
 
   /* ---- THE PASSPORT: where this club came from.
@@ -891,16 +893,13 @@
          theirs to do. Without it the dream club has no total at all, and a
          solver that trades WAR for payroll bonus looks broken rather than
          clever.
-         The one exception is a ceiling the club below does not actually
-         score — there the number would be the lie, so the label replaces it. -->
-    {#if ceilTotal != null && ceilRec}
+         Always the DREAM CLUB'S OWN record — even when the player's beats it.
+         A season that outbuilt the search earns 🦉 OUTSCOUTED, and the badge
+         only lands if the number it beat is on screen to be beaten. -->
+    {#if capTotal != null && capRec}
       <div class="ceil">
-        {#if ceilUnsound}
-          <span class="ctag">BEST CLUB WE FOUND</span>
-        {:else}
-          <span class="crec">{ceilRec.wins}–{ceilRec.losses}</span>
-          <span class="cpts">{ceilTotal.toFixed(1)} PTS</span>
-        {/if}
+        <span class="crec">{capRec.wins}–{capRec.losses}</span>
+        <span class="cpts">{capTotal.toFixed(1)} PTS</span>
       </div>
     {/if}
     <!-- DRAFTED vs NOT, and the two states are told apart by WEIGHT rather than
