@@ -40,15 +40,26 @@ describe("award pills center their caps, not their font metrics", () => {
 describe("the FRONT OFFICE confirm sits on the market's right edge", () => {
   const rows = read("components/SpecialRows.svelte");
 
-  it("takes the chip inset rule at both padding tiers, base first", () => {
-    // Both the player rows' and FRONT OFFICE rows' confirm pills are direct
-    // flex children carrying their own chip inset margins.
-    const base = rows.indexOf("margin-right: -4px;\n  }\n  @media (min-width: 760px) {");
-    expect(base, "base −4px followed by the wide −8px tier").toBeGreaterThan(-1);
-    // Order is the whole ballgame: a media query adds no specificity.
-    const confirmIdx = rows.indexOf(".confirm {");
-    expect(confirmIdx).toBeGreaterThan(-1);
-    expect(rows.slice(confirmIdx)).toContain("margin-right: -8px;");
+  it("carries no chip inset — every right edge is the row's full padding", () => {
+    // The chip inset rule is RETIRED (PlayerList's .right documents it): a
+    // pulled chip put every chip-terminated row past every text-terminated
+    // one, so nothing here pulls. Rows align because nobody does.
+    expect(rows).not.toContain("margin-right: -");
+  });
+});
+
+describe("flags render on Windows — the polyfill and the stack agree", () => {
+  // Three pieces that only work together: main.ts registers the font on
+  // platforms without flag glyphs, app.css puts it first in the display
+  // stack, and the font's flags-only coverage is what makes leading the
+  // stack safe. Losing any one silently returns Windows to "US ×7".
+  it("main.ts runs the polyfill and --disp leads with its family", () => {
+    const main = read("main.ts");
+    expect(main).toContain('from "country-flag-emoji-polyfill"');
+    expect(main).toContain('polyfillCountryFlagEmojis("Twemoji Country Flags", flagFontUrl)');
+    expect(read("app.css")).toContain(
+      '--disp: "Twemoji Country Flags", "Nunito"',
+    );
   });
 });
 
@@ -78,12 +89,21 @@ describe("the ✕ is drawn, not typed", () => {
 });
 
 describe("review fixes: the two markets share one right edge", () => {
-  it("PrimePicker carries the wide tier's −8px, declared after the base", () => {
-    const src = read("components/PrimePicker.svelte");
-    const base = src.indexOf("margin-right: -4px;");
-    const wide = src.indexOf("margin-right: -8px;");
-    expect(base).toBeGreaterThan(-1);
-    expect(wide, "wide tier present and after the base rule").toBeGreaterThan(base);
+  it("no surface pulls a chip past the row's padding — the inset is retired", () => {
+    // One right edge for market rows, both prime pickers, the front office,
+    // the rail and the finale squads: the retired inset pull must not creep
+    // back into any of them, or that surface's chips overhang the rest.
+    for (const f of [
+      "components/PlayerList.svelte",
+      "components/PrimePicker.svelte",
+      "components/SpecialPrimePicker.svelte",
+      "components/SpecialRows.svelte",
+      "components/RailSeat.svelte",
+      "components/Finale.svelte",
+      "components/HelpModal.svelte",
+    ]) {
+      expect(read(f), f).not.toContain("margin-right: -");
+    }
   });
 });
 
@@ -199,13 +219,13 @@ describe("the empty-front-office bank is From the Ground Up", () => {
   it("modes.ts names it, and the key stays classic", () => {
     const modes = read("lib/modes.ts");
     expect(modes).toContain('name: "From the Ground Up"');
-    expect(modes).toMatch(/classic: \{ emoji: "💼"/);
+    expect(modes).toMatch(/classic: \{ emoji: "🏗️"/);
   });
 
   it("the help sheet teaches the new name", () => {
     const help = read("components/HelpModal.svelte");
     expect(help).toContain("From the Ground Up adds an owner and a ballpark.");
-    expect(help).toContain("<b>💼 From the Ground Up:</b>");
+    expect(help).toContain("<b>🏗️ From the Ground Up:</b>");
     expect(help).not.toContain("Clean House");
   });
 });

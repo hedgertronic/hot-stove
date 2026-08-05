@@ -236,10 +236,10 @@ describe("the help sheet's manager specimen", () => {
     expect(cost).toBeLessThan(war);
   });
 
-  it("spaces the specimen's price column by the market's chip inset rule", () => {
+  it("spaces the specimen's price column exactly as the market does", () => {
     // Same drift risk as the order test above, for the row's geometry: the
-    // market's `.right` holds a 10px salary↔chip gap and pulls the chip 4px
-    // toward the row's stroke (box-against-box wants less air than type).
+    // market's `.right` holds a 10px salary↔chip gap and stops the chip at
+    // the row's full padding (the chip inset rule is retired).
     // Source-text on both files because jsdom computes no layout.
     const read = (f: string) =>
       fs.readFileSync(
@@ -251,24 +251,9 @@ describe("the help sheet's manager specimen", () => {
       // matching bare `.right {` could land on a media-tier override instead.
       const right = read(f).match(/\.right \{[^}]*margin-left: auto[^}]*\}/)?.[0] ?? "";
       expect(right, `${f} .right gap`).toContain("gap: 10px");
-      expect(right, `${f} .right inset`).toContain("margin-right: -4px");
-    }
-    // The wide tier pads player and front-office rows 14px, so both deepen the
-    // inset to −8 — the same 6px seat — or the manager's WINS chip and the
-    // market's WAR column stop sharing a right edge. The two files must move
-    // together; this is the vertical-alignment complaint, pinned.
-    // Whole-file check rather than carving out the media block: both files
-    // keep several 760px blocks and the −8 lives in exactly one of them.
-    // ORDER MATTERS and is the second half of the pin: a media query adds no
-    // specificity, so the −8 override only wins if it is declared AFTER the
-    // base rule that says −4. It shipped once declared before it — present in
-    // the file, dead in the cascade, and the misalignment survived the test.
-    for (const f of ["PlayerList.svelte", "SpecialRows.svelte"]) {
-      const src = read(f);
-      const wide = src.indexOf("margin-right: -8px");
-      const base = src.indexOf("margin-right: -4px");
-      expect(wide, `${f} wide chip inset`).toBeGreaterThan(-1);
-      expect(wide, `${f} wide inset must follow the base rule`).toBeGreaterThan(base);
+      // The retired inset must not creep back into the copy: a specimen that
+      // pulls its chip teaches a row the market no longer draws.
+      expect(right, `${f} .right inset retired`).not.toContain("margin-right: -");
     }
   });
 });

@@ -389,11 +389,11 @@
       min-width: 0;
     }
     /* At desktop the chip group becomes a row: salary left, WAR chip right,
-       the pair pushed to the right edge as a unit. The negative inline-end
-       margin is the CHIP INSET RULE (PlayerList's `.right` documents it): a
-       bordered chip riding against the row's own border wants less air than
-       type does, so the chip sits 6px inside the stroke — the row's 10px
-       padding minus this 4px — while its text stays centered in its own box.
+       the pair pushed to the right edge as a unit and stopped at the row's
+       full padding. The old chip-inset pull (-4px, box-against-box wants
+       less air) is retired on this surface: paired with the label lane's
+       centering slack it left the row heavy-left/cramped-right, and the
+       balanced read matters more than the inset optic.
        The manager's .rwar is a direct child of .mgr (no .chips wrapper) and
        still uses the plain .rwar rule below to push itself right. */
     .chips {
@@ -401,13 +401,6 @@
       gap: 6px;
       margin-top: 0;
       margin-left: auto;
-      margin-right: -4px;
-    }
-    /* The -4px pull above is the chip inset rule — box against box. Bare
-       salary text (Eye Test, no chip) sits at the row's full padding instead:
-       ink against the frame reads cramped at the chip's inset. */
-    .chips.lone {
-      margin-right: 0;
     }
     .sal {
       display: block;
@@ -424,18 +417,22 @@
       align-self: auto;
       margin-top: 0;
       margin-left: auto;
-      margin-right: -4px;
     }
-    /* The 34px label column is what aligns every row's second field, and both
-       chairs speak it in the same tracked caps — MGR is a code like the rest.
-       Centered within the column, the market rows' .pos treatment: the code
-       floats in its lane rather than hugging its left edge. */
+    /* The label column is what aligns every row's second field, sized to its
+       widest word (UTIL) plus a hair — wider just moves the names right and
+       reads as stray air after a two-letter code. Both chairs speak it in the
+       same tracked caps — MGR is a code like the rest.
+       LEFT-aligned in its lane: centered, a two-letter code floated ~11px of
+       slack against the stroke while the chip on the far end sat pulled
+       inside it, and the row read heavy-left/cramped-right. Hugging the lane
+       edge puts the code at the row's own padding, the same air the chip now
+       gets on the other side. */
     .cell b,
     .mgr b {
-      width: 34px;
+      width: 30px;
       flex: none;
       font-size: 9.5px;
-      text-align: center;
+      text-align: left;
     }
     .cell span:not(.chips),
     .mgr span {

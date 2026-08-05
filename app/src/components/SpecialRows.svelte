@@ -292,7 +292,10 @@
   }
   @media (min-width: 760px) {
     .srow {
-      padding: 8px 14px;
+      /* The market rows' desktop frame — 10px horizontal, the phone's own,
+         so the value column's air matches the chip gap (PlayerList's .prow
+         documents the one-number rule). */
+      padding: 8px 10px;
       gap: 12px;
       /* Same arithmetic as PlayerList's .prow: the manager tile's 26.275px WAR
          chip + 16px desktop padding + 5px border = 47.275px, which exceeds the
@@ -385,18 +388,10 @@
   .val:not(.warchip) {
     font-size: 14px;
   }
-  /* PlayerList's CHIP INSET RULE: the skipper's chip is a drawn box ending a
-     drawn row, so it sits 6px inside the stroke where the owner's and
-     stadium's plain-type values keep the full padding. */
-  .val.warchip {
-    margin-right: -4px;
-  }
-  @media (min-width: 760px) {
-    /* The wide tier pads 14px, so the same 6px seat needs a deeper pull. */
-    .val.warchip {
-      margin-right: -8px;
-    }
-  }
+  /* No inset pull on the skipper's chip: it stops at the row's full
+     padding, the same edge the owner's and stadium's plain-type values hold
+     — one right edge down the whole front office (the chip inset rule is
+     retired; PlayerList's .right documents it). */
   /* Stadium is pink, owner is teal, and neither is a WAR-chip rung color
      (the ladder runs red/gray/green/blue/violet/gold) — so neither full-row
      fill can be mistaken for a giant high-WAR chip the way the stadium's old
@@ -466,20 +461,11 @@
   }
   /* The confirm pill base recipe (border, background, padding, etc.) lives in
      app.css. Position deltas only: margin-left: auto pushes the pill to the
-     right edge of the flex row; CHIP INSET RULE, box-against-box arm — the
-     confirm ends a drawn row, so it takes the same 6px seat the skipper's
-     wins chip does, matching PlayerList's .prow > .confirm right edge. */
+     right edge of the flex row and stops at the row's full padding — the
+     same edge the skipper's wins chip and PlayerList's confirms hold (the
+     chip inset rule is retired). */
   .confirm {
     margin-left: auto;
     flex: none;
-    margin-right: -4px;
-  }
-  @media (min-width: 760px) {
-    /* Declared after the base rule — media queries add no specificity, so
-       source order is the only thing letting −8 win at width (the same trap
-       PlayerList's .right documents). */
-    .confirm {
-      margin-right: -8px;
-    }
   }
 </style>

@@ -257,21 +257,15 @@
     flex: none;
     white-space: nowrap;
   }
-  /* Confirm pill sits at the same 6px inset as the .val chip it replaces when
-     a row is armed — 10px padding − 4px margin. The wide tier deepens to −8px
-     so the pill's right edge stays flush with the market's WAR chip column. */
+  /* The confirm stops at the row's full padding, the same edge the value
+     it replaces holds (the chip inset rule is retired). */
   .srow > .confirm {
     flex: none;
-    margin-right: -4px;
   }
   @media (min-width: 760px) {
-    /* The market rows' desktop padding, matching PrimePicker: the -8px pull
-       below needs 14px of row padding to leave the standard 6px inset. */
+    /* The market rows' desktop padding, matching PrimePicker. */
     .srow {
-      padding: 8px 14px;
-    }
-    .srow > .confirm {
-      margin-right: -8px;
+      padding: 8px 10px;
     }
   }
 </style>

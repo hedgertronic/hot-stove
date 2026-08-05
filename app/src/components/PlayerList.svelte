@@ -201,8 +201,11 @@
     </div>
   {/each}
   {#if !expanded && sorted.length > visible.length}
-    <button class="more" onclick={(e) => { e.stopPropagation(); expanded = true; }}>
-      show {sorted.length - visible.length} more ▾
+    <button type="button" class="more" onclick={(e) => { e.stopPropagation(); expanded = true; }}>
+      <!-- The caret rides the label's own size: `.bic` is the EMOJI recipe,
+           pinned at 19px, and a text triangle at emoji size reads as a
+           misprint rather than an icon. -->
+      SHOW {sorted.length - visible.length} MORE ▾
     </button>
   {/if}
 </div>
@@ -245,15 +248,15 @@
   .prow:active {
     transform: translate(-1px, -1px);
   }
-  /* Wide: the market rows are the core read — give the name/sub line and the
-     chips a touch more air (phone packs them by necessity). The chip inset
-     deepens with the padding (−8 against 14px, the same 6px seat the phone's
-     −4 buys against 10px) — SpecialRows' skipper chip runs the identical pair,
-     and the two columns must share one right edge or the FRONT OFFICE chip
-     floats 4px off the market's. */
+  /* Wide: the rows keep the phone's 10px horizontal frame — the widths were
+     14px for a round, and the extra air pushed the position and WAR chips
+     inboard where the phone's tighter frame read better balanced. 10px is
+     also the .right column's own salary↔chip gap, so the chip's air on both
+     sides is ONE number: salary-to-chip equals chip-to-edge, at every width.
+     Only the vertical padding grows with the larger desktop row. */
   @media (min-width: 760px) {
     .prow {
-      padding: 8px 14px;
+      padding: 8px 10px;
       gap: 12px;
       /* At phone, the 26.275px WAR chip + 12px padding + 5px border = 43.275px
          falls below the 46px floor, so min-height binds in both armed and
@@ -350,40 +353,26 @@
   /* min-height = the WAR chip's exact height (13.5px × 1.65 line + 4px
      border), so swapping the chip+price for the shorter confirm pill can't
      change the row height — the tap must not make the card twitch. */
-  /* THE CHIP INSET RULE, stated once and copied by every row that ends in a
-     chip (PrimePicker's .right, the rail's .rwar, SpecialRows' manager chip,
-     the finale squads): the gap between salary and chip is TYPE-against-box
-     and reads at 10px; the gap between chip and row edge is BOX-against-box —
-     two drawn strokes — and wants less air, so the negative margin pulls the
-     chip to 6px inside the row's 10px padding. Before this rule the two were
-     reversed (7px inboard, 10px+ outboard), and the row read as if the chip
-     had drifted off the salary toward nothing. */
+  /* THE CHIP INSET RULE IS RETIRED, everywhere at once (this row, both
+     prime pickers, SpecialRows' skipper chip and confirms, the rail, the
+     finale squads): the chip now stops at the row's FULL padding, exactly
+     where bare type stops. The inset's box-against-box optic put every
+     chip-terminated row 4–8px past every text-terminated one — the market's
+     WAR column overhung the owner's and ballpark's plain values — and one
+     right edge for every row beats the optic. Any new row that ends in a
+     chip gets no pull; the rows only align because nobody does. */
   .right {
     margin-left: auto;
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-right: -4px;
     flex: none;
   }
-  /* The negative pull above is the chip inset rule — box against box. In Eye
-     Test the WAR chip is gated off and the price is bare text, which sits at
-     the row's full padding instead: ink against the frame reads cramped at a
-     box's inset. Wins over both width tiers' pulls on specificity. */
+  /* Eye Test gates the WAR chip off, leaving the price as bare rightmost
+     text; the pinned height is the chip's, so the swap cannot change the
+     row's. */
   .right.lone {
-    margin-right: 0;
     min-height: 26.3px;
-  }
-  /* The wide tier pads 14px, so the same 6px seat needs a deeper pull — the
-     identical −8 SpecialRows' skipper chip carries, or the two columns' right
-     edges split by 4px. THIS BLOCK MUST FOLLOW the base `.right` rule above:
-     the media query adds no specificity, so source order is the only thing
-     that lets −8 beat −4 — declared before the base rule it silently loses at
-     every width, which is exactly how the misalignment shipped once. */
-  @media (min-width: 760px) {
-    .right {
-      margin-right: -8px;
-    }
   }
   /* Salary sits inboard; the WAR chip is flush right, the last thing the eye
      lands on. The chip lives in app.css because PrimePicker draws the same
@@ -460,18 +449,12 @@
     filter: none;
   }
   /* The confirm pill base recipe lives in app.css (.confirm + :focus-visible).
-     Position deltas only: flex: none keeps it from growing; the negative right
-     margin pulls it to the same 6px inset the .right column's chips occupy.
+     Position deltas only: flex: none keeps it from growing; it stops at the
+     row's full padding, the same edge the .right column's chips hold.
      Pinned height (24px = 12px text + 8px pad + 4px border) is enforced by
      the app.css padding asymmetry — no local height rule needed. */
   .prow > .confirm {
     flex: none;
-    margin-right: -4px;
-  }
-  @media (min-width: 760px) {
-    .prow > .confirm {
-      margin-right: -8px;
-    }
   }
   /* Pending pick: the next tap belongs to the rail, not this row — the pill
      goes orange (the rail hint's color) and points up at it. On the pair, so
@@ -495,15 +478,35 @@
       display: inline;
     }
   }
+  /* The list expander, in the system's own button voice: a quiet full-width
+     capsule — cardstock on the structural line, caps at the action-row
+     tracking, the standard press dip and focus ring, and a real tap target.
+     It was bare lowercase text for a long while, the one interactive surface
+     in the game with no border, no dip, and no focus style. Muted rather
+     than ink: it reveals rows, it doesn't commit anything, and the full
+     ink-on-card weight belongs to the rows it reveals. */
   .more {
     text-align: center;
-    font-size: 11.5px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
     color: var(--muted);
-    padding: 8px 0;
+    width: fit-content;
+    justify-self: center;
+    margin-top: 2px;
+    padding: 7px 16px;
     cursor: pointer;
-    background: none;
-    border: 0;
+    background: var(--card);
+    border: 2px solid var(--line);
+    border-radius: 999px;
     font-family: inherit;
+    transition: transform 0.08s;
+  }
+  .more:active {
+    transform: translateY(2px);
+  }
+  .more:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
   }
 </style>

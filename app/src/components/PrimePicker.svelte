@@ -273,28 +273,14 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-right: -4px;
     flex: none;
   }
-  /* Eye Test gates the WAR chip, leaving the price as bare rightmost text —
-     it sits at the row's full padding, not at the box-against-box inset.
-     Same rule as PlayerList's; wins over both width tiers on specificity. */
-  .right.lone {
-    margin-right: 0;
-  }
-  /* The wide tier's deeper pull, same numbers and same source-order caveat as
-     PlayerList's .right: without it this sheet's right edge split 4px from
-     the market's above 760px — exactly the drift the comment below warns two
-     copies invite. */
   @media (min-width: 760px) {
-    /* The market rows' desktop padding, so the -8px chip pull below lands the
-       same 6px inset here as there — a 10px row with an -8px pull leaves the
-       chip 2px off the frame. */
+    /* The market rows' desktop padding, so this sheet's right edge lands
+       where the market's does (the chip inset rule is retired — every chip
+       stops at the row's full padding, PlayerList's .right documents it). */
     .srow {
-      padding: 8px 14px;
-    }
-    .right {
-      margin-right: -8px;
+      padding: 8px 10px;
     }
   }
   /* The WAR chip is one ladder in app.css — this sheet used to carry a second
@@ -322,18 +308,9 @@
   .cost.spendy {
     color: var(--orange);
   }
-  /* Confirm pill sits at the same 6px inset as the .right column it replaces
-     when a row is armed. The base rule matches the row's 10px padding − 4px;
-     the wide tier deepens to −8px to keep this edge flush with the market's
-     WAR chip column above 760px. Source order matters: the media override wins
-     only if it appears after the base rule. */
+  /* The confirm stops at the row's full padding, the same edge the .right
+     column it replaces holds (the chip inset rule is retired). */
   .srow > .confirm {
     flex: none;
-    margin-right: -4px;
-  }
-  @media (min-width: 760px) {
-    .srow > .confirm {
-      margin-right: -8px;
-    }
   }
 </style>

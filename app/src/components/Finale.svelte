@@ -1349,13 +1349,18 @@
   /* --muted-2 on both sub-lines — the same token the rail's seats use, so the
      two roster surfaces read identically. */
   .qpos {
-    width: 36px;
+    /* Sized to UTIL plus a hair, the rail's own lane rule — the column
+       aligns the names without overhanging a short code. */
+    width: 31px;
     font-size: 9.5px;
     font-weight: 800;
     letter-spacing: 0.05em;
     color: var(--muted-2);
     flex: none;
-    text-align: center;
+    /* Left-aligned to the row's padding, matching the rail's seats: centered,
+       a short code floated free of the stroke while the chip sat pulled
+       inside it, and the row read heavy-left/cramped-right. */
+    text-align: left;
   }
   /* Name and badges share a line when they fit; the badges wrap below when a
      decorated player runs out of room (narrow phones). The name never shrinks
@@ -1459,9 +1464,9 @@
   .qrow .warchip {
     margin-left: auto;
     flex: none;
-    /* PlayerList's CHIP INSET RULE: box-against-box wants less air than type,
-       so the chip sits 6px inside the stroke (the row pads 9px). */
-    margin-right: -3px;
+    /* No inset pull: the chip stops at the row's full padding, the same air
+       the position code gets on the left — the balanced read the rail's
+       seats settled on. */
   }
   /* A dream seat the player never signed: the outline goes dashed and the row's
      CONTENTS wash out — name, year, award pills, chip, every part of it at one
@@ -1503,14 +1508,6 @@
     align-items: center;
     margin: 0 0 10px;
     text-align: center;
-  }
-  /* Stands in for the record on the one finale where the number would not be
-     true of the club listed beneath it. */
-  .ctag {
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    color: var(--muted);
   }
   .crec {
     font-size: 24px;

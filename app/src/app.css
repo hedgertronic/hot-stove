@@ -223,9 +223,14 @@
   --orange-8: #e8590c;
   /* The owner's hue — banknote teal, the money man's own color. Off the WAR
      ladder because a full-row fill in a rung hue reads as a giant chip.
-     Verbatim Open Color teal-2/8. */
-  --teal-2: #96f2d7;
-  --teal-8: #099268;
+     SOFTENED OFF-SCALE like its partner: the ballpark's pink below runs
+     deliberately light on both stops, and at verbatim teal-2/8 the owner
+     tile sat a full weight class over the stadium tile beside it — loudest
+     on the payroll line, where the two chips share a row. Fill at OC teal-1,
+     ring at OC teal-7; the token names keep the -2/-8 ROLES (wash / ring),
+     the same convention the pink pair set. */
+  --teal-2: #c3fae8;
+  --teal-8: #0ca678;
   /* The ballpark's hue. It wore orange for a round, and orange turned out to
      be spoken for: it is the ARMED voice (armed pills, confirm hints, and the
      browsable-target rows that now share it), and a resting stadium row in
