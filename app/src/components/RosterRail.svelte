@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
   import { costTier, lastName, money, slotLabel, statValue, warTier } from "../lib/format";
   import { MANAGER_PER_NET_WIN } from "../lib/scoring";
@@ -36,7 +37,43 @@
   $effect(() => {
     if (!pickPlayer) restH = railH;
   });
-  const gapH = $derived(pickPlayer ? restH || railH : 0);
+
+  /** Whether the pick-time pin is actually NEEDED: only when the rail's flow
+   * position is not fully on screen. A player already parked at the top of
+   * the page can see every seat — overlaying a copy of what they are looking
+   * at just eats a rail's height of the list. Checked when the pick starts
+   * and on every scroll/resize while it is in flight, so scrolling down
+   * mid-pick still pins the picker before it leaves the viewport.
+   *
+   * The measured element switches with the state: in flow the rail itself is
+   * the honest rect; pinned, the rail is fixed at the top and the SPACER is
+   * what holds its flow slot, so the spacer answers for it — which is also
+   * what lets a scroll back to the top unpin cleanly. The listener reads
+   * state but runs outside the effect's tracking, so only `pickPlayer`
+   * re-runs the effect. */
+  let wrapEl = $state<HTMLDivElement | null>(null);
+  let gapEl = $state<HTMLDivElement | null>(null);
+  let pinNeeded = $state(false);
+  $effect(() => {
+    if (!pickPlayer) {
+      pinNeeded = false;
+      return;
+    }
+    const check = () => {
+      const el = pinNeeded ? gapEl : wrapEl;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      pinNeeded = r.top < 0 || r.bottom > window.innerHeight;
+    };
+    untrack(check);
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => {
+      window.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+    };
+  });
+  const gapH = $derived(pickPlayer && pinNeeded ? restH || railH : 0);
 
   /** Seat sub-line: season identity only ("2013 OAK") — the value rides the
    * seat's own WAR chip, not this line. */
@@ -68,7 +105,7 @@
   const mgrTier = $derived(game.manager && game.showWar ? warTier(mgrWins) : "");
 </script>
 
-<div class="railwrap disp" class:pinned={!!pickPlayer} bind:clientHeight={railH}>
+<div class="railwrap disp" class:pinned={!!pickPlayer && pinNeeded} bind:this={wrapEl} bind:clientHeight={railH}>
   <div class="psep railhead">YOUR SQUAD</div>
   <div class="rail">
     <!-- The manager's seat leads the card at both widths — on the phone it
@@ -107,7 +144,7 @@
        nudging cells are the cues — one cue per state, no redundant copy. -->
 </div>
 <!-- Placeholder for the pinned rail's vacated flow height (phone only). -->
-{#if gapH}<div class="railgap" style="height:{gapH}px"></div>{/if}
+{#if gapH}<div class="railgap" bind:this={gapEl} style="height:{gapH}px"></div>{/if}
 
 <style>
   /* The rail doubles as the slot/release picker, so it pins to the top only

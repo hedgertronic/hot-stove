@@ -216,6 +216,10 @@
 
   <div class="mast">
     <Logo big />
+    <!-- The pitch, one breath long: what a spin deals, what you do with it,
+         and what the season is for. Three two-word sentences so the whole
+         thing holds one line on a phone. -->
+    <p class="pitch">Spin for teams. Sign players. Chase 162 wins.</p>
   </div>
 
   <!-- The ladder measures how much baseball you already know, not how hard the
@@ -373,9 +377,14 @@
         <div class="bcap">BEST SEASON</div>
         <!-- `.brec` and `.bpts` always render — one at full opacity, one
              hidden — so the card height is the same whether or not a best
-             season exists for the punched combo. -->
+             season exists for the punched combo. The hidden line holds a
+             no-break space, not "": an empty div has no line box, so the
+             column ran one line short and the button's default vertical
+             centering floated the caption and the dash to the middle of the
+             grid-stretched card — the layout only holds if the reserve has
+             actual height. -->
         <div class="brec {season ? season.tier : 'empty'}">{season ? `${season.wins}–${season.losses}` : "—"}</div>
-        <div class="bpts" class:invis={!season}>{season ? `${season.pts} PTS` : ""}</div>
+        <div class="bpts" class:invis={!season}>{season ? `${season.pts} PTS` : "\u00a0"}</div>
       </div>
     </button>
   </div>
@@ -403,6 +412,17 @@
   .mast {
     text-align: center;
     margin-bottom: 26px;
+  }
+  /* The subtitle wears the same caps-meta voice as the mode rows' right-hand
+     labels — a caption, not a headline, so the logo keeps the masthead. */
+  .pitch {
+    margin: 8px auto 0;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--muted);
   }
   .rows {
     display: grid;
@@ -872,11 +892,18 @@
   .book:disabled:active {
     transform: none;
   }
-  /* Each card stacks cap-over-numeral and centers its content vertically. */
+  /* Each card stacks cap-over-numeral. `height: 100%` is the alignment
+     contract: the grid stretches both buttons to one height, and a button
+     vertically CENTERS its content — so if either column ran shorter than
+     its card (different font metrics on .bn vs .brec, a collapsed reserve
+     line), its caption floated below the other's. Filling the button pins
+     both caps to the top edge and both footers to the bottom, whatever the
+     lines in between measure. */
   .bcol {
     display: flex;
     flex-direction: column;
     align-items: center;
+    height: 100%;
   }
   /* The hidden halves of each card's height reserve: both `.bpts` and
      `.btotal` are always in the DOM so card heights do not change between
