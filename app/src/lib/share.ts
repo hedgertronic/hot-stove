@@ -10,14 +10,14 @@ import type { GameIndex, Meta, Owners } from "./types";
  * The shareable result string. Five lines for a clean game, six for one
  * where at least one badge fired:
  *
- *   HOT STOVE 📊🏗️        HOT STOVE 🔭🐘
+ *   HOT STOVE              HOT STOVE 🔭🐘
  *   🟩🟢🔵                 🟨🟡🟣
  *   🟢🔵⚪                 🟡🟣🔵
  *   🟣🟢⚪                 🟡🟣🔵
  *   104–58 💚 #CODE        162–0 💛
  *                          🔱🏆💵🔮
  *
- *   1.   Title — the game, and the two mode emoji that qualify the score.
+ *   1.   Title — the game, and a mode emoji for each OPT-IN mode in play.
  *   2-4. The finished roster as a fixed 3×3: the manager, then the eight
  *        slots in SLOT_TYPES order.
  *   5.   The record line: the win-loss record, then one heart in the
@@ -172,16 +172,21 @@ export function shareGrid(roster: (number | null)[], managerWins: number | null)
   return rows.join("\n");
 }
 
-/** The title line: the game, then both mode emoji, and no digits.
+/** The title line: the game, then a mode emoji per OPT-IN mode, and no
+ * digits. Difficulty leads, bank follows — the HUD chip's order.
  *
- * Both emoji always print, including the `standard`/`classic` defaults the HUD
- * chip suppresses. The HUD can suppress them because you already know your own
- * settings; a share string is read by someone who does not, and a score in Eye
- * Test is not comparable to one in Box Score. A fixed four-character mode
- * stamp keeps every string the same shape, so a friend never has to notice an
- * emoji that isn't there. */
+ * The defaults print NOTHING, exactly as the HUD chip shows nothing for
+ * them: a plain "HOT STOVE" IS the ordinary game, and an emoji only appears
+ * when something out of the ordinary qualifies the score — Eye Test, the
+ * elephant, the blank check. (The title printed both emoji unconditionally
+ * for a round, on the theory that a fixed stamp kept every string one shape;
+ * in practice the default stamps were noise a reader had to learn to skip,
+ * and the HUD had already taught players that emoji mean opt-ins.) */
 export function shareTitle(difficulty: Difficulty, bank: Bank): string {
-  return `HOT STOVE ${DIFFICULTIES[difficulty].emoji}${BANKS[bank].emoji}`;
+  const marks =
+    (difficulty === "standard" ? "" : DIFFICULTIES[difficulty].emoji) +
+    (bank === "classic" ? "" : BANKS[bank].emoji);
+  return marks === "" ? "HOT STOVE" : `HOT STOVE ${marks}`;
 }
 
 /** The win-loss record from the same ladder the finale stamp and the home

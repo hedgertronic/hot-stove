@@ -151,7 +151,7 @@ describe("shareText golden strings", () => {
   it("renders a plain season with no badges: five lines, tier heart trailing the record", () => {
     // BASE: total 104.3 → 104 wins → mid tier (100–115) → 💚
     expect(shareText(BASE)).toBe(
-      ["HOT STOVE 📊🏗️", "🟩🟢🔵", "🟢🔵⚪", "🟣🟢⚪", "104–58 💚"].join("\n"),
+      ["HOT STOVE", "🟩🟢🔵", "🟢🔵⚪", "🟣🟢⚪", "104–58 💚"].join("\n"),
     );
   });
 
@@ -190,7 +190,7 @@ describe("shareText golden strings", () => {
         badges: ["skull", "farm"],
       }),
     ).toBe(
-      ["HOT STOVE 📊💸", "🟥🔴⚪", "⚪🔴⚪", "⚪⚪🔴", "41–121 💔", "💀🚜"].join(
+      ["HOT STOVE 💸", "🟥🔴⚪", "⚪🔴⚪", "⚪⚪🔴", "41–121 💔", "💀🚜"].join(
         "\n",
       ),
     );
@@ -206,7 +206,7 @@ describe("shareText golden strings", () => {
         roster: [2.2, 4.9, 3.0, 1.4, 0.1, 5.5, 2.7, 3.9],
       }),
     ).toBe(
-      ["HOT STOVE 📊🏗️", "⬛🟢🔵", "🟢⚪⚪", "🔵🟢🟢", "89–73 🤍"].join("\n"),
+      ["HOT STOVE", "⬛🟢🔵", "🟢⚪⚪", "🔵🟢🟢", "89–73 🤍"].join("\n"),
     );
   });
 
@@ -221,7 +221,7 @@ describe("shareText golden strings", () => {
       badges: ["dime"],
     });
     expect(s).toBe(
-      ["HOT STOVE 🔭🏗️", "🟦🔵🔴", "🟢🟣🟢", "🔵🟢⚪", "97–65 🤍", "💵"].join("\n"),
+      ["HOT STOVE 🔭", "🟦🔵🔴", "🟢🟣🟢", "🔵🟢⚪", "97–65 🤍", "💵"].join("\n"),
     );
     expect([...s].filter((c) => c === "🔴")).toHaveLength(1);
   });
@@ -229,7 +229,7 @@ describe("shareText golden strings", () => {
   it("trails the record line with a seed code; badges stay on their own line", () => {
     // Seed only (no badges): five lines, seed on line five.
     expect(shareText({ ...BASE, seed: 0xa3f2 })).toBe(
-      ["HOT STOVE 📊🏗️", "🟩🟢🔵", "🟢🔵⚪", "🟣🟢⚪", "104–58 💚 #0000WDU"].join(
+      ["HOT STOVE", "🟩🟢🔵", "🟢🔵⚪", "🟣🟢⚪", "104–58 💚 #0000WDU"].join(
         "\n",
       ),
     );
@@ -495,7 +495,7 @@ describe("the optional seed", () => {
 
 describe("shareTitle", () => {
   it("always stamps both mode emoji, defaults included", () => {
-    expect(shareTitle("standard", "classic")).toBe("HOT STOVE 📊🏗️");
+    expect(shareTitle("standard", "classic")).toBe("HOT STOVE");
     expect(shareTitle("scout", "blankcheck")).toBe("HOT STOVE 🔭💸");
     expect(shareTitle("scout", "moneyball")).toBe("HOT STOVE 🔭🐘");
   });
@@ -609,7 +609,7 @@ describe("cell shapes and colors", () => {
 describe("line width budget", () => {
   /** Line six (the badge run) is now the longest the format can produce.
    * Line five (record + tier heart) tops at 8 code points seedless or 17
-   * with a seed; the title is 12; a grid row is 3. The badge run is the only
+   * with a seed; the widest title is 12 (both opt-ins); a grid row is 3. The badge run is the only
    * line whose length the badge set can grow.
    *
    * Putting badges on their own line closes Round 20's open question in the
@@ -699,13 +699,15 @@ describe("line width budget", () => {
     expect(codePoints(s.split("\n")[5])).toBe(4); // 🔱🏆💵🔮
   });
 
-  it("pins the title's width", () => {
-    // 13, not 12: 🏗️ carries a variation selector, so the classic stamp costs
-    // two code points where 📊 costs one. Every bank's width is pinned so a
-    // future face can widen the title only by failing here first.
-    expect(codePoints(shareTitle("standard", "classic"))).toBe(13);
-    expect(codePoints(shareTitle("standard", "moneyball"))).toBe(12);
-    expect(codePoints(shareTitle("standard", "blankcheck"))).toBe(12);
+  it("pins the title's width per mode combo", () => {
+    // The defaults print nothing: a plain game titles at 9 code points and
+    // each opt-in emoji adds itself (🔭 and 🐘 and 💸 are one code point).
+    // Pinned so a future face can widen a title only by failing here first.
+    expect(codePoints(shareTitle("standard", "classic"))).toBe(9);
+    expect(codePoints(shareTitle("scout", "classic"))).toBe(11);
+    expect(codePoints(shareTitle("standard", "moneyball"))).toBe(11);
+    expect(codePoints(shareTitle("standard", "blankcheck"))).toBe(11);
+    expect(codePoints(shareTitle("scout", "moneyball"))).toBe(12);
   });
 
   it("pins the record line's max width, with and without a seed", () => {
@@ -725,7 +727,7 @@ describe("degenerate inputs", () => {
     expect(
       shareText({ ...BASE, total: 50, managerWins: null, roster: [] }),
     ).toBe(
-      ["HOT STOVE 📊🏗️", "⬛⬛⬛", "⬛⬛⬛", "⬛⬛⬛", "50–112 💔"].join("\n"),
+      ["HOT STOVE", "⬛⬛⬛", "⬛⬛⬛", "⬛⬛⬛", "50–112 💔"].join("\n"),
     );
   });
 
