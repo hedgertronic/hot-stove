@@ -4,3 +4,4 @@ build/raw/
 *.pyc
 DEVLOG.md
 data-backup-pre-trim.tar.gz
+.wrangler/

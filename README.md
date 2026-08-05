@@ -37,6 +37,10 @@ The build is byte-stable. Raw data is snapshotted under `build/raw/` — delete 
 
 Every push to `main` runs tests, then build, then deploys to GitHub Pages via `.github/workflows/deploy.yml`. A failing test blocks the deploy. Pushes that touch only `*.md` or `design/` files skip the workflow.
 
+A Cloudflare Workers deploy of the same bundle lives at `hot-stove.josh-6d6.workers.dev` (`app/wrangler.jsonc` + `app/worker.js`; deploy with `wrangler deploy` from `app/`). It is the staging ground for the planned move to `hedgertronic.com/games/hot-stove` — the route in `wrangler.jsonc` stays commented until the zone is on Cloudflare.
+
+The social-card image (`app/public/og-image.png`) is committed, not built in CI; regenerate it after a branding change with `uv run --with playwright python tools/generate_og_image.py`.
+
 ## Docs
 
 - **SPEC.md** — game rules: loop, spin economy, powerups, scoring, modes.

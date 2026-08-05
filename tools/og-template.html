@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  /* 1200×630 social card in the game's own cardstock voice: the wordmark,
+     the one-line pitch, and a share-string grid as the visual signature.
+     Tokens are copied from app/src/app.css :root — this file renders outside
+     the app, so it cannot read them live. */
+  @font-face {
+    font-family: "Nunito";
+    src: url("../app/src/assets/nunito.woff2") format("woff2");
+    font-weight: 200 1000;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  body {
+    width: 1200px;
+    height: 630px;
+    background: #f6f1e3; /* --ground */
+    color: #24221c;      /* --ink */
+    font-family: "Nunito", sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 72px;
+    padding: 0 48px;
+  }
+  .left { text-align: center; }
+  .logo {
+    font-size: 92px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+  .logo em { font-style: normal; color: #e8590c; } /* --orange-8 */
+  .beta {
+    display: inline-block;
+    vertical-align: 18px;
+    margin-left: 22px;
+    border: 4px solid #c98a08;   /* --gold-8 */
+    border-radius: 999px;
+    background: #ffd43b;         /* --yellow */
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    line-height: 1;
+    padding: 9px 18px;
+  }
+  .pitch {
+    margin-top: 26px;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: #6b6759; /* --muted */
+  }
+  /* The share grid, drawn as chips rather than emoji so the card controls its
+     own palette: manager square, eight player circles, record line under it —
+     the string a finished season texts to a friend. */
+  .card {
+    background: #fffdf6;               /* --card */
+    border: 5px solid #57534a;         /* --line */
+    border-radius: 26px;
+    padding: 36px 44px 30px;
+    text-align: center;
+  }
+  .grid { display: grid; grid-template-columns: repeat(3, 56px); gap: 16px; justify-content: center; }
+  .c { width: 56px; height: 56px; border-radius: 50%; border: 5px solid; }
+  .sq { border-radius: 16px; }
+  .neg   { background: #ffc9c9; border-color: #e03131; }
+  .mid   { background: #b2f2bb; border-color: #2f9e44; }
+  .high  { background: #a5d8ff; border-color: #1971c2; }
+  .star  { background: #d0bfff; border-color: #6741d9; }
+  .elite { background: #ffec99; border-color: #c98a08; }
+  .low   { background: #e8e2d2; border-color: #6b6759; }
+  .rec {
+    margin-top: 24px;
+    font-size: 42px;
+    white-space: nowrap;
+    font-weight: 800;
+    color: #2f9e44; /* --green-8: the century-club rung */
+    letter-spacing: 0.02em;
+  }
+</style>
+</head>
+<body>
+  <div class="left">
+    <div class="logo">HOT<em>STOVE</em></div>
+    <div class="pitch">Spin for teams. Sign players. Chase 162 wins.</div>
+  </div>
+  <div class="card">
+    <div class="grid">
+      <div class="c sq mid"></div><div class="c star"></div><div class="c high"></div>
+      <div class="c mid"></div><div class="c elite"></div><div class="c low"></div>
+      <div class="c high"></div><div class="c mid"></div><div class="c star"></div>
+    </div>
+    <div class="rec">104–58 💚</div>
+  </div>
+</body>
+</html>
