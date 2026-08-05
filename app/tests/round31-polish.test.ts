@@ -176,13 +176,16 @@ describe("the intersection rule", () => {
   });
 });
 
-describe("the relocate grid's seven-column tier", () => {
+describe("the relocate grid balances large divisions across two rows", () => {
   const picker = read("components/TeamPicker.svelte");
 
-  it("keys tighter type off the season's own column count", () => {
-    expect(picker).toContain("class:tight={pickCols >= 7}");
-    const tight = picker.match(/\.pickgrid\.tight \.teambtn \{[^}]*\}/)?.[0] ?? "";
-    expect(tight).toContain("font-size: 12px");
-    expect(tight).toContain("letter-spacing: 0.02em");
+  it("shares one pickerCols count so every tile is the same width", () => {
+    // pickerCols spans the whole picker (seven-team seasons chunk everything
+    // to 4 columns; otherwise the widest division sets the count), and each
+    // division chunks through splitDivision at that shared width. The old
+    // .tight type-size tier is gone with the seven-wide cram.
+    expect(picker).toContain("pickerCols");
+    expect(picker).toContain("splitDivision");
+    expect(picker).not.toContain("class:tight");
   });
 });

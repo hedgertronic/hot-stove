@@ -115,10 +115,74 @@
    * chip is to read both back after they exist. */
   function measure(): void {
     if (!open || !btnEl || !panelEl) return;
-    const row = btnEl.parentElement;
+    // The panel is position:absolute, so its coordinates resolve against the
+    // nearest positioned ancestor — measure against that same box. (The DOM
+    // parent can be display:contents — the passport's .stamps in the finale
+    // strip — and a contents element has no rect to measure.)
+    const row = (btnEl.offsetParent as HTMLElement | null) ?? btnEl.parentElement;
     if (!row) return;
     const rowR = row.getBoundingClientRect();
     const btnR = btnEl.getBoundingClientRect();
+    // Shrink-after-wrap, which CSS cannot do: a wrapped panel's box holds the
+    // 280px cap even when `text-wrap: balance` has evened its lines well
+    // short of it, leaving dead gutters beside centered text. The lines are
+    // measurable here, so the box pulls in to the widest one (plus its own
+    // padding and border). Balance already minimized the max line for this
+    // line count, so re-wrapping at the tighter width keeps the same lines.
+    // jsdom implements neither line rects nor layout, so the shrink is a
+    // browser-only step and the tests exercise placement without it.
+    try {
+      // An unplaced absolute box sizes against the space from its STATIC
+      // position to the row's edge — a chip near the right edge would hand
+      // its panel a sliver, wrap a one-line sentence, and the shrink below
+      // would faithfully lock the wrap in. Pin to the row's origin first so
+      // max-content sizing always sees the full row; place() sets the real
+      // coordinates right after.
+      panelEl.style.left = "0px";
+      panelEl.style.top = "0px";
+      panelEl.style.width = "";
+      const lineRects = () => {
+        // Text nodes only: the notch span draws its own client rect, and
+        // counting it would make every panel read as multi-line.
+        const widths: number[] = [];
+        for (const node of panelEl!.childNodes) {
+          if (node.nodeType !== Node.TEXT_NODE) continue;
+          const range = document.createRange();
+          range.selectNode(node);
+          for (const r of range.getClientRects()) if (r.width > 1) widths.push(r.width);
+        }
+        return { maxW: Math.max(0, ...widths), count: widths.length };
+      };
+      const fit = (lineW: number) => {
+        const chrome = panelEl!.offsetWidth - panelEl!.clientWidth; // borders
+        const pad =
+          parseFloat(getComputedStyle(panelEl!).paddingLeft) +
+          parseFloat(getComputedStyle(panelEl!).paddingRight);
+        // Fractional rect, not offsetWidth: a 216.2px box reads as 216 there,
+        // and clamping to the truncated integer clips a one-line panel by the
+        // fraction its last word needed.
+        const cap = Math.ceil(panelEl!.getBoundingClientRect().width);
+        panelEl!.style.width = `${Math.min(cap, Math.ceil(lineW + pad + chrome) + 1)}px`;
+      };
+      const plain = lineRects();
+      if (plain.maxW > 0) {
+        fit(plain.maxW);
+        // Balance is reserved for panels that genuinely had to wrap: a
+        // one-line panel stays one line (the engine's balancer would split a
+        // sentence with a clean midpoint into two even lines even when one
+        // fits). For a wrapped panel, balance evens the lines and evening
+        // SHRINKS the widest one, so one more fit pulls the box in to the
+        // balanced text: even lines, gutters no wider than the padding.
+        if (plain.count > 1) {
+          panelEl.style.textWrap = "balance";
+          void panelEl.offsetWidth;
+          const balanced = lineRects();
+          if (balanced.maxW > 0) fit(balanced.maxW);
+        }
+      }
+    } catch {
+      /* no line-rect support: keep the CSS-sized box */
+    }
     const pw = panelEl.offsetWidth;
     const ph = panelEl.offsetHeight;
 
@@ -284,6 +348,11 @@
     /* Placed by measurement; unplaced means not yet shown. */
     visibility: hidden;
     margin: 0;
+    /* As wide as the words and no wider: a six-word reveal gets a six-word
+       panel, capped at 280px where a long line starts wrapping. The 100% arm
+       resolves against the positioned row (offsetParent — the full badge
+       strip or band), never a shrink-wrapped group box, so a short passport
+       line and a short badge line get the same treatment. */
     width: max-content;
     max-width: min(280px, 100%);
     border: 2px solid var(--line);
@@ -296,11 +365,14 @@
     letter-spacing: normal;
     text-transform: none;
     padding: 8px 11px;
-    /* Centered, and it survives the whole table because the box is sized to its
-       own text: anything up to the 280px cap gets a one-line panel with nothing
-       to center, and anything past it fills every line but the last, so the two
-       ragged edges stay short. Measured across the shortest trigger (19 chars,
-       one line) and the longest (216 chars, six lines). */
+    /* Centered, and it survives the whole table because the box is sized to
+       its own text: anything up to the 280px cap gets a one-line panel with
+       nothing to center, and a wrapped panel is pulled in to its widest line
+       by measure()'s shrink-after-wrap, so the side gutters never exceed the
+       padding. Deliberately NO `text-wrap: balance` in the STYLESHEET: the
+       panel must first size plain (balance live during sizing wraps lines
+       that had room). measure() turns balance on as an inline style only
+       after the width is explicit, then re-fits to the evened lines. */
     text-align: center;
   }
   /* The panel snaps open with no transition in its pre-animation state —

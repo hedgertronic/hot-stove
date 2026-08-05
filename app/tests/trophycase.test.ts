@@ -74,14 +74,14 @@ describe("badgeCase", () => {
   it("pins the collectible denominator to the badge table", () => {
     // The summary line prints this denominator; it lives in badges.ts, and a
     // table edit must move the fraction here rather than silently anywhere.
-    // The denominator holds at 58 while the table grows to 71: ↩️ SECOND
-    // THOUGHTS is an anti-trophy (ironic), and an anti-trophy belongs to
-    // neither side of the fraction. 🔂 DÉJÀ VU is NOT ironic (it belongs in
-    // the progress fraction as something to chase), so it IS counted alongside
-    // 🦉 OUTSCOUTED and the rest. That gap between the two numbers is the
-    // assertion.
+    // The denominator holds at 58 while the table grows to 72: ↩️ SECOND
+    // THOUGHTS and 🎠 MERRY-GO-ROUND are anti-trophies (ironic), and an
+    // anti-trophy belongs to neither side of the fraction. 🔂 DÉJÀ VU is NOT
+    // ironic (it belongs in the progress fraction as something to chase), so
+    // it IS counted alongside 🦉 OUTSCOUTED and the rest. That gap between
+    // the two numbers is the assertion.
     expect(COLLECTIBLE.length).toBe(58);
-    expect(BADGES.length).toBe(71);
+    expect(BADGES.length).toBe(72);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 
@@ -180,7 +180,7 @@ describe("the trophy case sheet", () => {
     // day and for the same reason.
     seed(game(["crystal", "twoway", "skull"]));
     const body = modal();
-    expect(body).toContain("TROPHY CASE");
+    expect(body).toContain("COLLECTIBLES");
     expect(body).not.toMatch(/\d+ OF \d+/);
     // The reader still computes it — the sheet just stopped printing it.
     expect(badgeCase().earned).toBe(2);
@@ -196,16 +196,16 @@ describe("the trophy case sheet", () => {
     const body = modal();
     expect((body.match(/aria-label="Close"/g) ?? []).length).toBe(1);
     expect((body.match(/>CLOSE</g) ?? []).length).toBe(1);
-    expect((body.match(/TROPHY CASE/g) ?? []).length).toBe(1);
+    expect((body.match(/COLLECTIBLES/g) ?? []).length).toBe(1);
   });
 
   it("keeps the case off the home screen — it opens from the trophy button", () => {
     seed(game(["crystal"]));
     const body = home();
-    expect(body).not.toContain("TROPHY CASE");
+    expect(body).not.toContain("COLLECTIBLES");
     expect(body).not.toContain("CRYSTAL BALL");
     // The button is the only way in, on the home screen and mid-game alike.
-    expect(body).toContain('aria-label="Trophy case"');
+    expect(body).toContain('aria-label="Collectibles"');
   });
 
   it("reveals no trigger text until a badge is opened", () => {
@@ -562,7 +562,7 @@ describe("the trophy case sheet", () => {
   it("says so plainly when nothing is earned yet", () => {
     seed();
     const body = modal();
-    expect(body).toContain("TROPHY CASE");
+    expect(body).toContain("COLLECTIBLES");
     expect(body).not.toMatch(/\d+ OF \d+/);
     expect(body).toContain("No badges yet");
   });

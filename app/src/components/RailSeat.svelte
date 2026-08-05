@@ -29,6 +29,8 @@
     meta = null,
     tier = "",
     war = null,
+    salary = null,
+    salaryTier = "",
     pickable = false,
     specimen = false,
     onclick,
@@ -52,6 +54,17 @@
     /** The chip's value as it should read — "5.2", "+14.0". Bare, no unit:
      * these rows are too small for a WAR/WINS suffix. Null draws no chip. */
     war?: string | null;
+    /** The paid salary formatted by money() — "$12M", "$5.4M". Beside the WAR
+     * chip at desktop width; hidden on the phone while a chip needs the room
+     * (too narrow for both), shown at every width when no chip renders (Eye
+     * Test — salary is a sunk cost, not a talent read, and it takes the
+     * chip's seat). Null omits the element entirely. */
+    salary?: string | null;
+    /** costTier bucket for the salary text — the same green/ink/orange read
+     * the market rows give a price ("cheap" | "mid" | "spendy"), or "" when
+     * no salary shows. Passed as a word, like `tier`, so the seat stays free
+     * of mode logic. */
+    salaryTier?: string;
     /** Armed by the release picker — the armed orange pair, dashed, nudging.
      * Only a player seat is ever pickable; the manager is hired in the front
      * office row. */
@@ -71,14 +84,20 @@
   <button class="cell pickable {rung}" class:vacant={!name} inert={specimen} {onclick}>
     <b>{label}</b>
     {#if name}<span>{name}</span><i>{meta}</i>
-      {#if war}<em class="rwar warchip sm">{war}</em>{/if}
+      {#if salary || war}
+        <span class="chips" class:lone={!war}>
+          {#if salary}<em class="sal {salaryTier}">{salary}</em>{/if}
+          {#if war}<em class="rwar warchip sm">{war}</em>{/if}
+        </span>
+      {/if}
     {/if}
   </button>
 {:else if name && chair === "mgr"}
   <!-- The skipper's chair uses the same upright column layout as the eight
        player seats at all widths: position label, name, WAR chip. The season
        line is hidden on the phone (too narrow) and shown at width, exactly as
-       for the player seats (see .mgr i below). -->
+       for the player seats (see .mgr i below). No salary: the manager's cost
+       is not a Signed.costPaid and the chair carries no salary prop. -->
   <div class="mgr filled {rung}">
     <b>{label}</b>
     <span>{name}</span>
@@ -88,7 +107,12 @@
 {:else if name}
   <div class="cell filled {rung}">
     <b>{label}</b><span>{name}</span><i>{meta}</i>
-    {#if war}<em class="rwar warchip sm">{war}</em>{/if}
+    {#if salary || war}
+      <span class="chips" class:lone={!war}>
+        {#if salary}<em class="sal {salaryTier}">{salary}</em>{/if}
+        {#if war}<em class="rwar warchip sm">{war}</em>{/if}
+      </span>
+    {/if}
   </div>
 {:else}
   <div class="{chair} empty"><b>{label}</b></div>
@@ -146,11 +170,57 @@
      `filled`, so the two states cannot meet on one element. The chip stays
      legible on the orange-2; the frame says "tappable" before anything says
      WAR. */
+  /* The chip group — salary and WAR side by side at desktop, WAR alone on
+     the phone (salary is hidden there; the fixed-width column has no room).
+     On mobile the group is transparent: a centered column wrapper that
+     occupies the same 24.016px (3px margin-top + 21.016px chip) as the bare
+     .rwar did before. The salary element is display:none so the WAR chip
+     inside is the only visible item, and the height budget is unchanged. */
+  .chips {
+    display: flex;
+    align-items: center;
+    align-self: center;
+    margin-top: 3px;
+    flex: none;
+  }
+  /* Salary hides on the phone while a WAR chip needs the room — the 40px
+     content column at the 320px floor cannot hold "$26.1M" beside the
+     36px-min chip without overflow. Desktop restores it in the 760px block
+     below, and `.lone` (no chip — Eye Test) shows it at every width: with
+     the chip gone the salary takes the chip's seat. */
+  .sal {
+    display: none;
+    font-style: normal;
+    font-size: 10.5px;
+    font-weight: 800;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  /* Eye Test: no chip, so the salary is the seat's one figure, shown at every
+     width in the chip's place. */
+  .chips.lone .sal {
+    display: block;
+  }
+  /* The market rows' price read, verbatim: green under $8M, ink through $25M,
+     orange above (costTier in lib/format.ts). */
+  .sal.cheap {
+    color: var(--green);
+  }
+  .sal.spendy {
+    color: var(--orange);
+  }
   .rwar {
     align-self: center;
     margin-top: 3px;
     flex: none;
     font-style: normal;
+  }
+  /* Inside .chips the parent supplies margin-top and centering; the chip
+     itself needs neither. The manager's .rwar is a direct child of .mgr —
+     not inside .chips — so this rule doesn't affect it. */
+  .chips .rwar {
+    margin-top: 0;
+    align-self: auto;
   }
   .cell b {
     display: block;
@@ -158,7 +228,9 @@
     letter-spacing: 0.07em;
     color: var(--muted-2);
   }
-  .cell span {
+  /* The name line only — .chips is also a span in the seat, and it lays out
+     its own flex row, so the block-line treatment must not reach it. */
+  .cell span:not(.chips) {
     display: block;
     font-weight: 800;
     font-size: 11px;
@@ -316,15 +388,38 @@
       flex: 0 1 auto;
       min-width: 0;
     }
-    /* The chip moves to the right edge via `margin-left: auto`. DOM order has
-       the chip last (b, span, i, em.rwar for cells; same for the manager since
-       the markup was simplified to the same structure), so no `order` override
-       is needed — the chip is already the last flex item.
-       The negative inline-end margin is the CHIP INSET RULE (PlayerList's
-       `.right` documents it): a bordered chip riding against the row's own
-       border wants less air than type does, so the chip sits 6px inside the
-       stroke — the row's 10px padding minus this 4px — while its text stays
-       centered in its own box like every other chip. */
+    /* At desktop the chip group becomes a row: salary left, WAR chip right,
+       the pair pushed to the right edge as a unit. The negative inline-end
+       margin is the CHIP INSET RULE (PlayerList's `.right` documents it): a
+       bordered chip riding against the row's own border wants less air than
+       type does, so the chip sits 6px inside the stroke — the row's 10px
+       padding minus this 4px — while its text stays centered in its own box.
+       The manager's .rwar is a direct child of .mgr (no .chips wrapper) and
+       still uses the plain .rwar rule below to push itself right. */
+    .chips {
+      flex-direction: row;
+      gap: 6px;
+      margin-top: 0;
+      margin-left: auto;
+      margin-right: -4px;
+    }
+    /* The -4px pull above is the chip inset rule — box against box. Bare
+       salary text (Eye Test, no chip) sits at the row's full padding instead:
+       ink against the frame reads cramped at the chip's inset. */
+    .chips.lone {
+      margin-right: 0;
+    }
+    .sal {
+      display: block;
+    }
+    /* Inside .chips, the group wrapper handles right-edge placement;
+       the chip itself needs no margin push. */
+    .chips .rwar {
+      margin-left: 0;
+      margin-right: 0;
+    }
+    /* The manager's .rwar is a direct child of .mgr — not inside .chips —
+       so it still needs its own push to the right edge. */
     .rwar {
       align-self: auto;
       margin-top: 0;
@@ -339,7 +434,7 @@
       flex: none;
       font-size: 9.5px;
     }
-    .cell span,
+    .cell span:not(.chips),
     .mgr span {
       font-size: 13px;
       flex: 0 1 auto;

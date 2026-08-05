@@ -13,6 +13,8 @@ import { describe, expect, it } from "vitest";
 
 const components = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../src/components");
 const read = (f: string) => fs.readFileSync(path.join(components, f), "utf8");
+const appSrc = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../src");
+const readSrc = (f: string) => fs.readFileSync(path.join(appSrc, f), "utf8");
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Corner buttons  (? and 🏆)
@@ -140,5 +142,22 @@ describe("PillSlot.svelte — panel entrance animation", () => {
     const placedBlock = src.match(/\.how\.placed\s*\{([^}]*)\}/)?.[1] ?? "";
     // Acceptable: no fill keyword, or `animation-fill-mode: none`. Rejected: both/forwards.
     expect(placedBlock).not.toMatch(/\b(?:both|forwards)\b/);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// iOS :active fix
+// ──────────────────────────────────────────────────────────────────────────────
+describe("main.ts — iOS :active fix", () => {
+  const mainTs = readSrc("main.ts");
+
+  it("registers a passive touchstart listener on document", () => {
+    // iOS Safari only fires :active when a touchstart listener exists anywhere
+    // in the ancestor chain. Without this, press animations (badge slots,
+    // buttons, pickers) are skipped on the first tap and only fire from the
+    // second tap onward. The listener is intentionally a no-op; its presence
+    // is what flips the iOS flag.
+    expect(mainTs).toContain('document.addEventListener("touchstart"');
+    expect(mainTs).toContain("passive: true");
   });
 });

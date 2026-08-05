@@ -169,7 +169,7 @@ describe("SpecialPrimePicker manager rows", () => {
 
   it("the record sits beside the season label, not out at the right edge", async () => {
     const { el, done } = await mounted(SpecialPrimePicker, managerGame(BOX));
-    const row = el.querySelector(".srow:not(:disabled)");
+    const row = el.querySelector(".srow:not(.dead)");
     expect(row).not.toBeNull();
     // Same information order as the FRONT OFFICE manager row: label · record ·
     // pill in one group, the win value alone at the right edge.
@@ -185,7 +185,7 @@ describe("SpecialPrimePicker manager rows", () => {
 
   it("the whole card carries the manager tint, not just the tag", async () => {
     const { el, done } = await mounted(SpecialPrimePicker, managerGame(BOX));
-    const row = el.querySelector(".srow:not(:disabled)") as HTMLElement;
+    const row = el.querySelector(".srow:not(.dead)") as HTMLElement;
     // The tint moved onto the row itself, so the standalone tinted tag is
     // gone: the leading 🧢 is now a bare emoji in the fixed-width type
     // column, exactly like SpecialRows' skipper row. (The pink is a CSS rule

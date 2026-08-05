@@ -280,7 +280,7 @@ describe("SpecialRows parity", () => {
     const gs = forgeGame(CLASSIC, mut);
     const gc = forgeGame(SCOUT, mut);
     for (const body of [ssr(SpecialRows, props(gs)), ssr(SpecialRows, props(gc))])
-      expect(body).toContain("🔁 TRADE IN");
+      expect(body).toContain(">TRADE IN<");
   });
 });
 

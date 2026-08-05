@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import index from "../../data/index.json";
-import { DIVISIONS, divisionsForYear } from "../src/lib/divisions";
+import { DIVISIONS, divisionsForYear, pickerCols, splitDivision } from "../src/lib/divisions";
 import type { IndexEntry } from "../src/lib/types";
 
 const cards = (index as { cards: IndexEntry[] }).cards;
@@ -8,6 +8,60 @@ const rowsFor = (year: number) =>
   cards.filter((c) => c.year === year).sort((a, b) => a.name.localeCompare(b.name));
 const labelOf = (year: number, team: string) =>
   divisionsForYear(rowsFor(year)).find((d) => d.teams.some((t) => t.team === team))?.label;
+
+describe("pickerCols", () => {
+  // One column count for the whole picker keeps every team tile the same
+  // width regardless of division size.
+  it("uses the widest division when no division reaches seven", () => {
+    expect(pickerCols([5, 5, 4, 5, 6, 5])).toBe(6); // 2002 shape
+    expect(pickerCols([5, 5, 5, 5, 5, 5])).toBe(5); // modern shape
+    expect(pickerCols([4, 4])).toBe(4);
+  });
+
+  it("drops to four columns when a seven-team division appears", () => {
+    expect(pickerCols([7, 7, 6, 6])).toBe(4); // 1985–1992 shape
+    expect(pickerCols([7, 7, 7, 7])).toBe(4); // 1993 shape
+  });
+});
+
+describe("splitDivision", () => {
+  // Plain string arrays keep the helper generic; the flat() invariant catches
+  // an off-by-one at the slice boundary in addition to verifying the shape.
+  const teams = (n: number) => Array.from({ length: n }, (_, i) => String(i));
+
+  it("5 teams at 5 cols → one row, order preserved", () => {
+    const t = teams(5);
+    const rows = splitDivision(t, 5);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveLength(5);
+    expect(rows.flat()).toEqual(t);
+  });
+
+  it("6 teams at 6 cols → one row (a 6-max season never chunks)", () => {
+    const t = teams(6);
+    const rows = splitDivision(t, 6);
+    expect(rows).toHaveLength(1);
+    expect(rows.flat()).toEqual(t);
+  });
+
+  it("6 teams at 4 cols → 4+2, order preserved", () => {
+    const t = teams(6);
+    const rows = splitDivision(t, 4);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveLength(4);
+    expect(rows[1]).toHaveLength(2);
+    expect(rows.flat()).toEqual(t);
+  });
+
+  it("7 teams at 4 cols → 4+3, order preserved", () => {
+    const t = teams(7);
+    const rows = splitDivision(t, 4);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveLength(4);
+    expect(rows[1]).toHaveLength(3);
+    expect(rows.flat()).toEqual(t);
+  });
+});
 
 describe("fallback division map", () => {
   const mapped = DIVISIONS.flatMap((d) => d.franchises);

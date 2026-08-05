@@ -76,16 +76,13 @@
 </div>
 
 <style>
+  /* No box of its own: each stamp is a flex item of whatever row the caller
+     puts this component in (the finale's .badge-strip), so stamps flow inline
+     with badge pills and wrap mid-passport when the row runs out. An open
+     stamp's panel positions against that row too — PillSlot measures its
+     offsetParent, and the caller's row carries `position: relative` as its
+     side of the contract. */
   .stamps {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px;
-    /* PillSlot's contract: this is the containing block for an open stamp's
-       panel, which is both the coordinate origin and the horizontal fence. The
-       finale's own `.clubpass` deliberately sets no `position` — a persistent
-       transform or an overflow there would clip, re-origin or trap a panel — so
-       the fence lives here, inside the component that draws the row. */
-    position: relative;
+    display: contents;
   }
 </style>

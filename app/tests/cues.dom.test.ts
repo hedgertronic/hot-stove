@@ -85,7 +85,7 @@ describe("the trophy cue", () => {
     played(["crown", "mariners"]);
     const ui = open();
     expect(ui.trophy.classList.contains("cue")).toBe(false);
-    expect(ui.trophy.getAttribute("aria-label")).toBe("Trophy case");
+    expect(ui.trophy.getAttribute("aria-label")).toBe("Collectibles");
     ui.close();
   });
 
@@ -94,7 +94,7 @@ describe("the trophy cue", () => {
     const ui = open({ newBadges: ["crown"] });
     flushSync();
     expect(ui.trophy.classList.contains("cue")).toBe(true);
-    expect(ui.trophy.getAttribute("aria-label")).toBe("Trophy case: 1 new badge");
+    expect(ui.trophy.getAttribute("aria-label")).toBe("Collectibles: 1 new badge");
     expect(cues().pendingBadges).toEqual(["crown"]);
     ui.close();
   });
@@ -102,7 +102,7 @@ describe("the trophy cue", () => {
   it("counts plurals in the label", () => {
     const ui = open({ newBadges: ["crown", "mariners"] });
     flushSync();
-    expect(ui.trophy.getAttribute("aria-label")).toBe("Trophy case: 2 new badges");
+    expect(ui.trophy.getAttribute("aria-label")).toBe("Collectibles: 2 new badges");
     ui.close();
   });
 
@@ -132,7 +132,7 @@ describe("the trophy cue", () => {
     ui.trophy.click();
     flushSync();
     expect(ui.trophy.classList.contains("cue")).toBe(false);
-    expect(ui.trophy.getAttribute("aria-label")).toBe("Trophy case");
+    expect(ui.trophy.getAttribute("aria-label")).toBe("Collectibles");
     expect(cues().pendingBadges).toEqual([]);
     ui.close();
 

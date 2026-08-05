@@ -91,19 +91,24 @@
      flex container a run of text and a run of whitespace become one anonymous
      item, so a newline between two bare `{...}` tags renders as a real space
      that `gap` cannot see or control. Wrapping the glyph and the label makes
-     each one an item, which is what puts the spacing entirely in CSS. -->
+     each one an item, which is what puts the spacing entirely in CSS.
+     Every run of TYPE also wears `.chiplbl` — app.css trims those to the cap
+     band on engines that can measure one, and the trim only reaches a run that
+     is an element. The flag stays bare: it carries no cap band, and the box
+     centers it. -->
 <span
-  class="pill {hook} {rarity ?? ''}"
+  class="chipbox pill {hook} {rarity ?? ''}"
   class:locked
   class:animate
   class:withnew={fresh && !locked}
   style:animation-delay={animate && delay > 0 ? `${delay}s` : null}
   {title}
->{#if fresh && !locked}<span class="newchip">NEW</span>{/if}{#if emoji}<span
+>{#if fresh && !locked}<span class="chipbox newchip"><span class="chiplbl">NEW</span></span
+    >{/if}{#if emoji}<span
       class="ico">{emoji}</span
-    >{/if}{#if placeholder}<span aria-hidden="true">? ? ?</span>{:else if label}<span
-      class="name">{label}</span
-    >{/if}{#if count !== null}<span class="count">×{count}</span>{/if}{#if srLabel}<span
+    >{/if}{#if placeholder}<span class="chiplbl" aria-hidden="true">? ? ?</span>{:else if label}<span
+      class="name chiplbl">{label}</span
+    >{/if}{#if count !== null}<span class="count chiplbl">×{count}</span>{/if}{#if srLabel}<span
       class="sr">{srLabel}</span
     >{/if}</span
 >
@@ -122,16 +127,21 @@
      Flex, so the spacing between the chip, the glyph and the label is one
      structural `gap` rather than a mix of margins and rendered markup spaces,
      and so `align-items` centers the parts for real instead of nudging them
-     with `vertical-align`. */
+     with `vertical-align`. That flex box, its 26px of stated height, its own
+     Nunito and its own leading are app.css's `.chipbox` — the shared recipe every
+     small pill in the game draws through. Only what makes this one a badge or a
+     stamp is written below.
+     The height is what puts the NEW chip in the same place on both surfaces.
+     Left to inherit, the pill's content box was 10.5px of type at the page's
+     1.55 leading — 16.275px — so the 12px NEW chip floated in whatever slack
+     the surrounding leading happened to leave. */
   .pill {
-    display: inline-flex;
-    align-items: center;
+    --chip-h: 26px;
     border-width: 2px;
     border-style: solid;
     font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.06em;
-    white-space: nowrap;
   }
   /* ---- THE CAPSULE: a badge ----
      The ladder's pair spent on a 999px shape. Untiered it falls back to what
@@ -141,13 +151,7 @@
     border-color: var(--rarity-line, var(--line));
     border-radius: 999px;
     background: var(--rarity-fill, var(--gray-bg));
-    /* app.css's optical centering rule: badge labels are all caps, so the cap
-       band's center is the target, and 0.047 × 10.5 = 0.49px of it has to sit
-       above the type rather than below. Split out of the 6px the pill already
-       spent (3.25 + 2.75), so the pill's height is exactly what it was. The
-       NEW chip rides the same content box, so correcting the pill re-centers
-       the chip with it. */
-    padding: 3.25px 12px 2.75px;
+    padding-inline: 12px;
   }
   /* ---- THE RECTANGLE: a country ----
      A stamp, not a pill. A country wears a small radius because a country is
@@ -166,7 +170,7 @@
     border-radius: 4px;
     background: var(--rarity-fill, var(--card));
     color: var(--rarity-ink, var(--muted-2));
-    padding: 3px 7px;
+    padding-inline: 7px;
   }
   /* A flag runs a little larger than the type it sits beside: an emoji set at
      the size of small caps reads as a smudge, and the flag is the only part of
@@ -178,9 +182,9 @@
   }
   /* When a chip opens with the NEW chip, the chip sits in an even well of paper
      rather than being pushed off the left edge — and "even" here is optical,
-     not arithmetic. The pill's height leaves ~7px of paper above and below a
-     chip this tall; 6px of padding against the 2px border puts 8px to its left,
-     and that unequal pair is what reads as equal. A solid ink shape with a hard
+     not arithmetic. The pill's 26px leaves 5px of paper above and below a 12px
+     chip; 6px of padding against the 2px border puts 8px to its left, and that
+     unequal pair is what reads as equal. A solid ink shape with a hard
      edge and no side bearing needs a little more clearance than a
      geometrically identical gap, the same reason optically centered type sits
      off the mathematical center. Matching the numbers exactly was tried and

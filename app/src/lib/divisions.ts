@@ -20,6 +20,25 @@ export interface DivisionGroup {
   teams: IndexEntry[];
 }
 
+/** Column count shared by every division grid in one picker, so team tiles
+ * are the same width everywhere. Seven-team seasons (pre-1994) are too wide
+ * for one row, so the whole picker chunks to 4 columns (7 → 4+3, 6 → 4+2);
+ * otherwise the widest division's size is the row width and shorter divisions
+ * pad with empty grid slots. */
+export function pickerCols(sizes: number[]): number {
+  const max = Math.max(0, ...sizes);
+  return max >= 7 ? 4 : max;
+}
+
+/** Chunks a division's teams into display rows of `cols`, in order:
+ * 7 teams at 4 cols → 4+3, 6 → 4+2, n ≤ cols → one row. */
+export function splitDivision<T>(teams: T[], cols: number): T[][] {
+  if (cols <= 0 || teams.length <= cols) return [teams];
+  const rows: T[][] = [];
+  for (let i = 0; i < teams.length; i += cols) rows.push(teams.slice(i, i + cols));
+  return rows;
+}
+
 /** Groups one season's index rows by that season's actual league + division
  * (`lg`/`div`, emitted from Lahman Teams). Era-correct: pre-1994 years yield
  * four groups (no Central), Houston is NL through 2012, Milwaukee AL through

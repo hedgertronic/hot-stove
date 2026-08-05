@@ -86,27 +86,45 @@
 
    ---------- THE OPTICAL CENTERING RULE ----------
 
-   Nunito's em box is not centered on its capitals, so a chip with symmetric
-   padding renders with its type sitting visibly high. The bundled file reports
+   Nunito's em box is not centered on its capitals. The bundled file reports
    ascent 1.011em, descent 0.353em, cap height 0.705em. That puts a line box's
    content area at 1.364em and the center of the cap band at 0.6585em below the
-   line box's top edge — 0.0235em ABOVE the box's own middle. Doubling that gap
-   gives the one correction every all-caps chip in the game carries:
+   line box's top edge — 0.0235em ABOVE the box's own middle. So all-caps type
+   centered by its line box rides that far high: 0.2px at 8.5px, 0.32px at
+   13.5px. Half a device pixel at 3×, and the same number in every chip.
 
-       (border-top + padding-top) − (padding-bottom + border-bottom)
-           = 0.047 × font-size
+   IT IS CORRECTED BY MEASUREMENT WHERE THE ENGINE OFFERS ONE. A chip's text
+   run lives in a `.chiplbl` element, and the `.chipbox` recipe's @supports
+   branch gives that element `text-box: trim-both cap alphabetic`: the engine
+   trims the label's line box to the cap band itself, so flex centering lands
+   the caps on center with no constant involved. The same branch zeroes the
+   chip's padding, because a measured trim and a hand constant would stack.
 
-   ≈0.4px at 8.5–9px type, ≈0.56px at 12px, ≈0.64px at 13.5px. It is small, it
-   is the same number every time, and it is why these paddings are asymmetric to
-   a hundredth of a pixel instead of round. Every pill that pins a HEIGHT pays
-   the correction out of that height rather than on top of it, because the
-   heights are load-bearing elsewhere.
+   THE CONSTANT IS THE FALLBACK, and it lives in exactly one place: the
+   `.chipbox` recipe below carries `padding-block: 0.047em 0`. It is safe
+   there and nowhere else because its gain depends on the box model — full
+   measure where padding sets the height, HALF measure in a box that pins a
+   height and flex-centers, zero where a flex parent stretches — and every
+   chip in the recipe is the same box: pinned height, centered content. Half
+   of 0.047em is the 0.0235em the caps ride high, so the one declaration lands
+   every chip's cap band on its geometric middle. Written in em so it scales
+   with each chip's own type, and never re-spent per chip: a second copy
+   anywhere would double it. It is also only ever RIGHT ON ONE ENGINE — WebKit
+   and Blink place a line box's baseline inside a flex item's strut
+   differently — which is what the trim branch exists to end.
 
-   IT APPLIES TO ALL-CAPS TEXT AND DIGITS ONLY. Both sit in one band —
-   measured out of the file, flat caps run 0 to 705, round caps and digits
-   overshoot to −8/713, so the band's center lands on cap-height/2 either way.
-   A mixed-case label (the .btn row, a player's name) has real descenders, and
-   for those the box's own middle is already the honest target. */
+   `.warchip` is the one recipe that still spends the correction, out of its
+   leading rather than on top of it. Its 26.275px is reserved by market rows
+   and by the manager's chair, which draw it under `writing-mode: sideways-lr`;
+   a stated height and a flex box would move both. It is padding-driven and
+   auto-height, so its correction lands at full measure — the one box model the
+   arithmetic is actually true for.
+
+   IT DESCRIBES ALL-CAPS TEXT AND DIGITS ONLY. Both sit in one band — measured
+   out of the file, flat caps run 0 to 705, round caps and digits overshoot to
+   −8/713, so the band's center lands on cap-height/2 either way. A mixed-case
+   label (the .btn row, a player's name) has real descenders, and for those the
+   box's own middle is already the honest target. */
 
 /* Bundled rounded display face: ui-rounded is Safari-only (Chrome would fall
    back to Hiragino Maru Gothic), so every browser gets the same Nunito file. */
@@ -382,9 +400,9 @@ button {
    home are one control in two places: equal cells, 48px tall, 13px display
    caps, the glyph above. Held here so the two rows cannot drift the way their
    glyph sizes and their capitalization already had.
-   The padding is asymmetric by app.css's optical centering rule — these labels
-   are all-caps, so the correction applies: 0.047 × 13px = 0.61px more above
-   than below. */
+   The cell is a 48px flex box that centers its contents, so the padding is a
+   minimum around the label rather than what places it: symmetric, with nothing
+   for a wrapped two-line label to sit off-center against. */
 .btnrow {
   display: grid;
   gap: 9px;
@@ -395,7 +413,7 @@ button {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 7.31px 8px 6.69px;
+  padding: 7px 8px;
   font-size: 13px;
   letter-spacing: 0.04em;
 }
@@ -700,28 +718,127 @@ button {
   --rarity-line: var(--war-neg);
 }
 
+/* ---------- THE CHIP ----------
+   One box, one way of centering, for every small pill, tile and count in the
+   game. A chip states four things about itself and inherits none of them:
+
+     font-family   var(--disp). The `.disp` class is applied per SURFACE, not
+                   at the root, so a chip drawn outside one rendered in the
+                   body's -apple-system while the identical chip inside a sheet
+                   rendered in Nunito. Two typefaces, two sets of metrics, one
+                   set of hand-tuned paddings — and the finale's badge strip
+                   was the surface where the tuned numbers were wrong, sitting
+                   inches from passport stamps that had them right.
+     line-height   1. Without it a chip's content box is sized by the page's
+                   paragraph rhythm (1.55), so the chip's height — and the
+                   slack any non-text part of it floats in — moved whenever an
+                   ancestor's leading did.
+     height        var(--chip-h), with the border inside it (box-sizing is
+                   border-box globally). REQUIRED: every consumer sets it. It
+                   is what makes the box independent of its contents, so a
+                   glyph from the emoji face cannot stand a chip taller than
+                   the one beside it.
+     centering     align-items / justify-content. Geometric, not typographic.
+
+   NO ASYMMETRIC VERTICAL PADDING IN ANY CONSUMER, deliberately. Hand-spent
+   corrections are what kept regressing: padding shifts the caps by its full
+   measure in a chip whose height comes from that padding, by HALF of it in a
+   chip that pins a height and centers inside it, and by nothing at all in a
+   chip a flex parent stretches — one declaration, three different results,
+   decided by whichever container the chip was dropped into last. The recipe
+   below is the single exception, and it is safe BECAUSE the recipe is also
+   what makes every chip the same box: the optical rule's 0.047em pair lives
+   there once, at the pinned-height half gain, and a consumer that wrote its
+   own would be double-paying it.
+
+   THE TEXT IS TRIMMED BY THE ENGINE WHERE THE ENGINE CAN DO IT. A constant
+   is a guess about where an engine puts a baseline inside a flex item's
+   strut, and WebKit and Blink distribute and round that leading differently:
+   one number seats the caps on center in Chrome and half a pixel high in
+   Safari. `text-box: trim-both cap alphabetic` replaces the guess with a
+   measurement — the engine trims the label's line box to the cap band, and
+   flex centering then has nothing left to get wrong on either engine.
+
+   IT ONLY BITES ON A BLOCK CONTAINER, which is why every chip's text run is
+   wrapped in a `.chiplbl` element. text-box trims the first and last line
+   boxes of a block container; a chip is an inline-flex box whose bare text is
+   an ANONYMOUS flex item, unreachable by any selector. Set on the chip it is
+   a silent no-op, and an @supports branch that retires the padding in
+   exchange for it leaves the correction simply gone on the engines that take
+   the branch. Wrapped, the run is a real flex item — blockified, so it is a
+   block container — and the trim lands.
+
+   The trade is ATOMIC: the same @supports block that applies the trim zeroes
+   the padding. On a trim-capable engine (Safari 18.2+, Chrome 133+) the hand
+   constant retires and the label measures itself; on an older engine the
+   0.047em pair stands and the label is an ordinary flex item. Neither half
+   ships without the other.
+
+   A NON-TEXT PART OF A CHIP IS CENTERED BY THE BOX ALONE. Emoji, glyph arrows
+   and the inset NEW chip stay bare flex items: they carry no cap band, and
+   under the trim branch the chip's own padding is zero, so they sit on the
+   geometric middle rather than the quarter pixel low the fallback's padding
+   leaves them.
+
+   THE HEIGHTS ARE WHOLE PIXELS. A chip 15.5px tall puts its bottom border edge
+   on a half of a device pixel at 2× and 3×, and a border painted across half a
+   pixel reads as an outline that fades out top and bottom rather than one that
+   is drawn. Integers land on the grid at every density.
+
+   A chip joins by wearing `.chipbox`. `.confirm` joins by selector instead: its
+   markup is written in PlayerList and SpecialRows, and the recipe reaches it
+   here without either file having to spell the class. A component's own scoped
+   rules outrank this one, so its deltas — a border, a wash, a size — layer on
+   top without a specificity fight, the same arrangement `.prow-btn` uses. */
+.chipbox,
+.confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--chip-h);
+  /* The optical centering rule, spent once at this box model's half gain:
+     0.047em of top padding seats Nunito's cap band 0.0235em lower, onto the
+     pinned box's geometric middle. */
+  padding-block: 0.047em 0;
+  font-family: var(--disp);
+  line-height: 1;
+  white-space: nowrap;
+}
+/* A chip's text run, as an element the trim can reach. Every direct child of a
+   flex container is blockified already, so the declaration is what carries the
+   requirement to the one label that is ever nested, and what makes the class
+   mean "this box holds type" rather than "this box happens to be a flex item". */
+.chiplbl {
+  display: block;
+}
+@supports (text-box: trim-both cap alphabetic) {
+  .chipbox,
+  .confirm {
+    padding-block: 0;
+  }
+  .chiplbl {
+    text-box: trim-both cap alphabetic;
+  }
+}
+
 /* ---------- the NEW chip ----------
    First-ever earn, on a badge pill and on a passport stamp: a filled ink chip
    with the word in it. A chip rather than a glow or a ring because both of the
    other channels are already spent on rarity — a gold ring around a new RARE
    would read as an ULTRA — and an inset chip borrows neither.
-   Its own line-height, not the page's 1.55: as a flex item the chip is a box,
-   and an inherited factor would size that box off the paragraph rhythm rather
-   than off the chip. 1.2 plus 2px of padding is the whole 12.2px height, which
-   clears the pill's inner edge top and bottom.
-   The chip is the one place in either shape where the type has a hard edge of
-   its own to be centered against — an ink rectangle with no side bearing — so
-   app.css's optical centering rule is at its most visible here, and NEW is the
-   shortest, boldest, most-looked-at word on the finale. 0.047 × 8.5 = 0.40px of
-   the 2px goes above the caps rather than below (1.2 / 0.8). */
+   The one place in either shape where the type has a hard edge of its own to be
+   centered against — an ink rectangle with no side bearing, and the shortest,
+   boldest, most-looked-at word on the finale. It is drawn by `.chipbox`: 12px of
+   stated height with the word centered in it, so the same three declarations
+   answer for it on the finale and in the trophy case. */
 .newchip {
+  --chip-h: 12px;
   border-radius: 999px;
   background: var(--ink);
   color: var(--card);
   font-size: 8.5px;
   letter-spacing: 0.1em;
-  line-height: 1.2;
-  padding: 1.2px 5px 0.8px;
+  padding-inline: 5px;
 }
 
 /* ---------- the shared confirm pill ----------
@@ -729,19 +846,20 @@ button {
    the FRONT OFFICE rows (SpecialRows). Each component keeps only its own
    flex-position delta (margin-left: auto for SpecialRows; flex: none and
    margin-right inset for both); the core pill lives here so the two surfaces
-   cannot drift. The 8px of padding splits 4.28 / 3.72 — the optical centering
-   rule at 12px type (0.047 × 12 = 0.56px), paid out of the 24px pinned height
-   so the row never twitches when the pill appears. */
+   cannot drift. The 24px height is pinned so the row never twitches when the
+   pill appears, and the label is centered in it by `.chipbox`. */
 .confirm {
+  --chip-h: 24px;
   border: 2px solid var(--line);
   border-radius: 999px;
   background: var(--ink);
   color: var(--card);
   font-weight: 800;
   font-size: 12px;
-  line-height: 1;
-  padding: 4.28px 12px 3.72px;
-  white-space: nowrap;
+  padding-inline: 12px;
+  /* A real button whose row sets cursor context — the pill is always the
+     committing tap, so it always promises one. */
+  cursor: pointer;
 }
 /* Ink fill on dark background — browser default focus ring may not read.
    Inset blue ring matches the .btn:focus-visible and seedgo recipes. */

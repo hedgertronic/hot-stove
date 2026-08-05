@@ -369,7 +369,7 @@
     </span>
     <span class="right">
       {#if hint}
-        <span class="confirm hint">{hint}</span>
+        <span class="confirm hint"><span class="chiplbl">{hint}</span></span>
       {:else}
         <span class="cost {costTier(p.cost)}">{money(p.cost)}</span>
         <span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>
@@ -907,11 +907,11 @@
     border-color: var(--gray-ink);
     opacity: 0.55;
   }
-  /* The pending pill, PlayerList's numbers exactly — 24px tall (12px type, 8px
-     of padding, 4px of border) so the row does not change height when the chip
-     and the price step aside for it, and the 8px split 4.28 / 3.72 by app.css's
-     optical centering rule at 12px type. Orange because the next tap belongs to
-     the rail: the pill is an arrow, not a button. */
+  /* The pending pill, PlayerList's numbers exactly — the 24px .confirm box
+     from app.css's chip recipe (flex-centered at --chip-h, symmetric padding)
+     so the row does not change height when the chip and the price step aside
+     for it. Orange because the next tap belongs to the rail: the pill is an
+     arrow, not a button. */
   .confirm.hint {
     border: 2px solid var(--orange-8);
     border-radius: 999px;
@@ -920,7 +920,7 @@
     font-weight: 800;
     font-size: 12px;
     line-height: 1;
-    padding: 4.28px 12px 3.72px;
+    padding-inline: 12px;
     white-space: nowrap;
   }
   .prow.dead > .pos,

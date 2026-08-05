@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { lastName, slotLabel, statValue, warTier } from "../lib/format";
+  import { costTier, lastName, money, slotLabel, statValue, warTier } from "../lib/format";
   import { MANAGER_PER_NET_WIN } from "../lib/scoring";
   import type { CardPlayer } from "../lib/types";
   import RailSeat from "./RailSeat.svelte";
@@ -96,6 +96,8 @@
         meta={slot ? seatMeta(slot) : null}
         tier={tierOf(slot)}
         war={slot && game.showWar ? slot.war.toFixed(1) : null}
+        salary={slot ? money(slot.costPaid) : null}
+        salaryTier={slot ? costTier(slot.costPaid) : ""}
         pickable={pickableCells.has(i)}
         onclick={() => tapCell(i)}
       />

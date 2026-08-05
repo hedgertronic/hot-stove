@@ -1,6 +1,6 @@
 <script lang="ts">
   import { accentFor } from "../lib/data";
-  import { divisionsForYear } from "../lib/divisions";
+  import { divisionsForYear, pickerCols, splitDivision } from "../lib/divisions";
   import type { Game } from "../lib/engine.svelte";
   import type { Colors } from "../lib/types";
   import Sheet from "./Sheet.svelte";
@@ -12,14 +12,6 @@
   // 2013, etc. tests/divisions.test.ts pins the discriminating cases.
   const divisions = $derived.by(() =>
     game.card ? divisionsForYear(game.teamsForYear(game.card.year)) : [],
-  );
-
-  // Column count for the team grid: derived from the widest division in this
-  // season so every group fills exactly one row. Pre-expansion eras can have
-  // 4-team divisions (orphan tile in a 5-column grid); current MLB has 5.
-  // Falls back to 5 if the divisions array is empty (no card loaded yet).
-  const pickCols = $derived(
-    divisions.length === 0 ? 5 : Math.max(1, ...divisions.map((d) => d.teams.length)),
   );
 
   function pick(team: string) {
@@ -34,24 +26,28 @@
   title="🚚 RELOCATE: ANY {game.card?.year ?? ''} CLUB"
   confirmLabel="CANCEL"
 >
+  {@const cols = pickerCols(divisions.map((d) => d.teams.length))}
   {#each divisions as d (d.label)}
+    {@const rows = splitDivision(d.teams, cols)}
     <div class="div-h">{d.label}</div>
-    <div class="pickgrid" class:tight={pickCols >= 7} style="--div-cols: {pickCols}">
-      {#each d.teams as t (t.team)}
-        <button
-          class="pickopt teambtn"
-          disabled={t.team === game.card?.team}
-          style:--accent={accentFor(colors, t.franchise)}
-          title={t.name}
-          onclick={() => pick(t.team)}
-        >
-          <!-- Box Score gets the season's October history on the grid
-               (💍 champ, 🚩 pennant winner); Eye Test stays bare codes. -->
-          {t.team}{#if game.showAwards}{#if t.ws}<span class="pedi">💍</span
-            >{:else if t.pen}<span class="pedi">🚩</span>{/if}{/if}
-        </button>
-      {/each}
-    </div>
+    {#each rows as row}
+      <div class="pickgrid" style="--div-cols: {cols}">
+        {#each row as t (t.team)}
+          <button
+            class="pickopt teambtn"
+            disabled={t.team === game.card?.team}
+            style:--accent={accentFor(colors, t.franchise)}
+            title={t.name}
+            onclick={() => pick(t.team)}
+          >
+            <!-- Box Score gets the season's October history on the grid
+                 (💍 champ, 🚩 pennant winner); Eye Test stays bare codes. -->
+            {t.team}{#if game.showAwards}{#if t.ws}<span class="pedi">💍</span
+              >{:else if t.pen}<span class="pedi">🚩</span>{/if}{/if}
+          </button>
+        {/each}
+      </div>
+    {/each}
   {/each}
 </Sheet>
 
@@ -70,13 +66,13 @@
   .div-h:first-child {
     margin-top: 0;
   }
-  /* Six division grids stacked (four in pre-1994 seasons), so this one sets
-     the gap under itself. The tile and the pedigree glyph are app.css's
-     `.pickgrid` / `.pickopt`, shared with the season-ticket sheet.
-     Column count is overridden here via --div-cols (set per grid from the
-     widest division in this season), so every group fills exactly one row
-     rather than orphaning tiles in a fixed 5-column shell. The scoped rule
-     wins over app.css's unscoped `.pickgrid` due to Svelte's specificity bump. */
+  /* Division rows stacked (pre-1994 seasons use four groups; 1994+ use six).
+     Large divisions (n ≥ 6) emit two grids — ⌈n/2⌉ teams then ⌊n/2⌋ — both
+     sharing the same --div-cols so tile widths stay aligned within the group.
+     Small divisions emit one grid. Column count is per-row via --div-cols
+     (rows[0].length), not a global max, so an AL 7-team split (4 cols) and an
+     NL 6-team split (3 cols) are independent. The scoped rule wins over
+     app.css's unscoped `.pickgrid` due to Svelte's specificity bump. */
   .pickgrid {
     margin-bottom: 4px;
     grid-template-columns: repeat(var(--div-cols, 5), 1fr);
@@ -113,14 +109,5 @@
   .pickopt .pedi {
     margin-left: 1px;
     font-size: 9px;
-  }
-  /* Pre-1994 seasons deal 7-team divisions, and seven columns leave a phone
-     tile ~36px of content for "TOR💍". The season's own column count is
-     already computed for the grid, so the type keys off it too: a shade
-     smaller and tracked tighter ONLY when the grid is actually seven wide —
-     the modern 5-column grids keep the full 13px. */
-  .pickgrid.tight .teambtn {
-    font-size: 12px;
-    letter-spacing: 0.02em;
   }
 </style>

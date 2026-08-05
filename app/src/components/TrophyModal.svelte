@@ -164,7 +164,7 @@
      answered "how much is left", which is the one question a souvenir should
      not be pressing. The passport lost its count for the same reason on the
      same day. -->
-<Sheet {onclose} label="Trophy case" tall title="TROPHY CASE" confirmLabel="CLOSE">
+<Sheet {onclose} label="Collectibles" tall title="COLLECTIBLES" confirmLabel="CLOSE">
   <div>
     {#if trophies.tiles.length === 0}
       <p class="caseempty">No badges yet — play a season.</p>

@@ -170,8 +170,8 @@
   class:cue={badgeCue}
   onclick={openTrophy}
   aria-label={badgeCue
-    ? `Trophy case: ${badgeCount} new badge${badgeCount === 1 ? "" : "s"}`
-    : "Trophy case"}
+    ? `Collectibles: ${badgeCount} new badge${badgeCount === 1 ? "" : "s"}`
+    : "Collectibles"}
   ><svg class="tico" viewBox="0 0 14 14" aria-hidden="true"
     ><path
       d="M4 2h6v3.2a3 3 0 0 1-6 0V2Z M4 2.8H2.3v1.1a2 2 0 0 0 1.9 2 M10 2.8h1.7v1.1a2 2 0 0 1-1.9 2 M7 8.4v2.2 M4.6 11.9h4.8"

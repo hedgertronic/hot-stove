@@ -7,71 +7,51 @@
    * by — so this file draws pills and holds no table of its own.
    * `small` is the market-row size; `n` renders a ×N multiplier (ledger). */
   let { code, n = 1, small = false }: { code: string; n?: number; small?: boolean } = $props();
+
+  const text = $derived(awardLabel(code));
+  /** The label split at its leading medal. 🥇MVP is an emoji glyph and a
+   * cap-band word in one string, and app.css trims a `.chiplbl` to the cap
+   * band — a run holding both would be measured as one. Two flex items sit
+   * exactly where the single run did: `.qb` states no `gap`. */
+  const medal = $derived(/^[^\u0000-\u007f]/u.test(text) ? [...text][0] : "");
+  const word = $derived(text.slice(medal.length));
 </script>
 
-<span class="qb {awardFamily(code)}" class:small
-  >{awardLabel(code)}{#if n > 1}<span class="mult">×{n}</span>{/if}</span
+<span class="chipbox qb {awardFamily(code)}" class:small
+  >{#if medal}<span>{medal}</span>{/if}<span class="chiplbl">{word}</span>{#if n > 1}<span
+      class="mult chiplbl">×{n}</span
+    >{/if}</span
 >
 
 <style>
-  /* Centered by the box, not by the line box. Left to inline layout the text
-     sits wherever two fonts' metrics put the baseline — and PILL_TEXT mixes
+  /* Centered by the box, not by the line box — app.css's `.chipbox`, which states
+     the height, the leading and the typeface so none of the three arrives from
+     whatever surface the pill was dropped onto. Left to inline layout the text
+     sits wherever two fonts' metrics put the baseline, and PILL_TEXT mixes
      them, since 🥇🥈🥉 come from the emoji face and MVP/CY from the display
      one. That made a medal pill and a plain one different heights and their
-     caps land at different depths. A pinned height with the content centered in
-     it takes both off the font's hands.
-     The heights are the ones these pills already occupy (15.5px / 14.75px as
-     measured), because the surfaces around them are built against exactly
-     that: PlayerList reserves the WAR chip's row height so a SIGN confirm
-     cannot make a row twitch, and the finale's squad rows wrap award pills
-     under long names. Changing the centering must not move either. */
+     caps land at different depths.
+     16px and 15px are the measured 15.5 / 14.75 taken to whole pixels. The
+     half-pixel is what the "cut off" outline was: at 15.5px the BORDER BOX's
+     own top and bottom edges land on half of a device pixel at 2× and 3×, so
+     the ring was painted across a split pixel and faded there instead of
+     drawing. It is the box edge that has to sit on the grid, not the ring's
+     width — 1.5px of stroke is a design decision and rounding it to 2 would
+     make these pills heavier than the market rows they sit in. The surfaces
+     built against these heights — PlayerList's reserved row, the finale's
+     wrapping squad rows — move by a quarter pixel. */
   .qb {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 15.5px;
+    --chip-h: 16px;
     font-size: 9px;
     font-weight: 800;
     border: 1.5px solid var(--line);
     border-radius: 999px;
-    /* The asymmetry is app.css's optical centering rule, nothing more: the
-       label and the ×N are all-caps and digits, so the target is the cap band's
-       center, and Nunito puts that 0.0235em above the middle of its own line
-       box. 0.047 × 9px = 0.42px of extra clearance up top, which the fixed
-       height absorbs, so neither pill changes size.
-       The medal pills are the case that decides the rounding. 🥇🥈🥉 come from
-       Apple Color Emoji, whose ascent/descent (1.0 / 0.3125em) differ from
-       Nunito's, so a medal label's line box stands 9.133px rather than 9px and
-       its Nunito baseline sits 0.133px lower inside it. That works out to
-       0.066px of disagreement between a 🥇MVP pill and a bare GG one — small
-       enough that one number serves both, and the reason the number is 0.4
-       rather than the plain-text 0.42. */
-    padding: 0.4px 6px 0;
-    line-height: 1;
-    white-space: nowrap;
+    padding-inline: 6px;
   }
   .qb.small {
-    height: 14.75px;
+    --chip-h: 15px;
     font-size: 8.5px;
-    /* Same rule, and 0.047 × 8.5 = 0.40 rounds to the same figure. */
-    padding: 0.4px 5px 0;
-  }
-  /* Where the engine can trim a line box to the cap band, centering stops
-     being font arithmetic at all: trim-both cuts the box at the caps' top and
-     the baseline, so `align-items: center` centers the visible letters
-     themselves. That retires the 0.4px estimate above (it double-corrects
-     once the box is exact) AND the cross-engine drift the estimate could
-     never fix — Chrome and Safari disagree on which ascent/descent metrics a
-     line box uses, which is why these pills sat a hair differently per
-     browser. The emoji medals keep painting outside the trimmed box, exactly
-     as they overhang the em box today. Engines without text-box keep the
-     0.4px path. */
-  @supports (text-box: trim-both cap alphabetic) {
-    .qb,
-    .qb.small {
-      text-box: trim-both cap alphabetic;
-      padding-top: 0;
-    }
+    padding-inline: 5px;
   }
   /* One hue per award, each on its own line rung — the same pairing the WAR
      chips and the rarity pills wear. */
@@ -109,11 +89,12 @@
   /* A flex item of its own, so the multiplier is centered on the pill's axis
      rather than hung off the label's baseline — at 8px inside a 9px pill the
      baseline drop is most of what made the ×N look like it was falling out.
-     Being an item is also what makes it inherit the fix above for free:
-     `align-items: center` centers it in the same content box the label sits in,
-     and the correction the box carries is 0.047 × 9 while the ×N would want
-     0.047 × 8, a 0.024px difference. So the ledger's "🥇MVP ×5" now reads as
-     one line of type rather than a label with a superscript sliding off it.
+     Being an item is what makes it take the chip's centering for free: the 8px
+     box and the 9px one are both centered in the same content box, and at
+     `line-height: 1` each box is exactly its own type, so the two cap bands
+     land within a fifth of a pixel of each other. The ledger's "🥇MVP ×5"
+     reads as one line of type rather than a label with a superscript sliding
+     off it.
      "×5" is measured as a unit: the multiplication sign alone rides the math
      axis, but the digit beside it spans the full cap band and sets the eye's
      line. */
