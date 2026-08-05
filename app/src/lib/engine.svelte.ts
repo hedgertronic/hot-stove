@@ -1531,7 +1531,7 @@ export class Game {
     // the answer is the same rail picker — not a picker nested in the sheet.
     // Nothing commits here: the sheet closes, the seats arm orange, and ⭐
     // stays armed until the seat tap spends it (cancel leaves it re-armable).
-    const cells = this.pickableSlotCells(p);
+    const cells = this.primePickCells(p);
     if (new Set(cells.map((i) => SLOT_TYPES[i])).size > 1) {
       this.primeSlot = { id, team, year, card, p, cells };
       this.slotPick = id;
@@ -1542,19 +1542,69 @@ export class Game {
       this.save();
       return false;
     }
-    const idx = this.primeSlotFor(p);
+    // Unprompted: commit inside the SAME pool the rail would have offered —
+    // resolving through `primeSlotFor` here let an open FLEX seat answer for
+    // a pool that had already resolved to the occupied chairs.
+    const idx = cells.length > 0 ? this.primeAutoSeat(cells) : this.primeSlotFor(p);
     if (idx === null) return false;
     this.commitPrime(card, p, idx, team, year);
     return true;
   }
 
-  /** Seats an explicitly named ⭐ commit may take: any open eligible seat, or
-   * — with no seat open and 🔁 armed — the one occupied chair `primeSlotFor`
-   * resolves the swap to. The rail can only offer open seats, and a replayed
-   * V token can only have recorded that swap's own seat. */
+  /** The seats a ⭐ commit chooses among. Usually `pickableSlotCells`' open
+   * pool — with one override: a SPECIALIST whose only open kind is FLEX,
+   * browsed with 🔁 armed, resolves to his occupied specialist chairs
+   * INSTEAD. Without it the open FLEX seat short-circuits the swap entirely
+   * (`primeSlotFor` never reaches its 🔁 branch), and the catcher a player
+   * armed both pills to trade for silently rides the bench seat, with no way
+   * to say otherwise — the sheet's exit disarms ⭐, not 🔁.
+   *
+   * Occupied chairs ONLY, not "FLEX plus them": an armed 🔁 announces a
+   * trade, so the choice on offer is which chair to clear — the same claim
+   * `tdCandidate` makes on the market rows — and an empty seat is not a
+   * trade. One occupied type auto-resolves like every pool here; two ask via
+   * the rail. A player who wanted the bench seat after all cancels the pick
+   * (costs nothing, ⭐ re-arms) and disarms 🔁. Two-way seasons keep their own
+   * rule: FLEX is a real second use for them, never a leftover. */
+  private primePickCells(p: CardPlayer): number[] {
+    const open = this.pickableSlotCells(p);
+    if (
+      this.powerups.tradeDeadline === "armed" &&
+      !isTwoWay(p) &&
+      open.length > 0 &&
+      open.every((i) => SLOT_TYPES[i] === "FLEX")
+    ) {
+      const occupied = this.occupiedSlotsFor(p).filter((i) => SLOT_TYPES[i] !== "FLEX");
+      if (occupied.length > 0) return occupied;
+    }
+    return open;
+  }
+
+  /** Auto-resolution inside a pool `primePickCells` built: open pools take
+   * their first cell (`pickableSlotCells` already ordered specialist-first);
+   * occupied pools take the weakest chair, ties to the earliest — the same
+   * least-damaging rule `primeSlotFor`'s swap branch applies, kept here so
+   * the pool the rail would have offered and the seat an unprompted commit
+   * takes can never disagree. */
+  private primeAutoSeat(cells: number[]): number {
+    const occupied = cells.filter((i) => this.slots[i] !== null);
+    if (occupied.length === 0) return cells[0];
+    return occupied.reduce((a, b) =>
+      (this.slots[b]?.war ?? 0) < (this.slots[a]?.war ?? 0) ? b : a,
+    );
+  }
+
+  /** Seats an explicitly named ⭐ commit may take: any open eligible seat, an
+   * occupied chair the handoff pool above genuinely offered, or — with no
+   * seat open and 🔁 armed — the one occupied chair `primeSlotFor` resolves
+   * the swap to. The explicit path serves the replay driver (a P/V token
+   * carries the `si` it recorded), so this must accept every seat a live
+   * handoff could have committed. */
   private primeSeatAllowed(p: CardPlayer, idx: number): boolean {
     const open = this.openSlotsFor(p);
-    if (open.length > 0) return open.includes(idx);
+    if (open.includes(idx)) return true;
+    if (this.primePickCells(p).includes(idx)) return true;
+    if (open.length > 0) return false;
     return this.primeSlotFor(p) === idx;
   }
 
@@ -2031,6 +2081,13 @@ export class Game {
   /** Armed TD, tap a taken special: 1-for-1 replacement, no picker. */
   tdTapSpecial(which: SpecialKey): void {
     if (this.frontOfficeBlocks()) return;
+    // An armed ⭐ blacks out the owner and stadium tiles entirely — a prime
+    // browse can never take either chair, so a 🔁 swap of one mid-browse can
+    // only be a mis-aimed tap. The manager stays swappable: he is ⭐'s one
+    // front-office target, and the UI already arbitrates which powerup owns
+    // that tile. SpecialRows disables the buttons to match; this is the
+    // engine's own refusal so the rule doesn't live in the DOM alone.
+    if (this.primeArmed && which !== "manager") return;
     if (
       this.powerups.tradeDeadline !== "armed" ||
       this.choicesLeft === 0 ||

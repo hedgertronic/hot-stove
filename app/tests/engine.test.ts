@@ -2458,6 +2458,82 @@ describe("the manager hired last", () => {
     expect(g.spinLog.at(-1)).toMatchObject({ kind: "sign" });
   });
 
+  it("FLEX-only open with 🔁 armed trades into the taken chair, not the bench", async () => {
+    // The Posey bug: a rostered catcher, every specialist chair taken, FLEX
+    // the one open seat. The open seat used to short-circuit the swap branch
+    // entirely, so the season armed for a trade auto-seated at UTIL with 🔁
+    // never spent and no way to object. An armed 🔁 announces a trade, so the
+    // pool is the occupied chairs — one eligible type here, so it resolves
+    // without a prompt, straight onto the C chair.
+    const now = catcher({ war: 2, cost: 3 });
+    career("PRG", catcher({ war: 7, cost: 12 }));
+    const g = landedGame(card([now]));
+    fillSlots(g, [4]); // only FLEX is open
+    g.toggleTradeDeadline();
+    g.togglePrime();
+    g.primeTapPlayer(now);
+    expect(await g.applyPrime("PRG", 2014)).toBe(true);
+    expect(g.slots[0]).toMatchObject({ id: "star", year: 2014, costPaid: 12 });
+    expect(g.slots[4]).toBe(null); // the bench seat was never the trade
+    expect(g.powerups.prime).toBe("spent");
+    expect(g.powerups.tradeDeadline).toBe("spent");
+    expect(g.spinLog.at(-1)).toMatchObject({ kind: "swap" });
+  });
+
+  it("two occupied types ask via the rail, and the open FLEX seat is not on offer", async () => {
+    // A C/IF season (the real Posey shape) with both chairs taken and FLEX
+    // open: the handoff fires over the TAKEN chairs only. Tapping the empty
+    // FLEX seat is refused — an armed 🔁 trades into a chair, it does not
+    // sign into a vacancy — and tapping the IF chair commits the trade.
+    const CIF_POS = { c: 90, if: 40, of: 0 };
+    const now = player({ id: "star", pos: "C", posG: CIF_POS, war: 2, cost: 3 });
+    career("PRH", player({ id: "star", pos: "C", posG: CIF_POS, war: 7, cost: 12 }));
+    const g = landedGame(card([now]));
+    fillSlots(g, [4]);
+    g.slots[1] = filler(1, { war: 1 });
+    g.toggleTradeDeadline();
+    g.togglePrime();
+    g.primeTapPlayer(now);
+    expect(await g.applyPrime("PRH", 2014)).toBe(false); // handoff, not commit
+    expect(g.primeSlotPending).toBe(true);
+    g.signPlayer(now, 4); // the empty seat: refused, nothing spent
+    expect(g.slots[4]).toBe(null);
+    expect(g.powerups.prime).toBe("armed");
+    g.signPlayer(now, 1); // the taken IF chair: the trade commits
+    expect(g.slots[1]).toMatchObject({ id: "star", year: 2014 });
+    expect(g.powerups.prime).toBe("spent");
+    expect(g.powerups.tradeDeadline).toBe("spent");
+    expect(g.spinLog.at(-1)).toMatchObject({ kind: "swap" });
+  });
+
+  it("with 🔁 unarmed the open FLEX seat auto-resolves as before", async () => {
+    const now = catcher({ war: 2, cost: 3 });
+    career("PRI", catcher({ war: 7, cost: 12 }));
+    const g = landedGame(card([now]));
+    fillSlots(g, [4]);
+    g.togglePrime();
+    g.primeTapPlayer(now);
+    expect(await g.applyPrime("PRI", 2014)).toBe(true);
+    expect(g.slots[4]).toMatchObject({ id: "star", year: 2014 });
+    expect(g.spinLog.at(-1)).toMatchObject({ kind: "sign" });
+  });
+
+  it("a replayed V token naming the occupied chair is accepted with FLEX open", async () => {
+    // The explicit-seat path is the replay driver's: a live handoff that
+    // committed the trade recorded si=0, and the token must land on this
+    // build even though an open seat exists.
+    const now = catcher({ war: 2, cost: 3 });
+    career("PRJ", catcher({ war: 7, cost: 12 }));
+    const g = landedGame(card([now]));
+    fillSlots(g, [4]);
+    g.toggleTradeDeadline();
+    g.togglePrime();
+    g.primeTapPlayer(now);
+    expect(await g.applyPrime("PRJ", 2014, 0)).toBe(true);
+    expect(g.slots[0]).toMatchObject({ id: "star", year: 2014 });
+    expect(g.powerups.tradeDeadline).toBe("spent");
+  });
+
   it("trades away the weakest chair the incoming season could take", async () => {
     // Vacating is destructive in a way filling an empty seat is not, so the
     // auto-resolution picks the least damaging deterministic answer.

@@ -76,9 +76,10 @@ describe("front-office rows while Prime Time is armed", () => {
     target.remove();
   });
 
-  it("an already-hired owner stays Trade-Deadline swappable while Prime is armed", async () => {
-    // Prime's blackout applies to UNTAKEN owner/stadium rows only: an armed
-    // Trade Deadline still swaps a hired one, and that amber path outranks it.
+  it("an already-hired owner grays under 🔁+⭐ — Prime's blackout outranks the swap", async () => {
+    // A prime browse can never take the owner's chair, so an orange TRADE IN
+    // on it mid-browse invites spending 🔁 on a tile ⭐ was aimed at. While
+    // both are armed the tile grays; disarming ⭐ relights the swap path.
     const game = forgeGame(CLASSIC, (g) => {
       g.card = mkCard();
       g.owner = {
@@ -92,12 +93,42 @@ describe("front-office rows while Prime Time is armed", () => {
       g.powerups.prime = "armed";
     });
     const { target, comp } = mountRows(game);
-    const [owner] = rows(target);
+    let [owner] = rows(target);
+    expect(owner.querySelector<HTMLButtonElement>(".srow-btn")!.disabled).toBe(true);
+    expect(owner.className).toContain("taken");
+    expect(owner.className).not.toContain("swap");
+
+    // Derived, not latched: ⭐ down, 🔁 still up — the swap path returns.
+    game.togglePrime();
+    flushSync();
+    [owner] = rows(target);
     expect(owner.querySelector<HTMLButtonElement>(".srow-btn")!.disabled).toBe(false);
     expect(owner.className).toContain("swap");
 
     await unmount(comp as never);
     target.remove();
+  });
+
+  it("the engine refuses an owner/stadium 🔁 swap while ⭐ is armed", () => {
+    // The DOM's disabled button is the first fence; this is the engine's own.
+    // The manager is exempt — he is ⭐'s one front-office target and his tile's
+    // arbitration already lives in the component.
+    const game = forgeGame(CLASSIC, (g) => {
+      g.card = mkCard();
+      g.owner = {
+        name: "Hiroshi Yamauchi",
+        budget: 92.1,
+        franchise: "SEA",
+        year: 2001,
+        teamName: "Seattle Mariners",
+      };
+      g.powerups.tradeDeadline = "armed";
+      g.powerups.prime = "armed";
+    });
+    const before = game.owner;
+    game.tdTapSpecial("owner");
+    expect(game.owner).toBe(before);
+    expect(game.powerups.tradeDeadline).toBe("armed");
   });
 });
 

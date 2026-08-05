@@ -183,15 +183,21 @@
          skipper to trade in — tdTapSpecial refuses the swap otherwise, and a
          TRADE IN confirm on a tile the engine will no-op is a lie. -->
     {@const swappable =
-      taken && tdArmed && !hgArmed && canAct && (row.key !== "manager" || game?.card?.manager != null)}
+      taken && tdArmed && !hgArmed && canAct &&
+      (row.key !== "manager" || game?.card?.manager != null) &&
+      !(row.key !== "manager" && game?.primeArmed === true)}
     {@const primeable =
       !taken && row.key === "manager" && game?.primeArmed === true && !tdArmed && !hgArmed && canAct}
     <!-- ⭐ browses managers only. While Prime is armed, an unhired owner or
          stadium has no move at all, so it wears the same gray the taken rows
          wear — availability is binary, and the affordance must match. A TAKEN
-         owner/stadium is excluded: an armed Trade Deadline still swaps it, and
-         that orange path outranks Prime's blackout. Derived from the live
-         primeArmed getter, so disarming restores the rows.
+         owner/stadium under 🔁+⭐ grays the same way (the primeArmed clause in
+         `swappable` above): a prime browse cannot take either chair, so an
+         orange TRADE IN on one mid-browse is an invitation to spend 🔁 on a
+         tile ⭐ was aimed at — the exact one-orange-channel ambiguity the
+         market's intersection rule exists to prevent. Disarm ⭐ and the swap
+         path lights again. Derived from the live primeArmed getter, so
+         disarming restores the rows.
          tdBlocked is the intersection rule's front-office arm: an armed 🔁
          narrows these tiles to the taken chairs it can trade, so an untaken
          tile (whose only move is a plain hire) grays until 🔁 disarms. -->

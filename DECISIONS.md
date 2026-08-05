@@ -2150,3 +2150,33 @@ shows before the user clicks.
 
 The original round 28 text above incorrectly described the display as routing
 through `game.priceFor(sea.p)`.
+
+### ⭐ Prime Time × 🔁 Trade Deadline: the armed trade claims the taken chair (round 34)
+
+Two rules the round 33 build resolved wrong, both caught in live play:
+
+**1. A specialist primed with 🔁 armed and only FLEX open trades into a taken
+chair — the open bench seat is not on offer.** The old resolution let any open
+seat win over the swap, so a rostered catcher's prime pick (Posey, C/IF) with
+the specialist chairs full auto-seated at UTIL, spent no 🔁, and offered no way
+to object. An armed 🔁 announces a trade — the same claim `tdCandidate` makes
+on the market rows — so `primePickCells` resolves that state to the occupied
+specialist chairs INSTEAD of the open FLEX seat. One occupied type commits
+without a prompt (weakest chair, ties earliest — `primeAutoSeat`, the swap
+branch's own rule); two or more hand off to the rail picker over the taken
+chairs only. Wanting the bench seat after all is: cancel the pick (free, ⭐
+re-arms), disarm 🔁, re-browse. A specialist chair standing OPEN still wins
+unprompted, exactly as before — the change touches only the FLEX-leftover
+state. Replay: `primeSeatAllowed` accepts any seat `primePickCells` offers, and
+still accepts any open seat by name, so pre-fix logs whose P tokens seated the
+FLEX chair replay unchanged.
+
+**2. While ⭐ is armed, a hired owner/stadium is not a 🔁 swap target.** The
+round 21 rule let a TAKEN owner or stadium keep its orange TRADE IN through a
+prime browse ("the amber path outranks Prime's blackout"). But a prime browse
+can never take either chair, so the orange invited spending 🔁 on a tile ⭐ was
+aimed at — the one-orange-channel ambiguity the market's intersection rule
+exists to prevent. Both tiles now gray while ⭐ is armed (`SpecialRows`), and
+`tdTapSpecial` refuses owner/stadium engine-side while `primeArmed` — the
+manager stays exempt as ⭐'s one front-office target. Disarming ⭐ relights the
+swap path; the state is derived, never latched.
