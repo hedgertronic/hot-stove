@@ -457,7 +457,7 @@ const COOPERSTOWN_PTS = 30;
  * manager policy.
  *
  * Four is the rung. Five would be a second ~1% badge that fires on almost the
- * same clubs as 🌟 MURDERERS' ROW — Hall of Famers ARE the highest-WAR
+ * same clubs as 🔪 MURDERERS' ROW — Hall of Famers ARE the highest-WAR
  * seasons in the set, so the two would move together and say one thing twice.
  * Three fires in one game in five, which is not a class of anything. Four sits
  * beside 🏅 ALL-STAR ROSTER (6.05) and 💎 THE FRANCHISE PLAYER (6.47), and
@@ -607,7 +607,7 @@ export const MINIMUM_SEATS = 4;
  * So "every seat at 8.0" is not rare, it is IMPOSSIBLE, and the arithmetic
  * ceiling on simultaneous 8.0 seats is 7 of 8 — and 6 of 8 unless the club
  * holds that one Piazza card. Both numbers are pinned in badges-supply, which
- * is where the reason this set has no ALL-GOLD badge lives. 🌟 counts stars
+ * is where the reason this set has no ALL-GOLD badge lives. 🔪 counts stars
  * instead, which is the reachable version of the same idea. */
 
 /** The WAR ladder's top rung, and how many seats have to reach it. 8.0 is the
@@ -1550,7 +1550,10 @@ export const BADGES: BadgeDef[] = [
   },
   {
     key: "gold",
-    emoji: "🌟",
+    // 🔪, not 🌟: the name is the 1927 Yankees' — a lineup of killers — and
+    // a star said "great club", which is what half the badge set already
+    // says. The knife says the name.
+    emoji: "🔪",
     label: "MURDERERS' ROW",
     name: "Murderers' Row",
     rarity: "ultra",

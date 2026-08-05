@@ -417,7 +417,7 @@ describe("the curated people are still on the cards", () => {
  * fills it only from `pos === "RP"`, so the best relief season in the set is a
  * hard ceiling on any "every player at N WAR" badge. It is 7.2 — under the 8.0
  * gold rung — which makes an all-gold roster impossible rather than rare.
- * 🧱's 4.0 floor is the highest rung the RP seat can actually clear, and 🌟
+ * 🧱's 4.0 floor is the highest rung the RP seat can actually clear, and 🔪
  * counts gold seats instead of demanding all of them. */
 describe("the gold ceiling the shape badges are written around", () => {
   const MIN_POS_G = 10;

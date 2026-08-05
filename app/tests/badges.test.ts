@@ -673,7 +673,7 @@ describe("roster shape", () => {
    * eight seats — asked three ways, so they are tested together and the
    * pairwise logic is asserted rather than argued. 🧱 wants no soft seat, ⛰️
    * wants two carrying seats and three dead ones, ⚖️ wants every seat close to
-   * every other, and 🌟 counts the gold ones. */
+   * every other, and 🔪 counts the gold ones. */
   describe("the shape badges", () => {
     /** A club of eight, seat by seat. */
     const shaped = (wars: number[]) =>
