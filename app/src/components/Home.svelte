@@ -13,6 +13,7 @@
     config,
     onplay,
     onopen,
+    onreplay,
   }: {
     config: GameConfig;
     onplay: (c: GameConfig, seed?: number) => void;
@@ -20,6 +21,11 @@
      * with a record storage still holds; the id names that season's archive row
      * when the archive is where the record came from. */
     onopen: (rec: StoredFinale, id?: string) => void;
+    /** Replay a full game code — someone else's finished season, rebuilt from
+     * its decision log. Resolves false when the code cannot be replayed on this
+     * build, which is the one thing this screen has to say out loud. Optional
+     * so the component mounts without a replay host (tests, the lab). */
+    onreplay?: (code: string) => Promise<boolean>;
   } = $props();
 
   // Seed once from the saved settings; the rows edit local state until PLAY.
@@ -76,6 +82,12 @@
   let seedOpen = $state(false);
   let seedInput = $state("");
   let seedBad = $state(false);
+  /** The one failure that needs words rather than a shake: a game code that
+   * parsed as a game code and still cannot be replayed here (a format this
+   * build does not drive, or a decision that no longer applies to rebuilt
+   * cards). A mistyped seed is answered by the shake, as it always was —
+   * there is nothing to explain about seven characters. */
+  let seedErr = $state("");
   /** The button the field replaced, so cancelling can hand focus back to it
    * rather than dropping the keyboard user on the body. */
   let seedBtn = $state<HTMLButtonElement | null>(null);
@@ -83,14 +95,42 @@
    * click-outside handler can check containment without reading the DOM. */
   let seedZoneEl = $state<HTMLDivElement | null>(null);
 
-  function playSeed() {
-    const seed = parseSeedCode(seedInput);
-    if (seed === null) {
-      seedBad = true;
-      setTimeout(() => (seedBad = false), 450);
+  /** The field takes two kinds of code, told apart by SHAPE — no prefix, no
+   * second input, no mode toggle.
+   *
+   * A bare (or #-prefixed) base36 token of 7 characters or fewer is a SEED:
+   * new game, these cards, your own decisions, counting toward the record book
+   * exactly as it always has. Anything longer is a GAME CODE: a 12-char header
+   * plus decision tokens, replayed read-only. The two shapes cannot overlap —
+   * the header alone is 12 characters — so the order of these two branches is
+   * not load-bearing.
+   *
+   * The game code is NOT uppercased on the way through. `parseSeedCode` folds
+   * case because a seed is base36 either way; a shortcode's verbs are uppercase
+   * and its params lowercase, and folding it would destroy every parameter. */
+  async function playSeed() {
+    seedErr = "";
+    const typed = seedInput.trim();
+    const bare = typed.replace(/^#/, "");
+    if (/^[0-9A-Za-z]{1,7}$/.test(bare)) {
+      const seed = parseSeedCode(typed);
+      if (seed === null) {
+        badSeed();
+        return;
+      }
+      onplay({ difficulty, bank }, seed);
       return;
     }
-    onplay({ difficulty, bank }, seed);
+    if (onreplay && (await onreplay(typed))) return;
+    badSeed();
+    // A long string that failed is a game code that failed, and that is the
+    // case worth naming: nothing about the input says why it was refused.
+    if (bare.length >= 12) seedErr = "This game code can't be replayed on this version";
+  }
+
+  function badSeed() {
+    seedBad = true;
+    setTimeout(() => (seedBad = false), 450);
   }
 
   /** Resets seed entry state without moving focus — used by the click-outside
@@ -99,6 +139,7 @@
     seedOpen = false;
     seedInput = "";
     seedBad = false;
+    seedErr = "";
   }
 
   // Click-outside: a pointerdown anywhere beyond the pill collapses the field
@@ -240,8 +281,8 @@
           <input
             class="seedin"
             type="text"
-            maxlength="8"
-            placeholder="0KF12OY"
+            maxlength="140"
+            placeholder="#0KF12OY"
             inputmode="text"
             autocapitalize="none"
             autocorrect="off"
@@ -272,6 +313,12 @@
         >
       {/if}
     </div>
+    <!-- Under the pill, not inside it: the capsule holds a fixed height so the
+         PLAY button above never moves, and this line is a sentence. `polite`
+         so a screen reader hears it after the field it belongs to. -->
+    {#if seedErr}
+      <p class="seederr" role="status" aria-live="polite">{seedErr}</p>
+    {/if}
   </div>
 
   <!-- The record book: two cards side by side, each a door into the past.
@@ -622,6 +669,17 @@
      ring appears only for keyboard navigation, not for touch/mouse. An inset
      outline (outline-offset: -3px) is painted inside the border box and is
      therefore not clipped by overflow: hidden on the pill container. */
+  /* The one spoken failure — a game code this build cannot replay. Quiet
+     rather than alarming: it is a stale code, not a mistake the player made. */
+  .seederr {
+    margin: 6px auto 0;
+    max-width: 260px;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--muted);
+  }
   /* Fade-in on mount. The shake animation on .seedrow.bad overrides this
      for the error state (higher specificity, source order). */
   @keyframes seedfade {
@@ -749,11 +807,11 @@
     outline-offset: -3px;
   }
   /* Narrowest phones: the field's half is ~141px. At 16px with base 0.08em
-     tracking, a full seven-character seed code still fits, but horizontal
-     padding eats into the available glyph width. Drop tracking toward zero
-     and tighten horizontal padding so the full code is visible without
-     scrolling. (After the base rules, not inside the earlier narrow block:
-     equal specificity, source order decides.) */
+     tracking, a hash-prefixed eight-character code (#0KF12OY) still fits,
+     but horizontal padding eats into the available glyph width. Drop tracking
+     toward zero and tighten horizontal padding so the full code is visible
+     without scrolling. (After the base rules, not inside the earlier narrow
+     block: equal specificity, source order decides.) */
   @media (max-width: 359px) {
     .seedin {
       letter-spacing: 0.03em;
@@ -841,6 +899,9 @@
     font-weight: 900;
     line-height: 1.05;
     font-variant-numeric: tabular-nums;
+    /* Centers in the grid-stretched cell the same way .bn does on the GAMES
+       card, so the two record-book columns hold one baseline rhythm. */
+    margin: auto 0;
   }
   /* The record wears the game's WAR-ladder palette, keyed to its win count.
      The color is app.css's record ladder — `.brec.elite` and its five

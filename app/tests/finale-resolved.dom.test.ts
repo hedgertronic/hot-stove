@@ -307,6 +307,28 @@ describe("styling and layout contracts", () => {
     expect(bragsParent).toBe(clubpassParent);
   });
 
+  it("(wash/line pairing) signed dream rows pair green-wash fill with --green border", () => {
+    // The app's wash/line idiom: a wash fill always pairs with a saturated line
+    // of the same hue (war chip ladder: green-2 fill → green-8/--green border).
+    // .signed carries a --green-wash fill; the border must be --green, not the
+    // neutral --line.
+    expect(FINALE_SRC).toContain("var(--green-wash)");
+    expect(FINALE_SRC).toMatch(/\.squad\.dream \.qrow\.signed\s*\{[^}]*border-color:\s*var\(--green\)/s);
+    // Missed rows keep the neutral border — dashed style, but still --line color.
+    expect(FINALE_SRC).toContain(".qrow.missed {\n    border-style: dashed;\n  }");
+  });
+
+  it("(wash/line pairing) ledger rows pair the foreshadow wash with its tier line", () => {
+    // The scorecard's foreshadow: --fore (the record tier's -2 wash) bleeds
+    // into every lrow's parchment, so the row border pairs the same tier's
+    // saturated rung — --fline, derived as var(--war-{recTier}) beside --fore
+    // on the .ledger element. Fallback to the neutral frame keeps an unset
+    // pair from painting an invalid border.
+    expect(FINALE_SRC).toContain('style="--fore: {lrowFore}; --fline: {lrowLine}"');
+    expect(FINALE_SRC).toContain("`var(--war-${recTier})`");
+    expect(FINALE_SRC).toMatch(/\.lrow\s*\{[^}]*border: 2\.5px solid var\(--fline, var\(--line\)\)/s);
+  });
+
   it("(items 2, 3, 4, 5b, 6) source: sticky, seed 12px, no stripe, green-wash, lrow tint", () => {
     // Item 2: left column sticky on desktop
     expect(FINALE_SRC).toContain("position: sticky");

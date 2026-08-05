@@ -25,6 +25,7 @@
     type StoredFinale,
   } from "./lib/engine.svelte";
   import { BANKS, DIFFICULTIES } from "./lib/modes";
+  import { replayShortcode } from "./lib/share";
   import { loadSettings, recordQuit, saveSettings } from "./lib/settings";
   import type { Colors, GameIndex, Meta, Owners } from "./lib/types";
 
@@ -49,6 +50,15 @@
    * ended. The trophy cue was already lit when the game finished, so a
    * re-entry must not re-light a case the player has since opened. */
   let restoredFinale = $state(false);
+  /** A shared game code is being looked at. The Game on screen is inert (it
+   * writes nothing) and is not the viewer's — the finale collapses its button
+   * row to one way back, which is what `stashed` below puts them back into. */
+  let replaying = $state(false);
+  /** What the viewer was looking at when the replay opened, held in memory and
+   * put back on exit. Deliberately not a re-run of the boot sequence: a replay
+   * must not read or write storage on the way in OR on the way out, and the
+   * live game is already standing right here. */
+  let stashed: { game: Game | null; screen: "home" | "game"; restoredFinale: boolean } | null = null;
 
   // Dev-only UI lab (localhost:5173/?lab): hardcoded edge-case galleries for
   // every component, so extreme states are reviewable without replaying games.
@@ -116,6 +126,10 @@
     // an unreachable state rather than a boot-time tiebreak.
     clearStoredFinale();
     restoredFinale = false;
+    // A replay is never the thing that starts a game, but leaving the flag set
+    // would dress the NEXT finale as somebody else's.
+    replaying = false;
+    stashed = null;
     // The final argument is the seed badges' provenance bit: an explicit seed
     // here can only have come off the PLAY A SEED input.
     game = new Game(deps.meta, deps.index, deps.owners, seed, config, seed !== undefined);
@@ -125,6 +139,40 @@
     // "typed in" and "rolled fresh" from the same row.
     track("seed_played", { typed: seed !== undefined });
     screen = "game";
+  }
+
+  /** Open a shared game code — someone else's finished season, rebuilt by
+   * re-running its decisions (lib/share `replayShortcode`).
+   *
+   * Returns false when the code cannot be replayed on this build, which is the
+   * home screen's cue to say so. Nothing is written on either outcome: the
+   * reconstruction is inert, and this path deliberately avoids `startGame`
+   * (which saves settings and clears the stored finale), `openFinale` (which
+   * claims the boot screen), and `goHome` (which releases that claim). */
+  async function openReplay(code: string): Promise<boolean> {
+    if (!deps) return false;
+    const back = await replayShortcode(deps.meta, deps.index, deps.owners, code);
+    if (!back) return false;
+    stashed = { game, screen, restoredFinale };
+    game = back;
+    // Resolved, like every finale that was not just earned here: no reveal to
+    // sit through, no `game_finish` event, and no trophy cue for badges that
+    // belong to somebody else's season.
+    restoredFinale = true;
+    replaying = true;
+    screen = "game";
+    return true;
+  }
+
+  /** Leave a replay for whatever the viewer had before it — their live game,
+   * their own finale, or the home screen. Storage is not touched. */
+  function exitReplay() {
+    const back = stashed;
+    stashed = null;
+    replaying = false;
+    game = back?.game ?? null;
+    restoredFinale = back?.restoredFinale ?? false;
+    screen = back?.screen ?? "home";
   }
 
   /** The home screen's way back into a finished season, from the seasons list.
@@ -166,6 +214,8 @@
     // dropping it here would delete the record before anything could read it.
     releaseFinale();
     restoredFinale = false;
+    replaying = false;
+    stashed = null;
     game = null;
     screen = "home";
   }
@@ -178,7 +228,8 @@
     // walks back into it) — so ✕ goes straight home, no QUIT? confirm. It is
     // also why 🧳 cannot be earned from here: the game is already over.
     if (game?.phase === "finale") {
-      goHome();
+      if (replaying) exitReplay();
+      else goHome();
       return;
     }
     clearTimeout(quitTimer);
@@ -324,7 +375,7 @@
 {:else if !booted || !colors}
   <div class="boot disp">Warming up the stove…</div>
 {:else if screen === "home" || !game}
-  <Home config={settings} onplay={startGame} onopen={openFinale} />
+  <Home config={settings} onplay={startGame} onopen={openFinale} onreplay={openReplay} />
 {:else}
   <header class="hud disp">
     <!-- The finale hands over its first-time-ever badges, which is what lights
@@ -371,7 +422,13 @@
     <!-- A finale reopened from storage is already resolved: the reveal is the
          payoff for a game you just finished, not something to sit through on
          every reload. -->
-    <Finale {game} resolved={restoredFinale} onreplay={newGame} onmodes={goHome} />
+    <Finale
+      {game}
+      resolved={restoredFinale}
+      replay={replaying}
+      onreplay={newGame}
+      onmodes={replaying ? exitReplay : goHome}
+    />
   {:else}
     <!-- Phone: the three wrappers are plain stacked divs, same order as ever.
          Wide (≥760px): the club (rail + bank) holds a sticky left column while

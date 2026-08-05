@@ -3,7 +3,7 @@
   import { bragRow } from "../lib/badges";
   import { ownerFor } from "../lib/data";
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
-  import { lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, statValue, warTier, type WarTier } from "../lib/format";
+  import { costTier, lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, statValue, warTier, type WarTier } from "../lib/format";
   import {
     GAMES,
     MANAGER_PER_NET_WIN,
@@ -23,6 +23,7 @@
     onreplay,
     onmodes,
     resolved = false,
+    replay = false,
   }: {
     game: Game;
     onreplay: () => void;
@@ -34,6 +35,13 @@
      * state directly, down the same branch prefers-reduced-motion already
      * takes. */
     resolved?: boolean;
+    /** This finale is someone else's season, rebuilt from a shared game code
+     * rather than played here. RUN IT BACK and MODES are meaningless on it —
+     * one starts a fresh game in a mode the viewer did not choose, the other
+     * walks out of a screen they walked into from home — so the row collapses
+     * to one way back. Everything that reads or shares the season stays: it is
+     * a finale, and the whole point of the code was to be looked at. */
+    replay?: boolean;
   } = $props();
 
   const fin = $derived(game.finale!);
@@ -200,6 +208,10 @@
     elite: "var(--gold-2)",
   };
   const lrowFore = $derived(TIER_WASH[recTier]);
+  /* The wash's paired line — the same tier's saturated rung off the war
+   * ladder, the fill/line relationship every washed surface wears (war chips,
+   * team tiles, the dream team's signed rows). */
+  const lrowLine = $derived(`var(--war-${recTier})`);
 
   function count(set: (v: number) => void, n: number, ms: number) {
     const t0 = performance.now();
@@ -414,6 +426,23 @@
     seedTimer = setTimeout(() => (seedState = "idle"), 1200);
   }
 
+  /** Copies the whole decision log — the string the home screen's SEED field
+   * replays. Read off the game itself rather than storage, so a season reopened
+   * out of the archive hands over ITS code and not the last one played. Same
+   * feedback shape as the seed chip beside it: the label swaps in place. */
+  let gameState = $state<"idle" | "copied" | "failed">("idle");
+  let gameTimer: ReturnType<typeof setTimeout> | undefined;
+  async function copyGame() {
+    try {
+      await navigator.clipboard.writeText(game.debugLog());
+      gameState = "copied";
+    } catch {
+      gameState = "failed";
+    }
+    clearTimeout(gameTimer);
+    gameTimer = setTimeout(() => (gameState = "idle"), 1200);
+  }
+
   /** Signed players who are also on the dream team get the ⭐. */
   const starKeys = $derived.by(() => {
     const keys = new Set<string>();
@@ -618,7 +647,7 @@
 <div class="fin-cols">
 <div class="fin-main">
 <div class="psep">THE SCORECARD</div>
-<div class="ledger" style="--fore: {lrowFore}">
+<div class="ledger" style="--fore: {lrowFore}; --fline: {lrowLine}">
   {#each rows as row, i (row.key)}
     <div class="lrow disp" class:show={i < shownRows}>
       <span class="lbl">{row.lbl}</span>
@@ -631,8 +660,8 @@
                  Classic medal, say — has to be added or it falls through to
                  AwardPill and renders as an unknown award. -->
             {#if c.code.startsWith("💍") || c.code.startsWith("🚩") || c.code.startsWith("⭐") || c.code.startsWith("🥇") || c.code.startsWith("🥈")}
-              <span class="pedchip"
-                >{c.code}{#if c.n > 1}<span class="mult">×{c.n}</span>{/if}</span
+              <span class="chipbox pedchip"
+                >{c.code}{#if c.n > 1}<span class="mult chiplbl">×{c.n}</span>{/if}</span
               >
             {:else}
               <AwardPill code={c.code} n={c.n} />
@@ -735,8 +764,12 @@
      word for what the seed chip below it actually does. It is also the widest
      of the three labels, which is why the row pins `white-space` below. -->
 <div class="btnrow fin-actions">
-  <button class="btn ghost disp" onclick={onmodes}>MODES <span class="bic">🕹️</span></button>
-  <button class="btn disp" onclick={onreplay}>RUN IT BACK <span class="bic">🔄</span></button>
+  {#if replay}
+    <button class="btn ghost disp" onclick={onmodes}>BACK <span class="bic">↩️</span></button>
+  {:else}
+    <button class="btn ghost disp" onclick={onmodes}>MODES <span class="bic">🕹️</span></button>
+    <button class="btn disp" onclick={onreplay}>RUN IT BACK <span class="bic">🔄</span></button>
+  {/if}
   <button class="btn hot disp" onclick={share}>
     {#if shareState === "idle"}SHARE <span class="bic">📣</span>{:else if shareState === "copied"}COPIED <span
         class="bic">🔥</span
@@ -744,14 +777,60 @@
   </button>
 </div>
 
-<button class="seedchip disp" class:ok={seedState === "copied"} title="Copy seed" onclick={copySeed}>
-  {seedState === "idle" ? `GAME #${seedCode(game.seed)}` : seedState === "copied" ? "COPIED ✓" : "COPY FAILED"}
-</button>
+<!-- Two codes, two different offers, so the labels say which is which. SEED
+     hands over the CARDS — play the same reel yourself, from scratch. COPY GAME
+     hands over THIS SEASON: every decision, replayable exactly as it happened.
+     The game code is never printed. It runs 50–70 characters, which is a wall
+     of noise on a screen whose other numbers are a record and a total, and
+     nobody retypes one — the clipboard is the only way it travels. -->
+<div class="codes">
+  <button
+    class="seedchip disp"
+    class:ok={seedState === "copied"}
+    title="Copy this season's seed code"
+    aria-label="Copy the seed code for these cards"
+    onclick={copySeed}
+  >
+    {seedState === "idle" ? `SEED #${seedCode(game.seed)}` : seedState === "copied" ? "COPIED ✓" : "COPY FAILED"}
+  </button>
+  <button
+    class="seedchip disp"
+    class:ok={gameState === "copied"}
+    title="Copy the full game code — replays this exact season"
+    aria-label="Copy the full game code, which replays this exact season"
+    onclick={copyGame}
+  >
+    {gameState === "idle" ? "COPY GAME" : gameState === "copied" ? "COPIED ✓" : "COPY FAILED"}
+  </button>
+</div>
 </div>
 
 <div class="fin-side">
 <div class="squad disp">
   <div class="psep">YOUR SQUAD</div>
+  {#if game.manager}
+    <div class="qrow">
+      <span class="qpos">MGR</span>
+      <span class="qmid">
+        <span class="qname"
+          >{#if fin.managerHit}<span class="emo qstar">⭐</span>{/if}{game.manager.name}
+          <i>{game.manager.year} {game.manager.team}</i></span
+        >
+        <!-- The finale is where hidden hardware comes out, so the skipper's
+             Manager of the Year shows in every mode — same pill, same
+             awards-then-pedigree order as the player rows above. -->
+        <span class="qbadges"
+          >{#if game.manager.moty}<AwardPill code="MOY" />{/if}{#if game.manager.ws}<span
+              class="emo">💍</span
+            >{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
+        >
+      </span>
+      <!-- Bare like the rail's MGR chip: no room for a WINS unit in the
+           chip's small cut, positive drops the plus the way WAR does, and a
+           negative keeps the minus that says the bench cost wins. -->
+      <span class="warchip sm {warTier(fin.parts.managerWins)}">{statValue(fin.parts.managerWins)}</span>
+    </div>
+  {/if}
   {#each game.slots as slot, i}
     {#if slot}
       <div class="qrow">
@@ -780,33 +859,11 @@
               >{/if}
           </span>
         </span>
+        <span class="qsal {costTier(slot.costPaid)}">{money(slot.costPaid)}</span>
         <span class="warchip sm {warTier(slot.war)}">{slot.war.toFixed(1)}</span>
       </div>
     {/if}
   {/each}
-  {#if game.manager}
-    <div class="qrow">
-      <span class="qpos">MGR</span>
-      <span class="qmid">
-        <span class="qname"
-          >{#if fin.managerHit}<span class="emo qstar">⭐</span>{/if}{game.manager.name}
-          <i>{game.manager.year} {game.manager.team}</i></span
-        >
-        <!-- The finale is where hidden hardware comes out, so the skipper's
-             Manager of the Year shows in every mode — same pill, same
-             awards-then-pedigree order as the player rows above. -->
-        <span class="qbadges"
-          >{#if game.manager.moty}<AwardPill code="MOY" />{/if}{#if game.manager.ws}<span
-              class="emo">💍</span
-            >{:else if game.manager.pen}<span class="emo">🚩</span>{/if}</span
-        >
-      </span>
-      <!-- Bare like the rail's MGR chip: no room for a WINS unit in the
-           chip's small cut, positive drops the plus the way WAR does, and a
-           negative keeps the minus that says the bench cost wins. -->
-      <span class="warchip sm {warTier(fin.parts.managerWins)}">{statValue(fin.parts.managerWins)}</span>
-    </div>
-  {/if}
   <!-- The payroll this club ran, closing the list. A footer, not a header: the
        seats are what the player came to see, and the front office is the
        envelope they were bought inside. fin.spend and fin.budget are required
@@ -861,35 +918,6 @@
          men twice, which made the dream list look like a second scoreboard
          rather than the counterfactual it is. YOUR SQUAD still wears every
          one, so the scouting ledger row above still points at something. -->
-    {#each fin.best.picks as pick, i}
-      {@const mine =
-        pick != null &&
-        game.slots.some((s) => s && s.id === pick.id && s.year === pick.year && s.team === pick.team)}
-      <div class="qrow" class:missed={pick != null && !mine} class:signed={pick != null && mine}>
-        <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
-        {#if pick}
-          <!-- Awards show WHY the solver chose this season — they count in
-               its objective now, not just WAR. -->
-          <span class="qmid">
-            <span class="qname"
-              >{pick.name}
-              <i>{pick.year} {pick.team}</i></span
-            >
-            <span class="qbadges">
-              {#each sortAwards(pick.awards) as a}
-                <AwardPill code={a} />
-              {/each}
-              {#if pick.ws}<span class="emo">💍</span>{:else if pick.pen}<span class="emo">🚩</span>{/if}{#if pick.wbc === WBC_CHAMPION_ID}<span
-                  class="emo">🥇</span
-                >{:else if pick.wbc === WBC_RUNNERUP_ID}<span class="emo">🥈</span>{/if}
-            </span>
-          </span>
-          <span class="warchip sm {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
-        {:else}
-          <span class="qname empty">—</span>
-        {/if}
-      </div>
-    {/each}
     {#if fin.bestManager}
       {@const bestWins = fin.bestManager.netWins * MANAGER_PER_NET_WIN}
       <!-- The skipper answers to the same treatment as the seats: solid and
@@ -915,6 +943,36 @@
         <span class="warchip sm {warTier(bestWins)}">{statValue(bestWins)}</span>
       </div>
     {/if}
+    {#each fin.best.picks as pick, i}
+      {@const mine =
+        pick != null &&
+        game.slots.some((s) => s && s.id === pick.id && s.year === pick.year && s.team === pick.team)}
+      <div class="qrow" class:missed={pick != null && !mine} class:signed={pick != null && mine}>
+        <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
+        {#if pick}
+          <!-- Awards show WHY the solver chose this season — they count in
+               its objective now, not just WAR. -->
+          <span class="qmid">
+            <span class="qname"
+              >{pick.name}
+              <i>{pick.year} {pick.team}</i></span
+            >
+            <span class="qbadges">
+              {#each sortAwards(pick.awards) as a}
+                <AwardPill code={a} />
+              {/each}
+              {#if pick.ws}<span class="emo">💍</span>{:else if pick.pen}<span class="emo">🚩</span>{/if}{#if pick.wbc === WBC_CHAMPION_ID}<span
+                  class="emo">🥇</span
+                >{:else if pick.wbc === WBC_RUNNERUP_ID}<span class="emo">🥈</span>{/if}
+            </span>
+          </span>
+          {#if pick.cost != null}<span class="qsal {costTier(pick.cost)}">{money(pick.cost)}</span>{/if}
+          <span class="warchip sm {warTier(pick.war)}">{pick.war.toFixed(1)}</span>
+        {:else}
+          <span class="qname empty">—</span>
+        {/if}
+      </div>
+    {/each}
     <!-- The payroll the dream club would have run, in the same place and the
          same shape YOUR SQUAD's sits in above — so the two clubs' front offices
          compare straight across, which is the only reason to show the solved
@@ -978,19 +1036,19 @@
     flex-wrap: wrap;
     justify-content: center;
     align-items: flex-start;
-    gap: 6px 8px;
+    gap: 6px;
     margin-top: 12px;
-  }
-  /* Badge pills inside the strip. `position: relative` is BadgeSlot's contract:
-     the row is the containing block for an opened badge's panel, clamped here
-     so the panel floats over the stamp and the buttons instead of displacing
-     them. margin-top removed — the strip's own margin-top covers it. */
-  .brags {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px 8px;
+    /* The containing block for any opened badge or stamp panel — both kinds
+       of slot are direct flex items here (their group divs are
+       display:contents), so the strip is the one box PillSlot's offsetParent
+       measurement finds, and the panel fences at the strip's full width. */
     position: relative;
+  }
+  /* No box: badges are flex items of the strip itself, so stamps continue on
+     the same visual line after the last badge and either kind wraps
+     mid-group. */
+  .brags {
+    display: contents;
   }
   .ledger {
     display: grid;
@@ -1006,7 +1064,11 @@
     align-items: center;
     gap: 9px;
     min-height: 44px;
-    border: 2.5px solid var(--line);
+    /* The foreshadow wash's paired line: the record tier's saturated rung
+       (--fline, set beside --fore on .ledger), falling back to the neutral
+       frame if the pair somehow lands unset. A wash never appears without
+       its line. */
+    border: 2.5px solid var(--fline, var(--line));
     border-radius: 11px;
     /* Scorecard rows wear the app's own parchment ground (--ground) stepped
        down from the player card surface (--card). Two distinct materials —
@@ -1057,13 +1119,15 @@
     margin-left: 2px;
   }
   /* Pedigree chips: the emoji carries the color, so no pill border. Slight
-     tracking keeps repeated emoji (💍💍🚩) from fusing into one blob. */
+     tracking keeps repeated emoji (💍💍🚩) from fusing into one blob.
+     app.css's `.chipbox`, so the ×N beside a ring is centered on the same
+     axis the ring is rather than on a line box the ledger's leading sized.
+     The chip's own run is emoji and stays a bare item — no cap band to trim —
+     while the ×N wears `.chiplbl` like every other run of type in a chip. */
   .pedchip {
-    display: inline-flex;
-    align-items: center;
+    --chip-h: 18px;
     font-size: 12px;
     font-weight: 800;
-    line-height: 1.5;
     letter-spacing: 0.1em;
   }
   /* The slot the payroll bar sits in. Only the width is decided here — how
@@ -1173,10 +1237,19 @@
     border-style: dashed;
     color: var(--muted);
   }
-  /* The game's seed — quiet, mono; tap to copy it for PLAY A SEED #. */
+  /* The two code chips sit on one line under the button row, centered, and
+     wrap on a narrow phone rather than shrinking their labels. */
+  .codes {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 10px;
+  }
+  /* The season's codes — quiet, mono; tap to copy. */
   .seedchip {
     display: block;
-    margin: 10px auto 0;
+    margin: 0;
     background: none;
     border: 0;
     padding: 4px 8px;
@@ -1187,8 +1260,9 @@
     font-weight: 700;
     letter-spacing: 0.14em;
     color: var(--muted);
-    /* Wide enough for the longest label so the copy feedback can't jiggle it. */
-    min-width: 15ch;
+    /* Wide enough for the longest label either chip can show ("SEED #0KF12OY")
+       so the copy feedback can't jiggle the pair. */
+    min-width: 13ch;
   }
   .seedchip.ok {
     color: var(--green-deep);
@@ -1226,8 +1300,12 @@
   /* A dream row the player DID sign: quiet green wash so signed seats read
      apart from the plain card without competing with the WAR chip's own color.
      Empty seats (pick == null) carry neither .signed nor .missed. */
+  /* The wash/line pair: --green-wash thinned into the card for the fill,
+     --green (the saturated form of the same hue) for the border — the same
+     relationship the war chip ladder uses (green-2 fill → green-8 line). */
   .squad.dream .qrow.signed {
     background: color-mix(in srgb, var(--green-wash) 30%, var(--card));
+    border-color: var(--green);
   }
   .squad.dream {
     /* Held until the fifth beat; see below. */
@@ -1281,6 +1359,22 @@
   /* Name and badges share a line when they fit; the badges wrap below when a
      decorated player runs out of room (narrow phones). The name never shrinks
      to make space for pills — past the row width it ellipsizes instead. */
+  /* The paid price beside the WAR chip — the rail seats' salary read at
+     finale scale, wearing the market's costTier colors (green cheap, ink mid,
+     orange spendy). The dream rows show the listed price the solver charged
+     its payroll. */
+  .qsal {
+    flex: none;
+    font-weight: 800;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .qsal.cheap {
+    color: var(--green);
+  }
+  .qsal.spendy {
+    color: var(--orange);
+  }
   .qmid {
     flex: 1 1 auto;
     min-width: 0;

@@ -20,6 +20,15 @@
     expanded = false;
   });
 
+  // Discard any live confirm when the market's shape changes — i.e., when any
+  // powerup is armed or disarmed. armVersion bumps in each toggle; the effect
+  // runs once on mount (no-op: confirmKey is already null) and then on each
+  // subsequent bump, so powerup taps clear any open sign/trade pill.
+  $effect(() => {
+    void game.armVersion;
+    setConfirm(null);
+  });
+
   // Box Score reads talent-first (WAR desc); Eye Test reads money-first —
   // salary is the one signal that mode deliberately shows, so the list ranks
   // by it. Below-replacement rows are filtered engine-side (visiblePlayers).
@@ -168,15 +177,15 @@
             >{/if}
         </span>
         {#if !signConfirm && !tradeConfirm}
-          <span class="right">
+          <span class="right" class:lone={!game.showWar}>
             {#if game.slotPick === p.id}
               <!-- The picker lives in the rail — point there, cardstock-terse.
                    The rail sits ABOVE the market on the phone and LEFT of it at
                    width, so the glyph is two spans and the 760px media tier picks
                    the one that points at the actual rail. -->
-              <span class="confirm hint"><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span> PICK A SLOT</span>
+              <span class="confirm hint"><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span><span class="chiplbl"> PICK A SLOT</span></span>
             {:else if game.releasePick === p.id}
-              <span class="confirm hint"><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span> TAP WHO TO TRADE</span>
+              <span class="confirm hint"><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span><span class="chiplbl"> TAP WHO TO TRADE</span></span>
             {:else}
               <span class="cost {discounted ? 'cheap' : costTier(price)}">{money(price)}</span>
               {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
@@ -185,9 +194,9 @@
         {/if}
       </button>
       {#if signConfirm}
-        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitSign(p); }}>SIGN {money(price)}</button>
+        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitSign(p); }}><span class="chiplbl">SIGN {money(price)}</span></button>
       {:else if tradeConfirm}
-        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitTrade(p); }}>TRADE FOR {money(price)}</button>
+        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitTrade(p); }}><span class="chiplbl">TRADE FOR {money(price)}</span></button>
       {/if}
     </div>
   {/each}
@@ -246,6 +255,13 @@
     .prow {
       padding: 8px 14px;
       gap: 12px;
+      /* At phone, the 26.275px WAR chip + 12px padding + 5px border = 43.275px
+         falls below the 46px floor, so min-height binds in both armed and
+         unarmed states. At desktop the padding grows to 16px: 26.275 + 16 + 5 =
+         47.275px exceeds 46px, so unarmed rows sit at 47.275px while armed rows
+         (chip removed, 24px confirm pill + 16 + 5 = 45px) clamp back to 46px —
+         a 1.275px shrink. 48px covers both states at the same floor. */
+      min-height: 48px;
     }
   }
   /* The row tap surface (.prow-btn) reset lives in app.css: one shared rule
@@ -349,6 +365,13 @@
     gap: 10px;
     margin-right: -4px;
     flex: none;
+  }
+  /* The negative pull above is the chip inset rule — box against box. In Eye
+     Test the WAR chip is gated off and the price is bare text, which sits at
+     the row's full padding instead: ink against the frame reads cramped at a
+     box's inset. Wins over both width tiers' pulls on specificity. */
+  .right.lone {
+    margin-right: 0;
     min-height: 26.3px;
   }
   /* The wide tier pads 14px, so the same 6px seat needs a deeper pull — the

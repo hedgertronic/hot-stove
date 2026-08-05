@@ -31,6 +31,8 @@
   let seasons = $state<Season[] | null>(null);
   let failed = $state(false);
   let busy = $state(false);
+  /** Key of the season row awaiting confirm tap, `null` when no row is armed. */
+  let armed = $state<string | null>(null);
 
   // The whole career loads up front (cards are ~10KB each and cached); rows
   // that fit no open seat render grayed rather than vanishing.
@@ -38,6 +40,7 @@
     const id = playerId;
     seasons = null;
     failed = false;
+    armed = null;
     if (id === null) return;
     void (async () => {
       try {
@@ -77,13 +80,22 @@
    * would hand over the whole answer at once. */
   const hasBadges = (p: CardPlayer) => game.showAwards && p.awards.length > 0;
 
-  async function pick(sea: Season) {
-    if (busy || !sea.fits || sea.here) return;
+  /** First tap arms the row; a second tap on the same row disarms it.
+   * Tapping a different row arms that row instead. */
+  function arm(sea: Season) {
+    if (!sea.fits || sea.here) return;
+    const key = `${sea.team}:${sea.year}`;
+    armed = armed === key ? null : key;
+  }
+
+  /** Second tap: commit the armed season via the prime apply path.
+   * try/finally, not sequential: applyPrime awaits a card fetch, and a
+   * fetch that throws mid-tap would otherwise latch `busy` forever — every
+   * row grayed, no error, no retry. The close belongs to success only; a
+   * failed tap re-enables the rows so the next tap can try again. */
+  async function commit(sea: Season) {
+    if (busy) return;
     busy = true;
-    // try/finally, not sequential: applyPrime awaits a card fetch, and a
-    // fetch that throws mid-tap would otherwise latch `busy` forever — every
-    // row grayed, no error, no retry. The close belongs to success only; a
-    // failed tap re-enables the rows so the next tap can try again.
     try {
       await game.applyPrime(sea.team, sea.year);
       onclose();
@@ -112,28 +124,42 @@
         {#each seasons as sea ((sea.team + sea.year))}
           {@const plabel = posLabel(sea.p)}
           {@const price = game.primePriceFor(sea.p, sea.franchise)}
-          <button class="srow" disabled={!sea.fits || sea.here} onclick={() => pick(sea)}>
-            <span class="pos" class:pit={isPitcher(sea.p)} class:long={plabel.length > 5}
-              >{plabel}</span
-            >
-            <!-- The market row with one field swapped: the list leads with the
-                 player's NAME, and here the player is fixed while the season
-                 varies, so the lead is year + team code. Award pills follow it
-                 inline and wrap to a second line on narrow phones, the same
-                 badges-wrap-names-don't idiom the market rows use. Unsignable
-                 rows (current card's own season, no fitting open seat) just
-                 gray — no explanatory copy, same as every other gray row. -->
-            <span class="mid">
-              <span class="yr">{sea.year} {sea.team}</span>
-              {#if hasBadges(sea.p)}<span class="badges"
-                  >{#each sortAwards(sea.p.awards) as a}<AwardPill code={a} small />{/each}</span
-                >{/if}
-            </span>
-            <span class="right">
-              <span class="cost {costTier(price)}">{money(price)}</span>
-              {#if game.showWar}<span class="warchip {warTier(sea.p.war)}">{sea.p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
-            </span>
-          </button>
+          {@const key = `${sea.team}:${sea.year}`}
+          {@const isArmed = armed === key}
+          <div class="srow" class:dead={!sea.fits || sea.here}>
+            <button class="srow-btn" disabled={!sea.fits || sea.here} onclick={() => arm(sea)}>
+              <span class="pos" class:pit={isPitcher(sea.p)} class:long={plabel.length > 5}
+                >{plabel}</span
+              >
+              <!-- The market row with one field swapped: the list leads with the
+                   player's NAME, and here the player is fixed while the season
+                   varies, so the lead is year + team code. Award pills follow it
+                   inline and wrap to a second line on narrow phones, the same
+                   badges-wrap-names-don't idiom the market rows use. Unsignable
+                   rows (current card's own season, no fitting open seat) just
+                   gray — no explanatory copy, same as every other gray row. -->
+              <span class="mid">
+                <span class="yr">{sea.year} {sea.team}</span>
+                {#if hasBadges(sea.p)}<span class="badges"
+                    >{#each sortAwards(sea.p.awards) as a}<AwardPill code={a} small />{/each}</span
+                  >{/if}
+              </span>
+              {#if !isArmed}
+                <span class="right" class:lone={!game.showWar}>
+                  <span class="cost {costTier(price)}">{money(price)}</span>
+                  {#if game.showWar}<span class="warchip {warTier(sea.p.war)}">{sea.p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
+                </span>
+              {/if}
+            </button>
+            {#if isArmed}
+              <button
+                type="button"
+                class="confirm"
+                disabled={busy}
+                onclick={(e) => { e.stopPropagation(); void commit(sea); }}
+              ><span class="chiplbl">SIGN {money(price)}</span></button>
+            {/if}
+          </div>
         {/each}
       </div>
     {/if}
@@ -147,7 +173,6 @@
   .srow {
     display: flex;
     align-items: center;
-    gap: 9px;
     background: var(--card);
     border: 2.5px solid var(--line);
     border-radius: 11px;
@@ -157,27 +182,26 @@
     font-family: inherit;
     color: inherit;
     text-align: left;
-    width: 100%;
     min-height: 48px;
   }
   .srow:active {
     transform: translate(-1px, -1px);
   }
-  .srow:disabled {
+  .srow.dead {
     opacity: 0.45;
     cursor: default;
   }
   /* Same faded-tier idiom as the market's dead rows: identity goes
      monochrome, the WAR chip and price keep a washed but recognizable hue. */
-  .srow:disabled > .pos,
-  .srow:disabled > .mid {
+  .srow.dead > .srow-btn > .pos,
+  .srow.dead > .srow-btn > .mid {
     filter: grayscale(1);
   }
-  .srow:disabled .warchip,
-  .srow:disabled .cost {
+  .srow.dead .warchip,
+  .srow.dead .cost {
     filter: saturate(0.7);
   }
-  .srow:disabled:active {
+  .srow.dead:active {
     transform: none;
   }
   .pos {
@@ -209,10 +233,10 @@
      second line when they don't. The label never shrinks to make room for
      pills — same rule as the market rows, where the pills are the scannable
      signal and the name holds its size.
-     Scoped to the row's own child: `mid` is also the WAR ladder's middle rung,
-     and a bare `.mid` here reached into the row's mid-tier chip and made it a
-     flex container with this rule's gap and no min-width. */
-  .srow > .mid {
+     Scoped to the button's own child: `mid` is also the WAR ladder's middle
+     rung, and a bare `.mid` here reached into the row's mid-tier chip and
+     made it a flex container with this rule's gap and no min-width. */
+  .srow-btn > .mid {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -247,11 +271,23 @@
     margin-right: -4px;
     flex: none;
   }
+  /* Eye Test gates the WAR chip, leaving the price as bare rightmost text —
+     it sits at the row's full padding, not at the box-against-box inset.
+     Same rule as PlayerList's; wins over both width tiers on specificity. */
+  .right.lone {
+    margin-right: 0;
+  }
   /* The wide tier's deeper pull, same numbers and same source-order caveat as
      PlayerList's .right: without it this sheet's right edge split 4px from
      the market's above 760px — exactly the drift the comment below warns two
      copies invite. */
   @media (min-width: 760px) {
+    /* The market rows' desktop padding, so the -8px chip pull below lands the
+       same 6px inset here as there — a 10px row with an -8px pull leaves the
+       chip 2px off the frame. */
+    .srow {
+      padding: 8px 14px;
+    }
     .right {
       margin-right: -8px;
     }
@@ -280,5 +316,19 @@
   }
   .cost.spendy {
     color: var(--orange);
+  }
+  /* Confirm pill sits at the same 6px inset as the .right column it replaces
+     when a row is armed. The base rule matches the row's 10px padding − 4px;
+     the wide tier deepens to −8px to keep this edge flush with the market's
+     WAR chip column above 760px. Source order matters: the media override wins
+     only if it appears after the base rule. */
+  .srow > .confirm {
+    flex: none;
+    margin-right: -4px;
+  }
+  @media (min-width: 760px) {
+    .srow > .confirm {
+      margin-right: -8px;
+    }
   }
 </style>

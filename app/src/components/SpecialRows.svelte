@@ -137,6 +137,16 @@
     game.tdTapSpecial(key);
   }
 
+  // Discard any live confirm when the market's shape changes — i.e., when any
+  // powerup is armed or disarmed. armVersion bumps in each toggle; the effect
+  // runs once on mount (no-op: confirmKey is already null) and then on each
+  // subsequent bump, so powerup taps clear any open hire/swap pill.
+  $effect(() => {
+    if (!game) return;
+    void game.armVersion;
+    setConfirm(null);
+  });
+
   function tap(row: Row, e: MouseEvent) {
     e.stopPropagation();
     if (!game || !canAct) return;
@@ -215,9 +225,9 @@
         {/if}
       </button>
       {#if sSignConfirm}
-        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commit(row.key); }}>{row.val ? `${row.verb} ${row.val}${row.unit ? ` ${row.unit}` : ""}` : row.verb}</button>
+        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commit(row.key); }}><span class="chiplbl">{row.val ? `${row.verb} ${row.val}${row.unit ? ` ${row.unit}` : ""}` : row.verb}</span></button>
       {:else if sSwapConfirm}
-        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitSwap(row.key); }}>🔁 TRADE IN</button>
+        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitSwap(row.key); }}><span class="chiplbl">TRADE IN</span></button>
       {/if}
     </div>
   {/each}
@@ -278,6 +288,14 @@
     .srow {
       padding: 8px 14px;
       gap: 12px;
+      /* Same arithmetic as PlayerList's .prow: the manager tile's 26.275px WAR
+         chip + 16px desktop padding + 5px border = 47.275px, which exceeds the
+         46px floor, so the unarmed skipper row sits at 47.275px. Armed, the
+         chip hides and the 24px confirm pill + 16 + 5 = 45px clamps back to
+         46px — a 1.275px shrink on the manager row only (owner/stadium carry
+         no chip, so their unarmed height stays below 46px and never shrinks).
+         48px covers both states at the same floor. */
+      min-height: 48px;
     }
   }
   .srow:active {
@@ -332,6 +350,9 @@
   }
   .meta {
     font-size: 11px;
+    /* Own leading: the body's 1.55 rhythm would size this line's box and
+       float it off the row's vertical center beside .who's 1.15. */
+    line-height: 1;
     color: var(--muted-2);
     font-weight: 600;
     flex: none;

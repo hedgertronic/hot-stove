@@ -400,6 +400,75 @@ describe("click-outside closes the seed field", () => {
   });
 });
 
+describe("seed input placeholder and paste formats", () => {
+  it("placeholder starts with # — matches the format copy produces", () => {
+    // copySeed() on the finale writes "#CODE" to the clipboard. The placeholder
+    // must show that same format so the field looks right for a paste.
+    const ui = open();
+    ui.seedBtn().click();
+    flushSync();
+    expect(ui.input()!.placeholder).toMatch(/^#/);
+    ui.close();
+  });
+
+  it("accepts a hash-prefixed code (#CODE) and calls onplay with the parsed seed", () => {
+    // The exact string copySeed() puts on the clipboard: "#" + 7-char base36.
+    // 0xa3f2 → seedCode → "0000WDU" → token "#0000WDU"
+    const onplay = vi.fn();
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const app = mount(Home, {
+      target,
+      props: { config: { difficulty: "standard", bank: "classic" }, onplay, onopen: vi.fn() },
+    });
+    flushSync();
+    const under = target.querySelector(".under") as HTMLElement;
+    (under.querySelector(".ubtn") as HTMLButtonElement).click();
+    flushSync();
+    const input = under.querySelector(".seedin") as HTMLInputElement;
+    input.value = "#0000WDU";
+    input.dispatchEvent(new Event("input"));
+    flushSync();
+    (under.querySelector(".seedgo") as HTMLButtonElement).click();
+    flushSync();
+    expect(onplay).toHaveBeenCalledWith({ difficulty: "standard", bank: "classic" }, 0xa3f2);
+    unmount(app);
+    target.remove();
+  });
+
+  it("accepts a bare code without # and calls onplay with the same seed", () => {
+    const onplay = vi.fn();
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const app = mount(Home, {
+      target,
+      props: { config: { difficulty: "standard", bank: "classic" }, onplay, onopen: vi.fn() },
+    });
+    flushSync();
+    const under = target.querySelector(".under") as HTMLElement;
+    (under.querySelector(".ubtn") as HTMLButtonElement).click();
+    flushSync();
+    const input = under.querySelector(".seedin") as HTMLInputElement;
+    input.value = "0000WDU";
+    input.dispatchEvent(new Event("input"));
+    flushSync();
+    (under.querySelector(".seedgo") as HTMLButtonElement).click();
+    flushSync();
+    expect(onplay).toHaveBeenCalledWith({ difficulty: "standard", bank: "classic" }, 0xa3f2);
+    unmount(app);
+    target.remove();
+  });
+
+  it("pins the placeholder text to the hash-prefixed format", () => {
+    // Snapshot the exact placeholder so a future rename is a conscious choice.
+    const ui = open();
+    ui.seedBtn().click();
+    flushSync();
+    expect(ui.input()!.placeholder).toBe("#0KF12OY");
+    ui.close();
+  });
+});
+
 describe("seed zone geometry contract (CSS source text)", () => {
   // jsdom has no layout engine; computed heights cannot be verified here.
   // The source-text assertions below pin the CSS rules that enforce height

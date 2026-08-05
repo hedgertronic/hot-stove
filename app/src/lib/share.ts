@@ -1,8 +1,10 @@
 import { badgeEmoji } from "./badges";
-import type { Bank, Difficulty } from "./engine.svelte";
+import { Game } from "./engine.svelte";
+import type { Bank, Difficulty, CompactAction, DecisionLogHeader, GameConfig } from "./engine.svelte";
 import { recordFromTotal, seedCode, warTier, type WarTier } from "./format";
 import { BANKS, DIFFICULTIES } from "./modes";
 import { GAMES, MARINERS_WINS } from "./scoring";
+import type { GameIndex, Meta, Owners } from "./types";
 
 /* ---------------------------------------------------------------------------
  * The shareable result string. Five lines for a clean game, six for one
@@ -240,4 +242,259 @@ export function shareText(input: ShareInput): string {
   ];
   if (badgeLine) lines.push(badgeLine);
   return lines.join("\n");
+}
+
+/* ---------------------------------------------------------------------------
+ * Compact decision log — shortcode format v2
+ *
+ * The log is COMPLETE with respect to outcome-relevant free choices: every
+ * decision that changes what commits is a token here, so re-running the tokens
+ * against a Game on the same seed and settings reproduces the season exactly
+ * (lib/engine `driveReplay`, and `replayShortcode` below). The two arming
+ * toggles that change a committed outcome — ✌️ Double Play, which buys a
+ * second pick off the same card, and 🏠 Homegrown, which changes the price
+ * paid — carry their own verbs for that reason. 🔁 Trade Deadline and ⭐ Prime
+ * Time do not: arming them only gates refusals, and the commits they enable
+ * (W / V / P / Q) say so themselves.
+ *
+ * v1 → v2 added the D and H toggles. A v1 code is not replayable — its DP and
+ * discount states are unrecoverable, and a v1 token stream for a doubled spin
+ * is byte-identical to one for two ordinary spins — so `replayShortcode`
+ * refuses it. `decodeDecisionLog` still reads it, since a bug report pasted
+ * into `window.__hotstove.decodeLog` is worth reading whatever minted it.
+ *
+ * HEADER (12 chars, fixed-width):
+ *   [0]     Format version: '2' ('1' decodes, but does not replay)
+ *   [1..7]  Seed: 7 uppercase base36 chars (same encoding as seedCode())
+ *   [8]     Difficulty: 's'=standard, 'c'=scout
+ *   [9]     Bank: 'c'=classic, 'm'=moneyball, 'k'=blankcheck
+ *   [10]    Save-schema version: single base36 char 0–z
+ *   [11]    Source: 'f'=finale, 'n'=current, '-'=absent/direct
+ *
+ * BODY: sequence of tokens, no separators
+ *   Each token is an uppercase verb letter followed by fixed-width lowercase
+ *   base36 params whose count is determined by the verb:
+ *
+ *   Verb  Params     Meaning
+ *   S     pi si      sign from reel card; pi=player idx(1), si=slot idx(1)
+ *   W     pi si      swap (trade) from reel card; same params as S
+ *   P     ci pi si   prime sign; ci=card idx(2), pi=player idx(1), si=slot(1)
+ *   V     ci pi si   prime swap; same params as P
+ *   O                hire owner from reel card
+ *   A                buy stadium from reel card
+ *   M                hire manager from reel card (any path incl. TD tap)
+ *   Q     ci         prime manager; ci=card idx(2)
+ *   T     ci         season ticket; ci=target card idx(2)
+ *   R     ci         relocate; ci=target card idx(2)
+ *   U                undo
+ *   C                cold respin
+ *   D                ✌️ Double Play toggle (arm or disarm)
+ *   H                🏠 Homegrown toggle (arm or disarm)
+ *
+ *   Param widths:
+ *     pi  — 1 base36 char, index into card.players (data order, not UI sort)
+ *     si  — 1 base36 char, slot index 0–7 (SLOT_TYPES order)
+ *     ci  — 2 base36 chars, index into index.cards (data order); covers
+ *            up to 1295 cards (36²), sufficient for the 1985–2025 window
+ *
+ *   Note: the Homegrown ($1M) discount rides the H toggle rather than the
+ *   signing token — the price a sign commits at follows from the arm state,
+ *   so the arm state is what the log records.
+ * ------------------------------------------------------------------------ */
+
+/** Encode a compact action sequence to a body string (no header). */
+function encodeBody(actions: CompactAction[]): string {
+  let s = "";
+  for (const a of actions) {
+    if (a.verb === "S" || a.verb === "W") {
+      s += a.verb + a.pi.toString(36) + a.si.toString(36);
+    } else if (a.verb === "P" || a.verb === "V") {
+      s += a.verb + a.ci.toString(36).padStart(2, "0") + a.pi.toString(36) + a.si.toString(36);
+    } else if (a.verb === "Q" || a.verb === "T" || a.verb === "R") {
+      s += a.verb + a.ci.toString(36).padStart(2, "0");
+    } else {
+      s += a.verb; // O, A, M, U, C, D, H
+    }
+  }
+  return s;
+}
+
+/** Decode a compact body string to CompactAction[]. Returns [] on corrupt input. */
+function decodeBody(body: string): CompactAction[] {
+  const actions: CompactAction[] = [];
+  let i = 0;
+  while (i < body.length) {
+    const verb = body[i++];
+    if (verb === "S" || verb === "W") {
+      const pi = parseInt(body[i++], 36);
+      const si = parseInt(body[i++], 36);
+      actions.push({ verb, pi, si });
+    } else if (verb === "P" || verb === "V") {
+      const ci = parseInt(body.slice(i, i + 2), 36); i += 2;
+      const pi = parseInt(body[i++], 36);
+      const si = parseInt(body[i++], 36);
+      actions.push({ verb, ci, pi, si });
+    } else if (verb === "Q" || verb === "T" || verb === "R") {
+      const ci = parseInt(body.slice(i, i + 2), 36); i += 2;
+      actions.push({ verb, ci });
+    } else if (
+      verb === "O" || verb === "A" || verb === "M" ||
+      verb === "U" || verb === "C" || verb === "D" || verb === "H"
+    ) {
+      actions.push({ verb } as CompactAction);
+    } else {
+      return []; // unrecognized — corrupt
+    }
+  }
+  return actions;
+}
+
+/** The format version this build MINTS. Decoding accepts older versions —
+ * replaying does not (see the grammar note above). */
+const LOG_VERSION = "2";
+
+/** Build the 12-char header string from a DecisionLogHeader. */
+function encodeHeader(h: DecisionLogHeader): string {
+  const seed7 = (h.seed >>> 0).toString(36).toUpperCase().padStart(7, "0");
+  const diff = h.diff === "scout" ? "c" : "s";
+  const bank = h.bank === "moneyball" ? "m" : h.bank === "blankcheck" ? "k" : "c";
+  const sv = (h.sv ?? 0).toString(36);
+  const src = h.src === "finale" ? "f" : h.src === "current" ? "n" : "-";
+  return LOG_VERSION + seed7 + diff + bank + sv + src;
+}
+
+/** Encode a decision log header + actions as a compact shortcode string. */
+export function encodeDecisionLog(
+  header: DecisionLogHeader,
+  actions: CompactAction[],
+): string {
+  return encodeHeader(header) + encodeBody(actions);
+}
+
+/** Decode a string produced by `encodeDecisionLog` (or `Game#debugLog`).
+ * Returns null when the string is too short, starts with an unrecognized
+ * version char, or contains an unrecognized verb. */
+export function decodeDecisionLog(
+  s: string,
+): { header: DecisionLogHeader; log: CompactAction[] } | null {
+  if (s.length < 12) return null;
+  // The version the string CARRIES, not the one this build mints: a v1 code
+  // still decodes for a bug report; `replayShortcode` is where v1 is refused.
+  const v = s[0] === "1" ? 1 : s[0] === "2" ? 2 : 0;
+  if (v === 0) return null;
+  const seed = parseInt(s.slice(1, 8), 36);
+  if (!Number.isInteger(seed) || isNaN(seed)) return null;
+  const diffChar = s[8];
+  const diff = diffChar === "s" ? "standard" : diffChar === "c" ? "scout" : "";
+  if (!diff) return null;
+  const bankChar = s[9];
+  const bank =
+    bankChar === "c" ? "classic" : bankChar === "m" ? "moneyball" : bankChar === "k" ? "blankcheck" : "";
+  if (!bank) return null;
+  const sv = parseInt(s[10], 36);
+  const srcChar = s[11];
+  const src: "finale" | "current" | undefined =
+    srcChar === "f" ? "finale" : srcChar === "n" ? "current" : undefined;
+  const header: DecisionLogHeader = { v, seed, sv, src, diff, bank };
+  const log = decodeBody(s.slice(12));
+  return { header, log };
+}
+
+/** Rebuild a finished season from a shortcode — the shareable replay.
+ *
+ * Returns an inert `Game` parked on its finale, or null when the code cannot
+ * be replayed on this build: a format version this build does not drive (v1
+ * codes, whose ✌️/🏠 states were never recorded), a header that does not
+ * parse, a token that no longer applies (a data rebuild shifts what a player
+ * index means), or a log that runs out before the club is complete. Null is
+ * the whole error vocabulary — a partial finale is never handed back.
+ *
+ * The Game is marked `inert` BEFORE the first action, so nothing about the
+ * replay reaches storage: not the viewer's in-progress save, not the history
+ * log, not the archive, not the boot claim.
+ *
+ * The save-schema char (`sv`) is deliberately NOT checked. It means different
+ * things depending on where the log was read from — SAVE_VERSION off
+ * `hotstove.current`, FINALE_VERSION off `hotstove.finale` — so it identifies
+ * a record shape this code never touches. What has to hold is the FORMAT
+ * version and the tokens themselves, and `driveReplay` checks the tokens by
+ * replaying them. */
+export async function replayShortcode(
+  meta: Meta,
+  index: GameIndex,
+  owners: Owners,
+  code: string,
+): Promise<Game | null> {
+  const decoded = decodeDecisionLog(code.trim());
+  if (!decoded || decoded.header.v !== 2) return null;
+  const { header, log } = decoded;
+  const game = new Game(meta, index, owners, header.seed, {
+    difficulty: header.diff as GameConfig["difficulty"],
+    bank: header.bank as GameConfig["bank"],
+  });
+  game.inert = true;
+  try {
+    return (await game.driveReplay(log)) === -1 ? game : null;
+  } catch {
+    // Nothing in the drive is expected to throw — a refused action returns
+    // silently and shows up as a parity failure — but a card fetch can, and a
+    // replay that cannot finish is a replay that cannot be shown.
+    return null;
+  }
+}
+
+/** Read the decision log from localStorage and encode it as a compact
+ * shortcode string, without requiring a live Game reference.
+ *
+ * Prefers `hotstove.finale` over `hotstove.current` so the log is available
+ * after the game ends. The `src` field in the header identifies which record
+ * was read: `"finale"` records carry FINALE_VERSION; `"current"` records carry
+ * SAVE_VERSION — the two `sv` values belong to different schemas.
+ *
+ * Returns null when localStorage is unavailable, empty, or corrupt. */
+export function debugLogFromStorage(): string | null {
+  try {
+    const finaleRaw =
+      typeof localStorage !== "undefined"
+        ? localStorage.getItem("hotstove.finale")
+        : null;
+    const currentRaw =
+      typeof localStorage !== "undefined"
+        ? localStorage.getItem("hotstove.current")
+        : null;
+    const raw = finaleRaw ?? currentRaw;
+    if (!raw) return null;
+    const src: "finale" | "current" = finaleRaw !== null ? "finale" : "current";
+    const s = JSON.parse(raw);
+    const actions: CompactAction[] =
+      typeof s.decisionLog === "string" ? decodeBody(s.decisionLog) : [];
+    return encodeDecisionLog(
+      {
+        v: 2,
+        seed: s.seed,
+        sv: s.v,
+        src,
+        diff: s.config?.difficulty ?? "standard",
+        bank: s.config?.bank ?? "classic",
+      },
+      actions,
+    );
+  } catch {
+    return null;
+  }
+}
+
+/* Register browser-console helpers when running in a browser environment.
+ * `window.__hotstove.debugLog()` reads from localStorage so it works both
+ * during a game (hotstove.current) and after one finishes (hotstove.finale),
+ * with no live Game reference required. Guard prevents a throw in Node/Vitest. */
+if (typeof window !== "undefined") {
+  const w = window as Window & { __hotstove?: Record<string, unknown> };
+  w.__hotstove ??= {};
+  /** Encode the current or most-recently-finished game's decision log as a
+   * compact shortcode. Copy the output and include it in a bug report.
+   * Decode it with `window.__hotstove.decodeLog(str)`. */
+  w.__hotstove.debugLog = debugLogFromStorage;
+  /** Decode a string produced by `debugLog()` or `Game#debugLog()`. */
+  w.__hotstove.decodeLog = decodeDecisionLog;
 }

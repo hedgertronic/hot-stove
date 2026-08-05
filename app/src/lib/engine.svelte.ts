@@ -5,7 +5,7 @@ import { track } from "./analytics";
 import { earnedBadges } from "./badges";
 import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadSpecials, ownerFor } from "./data";
-import { eligibleTypes, visiblePlayers } from "./eligibility";
+import { eligibleTypes, isTwoWay, visiblePlayers } from "./eligibility";
 import { localDateStamp, recordFromTotal, type WarTier } from "./format";
 import {
   FINALE_VERSION,
@@ -172,6 +172,54 @@ export type SpecialKey = "owner" | "stadium" | "manager";
 export interface SpinLogEntry {
   kind: "sign" | "owner" | "stadium" | "manager" | "swap";
   war?: number;
+}
+
+/** A single committed action in the compact decision log — position indexes
+ * rather than ids/codes keep the encoded string to ~50–70 chars for a full game.
+ * See the grammar comment block in share.ts for the encoding spec. */
+export type CompactAction =
+  | { verb: "S"; pi: number; si: number }            // sign from reel card
+  | { verb: "W"; pi: number; si: number }            // swap (trade) from reel card
+  | { verb: "P"; ci: number; pi: number; si: number } // prime sign
+  | { verb: "V"; ci: number; pi: number; si: number } // prime swap
+  | { verb: "O" }                                      // hire owner
+  | { verb: "A" }                                      // buy stadium
+  | { verb: "M" }                                      // hire manager
+  | { verb: "Q"; ci: number }                          // prime manager
+  | { verb: "T"; ci: number }                          // season ticket
+  | { verb: "R"; ci: number }                          // relocate
+  | { verb: "U" }                                      // undo
+  | { verb: "C" }                                      // cold respin
+  | { verb: "D" }                                      // ✌️ Double Play toggle
+  | { verb: "H" }                                      // 🏠 Homegrown toggle
+
+/** Two compact actions describe the same move — verb and every param it
+ * carries. The replay driver's parity check: an action method that logged
+ * something other than what the token asked for did not reproduce it. */
+function sameCompact(a: CompactAction, b: CompactAction): boolean {
+  if (a.verb !== b.verb) return false;
+  const x = a as { ci?: number; pi?: number; si?: number };
+  const y = b as { ci?: number; pi?: number; si?: number };
+  return x.ci === y.ci && x.pi === y.pi && x.si === y.si;
+}
+
+/** Header embedded in an encoded decision log — seed, save schema version,
+ * and mode settings, so a log string is self-contained for bug reports. */
+export interface DecisionLogHeader {
+  /** Log format version (currently 1). */
+  v: number;
+  seed: number;
+  /** Schema version of the localStorage record read.
+   * `"current"` records carry SAVE_VERSION; `"finale"` records carry
+   * FINALE_VERSION — different numbers, different schemas. `src` identifies
+   * which key was hit so the decoder knows which schema `sv` refers to. */
+  sv: number;
+  /** Which localStorage key the log was read from. Present when produced by
+   * `debugLogFromStorage()`; absent on logs produced by `Game#debugLog()` or
+   * assembled manually. */
+  src?: "finale" | "current";
+  diff: string;
+  bank: string;
 }
 
 export interface FinaleResult {
@@ -344,6 +392,9 @@ export interface StoredFinale {
   stadium: StadiumPick | null;
   manager: ManagerPick | null;
   finale: FinaleResult;
+  /** Compact body string (see grammar in share.ts). Optional so older stored
+   * finales (array format) gracefully restore as an empty log. */
+  decisionLog?: string;
 }
 
 /** The archived finale, or null when there is none, it is corrupt, or it was
@@ -500,6 +551,20 @@ export class Game {
    * withheld, never invented. Not reactive: set once in the constructor,
    * read once at the finale. */
   seedTyped = false;
+  /** This game is a REPLAY reconstruction, not a game being played — it writes
+   * nothing to storage, ever.
+   *
+   * A shared shortcode rebuilds someone else's season by re-running its
+   * decisions through a headless Game (`driveReplay`). That Game walks every
+   * path a real one does, so without this flag it would clobber the player's
+   * own in-progress save, file a history row for a season they did not play,
+   * archive it, and claim the boot screen for it. Every write this class makes
+   * funnels through `save()` and `finishGame()`'s three storage statements, and
+   * both check this field.
+   *
+   * Set once by `replayShortcode` (share.ts) before the first action is
+   * applied, and never cleared: an inert game is inert for its whole life. */
+  inert = false;
   /** A move was taken back during this game — ↩️ SECOND THOUGHTS.
    *
    * A fact about the RUN, not about the position, which is exactly why
@@ -522,6 +587,23 @@ export class Game {
    * it on the one call that sets it), and `restore` reads it off the save
    * directly. */
   redone = $state(false);
+  /** The same action (identified by actionSig) was undone 3+ times in this game —
+   * 🎠 MERRY-GO-ROUND.
+   *
+   * A RUN fact like `undoUsed`: `hydrate` does not carry it so a rewind cannot
+   * clear it, and `restore` reads it off the save directly. Optional default
+   * false on a save written before the field. */
+  repeatedUndo = $state(false);
+  /** Per-sig count of how many times each action has been undone in this run.
+   * Keyed by `actionSig`; never decremented. Used only to compute `repeatedUndo`
+   * and never read by the UI. A RUN fact: restored directly, not via `hydrate`. */
+  private undoCounts: Record<string, number> = {};
+  /** Every committed action in this game, in order. Grows monotonically —
+   * undo entries are appended, never deleted. A RUN fact: read directly in
+   * `restore()`, not via `hydrate()`. Persisted so a reloaded game carries
+   * the full audit trail, and written into the stored finale so the log
+   * survives the in-progress save's deletion. */
+  decisionLog = $state<CompactAction[]>([]);
   powerups = $state<Record<PowerupKey, PowerupState>>({
     seasonTicket: "ready",
     relocate: "ready",
@@ -572,6 +654,11 @@ export class Game {
    * rolls on with no pause at all. Deliberately NOT serialized: it describes
    * one boot, not the run. */
   resumedForfeit = $state(false);
+  /** Incremented by every user-facing powerup toggle (arm or disarm).
+   * PlayerList and SpecialRows watch this to clear any live confirm when the
+   * market's shape changes. Deliberately NOT serialized: it describes the
+   * in-session gesture count, not a resumable game fact. */
+  armVersion = $state(0);
 
   private pendingCard: Promise<Card> | null = null;
   private pendingEntry: IndexEntry | null = null;
@@ -874,8 +961,31 @@ export class Game {
     return this.powerups.hometown === "armed";
   }
 
+  /** Occupied slot indices where the SAME PLAYER (by id) is seated in a
+   * DIFFERENT season from the current card — the seats eligible for a
+   * self-season swap. Empty when: the card is null, the player is not
+   * rostered, or every seated copy is the same season as the card (which
+   * would produce an identical duplicate rather than a new-season upgrade).
+   *
+   * By comparing both team AND year, a mid-season-trade scenario where the
+   * same player appears on two same-year cards is correctly blocked (two
+   * copies of the same id–year–team triplet). */
+  private selfTradeSlots(p: CardPlayer): number[] {
+    if (!this.card) return [];
+    const cardKey = `${this.card.team}|${this.card.year}`;
+    return this.occupiedSlotsFor(p).filter(
+      (i) =>
+        this.slots[i]?.id === p.id &&
+        `${this.slots[i]!.team}|${this.slots[i]!.year}` !== cardKey,
+    );
+  }
+
   private tdTargetRaw(p: CardPlayer): boolean {
-    return !this.isRostered(p) && this.occupiedSlotsFor(p).length > 0;
+    // Rostered player: only allow if the current card has a different season
+    // of the same person (self-season swap). Non-rostered: require at least
+    // one occupied eligible seat to trade into.
+    if (this.isRostered(p)) return this.selfTradeSlots(p).length > 0;
+    return this.occupiedSlotsFor(p).length > 0;
   }
 
   /** ⭐'s own target test, before the intersection: an unrostered man whose
@@ -970,7 +1080,9 @@ export class Game {
     if (this.powerups.tradeDeadline !== "spent") {
       if (
         this.visiblePlayers.some(
-          (p) => this.playerState(p) === "dead" && !this.isRostered(p),
+          (p) =>
+            (this.playerState(p) === "dead" && !this.isRostered(p)) ||
+            (this.isRostered(p) && this.selfTradeSlots(p).length > 0),
         )
       )
         return true;
@@ -1113,6 +1225,8 @@ export class Game {
     this.pendingRedoSig = null;
     this.snapshot();
     this.spendPowerup("seasonTicket");
+    const _stCI = this.index.cards.findIndex((c) => c.franchise === this.card!.franchise && c.year === year);
+    this.appendDecision({ verb: "T", ci: _stCI });
     this.disarmToggles();
     this.spinCount -= 1; // same spin, new card
     this.beginSpin(entry, "year");
@@ -1139,6 +1253,8 @@ export class Game {
     this.pendingRedoSig = null;
     this.snapshot();
     this.spendPowerup("relocate");
+    const _relCI = this.index.cards.findIndex((c) => c.year === this.card!.year && c.team === team);
+    this.appendDecision({ verb: "R", ci: _relCI });
     this.disarmToggles();
     this.spinCount -= 1;
     this.beginSpin(entry, "team");
@@ -1153,14 +1269,24 @@ export class Game {
       if (this.choicesUsed > 0) return;
       this.powerups.doublePlay = "armed";
       this.choicesLeft += 1;
+      // Logged, unlike 🔁 and ⭐, because this toggle CHANGES WHAT COMMITS:
+      // it buys a second pick off the same card, and a replay that guessed
+      // wrong would put that pick on the next spin's club. See the replay
+      // grammar note beside `driveReplay`.
+      this.appendDecision({ verb: "D" });
     } else if (this.powerups.doublePlay === "armed") {
       this.powerups.doublePlay = "ready";
       this.choicesLeft -= 1;
+      // Above the early return: a disarm that forfeits the last choice ends
+      // the spin, and an unlogged disarm desyncs the replay exactly as an
+      // unlogged arm does.
+      this.appendDecision({ verb: "D" });
       if (this.choicesLeft === 0 && this.choicesUsed > 0) {
         this.endSpin();
         return;
       }
     }
+    this.armVersion += 1;
     this.save();
   }
 
@@ -1173,6 +1299,7 @@ export class Game {
       this.powerups.tradeDeadline = "ready";
       this.releasePick = null;
     }
+    this.armVersion += 1;
     this.save();
   }
 
@@ -1187,6 +1314,7 @@ export class Game {
       this.primePick = null;
       this.primeSpecial = null;
     }
+    this.armVersion += 1;
     this.save();
   }
 
@@ -1203,11 +1331,18 @@ export class Game {
    * powerup key stays "hometown".) */
   toggleHometown(): void {
     if (this.phase !== "landed" || this.choicesLeft === 0) return;
+    // Logged for ✌️'s reason: the discount CHANGES WHAT COMMITS — the price
+    // paid — and price is the one thing a replay's own log cannot check itself
+    // against, so it has to be recorded rather than inferred. Inside the
+    // branches, so a tap on a spent pill logs nothing.
     if (this.powerups.hometown === "ready") {
       this.powerups.hometown = "armed";
+      this.appendDecision({ verb: "H" });
     } else if (this.powerups.hometown === "armed") {
       this.powerups.hometown = "ready";
+      this.appendDecision({ verb: "H" });
     }
+    this.armVersion += 1;
     this.save();
   }
 
@@ -1362,6 +1497,9 @@ export class Game {
     this.spendPowerup("prime");
     if (trade) this.spendPowerup("tradeDeadline");
     this.primePick = null;
+    const _primeCI = this.index.cards.findIndex((c) => c.team === team && c.year === year);
+    const _primePI = card.players.findIndex((pl) => pl.id === id);
+    this.appendDecision({ verb: trade ? "V" : "P", ci: _primeCI, pi: _primePI, si: idx });
     this.consumeChoice({ kind: trade ? "swap" : "sign", war: p.war });
     return true;
   }
@@ -1410,6 +1548,8 @@ export class Game {
     };
     this.spendPowerup("prime");
     this.primeSpecial = null;
+    const _pmCI = this.index.cards.findIndex((c) => c.team === team && c.year === year);
+    this.appendDecision({ verb: "Q", ci: _pmCI });
     this.consumeChoice({ kind: "manager" });
     return true;
   }
@@ -1478,6 +1618,13 @@ export class Game {
     };
   }
 
+  /** Append a compact action to the decision audit log. Grows monotonically —
+   * undo adds an entry rather than removing one, so the log is a full history
+   * of what happened, not just the current position. */
+  private appendDecision(action: CompactAction): void {
+    this.decisionLog = [...this.decisionLog, action];
+  }
+
   private consumeChoice(entry: SpinLogEntry): void {
     // 🔂 DÉJÀ VU: the pending sig from undo() matches this action's sig.
     // Sticky — once set it stays for the rest of the run.
@@ -1519,6 +1666,7 @@ export class Game {
     this.actionSig = null;
     this.pendingRedoSig = null;
     this.snapshot();
+    this.appendDecision({ verb: "C" });
     this.spinCount -= 1;
     this.phase = "preSpin";
     this.save();
@@ -1540,30 +1688,29 @@ export class Game {
       // restores to "landed, nothing left", which restore() already answers
       // by re-running this endSpin and finishing the game again.
       this.save();
-      void this.finishGame();
+      this.finishing = this.finishGame();
     } else {
       this.phase = "preSpin";
       this.save();
     }
   }
 
-  /** Sign an open player. When more than one specialist slot type is open the
-   * rail becomes a slot picker (DECISIONS.md #4) — re-call with slotIdx. */
+  /** Sign an open player. When the seats a signing chooses among span more
+   * than one slot type the rail becomes a slot picker (DECISIONS.md #4) —
+   * re-call with slotIdx. */
   signPlayer(p: CardPlayer, slotIdx?: number): void {
     if (this.phase !== "landed" || this.choicesLeft === 0) return;
     if (this.marketBlocks(p)) return;
     if (this.playerState(p) !== "open") return;
     const open = this.openSlotsFor(p);
-    const specialist = open.filter((i) => SLOT_TYPES[i] !== "FLEX");
+    const pool = this.pickableSlotCells(p);
     let idx: number;
     if (slotIdx !== undefined) {
       if (!open.includes(slotIdx)) return;
       idx = slotIdx;
-    } else if (specialist.length === 0) {
-      idx = open[0]; // FLEX only
     } else {
-      const types = new Set(specialist.map((i) => SLOT_TYPES[i]));
-      if (types.size === 1) idx = specialist[0];
+      const types = new Set(pool.map((i) => SLOT_TYPES[i]));
+      if (types.size <= 1) idx = pool[0];
       else {
         this.slotPick = p.id; // ambiguous: rail picker
         this.save();
@@ -1583,6 +1730,8 @@ export class Game {
       discounted,
     );
     if (discounted) this.spendPowerup("hometown");
+    const _spi = this.card!.players.findIndex((pl) => pl.id === p.id);
+    this.appendDecision({ verb: "S", pi: _spi, si: idx });
     this.consumeChoice({ kind: "sign", war: p.war });
   }
 
@@ -1597,12 +1746,22 @@ export class Game {
     this.save();
   }
 
-  /** Rail cells pickable during slotPick: open eligible specialist cells. */
+  /** The seats a signing chooses among — the cells the rail arms during
+   * slotPick, and the same pool signPlayer reads to decide whether there is
+   * anything to choose. One list for both: an armed cell the picker never
+   * meant to offer, or a picker opened over cells the rail won't arm, are the
+   * two ways these can disagree.
+   *
+   * Specialist cells first, FLEX only as the fallback when no specialist seat
+   * is open — one exception. A two-way season (SP/DH) offers FLEX as a real
+   * second use, not a leftover: seating him at UTIL plays his bat instead of
+   * his arm, which is a choice the club makes, so his open FLEX seat joins the
+   * pool alongside his pitcher seats and the rail asks. */
   pickableSlotCells(p: CardPlayer): number[] {
-    const specialist = this.openSlotsFor(p).filter(
-      (i) => SLOT_TYPES[i] !== "FLEX",
-    );
-    return specialist.length > 0 ? specialist : this.openSlotsFor(p);
+    const open = this.openSlotsFor(p);
+    if (isTwoWay(p)) return open;
+    const specialist = open.filter((i) => SLOT_TYPES[i] !== "FLEX");
+    return specialist.length > 0 ? specialist : open;
   }
 
   hireOwner(): void {
@@ -1629,6 +1788,7 @@ export class Game {
       year: c.year,
       teamName: c.name,
     };
+    this.appendDecision({ verb: "O" });
     this.consumeChoice({ kind: "owner" });
   }
 
@@ -1651,6 +1811,7 @@ export class Game {
       franchise: c.franchise,
       year: c.year,
     };
+    this.appendDecision({ verb: "A" });
     this.consumeChoice({ kind: "stadium" });
   }
 
@@ -1682,6 +1843,7 @@ export class Game {
       moty: c.managerMoty === true,
       hof: c.managerHof === true,
     };
+    this.appendDecision({ verb: "M" });
     this.consumeChoice({ kind: "manager" });
   }
 
@@ -1689,11 +1851,17 @@ export class Game {
 
   /** Armed TD, tap a trade candidate: pick who they replace (or complete if
    * only one seat is eligible). Open rows count too — arming TD routes the
-   * tap through the trade, so an open seat elsewhere never blocks a swap. */
+   * tap through the trade, so an open seat elsewhere never blocks a swap.
+   *
+   * For a rostered player (self-season swap) only the player's OWN seat(s)
+   * are eligible — releasing a different player's seat would leave the
+   * rostered person with two seats, which is wrong. */
   tdTapPlayer(p: CardPlayer): void {
     if (this.phase !== "landed" || this.choicesLeft === 0) return;
     if (!this.tdCandidate(p)) return;
-    const occupied = this.occupiedSlotsFor(p);
+    const occupied = this.isRostered(p)
+      ? this.selfTradeSlots(p)
+      : this.occupiedSlotsFor(p);
     if (occupied.length === 0) return;
     if (occupied.length === 1) this.completeSwap(p, occupied[0]);
     else {
@@ -1705,7 +1873,12 @@ export class Game {
   tdRelease(p: CardPlayer, slotIdx: number): void {
     if (this.powerups.tradeDeadline !== "armed" || this.releasePick !== p.id)
       return;
-    if (!this.occupiedSlotsFor(p).includes(slotIdx)) return;
+    // For a rostered player (self-season swap) validate against selfTradeSlots
+    // to prevent releasing a different player's seat while keeping the self.
+    const eligible = this.isRostered(p)
+      ? this.selfTradeSlots(p)
+      : this.occupiedSlotsFor(p);
+    if (!eligible.includes(slotIdx)) return;
     this.completeSwap(p, slotIdx);
   }
 
@@ -1723,6 +1896,8 @@ export class Game {
     );
     if (discounted) this.spendPowerup("hometown");
     this.spendPowerup("tradeDeadline");
+    const _wpi = this.card!.players.findIndex((pl) => pl.id === p.id);
+    this.appendDecision({ verb: "W", pi: _wpi, si: idx });
     this.consumeChoice({ kind: "swap", war: p.war });
   }
 
@@ -1773,6 +1948,11 @@ export class Game {
       };
     }
     this.spendPowerup("tradeDeadline");
+    this.appendDecision(
+      which === "manager" ? { verb: "M" } :
+      which === "owner"   ? { verb: "O" } :
+                            { verb: "A" },
+    );
     this.consumeChoice({ kind: "swap" });
   }
 
@@ -1846,6 +2026,11 @@ export class Game {
    * leaves, then the orphaned finalizer lands and writes a completed season,
    * archives it, and claims the finale for a game the player walked out on. */
   private abandoned = false;
+  /** The in-flight `finishGame` — the club completed and the dream solve is
+   * still loading cards. The UI never waits on it (the finale renders off
+   * `phase`), but `driveReplay` does: a replay must present a resolved finale,
+   * and "tokens exhausted" arrives one `await` before `finale` is written. */
+  private finishing: Promise<void> | null = null;
   abandon(): void {
     this.abandoned = true;
   }
@@ -2018,6 +2203,7 @@ export class Game {
       konami: this.konami,
       undone: this.undoUsed,
       redone: this.redone,
+      repeatedUndo: this.repeatedUndo,
       // The seed badges' two halves, split by the local log BEFORE
       // recordHistory below appends this game: a typed seed already in the
       // history is a replay (✳️), a typed seed the log has never seen came
@@ -2092,6 +2278,12 @@ export class Game {
     // device cannot do that; the seed rides along only so a seed replayed twice
     // in a day still writes two distinct ids.
     const id = `${Date.now().toString(36)}-${(this.seed >>> 0).toString(36)}`;
+    // The three storage statements of a finished season — the history row, the
+    // in-progress save's deletion, and the archive + boot claim. A replay is
+    // someone else's season being looked at, so it files none of them (see
+    // `inert`); the finale above is built either way, because that is the
+    // screen the replay exists to show.
+    if (this.inert) return;
     this.recordHistory(id);
     try {
       localStorage.removeItem(SAVE_KEY);
@@ -2137,6 +2329,7 @@ export class Game {
       stadium: this.stadium,
       manager: this.manager,
       finale: this.finale,
+      decisionLog: this.decisionLog.length > 0 ? Game.encodeLogBody(this.decisionLog) : undefined,
     } satisfies StoredFinale;
     try {
       localStorage.setItem(FINALE_KEY, JSON.stringify(rec));
@@ -2147,6 +2340,224 @@ export class Game {
     // Outside that try on purpose: `archiveGame` swallows its own failure and
     // evicts to make room, so catching here would only hide which write failed.
     archiveGame({ ...rec, id });
+  }
+
+  /** Encode CompactAction[] to a body string (no header). Mirrors encodeBody in share.ts —
+   * kept inline to avoid a circular import; the two must stay in sync. */
+  private static encodeLogBody(actions: CompactAction[]): string {
+    let s = "";
+    for (const a of actions) {
+      if (a.verb === "S" || a.verb === "W") {
+        s += a.verb + a.pi.toString(36) + a.si.toString(36);
+      } else if (a.verb === "P" || a.verb === "V") {
+        s += a.verb + a.ci.toString(36).padStart(2, "0") + a.pi.toString(36) + a.si.toString(36);
+      } else if (a.verb === "Q" || a.verb === "T" || a.verb === "R") {
+        s += a.verb + a.ci.toString(36).padStart(2, "0");
+      } else {
+        s += a.verb; // O, A, M, U, C, D, H
+      }
+    }
+    return s;
+  }
+
+  /** Decode a compact body string to CompactAction[]. Returns [] on corrupt input. */
+  private static decodeLogBody(body: string): CompactAction[] {
+    const actions: CompactAction[] = [];
+    let i = 0;
+    while (i < body.length) {
+      const verb = body[i++];
+      if (verb === "S" || verb === "W") {
+        const pi = parseInt(body[i++], 36);
+        const si = parseInt(body[i++], 36);
+        actions.push({ verb, pi, si });
+      } else if (verb === "P" || verb === "V") {
+        const ci = parseInt(body.slice(i, i + 2), 36); i += 2;
+        const pi = parseInt(body[i++], 36);
+        const si = parseInt(body[i++], 36);
+        actions.push({ verb, ci, pi, si });
+      } else if (verb === "Q" || verb === "T" || verb === "R") {
+        const ci = parseInt(body.slice(i, i + 2), 36); i += 2;
+        actions.push({ verb, ci });
+      } else if (
+        verb === "O" || verb === "A" || verb === "M" ||
+        verb === "U" || verb === "C" || verb === "D" || verb === "H"
+      ) {
+        actions.push({ verb } as CompactAction);
+      } else {
+        return []; // unrecognized — corrupt
+      }
+    }
+    return actions;
+  }
+
+  /** Returns a compact shortcode string encoding seed, mode settings, and every
+   * committed action in this game. Decode it with `decodeDecisionLog` in share.ts
+   * or from the browser console via `window.__hotstove.decodeLog(str)`.
+   *
+   * A full 19-action game encodes to roughly 50–70 chars. */
+  debugLog(): string {
+    const seed7 = (this.seed >>> 0).toString(36).toUpperCase().padStart(7, "0");
+    const diff = this.config.difficulty === "scout" ? "c" : "s";
+    const bank = this.config.bank === "moneyball" ? "m" : this.config.bank === "blankcheck" ? "k" : "c";
+    const sv = SAVE_VERSION.toString(36);
+    // Format version, mirroring share.ts's LOG_VERSION — the two are kept in
+    // sync by hand for the same reason the body encoder is duplicated there
+    // (importing share.ts here would be a cycle).
+    const header = "2" + seed7 + diff + bank + sv + "-";
+    return header + Game.encodeLogBody(this.decisionLog);
+  }
+
+  /* ---------- replay (drive a decoded log back through the engine) ----------
+   *
+   * The inverse of play → `appendDecision`. Every action method logs exactly
+   * one token as it commits, so re-running the tokens against a Game built on
+   * the same seed and settings reproduces the same season — the spins come off
+   * the seeded cursor, and the tokens supply the only free choices there are.
+   *
+   * THAT LAST CLAUSE IS A PROPERTY OF THE FORMAT, and format v2 is where it
+   * became true. A free choice that changes what commits has to be a token:
+   * ✌️ Double Play buys a second pick off the SAME card, and a log missing it
+   * reads identically to one where two ordinary spins were picked from — the
+   * two are indistinguishable, so no amount of retrying could recover it. 🏠
+   * Homegrown changes the price paid, which nothing downstream contradicts, so
+   * a wrong guess there is invisible. Both now carry verbs (D and H), and this
+   * driver applies them instead of inferring them. 🔁 and ⭐ need no verb:
+   * arming them only gates refusals, and their commits (W / V / P / Q) say so.
+   *
+   * THE GUARD IS TOKEN PARITY, not a try/catch. No action method throws: they
+   * return silently on an illegal move (`signPlayer` on a seat that isn't
+   * open, `hireOwner` on a filled chair, `applyPrime` returns false). So each
+   * step checks that the log grew by exactly one entry AND that the entry it
+   * grew by is the token that was asked for. A stale code whose player indexes
+   * have shifted under a data rebuild fails here rather than rendering a
+   * wrong-but-plausible finale.
+   */
+
+  /** Re-run `actions` against this game. Returns -1 when every token applied
+   * and the season resolved to a finale; otherwise the index of the token that
+   * failed (or `actions.length` when the log ran out before the club was
+   * complete). */
+  async driveReplay(actions: CompactAction[]): Promise<number> {
+    for (let i = 0; i < actions.length; i++) {
+      const a = actions[i];
+      // Undo is the one token that does not need a card: it is taken during
+      // the reel as often as on the card, and it rewinds the cursor with
+      // everything else, so a spin taken in front of it is rolled back by it.
+      if (a.verb !== "U") {
+        if (this.phase === "preSpin") this.spin();
+        // 🎟️ / 🚚 re-deal, and the spin above: both leave a fetch in flight.
+        if (this.phase === "spinning") await this.land();
+        if (this.phase !== "landed" || !this.card) return i;
+      }
+      const before = this.decisionLog.length;
+      await this.applyReplayAction(a);
+      if (this.decisionLog.length !== before + 1) return i;
+      if (!sameCompact(this.decisionLog[before], a)) return i;
+    }
+    // The club completes inside `endSpin`, which hands the season to the async
+    // `finishGame`; the finale is written after its card loads resolve.
+    await this.finishing;
+    if (this.phase !== "finale" || !this.finale) return actions.length;
+    return -1;
+  }
+
+  /** Apply one token through the same public path a tap takes. Refusals are
+   * silent by design — `driveReplay` reads the log to find out what landed. */
+  private async applyReplayAction(a: CompactAction): Promise<void> {
+    const card = this.card;
+    switch (a.verb) {
+      case "S": {
+        const p = card?.players[a.pi];
+        if (!p) return;
+        this.signPlayer(p, a.si);
+        return;
+      }
+      case "W": {
+        const p = card?.players[a.pi];
+        if (!p) return;
+        // A swap is a 🔁 Trade Deadline commit by definition — the verb is the
+        // record that the pill was armed.
+        if (this.powerups.tradeDeadline === "ready") this.toggleTradeDeadline();
+        this.tdTapPlayer(p);
+        // Two eligible seats leave the rail asking; one resolves on the tap.
+        if (this.releasePick === p.id) this.tdRelease(p, a.si);
+        return;
+      }
+      case "P":
+      case "V": {
+        const entry = this.index.cards[a.ci];
+        if (!entry || !card) return;
+        const target = await loadCard(entry.team, entry.year);
+        // `pi` indexes the TARGET season's card (that is what `applyPrime`
+        // encodes); the man is reached through the row he is LISTED on.
+        const season = target.players[a.pi];
+        const listed = season ? card.players.find((pl) => pl.id === season.id) : undefined;
+        if (!listed) return;
+        // ⭐ resolves its own seat: an open one wins, and only a swap needs the
+        // 🔁 pill, so P leaves it alone rather than narrowing the market.
+        if (a.verb === "V" && this.powerups.tradeDeadline === "ready")
+          this.toggleTradeDeadline();
+        this.togglePrime();
+        this.primeTapPlayer(listed);
+        await this.applyPrime(entry.team, entry.year);
+        if (this.powerups.prime === "armed") this.togglePrime();
+        return;
+      }
+      case "Q": {
+        const entry = this.index.cards[a.ci];
+        if (!entry) return;
+        this.togglePrime();
+        this.primeTapSpecial("manager");
+        await this.applyPrimeSpecial(entry.team, entry.year);
+        if (this.powerups.prime === "armed") this.togglePrime();
+        return;
+      }
+      // One verb per front-office seat, whichever path filled it: an empty
+      // chair is the hire, a taken one can only be the 🔁 swap.
+      case "O": {
+        if (this.owner) this.replaySpecialSwap("owner");
+        else this.hireOwner();
+        return;
+      }
+      case "A": {
+        if (this.stadium) this.replaySpecialSwap("stadium");
+        else this.buyStadium();
+        return;
+      }
+      case "M": {
+        if (this.manager) this.replaySpecialSwap("manager");
+        else this.hireManager();
+        return;
+      }
+      case "T": {
+        const entry = this.index.cards[a.ci];
+        if (entry) this.seasonTicket(entry.year);
+        return;
+      }
+      case "R": {
+        const entry = this.index.cards[a.ci];
+        if (entry) this.relocate(entry.team);
+        return;
+      }
+      case "C":
+        this.coldRespin();
+        return;
+      case "U":
+        this.undo();
+        return;
+      // The two arming toggles the log carries, applied rather than inferred.
+      case "D":
+        this.toggleDoublePlay();
+        return;
+      case "H":
+        this.toggleHometown();
+        return;
+    }
+  }
+
+  private replaySpecialSwap(which: SpecialKey): void {
+    if (this.powerups.tradeDeadline === "ready") this.toggleTradeDeadline();
+    this.tdTapSpecial(which);
   }
 
   private recordHistory(id: string): void {
@@ -2245,6 +2656,16 @@ export class Game {
     const point = this.undoPoint!;
     this.undoPoint = null;
     this.undoUsed = true;
+    // Track per-sig undo counts for 🎠 MERRY-GO-ROUND. Three total undos of
+    // the same actionSig (make → undo → remake → undo → remake → undo) earns
+    // the badge. The count is a RUN fact, never decremented.
+    if (this.actionSig !== null) {
+      const count = (this.undoCounts[this.actionSig] ?? 0) + 1;
+      this.undoCounts = { ...this.undoCounts, [this.actionSig]: count };
+      if (count >= 3) this.repeatedUndo = true;
+    }
+    // Log the undo before any mutation so the log is a faithful audit trail.
+    this.appendDecision({ verb: "U" });
     // Capture the undone action's signature so the very next consumeChoice
     // can check for an instant redo (🔂 DÉJÀ VU). If no action had been
     // committed yet, actionSig is null and no redo can fire — correct.
@@ -2304,6 +2725,9 @@ export class Game {
       seedTyped: this.seedTyped,
       undoUsed: this.undoUsed,
       redone: this.redone,
+      repeatedUndo: this.repeatedUndo,
+      undoCounts: this.undoCounts,
+      decisionLog: this.decisionLog.length > 0 ? Game.encodeLogBody(this.decisionLog) : undefined,
       powerups: this.powerups,
       choicesLeft: this.choicesLeft,
       choicesUsed: this.choicesUsed,
@@ -2346,7 +2770,7 @@ export class Game {
   }
 
   save(): void {
-    if (this.phase === "finale") return;
+    if (this.phase === "finale" || this.inert) return;
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(this.serialize()));
     } catch {
@@ -2392,6 +2816,7 @@ export class Game {
     game.stadium = rec.stadium ?? null;
     game.manager = rec.manager ?? null;
     game.finale = rec.finale;
+    game.decisionLog = typeof rec.decisionLog === "string" ? Game.decodeLogBody(rec.decisionLog) : [];
     game.phase = "finale";
     return game;
   }
@@ -2481,6 +2906,14 @@ export class Game {
       game.seedTyped = s.seedTyped === true;
       game.undoUsed = s.undoUsed === true;
       game.redone = s.redone === true;
+      // RUN facts for the repeated-undo badge and the decision log; default
+      // safe when absent (old saves read as no repeated undo, empty log).
+      game.repeatedUndo = s.repeatedUndo === true;
+      game.undoCounts =
+        typeof s.undoCounts === "object" && s.undoCounts !== null && !Array.isArray(s.undoCounts)
+          ? s.undoCounts
+          : {};
+      game.decisionLog = typeof s.decisionLog === "string" ? Game.decodeLogBody(s.decisionLog) : [];
       if (s.cardRef && s.phase === "landed") {
         game.card = await loadCard(s.cardRef.team, s.cardRef.year);
         game.phase = "landed";
@@ -2488,11 +2921,21 @@ export class Game {
         if (game.powerups.tradeDeadline === "armed")
           game.powerups.tradeDeadline = "ready";
         if (game.powerups.prime === "armed") game.powerups.prime = "ready";
-        if (game.powerups.hometown === "armed")
+        if (game.powerups.hometown === "armed") {
           game.powerups.hometown = "ready";
+          // The reload put the pill down, and the log has to say so: the arm
+          // that survived in the save is already an "H" in this log, so a
+          // replay that never heard about the forfeit would price the next
+          // signing at the discount this reload just took away.
+          game.appendDecision({ verb: "H" });
+        }
         if (game.powerups.doublePlay === "armed") {
           game.powerups.doublePlay = "ready";
           game.choicesLeft = Math.max(0, game.choicesLeft - 1);
+          // Same compensation, and the same shape a hand disarm writes — which
+          // is the point: replaying this "D" through `toggleDoublePlay`
+          // reproduces the forfeit, including the spin end below.
+          game.appendDecision({ verb: "D" });
           // Reloading between a Double Play's two picks forfeits the second
           // one, and a forfeited last choice ends the spin — the same rule
           // `toggleDoublePlay` applies when the pill is disarmed by hand, run

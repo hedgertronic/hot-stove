@@ -968,12 +968,26 @@ describe("rowPlayable", () => {
     expect(g.rowPlayable(if1)).toBe(true);
   });
 
-  it("stays false for rostered players even when TD is armed", () => {
+  it("stays false for rostered players when the card is the SAME season (would duplicate)", () => {
+    // Player "mine" on the card (CHC_2016). Filler in slot 4 also has id
+    // "mine" BUT the same year=2016/team=CHC as the card, so swapping would
+    // produce an identical (id, team, year) duplicate — blocked.
     const p = player({ id: "mine" });
     const g = landedGame(card([p]));
-    g.slots[4] = filler(4, { id: "mine" });
+    g.slots[4] = filler(4, { id: "mine", year: 2016, team: "CHC", franchise: "CHC" });
     g.toggleTradeDeadline();
     expect(g.rowPlayable(p)).toBe(false);
+  });
+
+  it("becomes true for rostered players when the card holds a DIFFERENT season", () => {
+    // The same player is rostered from SEA_2000, but the current card is
+    // CHC_2016 — a different (team, year) pair. Trading the 2016 season in
+    // is a self-season swap: allowed.
+    const p = player({ id: "mine" });
+    const g = landedGame(card([p]));
+    g.slots[4] = filler(4, { id: "mine" }); // filler defaults to SEA 2000
+    g.toggleTradeDeadline();
+    expect(g.rowPlayable(p)).toBe(true);
   });
 });
 

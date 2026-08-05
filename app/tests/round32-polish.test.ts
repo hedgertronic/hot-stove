@@ -17,14 +17,23 @@ const read = (f: string) =>
 describe("award pills center their caps, not their font metrics", () => {
   const pill = read("components/AwardPill.svelte");
 
-  it("trims the line box to the cap band where the engine can", () => {
-    // Progressive: @supports gates the trim, engines without it keep the
-    // measured 0.4px optical padding.
-    expect(pill).toContain("@supports (text-box: trim-both cap alphabetic)");
-    expect(pill).toContain("text-box: trim-both cap alphabetic;");
-    // The trimmed branch retires the estimate — keeping both would
-    // double-correct.
-    expect(pill).toMatch(/@supports[^{]*\{[\s\S]*?padding-top: 0;[\s\S]*?\n  \}/);
+  it("draws through app.css's shared chip box", () => {
+    expect(pill).toContain('class="chipbox qb ');
+    // The height is the chip's own, stated, and a whole number of pixels: a
+    // fractional border box lands its edge mid-device-pixel and the ring reads
+    // as cut off top and bottom.
+    expect(pill).toContain("--chip-h: 16px;");
+    expect(pill).toContain("--chip-h: 15px;");
+  });
+
+  it("carries no text-box trim branch of its own — the trade lives in app.css", () => {
+    // text-box-trim trims a BLOCK CONTAINER's first and last line boxes, so it
+    // goes on the `.chiplbl` element this pill wraps its word in, never on the
+    // inline-flex chip. Both halves of the trade — the trim and the zeroed
+    // padding it replaces — are written once in app.css and pinned together
+    // there; a second copy here could hold one half without the other.
+    expect(pill).not.toContain("text-box:");
+    expect(pill).not.toContain("@supports");
   });
 });
 
@@ -124,10 +133,11 @@ describe("review fixes: the confirm pill wears the --line frame", () => {
   const css = read("app.css");
 
   it(".confirm base lives in app.css with --line border and ink fill", () => {
-    const confirmIdx = css.indexOf(".confirm {");
-    expect(confirmIdx, "app.css has a .confirm block").toBeGreaterThan(-1);
-    // Slice only the base .confirm block — stops at the first closing brace.
-    const block = css.slice(confirmIdx, css.indexOf("}", confirmIdx) + 1);
+    // Two blocks answer to `.confirm`: the shared `.chipbox, .confirm` recipe
+    // and the pill's own. The last one is the pill's.
+    const blocks = [...css.matchAll(/(?:^|\n)\.confirm \{([^}]*)\}/g)].map((m) => m[1]);
+    expect(blocks.length, "app.css has a .confirm block").toBeGreaterThan(0);
+    const block = blocks.at(-1)!;
     expect(block, "app.css .confirm uses --line border").toContain("border: 2px solid var(--line)");
     expect(block, "app.css .confirm has no ink border").not.toContain("border: 2px solid var(--ink)");
     expect(block, "app.css .confirm ink fill is preserved").toContain("background: var(--ink)");
@@ -157,7 +167,11 @@ describe("review fixes: the finalization window", () => {
   const engine = read("lib/engine.svelte.ts");
 
   it("the club-completing move is saved before the async finish", () => {
-    expect(engine).toMatch(/this\.save\(\);\n\s+void this\.finishGame\(\);/);
+    // The promise is kept rather than discarded — `driveReplay` awaits it, so a
+    // replay presents a resolved finale instead of the "landed, no finale yet"
+    // window this ordering opens. The ORDER is what this pins: save, then
+    // finish.
+    expect(engine).toMatch(/this\.save\(\);\n\s+this\.finishing = this\.finishGame\(\);/);
   });
 
   it("a quit during the dream solve stands the finalizer down", () => {

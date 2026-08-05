@@ -452,6 +452,24 @@ describe("the optional seed", () => {
     }
   });
 
+  it("the #CODE token copy produces parses via parseSeedCode without caller stripping", () => {
+    // copySeed() on the finale writes `#${seedCode(seed)}` to the clipboard.
+    // The home input passes that paste straight to parseSeedCode, which must
+    // accept the hash-prefixed form the copy path always produces.
+    for (const seed of [0, 0xa3f2, 0xffffffff]) {
+      const line5 = shareRecordLine(104.3, seed);
+      const token = line5.split(" ").find((p) => p.startsWith("#"))!;
+      // Token matches the format copy puts on the clipboard: # + 7-char code.
+      expect(token).toMatch(/^#[0-9A-Z]{7}$/i);
+      // Exact paste (what copySeed produces).
+      expect(parseSeedCode(token)).toBe(seed);
+      // Paste with surrounding whitespace — parseSeedCode trims before parsing.
+      expect(parseSeedCode(` ${token} `)).toBe(seed);
+      // Bare code without # also accepted (hand-typed path).
+      expect(parseSeedCode(token.slice(1))).toBe(seed);
+    }
+  });
+
   it("is off by default", () => {
     expect(shareText(BASE)).not.toContain("#");
   });
@@ -604,7 +622,7 @@ describe("line width budget", () => {
   const MAX_LEN = lineBadge(BADGES.map((b) => b.key));
 
   it("pins the worst case the triggers allow", () => {
-    // 54 badges — 5 group representatives + 49 stackers — on their own line.
+    // 55 badges — 5 group representatives + 50 stackers — on their own line.
     // The number is asserted so a badge added without thought shows up as a
     // failing width rather than a silently longer share string. (It was 49
     // until 2️⃣ RE2PECT and 🎆 THE WALK-OFF were retired, and 47 until 🫡 🚒
@@ -613,9 +631,10 @@ describe("line width budget", () => {
     // THOUGHTS stacks on the meta axis and carries a variation selector, so it
     // costs the line two. 🦉 OUTSCOUTED stacks on the goal axis, +1 stacker.
     // 🔂 DÉJÀ VU stacks on the meta axis and is a single code point, +1 stacker
-    // and +1 to the shipped width.)
-    expect(MAXIMAL).toHaveLength(54);
-    expect(SHIPPED_MAX_LEN).toBe(71);
+    // and +1 to the shipped width. 🎠 MERRY-GO-ROUND stacks on the meta axis,
+    // +1 stacker and +1 to the shipped width.)
+    expect(MAXIMAL).toHaveLength(55);
+    expect(SHIPPED_MAX_LEN).toBe(72);
     // total 104.3 gives the six-character record; the badge line is index 5.
     const s = shareText({ ...BASE, total: 104.3, badges: MAXIMAL });
     expect(codePoints(s.split("\n")[5])).toBe(SHIPPED_MAX_LEN);
@@ -625,8 +644,9 @@ describe("line width budget", () => {
     // Five single-code-point glyphs joined the table in the round before this
     // one, moving the paranoia bound by exactly five; ↩️ moved it by two more,
     // because a variation selector is a code point the line pays for;
-    // 🦉 (OUTSCOUTED) moved it by one more; 🔂 (DÉJÀ VU) moved it by one more.
-    expect(MAX_LEN).toBe(89);
+    // 🦉 (OUTSCOUTED) moved it by one more; 🔂 (DÉJÀ VU) moved it by one more;
+    // 🎠 (MERRY-GO-ROUND) moved it by one more.
+    expect(MAX_LEN).toBe(90);
     const s = shareText({
       ...BASE,
       total: 104.3,

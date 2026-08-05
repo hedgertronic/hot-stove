@@ -41,12 +41,15 @@
   let rows = $state<Row[] | null>(null);
   let failed = $state(false);
   let busy = $state(false);
+  /** Key of the season row awaiting confirm tap, `null` when no row is armed. */
+  let armed = $state<string | null>(null);
 
   $effect(() => {
     const name = skipper;
     const c = game.card;
     rows = null;
     failed = false;
+    armed = null;
     if (!name || !c) return;
     void (async () => {
       try {
@@ -78,12 +81,21 @@
     })();
   });
 
-  async function pick(row: Row) {
-    if (busy || row.here) return;
+  /** First tap arms the row; a second tap on the same row disarms it.
+   * Tapping a different row arms that row instead. */
+  function arm(row: Row) {
+    if (row.here) return;
+    const key = `${row.team}:${row.year}`;
+    armed = armed === key ? null : key;
+  }
+
+  /** Second tap: commit the armed season via the prime special apply path.
+   * try/finally for PrimePicker's reason exactly: the apply awaits a
+   * network load, and a throw would latch `busy` — rows grayed for the
+   * sheet's life. Close on success only; re-enable on any failure. */
+  async function commit(row: Row) {
+    if (busy) return;
     busy = true;
-    // try/finally for PrimePicker's reason exactly: the apply awaits a
-    // network load, and a throw would latch `busy` — rows grayed for the
-    // sheet's life. Close on success only; re-enable on any failure.
     try {
       await game.applyPrimeSpecial(row.team, row.year);
       onclose();
@@ -110,6 +122,8 @@
   {:else}
     <div class="picker-list">
       {#each rows as row ((row.team + row.year))}
+        {@const key = `${row.team}:${row.year}`}
+        {@const isArmed = armed === key}
         <!-- The card's own manager row, one field swapped: the FRONT OFFICE
              row leads with the skipper's name, and here the person is fixed
              while the season varies, so the lead is year + team code. Every
@@ -118,19 +132,28 @@
              MOY pill after it, win value at the right edge in a WAR chip.
              Every season fits (this sheet only opens on an open manager
              seat), so only the landed card's own year grays out. -->
-        <button
+        <div
           class="srow {row.tier ? `war-${row.tier}` : ''}"
-          disabled={row.here}
-          onclick={() => pick(row)}
+          class:dead={row.here}
         >
-          <span class="ic">🧢</span>
-          <span class="mid">
-            <span class="who">{row.year} {row.team}</span>
-            {#if row.rec}<span class="meta">{row.rec}</span>{/if}
-            {#if row.moty}<AwardPill code="MOY" small />{/if}
-          </span>
-          {#if row.val}<span class="val warchip {row.tier}">{row.val}<span class="unit">WINS</span></span>{/if}
-        </button>
+          <button class="srow-btn" disabled={row.here} onclick={() => arm(row)}>
+            <span class="ic">🧢</span>
+            <span class="mid">
+              <span class="who">{row.year} {row.team}</span>
+              {#if row.rec}<span class="meta">{row.rec}</span>{/if}
+              {#if row.moty}<AwardPill code="MOY" small />{/if}
+            </span>
+            {#if !isArmed && row.val}<span class="val warchip {row.tier}">{row.val}<span class="unit">WINS</span></span>{/if}
+          </button>
+          {#if isArmed}
+            <button
+              type="button"
+              class="confirm"
+              disabled={busy}
+              onclick={(e) => { e.stopPropagation(); void commit(row); }}
+            ><span class="chiplbl">HIRE MGR</span></button>
+          {/if}
+        </div>
       {/each}
     </div>
   {/if}
@@ -155,7 +178,6 @@
   .srow {
     display: flex;
     align-items: center;
-    gap: 9px;
     background: var(--card);
     border: 2.5px solid var(--line);
     border-radius: 11px;
@@ -165,7 +187,6 @@
     font-family: inherit;
     color: inherit;
     text-align: left;
-    width: 100%;
     min-height: 48px;
   }
   .srow:active {
@@ -177,18 +198,18 @@
      hue — there is exactly one unavailable season here, the landed card's own,
      and it is the season already on offer in the FRONT OFFICE row at full
      color. */
-  .srow:disabled {
+  .srow.dead {
     background: var(--gray-bg);
     border-color: var(--gray-ink);
     color: var(--gray-ink);
     cursor: default;
     filter: grayscale(1);
   }
-  .srow:disabled .meta,
-  .srow:disabled .val {
+  .srow.dead .meta,
+  .srow.dead .val {
     color: var(--gray-ink);
   }
-  .srow:disabled:active {
+  .srow.dead:active {
     transform: none;
   }
   /* The emoji IS the type label — fixed width like the player rows' position
@@ -206,7 +227,7 @@
      collision in PlayerList and PrimePicker cannot fence it here, and a
      mid-rung chip would be turned into a wrapping flex box with no 42px floor.
      The name collision is the whole bug; excluding the chip is the whole fix. */
-  .srow > .mid:not(.warchip) {
+  .srow-btn > .mid:not(.warchip) {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -235,5 +256,22 @@
     margin-left: auto;
     flex: none;
     white-space: nowrap;
+  }
+  /* Confirm pill sits at the same 6px inset as the .val chip it replaces when
+     a row is armed — 10px padding − 4px margin. The wide tier deepens to −8px
+     so the pill's right edge stays flush with the market's WAR chip column. */
+  .srow > .confirm {
+    flex: none;
+    margin-right: -4px;
+  }
+  @media (min-width: 760px) {
+    /* The market rows' desktop padding, matching PrimePicker: the -8px pull
+       below needs 14px of row padding to leave the standard 6px inset. */
+    .srow {
+      padding: 8px 14px;
+    }
+    .srow > .confirm {
+      margin-right: -8px;
+    }
   }
 </style>

@@ -364,17 +364,21 @@ describe("item 7 — relocate picker: column count from widest division", () => 
     expect(body).toContain("pickgrid");
   });
 
-  it("renders 4 columns for a pre-expansion 4-team-division season (1992)", () => {
-    // Pre-1994 MLB had four divisions of four teams each. The grid must use 4
-    // columns, not 5, so every row fills exactly without an orphan tile.
-    // This is the grid imbalance that item 7 was built to fix.
+  it("chunks every 1992 division to a uniform 4-column grid", () => {
+    // Real 1992 shape: AL/E=7, AL/W=4 (trimmed here), NL/E=6, NL/W=6. A
+    // seven-team division drops the whole picker to pickerCols = 4 so every
+    // tile is the same width: AL East chunks 4+3, six-team NL divisions
+    // chunk 4+2, and the 4-team AL West fills one row exactly.
     const index1992: GameIndex = {
       yearMin: 1992,
       yearMax: 1992,
       cards: [
-        // AL EAST (4)
+        // AL EAST (7 — the pre-1994 width that forces the two-row split)
         { team: "BAL", year: 1992, franchise: "BAL", name: "Orioles", lg: "AL", div: "E" },
         { team: "BOS", year: 1992, franchise: "BOS", name: "Red Sox", lg: "AL", div: "E" },
+        { team: "CLE", year: 1992, franchise: "CLE", name: "Indians", lg: "AL", div: "E" },
+        { team: "DET", year: 1992, franchise: "DET", name: "Tigers", lg: "AL", div: "E" },
+        { team: "MIL", year: 1992, franchise: "MIL", name: "Brewers", lg: "AL", div: "E" },
         { team: "NYY", year: 1992, franchise: "NYY", name: "Yankees", lg: "AL", div: "E" },
         { team: "TOR", year: 1992, franchise: "TOR", name: "Blue Jays", lg: "AL", div: "E" },
         // AL WEST (4)
@@ -382,7 +386,7 @@ describe("item 7 — relocate picker: column count from widest division", () => 
         { team: "OAK", year: 1992, franchise: "OAK", name: "Athletics", lg: "AL", div: "W" },
         { team: "SEA", year: 1992, franchise: "SEA", name: "Mariners", lg: "AL", div: "W" },
         { team: "TEX", year: 1992, franchise: "TEX", name: "Rangers", lg: "AL", div: "W" },
-        // NL EAST (6 — inflates the max; pre-expansion NL/E was bigger)
+        // NL EAST (6 — stays on one row under threshold 7)
         { team: "CHC", year: 1992, franchise: "CHC", name: "Cubs", lg: "NL", div: "E" },
         { team: "MON", year: 1992, franchise: "MON", name: "Expos", lg: "NL", div: "E" },
         { team: "NYM", year: 1992, franchise: "NYM", name: "Mets", lg: "NL", div: "E" },
@@ -403,11 +407,10 @@ describe("item 7 — relocate picker: column count from widest division", () => 
     game.phase = "landed";
 
     const body = ssr(TeamPicker, { game, colors, onclose: () => {} });
-    // 1992: AL/E=4, AL/W=4, NL/E=6, NL/W=6 → max = 6. The widest division
-    // wins, so the grid fills without orphan tiles. Pre-1993 NL was already
-    // six teams per side (no Central yet); the grid should track the actual max.
-    // This is the fix: a hardcoded 5 would orphan the 6th tile in NL rows.
-    expect(body).toContain("--div-cols: 6");
+    expect(body).toContain("--div-cols: 4"); // the one shared column count
+    expect(body).not.toContain("--div-cols: 7"); // no seven-wide cram
+    expect(body).not.toContain("--div-cols: 6"); // no per-division sizing
+    expect(body).not.toContain("--div-cols: 3"); // no balanced-halves split
     expect(body).toContain("pickgrid");
   });
 

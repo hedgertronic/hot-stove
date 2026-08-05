@@ -349,6 +349,11 @@ export interface BadgeFacts {
    * Optional for `konami`'s reason and it fails the same way: a fact set built
    * before the field existed reports no redo rather than a free badge. */
   redone?: boolean;
+  /** The same action was undone three or more times in one game — 🎠 MERRY-GO-ROUND.
+   *
+   * Optional for `konami`'s reason and it fails the same way: a fact set built
+   * before the field existed reports no repeated undo rather than a free badge. */
+  repeatedUndo?: boolean;
   /** `Game.pedigree.rings`. */
   rings: number;
   /** `ScoreParts.awardPoints` — includes the manager's MotY points. */
@@ -2353,6 +2358,27 @@ export const BADGES: BadgeDef[] = [
     freq: null,
     how: "Took back a move, then immediately made the same one again.",
   },
+  /* The indecisive loop — undoing the same action at least three times in one
+   * game. Three total undos of the same actionSig: make move, undo, remake,
+   * undo, remake, undo. The counter is per-sig, so only the exact same action
+   * (same player, same card team, same card year, same slot) counts as "the
+   * same move".
+   *
+   * `ironic: true` like ↩️ SECOND THOUGHTS — it is a joke at the player's
+   * expense and excluded from the progress fraction. An anonymous locked slot
+   * means the player discovers it rather than farming it, matching the axis
+   * voice that names the experience rather than the mechanic. */
+  {
+    key: "merrygoround",
+    emoji: "🎠",
+    label: "MERRY-GO-ROUND",
+    name: "Merry-Go-Round",
+    rarity: "ironic",
+    axis: "meta",
+    ironic: true,
+    freq: null,
+    how: "Took back the same move three or more times in one game.",
+  },
 ];
 
 export const BADGE_BY_KEY: Record<string, BadgeDef> = Object.fromEntries(
@@ -2735,6 +2761,9 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // Same default-false reading: a fact set assembled before the field existed
   // reports no redo rather than a free badge.
   if (f.redone === true) out.push("rewind");
+  // Same default-false reading: a fact set assembled before the field existed
+  // reports no repeated undo rather than a free badge.
+  if (f.repeatedUndo === true) out.push("merrygoround");
   if (roster.some(isRecord)) out.push("recordbook");
   if (roster.some(isChase)) out.push("chase");
   if (roster.some((p) => p.year === 2020)) out.push("covid");

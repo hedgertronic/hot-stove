@@ -241,7 +241,7 @@ describe("the manager career sheet colors every season by its rung", () => {
 
   it("Box Score puts exactly one rung token on each season, matching its record", async () => {
     const { el, close } = await sheet(CLASSIC);
-    const seasons = [...el.querySelectorAll<HTMLButtonElement>("button.srow")];
+    const seasons = [...el.querySelectorAll<HTMLElement>("div.srow")];
     expect(seasons).toHaveLength(CAREER.length);
     seasons.forEach((row, i) => {
       const [year, , , token, value] = CAREER[i];
@@ -260,7 +260,7 @@ describe("the manager career sheet colors every season by its rung", () => {
 
   it("Eye Test leaves every season untinted and unvalued", async () => {
     const { el, close } = await sheet(EYE);
-    const seasons = [...el.querySelectorAll<HTMLButtonElement>("button.srow")];
+    const seasons = [...el.querySelectorAll<HTMLElement>("div.srow")];
     expect(seasons).toHaveLength(CAREER.length);
     for (const row of seasons) {
       expect(row.className).not.toContain("war-");
