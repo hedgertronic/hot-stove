@@ -12,7 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import SeasonsModal from "../src/components/SeasonsModal.svelte";
-import { appendHistory, archiveGame, type ArchivedFinale } from "../src/lib/history";
+import { appendHistory, archiveGame, ARCHIVE_CAP, type ArchivedFinale } from "../src/lib/history";
 
 function rec(id: string): ArchivedFinale {
   return {
@@ -145,15 +145,15 @@ describe("which rows appear", () => {
     const ui = open();
     // From the Ground Up shows its emoji too: a blank in a comparison list would have
     // to be read as "the default" by someone who knows what the default is.
-    expect(ui.rows()[0].querySelector(".mode")!.textContent).toBe("💼");
-    expect(ui.rows()[1].querySelector(".mode")!.textContent).toBe("⚾ 🔭");
+    expect(ui.rows()[0].querySelector(".mode")!.textContent).toBe("🏗️");
+    expect(ui.rows()[1].querySelector(".mode")!.textContent).toBe("🔭 🐘");
     ui.close();
   });
 
   it("reads a pre-bank row's moneyball boolean the way the record book does", () => {
     season("g0", { bank: undefined, moneyball: true, v: undefined, difficulty: "eyetest" });
     const ui = open();
-    expect(ui.rows()[0].querySelector(".mode")!.textContent).toBe("⚾ 🔭");
+    expect(ui.rows()[0].querySelector(".mode")!.textContent).toBe("🔭 🐘");
     ui.close();
   });
 });
@@ -248,6 +248,42 @@ describe("which rows are doors", () => {
   });
 });
 
+describe("the list caps where the doors stop", () => {
+  it("shows the last ARCHIVE_CAP seasons under a label that says so", () => {
+    // 55 seasons: the archive holds the newest 50, and the list stops with
+    // it — the tail past the cap is dead controls all the way down, so it is
+    // not listed. The caption stops claiming "ALL".
+    for (let i = 0; i < 55; i++) season(`g${i}`, { total: 90 + i });
+    const ui = open();
+    expect(ui.rows()).toHaveLength(ARCHIVE_CAP);
+    expect(ui.caps()).toEqual(["RECORD BOOK", `LAST ${ARCHIVE_CAP} SEASONS`]);
+    // Newest first still: the top row is the last season played.
+    expect(ui.rows()[0].querySelector(".rec")!.textContent).toBe("144–18");
+    ui.close();
+  });
+
+  it("keeps a career best on the shelf after it ages out of the list", () => {
+    // The best season is the OLDEST — total 200 on g0 — and 54 later games
+    // push it past the cap. The list forgets it; the record book must not.
+    season("g0", { total: 162 });
+    for (let i = 1; i < 55; i++) season(`g${i}`, { total: 90 });
+    const ui = open();
+    expect(ui.rows()).toHaveLength(ARCHIVE_CAP);
+    expect(ui.shelf()).toHaveLength(1);
+    expect(ui.shelf()[0].querySelector(".rec")!.textContent).toBe("162–0");
+    // Aged out of the archive, so the shelf row is a record, not a door.
+    expect(ui.shelf()[0].disabled).toBe(true);
+    ui.close();
+  });
+
+  it("a short career keeps the ALL SEASONS label", () => {
+    season("g0");
+    const ui = open();
+    expect(ui.caps()).toEqual(["RECORD BOOK", "ALL SEASONS"]);
+    ui.close();
+  });
+});
+
 describe("how a row is laid out", () => {
   /** The zone each child carries, in DOM order — which is reading order, and
    * the only part of the layout jsdom can actually see. Order ONLY: the tier
@@ -286,7 +322,7 @@ describe("how a row is laid out", () => {
     season("g0", { seed: 42, bank: "moneyball", difficulty: "scout" });
     const ui = open();
     expect(ui.rows()[0].getAttribute("aria-label")).toBe(
-      "AUG 2 '26, Moneyball · Eye Test, seed 0000016, 120–42",
+      "AUG 2 '26, Eye Test · Moneyball, seed 0000016, 120–42",
     );
     ui.close();
   });
@@ -333,7 +369,7 @@ describe("the record book shelf", () => {
     season("g0", { bank: "classic", difficulty: "standard" });
     const ui = open();
     expect(ui.shelf()).toHaveLength(1);
-    expect(ui.shelf()[0].querySelector(".mode")!.textContent).toBe("💼");
+    expect(ui.shelf()[0].querySelector(".mode")!.textContent).toBe("🏗️");
     ui.close();
   });
 

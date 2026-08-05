@@ -1,7 +1,7 @@
 <script lang="ts">
   import { loadStoredFinale, type Bank, type StoredFinale } from "../lib/engine.svelte";
   import { recordFromTotal, seedCode } from "../lib/format";
-  import { loadArchive, loadHistory } from "../lib/history";
+  import { ARCHIVE_CAP, loadArchive, loadHistory } from "../lib/history";
   import { BANKS, DIFFICULTIES } from "../lib/modes";
   import Sheet from "./Sheet.svelte";
 
@@ -105,7 +105,7 @@
           : e.difficulty === "eyetest";
       const date = played(e.date);
       const seed = typeof e.seed === "number" ? `#${seedCode(e.seed)}` : "";
-      const modes = BANKS[bank].name + (scout ? ` · ${DIFFICULTIES.scout.name}` : "");
+      const modes = (scout ? `${DIFFICULTIES.scout.name} · ` : "") + BANKS[bank].name;
       const arch = typeof e.id === "string" ? archive.get(e.id) : undefined;
       const rec = arch ?? (i === newest ? lastFinale : null);
       return {
@@ -163,6 +163,15 @@
     }
     return [...best.values()].sort((a, b) => b.total - a.total);
   })();
+
+  /** The list caps at the archive's own bound. Past ARCHIVE_CAP a row can no
+   * longer be a door (its record was evicted), so the tail of a long log is
+   * dead controls all the way down — the list stops where the doors stop and
+   * the label says so. The SHELF is deliberately cut from the UNSLICED rows:
+   * a career best never ages off the record book, listed or not, and Home's
+   * "N TOTAL" keeps counting every season ever played. */
+  const listRows = rows.slice(0, ARCHIVE_CAP);
+  const listLabel = listRows.length < rows.length ? `LAST ${ARCHIVE_CAP} SEASONS` : "ALL SEASONS";
 </script>
 
 <!-- One markup path for every row on this sheet, shelf and list alike, and
@@ -187,7 +196,7 @@
   >
     <span class="seed">{r.seed}</span>
     <span class="mode" aria-hidden="true"
-      >{r.bank}{r.scout ? ` ${DIFFICULTIES.scout.emoji}` : ""}</span
+      >{r.scout ? `${DIFFICULTIES.scout.emoji} ` : ""}{r.bank}</span
     >
     <span class="rec {r.tier}">{r.wins}–{r.losses}</span>
   </button>
@@ -215,14 +224,14 @@
           {@render row(r, true)}
         {/each}
       </div>
-      <div class="psep">ALL SEASONS</div>
+      <div class="psep">{listLabel}</div>
     {/if}
 
     <div class="rows">
       <!-- Index-keyed: the list is built once at mount and never reordered, and
            a log row is not guaranteed anything unique of its own (the id
            arrived with the archive, and older rows have none). -->
-      {#each rows as r, i (i)}
+      {#each listRows as r, i (i)}
         {@render row(r, false)}
       {/each}
     </div>
