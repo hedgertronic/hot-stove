@@ -46,11 +46,8 @@ const cards: Record<string, Card> = {
         pos: "3B",
         war: 7.7,
         cost: 1.1,
-        awards: AWARDS,
-      }),
-    ],
-  }),
-};
+        awards: AWARDS }),
+    ] }) };
 const playersIndex = {
   bryakr01: [
     ["CHN", 2015],

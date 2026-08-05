@@ -55,9 +55,7 @@ function open() {
     props: {
       config: { difficulty: "standard", bank: "classic" },
       onplay: vi.fn(),
-      onopen: vi.fn(),
-    },
-  });
+      onopen: vi.fn() } });
   flushSync();
   const under = target.querySelector(".under") as HTMLElement;
   return {

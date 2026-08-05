@@ -55,8 +55,7 @@ function rec(id: string, total = 100): ArchivedFinale {
     owner: null,
     stadium: null,
     manager: null,
-    finale: { parts: { total } },
-  } as unknown as ArchivedFinale;
+    finale: { parts: { total } } } as unknown as ArchivedFinale;
 }
 
 /** One finished season in the log, pointing at the archive record of the same

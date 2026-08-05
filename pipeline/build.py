@@ -139,7 +139,7 @@ def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]
                 or e["ip_relief"] >= min_rip or war >= 2.0):
             continue
         lahman_id = gd.b2l.get(bbref_id, bbref_id)
-        salary, estimated = gd.resolve_salary(lahman_id, year)
+        salary, _ = gd.resolve_salary(lahman_id, year)
         contract = gd.to_display_m(salary, year)
         games = gd.pos_games.get((lahman_id, year), {})
         # Sparse leading field: seasonal age is written only when Lahman has a
@@ -154,26 +154,17 @@ def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]
             "name": e["name"],
             "pos": display_pos(gd, lahman_id, year, e, factor),
             "war": war,
-            "warRaw": round(war_raw, 1),
             "cost": round(max(contract, ASKING_PER_WAR * war, MIN_PRICE_M), 1),
-            "contract": contract,
-            "salary": salary,
-            "est": estimated,
             "awards": gd.awards.get((lahman_id, year), []),
             "ws": gd.ws_winner.get(year) in e["teams"],
             "pen": (gd.ws_winner.get(year) not in e["teams"]
                     and bool(gd.pennant.get(year, set()) & e["teams"])),
-            "pa": e["pa"],
-            "gs": e["gs"],
-            "relIP": round(e["ip_relief"]),
             "posG": {
                 "c": games.get("C", 0),
                 "if": sum(games.get(p, 0) for p in ("1B", "2B", "3B", "SS")),
                 "of": sum(games.get(p, 0) for p in ("LF", "CF", "RF")),
-                "dh": games.get("DH", 0),
             },
             "debut": gd.debut_franchise.get(lahman_id),
-            "teams": sorted(e["teams"]),
         }
         # Birth country, absent only when Lahman has no birthCountry for the
         # player (zero of the 1985-2025 card player-seasons today). The value
@@ -251,7 +242,7 @@ def main() -> None:
     for (year, br), row in sorted(gd.team_rows.items()):
         factor = gd.proration[year]
         _, slot8 = gd.budgets[(year, br)]
-        bankroll_raw, contracts = gd.bankrolls[(year, br)]
+        bankroll_raw, _ = gd.bankrolls[(year, br)]
         empty_slots += len(SLOTS) - len(slot8)
         att = _i(row["attendance"])
         ranks = att_by_year[year]
@@ -279,12 +270,6 @@ def main() -> None:
             "attendancePct": round(pct, 2),
             "stadiumMult": round(0.85 + 0.30 * pct, 2),
             "budget": bankroll_display(gd.to_display_m(bankroll_raw, year)),
-            "budgetRaw": bankroll_raw,
-            "contracts": [
-                {"name": names.get(p["id"], p["id"]),
-                 "salary": p["salary"], "est": p["est"]}
-                for p in contracts
-            ],
             "prorated": factor,
             "players": build_players(gd, br, year, factor),
         }

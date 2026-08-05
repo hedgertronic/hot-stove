@@ -3,3 +3,4 @@ __pycache__/
 build/raw/
 *.pyc
 DEVLOG.md
+data-backup-pre-trim.tar.gz

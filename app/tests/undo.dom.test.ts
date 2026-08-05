@@ -45,10 +45,7 @@ const owners: Owners = {
   franchises: {
     CHC: {
       name: "Chicago Cubs",
-      owners: [{ name: "Ricketts family", from: 2009, to: null }],
-    },
-  },
-};
+      owners: [{ name: "Ricketts family", from: 2009, to: null }] } } };
 
 const theCard: Card = {
   year: 2016,
@@ -65,8 +62,6 @@ const theCard: Card = {
   attendancePct: 0.86,
   stadiumMult: 1.11,
   budget: 136.3,
-  budgetRaw: 74_555_288,
-  contracts: [],
   prorated: 1,
   players: [],
 };

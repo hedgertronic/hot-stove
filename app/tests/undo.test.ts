@@ -41,20 +41,12 @@ function player(over: Partial<CardPlayer> = {}): CardPlayer {
     name: "Test Player",
     pos: "1B",
     war: 3,
-    warRaw: 3,
     cost: 5,
-    contract: 5,
-    salary: 5_000_000,
-    est: false,
     awards: [],
     ws: false,
     pen: false,
-    pa: 500,
-    gs: 0,
-    relIP: 0,
-    posG: { c: 0, if: 100, of: 0, dh: 0 },
+    posG: { c: 0, if: 100, of: 0},
     debut: "SEA",
-    teams: ["UND"],
     ...over,
   };
 }
@@ -75,8 +67,6 @@ function card(team: string, year: number): Card {
     attendancePct: 0.7,
     stadiumMult: 1.1,
     budget: 130,
-    budgetRaw: 70_000_000,
-    contracts: [],
     prorated: 1,
     players: [player({ name: `${team} Rizzo` }), player({ name: `${team} Baez` })],
   };
@@ -118,9 +108,7 @@ const index: GameIndex = {
     team: c.team,
     year: c.year,
     franchise: c.franchise,
-    name: c.name,
-  })),
-};
+    name: c.name })) };
 
 const owners: Owners = {
   franchises: Object.fromEntries(

@@ -227,9 +227,7 @@ describe("dealing the row in", () => {
         stamps: [stamp("Japan"), stamp("Cuba"), stamp("Peru")],
         label: "Countries fielded",
         animate: true,
-        step: 0.12,
-      },
-    });
+        step: 0.12 } });
     flushSync();
     const dealt = [...host.querySelectorAll<HTMLElement>(".stamp")];
     expect(dealt.every((b) => b.classList.contains("animate"))).toBe(true);

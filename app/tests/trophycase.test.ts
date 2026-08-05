@@ -381,8 +381,7 @@ describe("the trophy case sheet", () => {
   describe("the shared badge reveal", () => {
     function slot(open: boolean): string {
       return render(BadgeSlot, {
-        props: { badge: BADGE_BY_KEY.crystal, open, ontoggle: () => {} },
-      }).body;
+        props: { badge: BADGE_BY_KEY.crystal, open, ontoggle: () => {} } }).body;
     }
 
     it("shows the trigger only when open, and says so in aria", () => {

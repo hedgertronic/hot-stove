@@ -60,9 +60,7 @@ describe("study 15: dream-club seat fill and the ceiling-beat rate", () => {
         bot: {
           name: "no-homegrown",
           enabled: new Set(ALL_POWERUPS.filter((k) => k !== "hometown")),
-          overspend: false,
-        },
-      },
+          overspend: false } },
       // The over-cap branch is where an open seat paid best, so a bot that
       // deliberately overspends is the arm that showed it loudest.
       {

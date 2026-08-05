@@ -189,24 +189,14 @@ export function loadData(): HarnessData {
 
 const round1 = (x: number): number => Number(x.toFixed(1));
 
-/** Recompute every card's bankroll with a different BANKROLL_GAMMA, exactly
- * mirroring pipeline/build.py's curve (widen around the $110M pivot, scale
- * 2/3, clamp $15M — with to_display_m's pre-rounding). `gamma: null` restores
- * the shipped budgets byte-for-byte. Mutates the shared Card objects in place
- * (the engine's card cache holds the same references), plus the summaries and
- * meanBudget the policies consult. Harness-side only — data/ is untouched. */
+/** Restore every card's bankroll to the shipped budgets. The `gamma` parameter
+ * is a vestige of study 2's power-curve rescaling, which needed the raw budget
+ * sums that the shipped cards no longer carry; it keeps the signature the
+ * (skipped) study compiles against, and every call restores shipped numbers. */
 export function applyBudgets(d: HarnessData, gamma: number | null): void {
   const budgets: number[] = [];
   for (const [key, card] of d.cards) {
-    let b: number;
-    if (gamma === null) {
-      b = d.shippedBudgets.get(key)!;
-    } else {
-      const unscaled = round1(
-        (card.budgetRaw / d.meta.avgSlot8[String(card.year)]) * d.meta.displayAvgM,
-      );
-      b = round1(Math.max(110 * Math.pow(unscaled / 110, gamma) * (2 / 3), 15.0));
-    }
+    const b = d.shippedBudgets.get(key)!;
     card.budget = b;
     d.summaries.get(key)!.budget = b;
     budgets.push(b);

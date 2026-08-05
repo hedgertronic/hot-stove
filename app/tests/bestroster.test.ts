@@ -24,20 +24,12 @@ function player(over: Partial<CardPlayer>): CardPlayer {
     name: "Test Player",
     pos: "1B",
     war: 3,
-    warRaw: 3,
     cost: 5,
-    contract: 5,
-    salary: 5_000_000,
-    est: false,
     awards: [],
     ws: false,
     pen: false,
-    pa: 500,
-    gs: 0,
-    relIP: 0,
-    posG: { c: 0, if: 100, of: 0, dh: 0 },
+    posG: { c: 0, if: 100, of: 0},
     debut: "SEA",
-    teams: ["SEA"],
     ...over,
   };
 }
@@ -58,8 +50,6 @@ function card(players: CardPlayer[], over: Partial<Card> = {}): Card {
     attendancePct: 0.99,
     stadiumMult: 1.15,
     budget: 100,
-    budgetRaw: 60_000_000,
-    contracts: [],
     prorated: 1,
     players,
     ...over,
@@ -103,10 +93,10 @@ function doubledCards(best: ReturnType<typeof bestRoster>): number {
   return [...counts.values()].filter((n) => n > 1).length;
 }
 
-const IF = { c: 0, if: 100, of: 0, dh: 0 };
-const OF = { c: 0, if: 0, of: 100, dh: 0 };
-const C = { c: 100, if: 0, of: 0, dh: 0 };
-const NONE = { c: 0, if: 0, of: 0, dh: 0 };
+const IF = { c: 0, if: 100, of: 0};
+const OF = { c: 0, if: 0, of: 100};
+const C = { c: 100, if: 0, of: 0};
+const NONE = { c: 0, if: 0, of: 0};
 
 /** Eight players covering every slot type, one per card. */
 const fullSquad = (): CardPlayer[] => [
@@ -115,9 +105,9 @@ const fullSquad = (): CardPlayer[] => [
   player({ pos: "2B", posG: IF, war: 6 }),
   player({ pos: "3B", posG: IF, war: 4 }), // best FLEX
   player({ pos: "CF", posG: OF, war: 8 }),
-  player({ pos: "SP", posG: NONE, gs: 30, war: 6 }),
-  player({ pos: "SP", posG: NONE, gs: 30, war: 5 }),
-  player({ pos: "RP", posG: NONE, relIP: 60, war: 2 }),
+  player({ pos: "SP", posG: NONE, war: 6 }),
+  player({ pos: "SP", posG: NONE, war: 5 }),
+  player({ pos: "RP", posG: NONE, war: 2 }),
 ];
 
 describe("bestRoster", () => {
@@ -291,7 +281,7 @@ describe("bestRoster one pick per card, plus one ✌️", () => {
       [
         player({ pos: "C", posG: C, war: 12 }),
         player({ pos: "CF", posG: OF, war: 11 }),
-        player({ pos: "SP", posG: NONE, gs: 30, war: 10 }),
+        player({ pos: "SP", posG: NONE, war: 10 }),
       ],
       {
         team: "BOS",
@@ -335,7 +325,7 @@ describe("bestRoster joint manager solve", () => {
     const d = card(
       [
         player({ pos: "CF", posG: OF, war: 9 }),
-        player({ pos: "SP", posG: NONE, gs: 30, war: 9 }),
+        player({ pos: "SP", posG: NONE, war: 9 }),
       ],
       { team: "DDD", franchise: "DDD", name: "D Nine", year: 1993, manager: null },
     );
@@ -426,8 +416,8 @@ describe("bestRoster human uniqueness under the card cap", () => {
         [
           player({ pos: "C", posG: C, war: 6 + i, id: shared[0] }),
           player({ pos: "SS", posG: IF, war: 9 - i, id: shared[1] }),
-          player({ pos: "SP", posG: NONE, gs: 30, war: 4 + i, id: shared[2] }),
-          player({ pos: "RP", posG: NONE, relIP: 60, war: 1 + i }),
+          player({ pos: "SP", posG: NONE, war: 4 + i, id: shared[2] }),
+          player({ pos: "RP", posG: NONE, war: 1 + i }),
         ],
         {
           team: `M${i}`, franchise: `M${i}`, name: `Mix ${i}`, year: 1990 + i,
@@ -453,9 +443,9 @@ describe("bestRoster with a small card pool", () => {
       { pos: "2B", posG: IF },
       { pos: "CF", posG: OF },
       { pos: "3B", posG: IF }, // FLEX
-      { pos: "SP", posG: NONE, gs: 30 },
-      { pos: "SP", posG: NONE, gs: 30 },
-      { pos: "RP", posG: NONE, relIP: 60 },
+      { pos: "SP", posG: NONE },
+      { pos: "SP", posG: NONE },
+      { pos: "RP", posG: NONE },
       { pos: "1B", posG: IF },
     ];
     return Array.from({ length: n }, (_, i) =>
@@ -523,7 +513,7 @@ describe("bestRoster determinism", () => {
         [
           player({ pos: "C", posG: C, war: 5, id: "tie-c" }),
           player({ pos: "SS", posG: IF, war: 5, id: `ss${i}` }),
-          player({ pos: "SP", posG: NONE, gs: 30, war: 5, id: `sp${i}` }),
+          player({ pos: "SP", posG: NONE, war: 5, id: `sp${i}` }),
         ],
         {
           team: `D${i}`, franchise: `D${i}`, name: `Dup ${i}`, year: 1990 + i,
@@ -579,8 +569,7 @@ function rescore(best: ReturnType<typeof bestRoster>): number {
     pennants: picks.filter((p) => p!.pen).length + (mgr?.pen ? 1 : 0),
     managerRecord: mgr ? [mgr.netWins, 0] : null,
     scoutHits: best.dreamSeats!,
-    managerMoty: mgr?.moty === true,
-  }).total;
+    managerMoty: mgr?.moty === true }).total;
 }
 
 /** Nine cards, distinct budgets and ballparks, one bat apiece. */
@@ -591,9 +580,9 @@ function frontOfficePool(over: (i: number) => Partial<Card> = () => ({})): Card[
     { pos: "2B", posG: IF },
     { pos: "CF", posG: OF },
     { pos: "3B", posG: IF },
-    { pos: "SP", posG: NONE, gs: 30 },
-    { pos: "SP", posG: NONE, gs: 30 },
-    { pos: "RP", posG: NONE, relIP: 60 },
+    { pos: "SP", posG: NONE },
+    { pos: "SP", posG: NONE },
+    { pos: "RP", posG: NONE },
     { pos: "1B", posG: IF },
   ];
   return Array.from({ length: 9 }, (_, i) =>
@@ -654,8 +643,7 @@ describe("bestRoster front office", () => {
     // a solver that treats the cap as a wall never sees it at all.
     const cards = frontOfficePool(() => ({ budget: 40, stadiumMult: 1 })).map((c) => ({
       ...c,
-      players: c.players.map((p) => ({ ...p, cost: 1 })),
-    }));
+      players: c.players.map((p) => ({ ...p, cost: 1 })) }));
     cards[0] = card([player({ pos: "C", posG: C, war: 30, cost: 45 })], {
       team: "MON", franchise: "MON", name: "Monster", year: 1927,
       wins: 90, losses: 72, budget: 40, stadiumMult: 1,
@@ -838,8 +826,8 @@ describe("bestRoster fills every seat, on the pools that left one open", () => {
     const cards: Card[] = [
       card([priced({ pos: "C", posG: C })], own(0)),
       card([priced({ pos: "SS", posG: IF })], own(1)),
-      card([priced({ pos: "SP", posG: NONE, gs: 30 })], own(2)),
-      card([priced({ pos: "RP", posG: NONE, relIP: 60 })], own(3)),
+      card([priced({ pos: "SP", posG: NONE })], own(2)),
+      card([priced({ pos: "RP", posG: NONE })], own(3)),
     ];
     // A $60M bank against $35M seats: any two of these men bust the cap, so
     // every extra seat past the first is worth 1 win and −$35M of tax.

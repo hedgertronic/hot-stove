@@ -64,10 +64,7 @@ const owners: Owners = {
   franchises: {
     CHC: {
       name: "Chicago Cubs",
-      owners: [{ name: "Ricketts family", from: 2009, to: null }],
-    },
-  },
-};
+      owners: [{ name: "Ricketts family", from: 2009, to: null }] } } };
 
 let pid = 0;
 function player(over: Partial<CardPlayer>): CardPlayer {
@@ -76,20 +73,12 @@ function player(over: Partial<CardPlayer>): CardPlayer {
     name: "Test Player",
     pos: "1B",
     war: 3,
-    warRaw: 3,
     cost: 5,
-    contract: 5,
-    salary: 5_000_000,
-    est: false,
     awards: [],
     ws: false,
     pen: false,
-    pa: 500,
-    gs: 0,
-    relIP: 0,
-    posG: { c: 0, if: 100, of: 0, dh: 0 },
+    posG: { c: 0, if: 100, of: 0},
     debut: "SEA",
-    teams: ["CHC"],
     ...over,
   };
 }
@@ -110,8 +99,6 @@ function card(players: CardPlayer[], over: Partial<Card> = {}): Card {
     attendancePct: 0.86,
     stadiumMult: 1.11,
     budget: 136.3,
-    budgetRaw: 74_555_288,
-    contracts: [],
     prorated: 1,
     players,
     ...over,
@@ -174,35 +161,30 @@ beforeEach(() => {
 
 describe("eligibility", () => {
   it("multi-position infielder/outfielder", () => {
-    const p = player({ posG: { c: 0, if: 117, of: 75, dh: 1 }, pos: "3B" });
+    const p = player({ posG: { c: 0, if: 117, of: 75}, pos: "3B" });
     expect(eligibleTypes(p)).toEqual(["IF", "OF", "FLEX"]);
   });
   it("two-way player qualifies for SP and FLEX", () => {
     const p = player({
       pos: "SP/DH",
-      gs: 20,
-      posG: { c: 0, if: 0, of: 0, dh: 40 },
-    });
+      posG: { c: 0, if: 0, of: 0} });
     expect(eligibleTypes(p)).toEqual(["SP", "FLEX"]);
   });
   it("DH-only bat is FLEX only", () => {
-    const p = player({ posG: { c: 0, if: 3, of: 0, dh: 120 }, pos: "DH" });
+    const p = player({ posG: { c: 0, if: 3, of: 0}, pos: "DH" });
     expect(eligibleTypes(p)).toEqual(["FLEX"]);
   });
   it("relievers never reach FLEX", () => {
     const p = player({
       pos: "RP",
-      posG: { c: 0, if: 0, of: 0, dh: 0 },
-      pa: 2,
-      relIP: 60,
-    });
+      posG: { c: 0, if: 0, of: 0} });
     expect(eligibleTypes(p)).toEqual(["RP"]);
   });
 });
 
 describe("signing and slots", () => {
   it("catcher fills C automatically", () => {
-    const p = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
+    const p = player({ pos: "C", posG: { c: 90, if: 0, of: 0} });
     const g = landedGame(card([p]));
     g.signPlayer(p);
     expect(g.slots[0]?.id).toBe(p.id);
@@ -210,7 +192,7 @@ describe("signing and slots", () => {
   });
 
   it("IF/OF ambiguity opens the slot picker, resolves by rail tap", () => {
-    const p = player({ posG: { c: 0, if: 117, of: 75, dh: 0 }, pos: "3B" });
+    const p = player({ posG: { c: 0, if: 117, of: 75}, pos: "3B" });
     const g = landedGame(card([p]));
     g.signPlayer(p);
     expect(g.slotPick).toBe(p.id);
@@ -223,7 +205,7 @@ describe("signing and slots", () => {
     // The same toggle a SIGN confirm honors: opening the picker committed
     // nothing, so cancelling rewinds nothing — the spin's choice is intact
     // and the man can still be signed afterward.
-    const p = player({ posG: { c: 0, if: 117, of: 75, dh: 0 }, pos: "3B" });
+    const p = player({ posG: { c: 0, if: 117, of: 75}, pos: "3B" });
     const g = landedGame(card([p]));
     g.signPlayer(p);
     expect(g.slotPick).toBe(p.id);
@@ -237,8 +219,8 @@ describe("signing and slots", () => {
   });
 
   it("FLEX is used only when specialist slots are full", () => {
-    const a = player({ pos: "LF", posG: { c: 0, if: 0, of: 120, dh: 0 } });
-    const b = player({ pos: "RF", posG: { c: 0, if: 0, of: 110, dh: 0 } });
+    const a = player({ pos: "LF", posG: { c: 0, if: 0, of: 120} });
+    const b = player({ pos: "RF", posG: { c: 0, if: 0, of: 110} });
     const g = landedGame(card([a, b]));
     g.signPlayer(a);
     expect(g.slots[3]?.id).toBe(a.id); // OF slot
@@ -249,17 +231,15 @@ describe("signing and slots", () => {
   });
 
   it("no eligible open slot means the row is dead", () => {
-    const a = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
+    const a = player({ pos: "C", posG: { c: 90, if: 0, of: 0} });
     const b = player({
       pos: "C",
-      posG: { c: 80, if: 0, of: 0, dh: 0 },
-      pa: 200,
-    });
+      posG: { c: 80, if: 0, of: 0} });
     const g = landedGame(card([a, b]));
     g.signPlayer(a);
     expect(g.playerState(b)).toBe("open"); // FLEX still open for a hitter
     // fill FLEX with another bat
-    const flex = player({ pos: "DH", posG: { c: 0, if: 0, of: 0, dh: 120 } });
+    const flex = player({ pos: "DH", posG: { c: 0, if: 0, of: 0} });
     g.card = card([a, b, flex]);
     g.phase = "landed";
     g.choicesLeft = 1;
@@ -308,7 +288,7 @@ describe("specials and bankroll", () => {
 
 describe("Double Play", () => {
   it("grants two choices; burns only when the second pick commits", () => {
-    const a = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
+    const a = player({ pos: "C", posG: { c: 90, if: 0, of: 0} });
     const g = landedGame(card([a]));
     g.toggleDoublePlay();
     expect(g.choicesLeft).toBe(2);
@@ -321,7 +301,7 @@ describe("Double Play", () => {
   });
 
   it("cannot sign the same player into both matching slots", () => {
-    const p = player({ posG: { c: 0, if: 100, of: 0, dh: 0 } });
+    const p = player({ posG: { c: 0, if: 100, of: 0} });
     const g = landedGame(card([p]));
     g.toggleDoublePlay();
     g.signPlayer(p, 1);
@@ -340,7 +320,7 @@ describe("Double Play", () => {
   });
 
   it("refunds when the remaining second pick is forfeited (finishSpin)", () => {
-    const a = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
+    const a = player({ pos: "C", posG: { c: 90, if: 0, of: 0} });
     const g = landedGame(card([a]));
     g.toggleDoublePlay();
     g.signPlayer(a);
@@ -351,7 +331,7 @@ describe("Double Play", () => {
   });
 
   it("disarming after the first pick refunds and ends the spin", () => {
-    const a = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
+    const a = player({ pos: "C", posG: { c: 90, if: 0, of: 0} });
     const g = landedGame(card([a]));
     g.toggleDoublePlay();
     g.signPlayer(a);
@@ -368,17 +348,13 @@ describe("Trade Deadline", () => {
     // too, which correctly forces a release pick instead).
     const a = player({
       pos: "RP",
-      posG: { c: 0, if: 0, of: 0, dh: 0 },
-      pa: 0,
-      relIP: 60,
+      posG: { c: 0, if: 0, of: 0},
       cost: 20,
       war: 1,
     });
     const b = player({
       pos: "RP",
-      posG: { c: 0, if: 0, of: 0, dh: 0 },
-      pa: 0,
-      relIP: 55,
+      posG: { c: 0, if: 0, of: 0},
       cost: 2,
       war: 3,
     });
@@ -397,10 +373,10 @@ describe("Trade Deadline", () => {
   });
 
   it("multi-eligible swap-in requires a release pick", () => {
-    const if1 = player({ posG: { c: 0, if: 100, of: 0, dh: 0 } });
-    const if2 = player({ posG: { c: 0, if: 90, of: 0, dh: 0 }, pa: 400 });
-    const if3 = player({ posG: { c: 0, if: 80, of: 0, dh: 0 }, pa: 300 });
-    const flex = player({ pos: "DH", posG: { c: 0, if: 0, of: 0, dh: 120 } });
+    const if1 = player({ posG: { c: 0, if: 100, of: 0} });
+    const if2 = player({ posG: { c: 0, if: 90, of: 0} });
+    const if3 = player({ posG: { c: 0, if: 80, of: 0} });
+    const flex = player({ pos: "DH", posG: { c: 0, if: 0, of: 0} });
     const g = landedGame(card([if1, if2, if3, flex]));
     for (const p of [if1, if2, flex]) {
       g.signPlayer(p);
@@ -420,17 +396,15 @@ describe("Trade Deadline", () => {
   it("trades for a catcher even though UTIL is open — releases the rostered C", () => {
     const oldC = player({
       pos: "C",
-      posG: { c: 90, if: 0, of: 0, dh: 0 },
+      posG: { c: 90, if: 0, of: 0},
       cost: 8,
       war: 2,
     });
     const newC = player({
       pos: "C",
-      posG: { c: 85, if: 0, of: 0, dh: 0 },
+      posG: { c: 85, if: 0, of: 0},
       cost: 15,
-      war: 6,
-      pa: 450,
-    });
+      war: 6 });
     const g = landedGame(card([oldC, newC]));
     g.signPlayer(oldC);
     g.phase = "landed";
@@ -452,7 +426,7 @@ describe("Trade Deadline", () => {
 
   it("trades out a rostered IF while the second IF seat sits open", () => {
     const if1 = player({ cost: 4, war: 1 });
-    const if2 = player({ pa: 400, cost: 9, war: 5 });
+    const if2 = player({ cost: 9, war: 5 });
     const g = landedGame(card([if1, if2]));
     g.signPlayer(if1, 1);
     g.phase = "landed";
@@ -469,15 +443,12 @@ describe("Trade Deadline", () => {
   it("disarmed, the same row signs plainly into the open seat — no TD spent", () => {
     const oldC = player({
       pos: "C",
-      posG: { c: 90, if: 0, of: 0, dh: 0 },
-      cost: 8,
-    });
+      posG: { c: 90, if: 0, of: 0},
+      cost: 8 });
     const newC = player({
       pos: "C",
-      posG: { c: 85, if: 0, of: 0, dh: 0 },
-      cost: 15,
-      pa: 450,
-    });
+      posG: { c: 85, if: 0, of: 0},
+      cost: 15 });
     const g = landedGame(card([oldC, newC]));
     g.signPlayer(oldC);
     g.phase = "landed";
@@ -498,9 +469,8 @@ describe("Trade Deadline", () => {
     const if1 = player({});
     const flexBat = player({
       pos: "DH",
-      posG: { c: 0, if: 0, of: 0, dh: 120 },
-    });
-    const if2 = player({ pa: 400 });
+      posG: { c: 0, if: 0, of: 0} });
+    const if2 = player({  });
     const g = landedGame(card([if1, flexBat, if2]));
     for (const p of [if1, flexBat]) {
       g.signPlayer(p);
@@ -537,7 +507,7 @@ describe("Trade Deadline", () => {
 });
 
 describe("Prime Time", () => {
-  const C_POS = { c: 90, if: 0, of: 0, dh: 0 };
+  const C_POS = { c: 90, if: 0, of: 0};
 
   function primeSetup() {
     const now = player({ id: "star", pos: "C", posG: C_POS, war: 2, cost: 3 });
@@ -652,7 +622,7 @@ describe("Homegrown (the hometown discount)", () => {
 
   it("disarming restores prices and the grayed rows with nothing consumed", () => {
     const local = player({ debut: "CHC" });
-    const outsider = player({ debut: "SEA", pa: 400 });
+    const outsider = player({ debut: "SEA" });
     const g = landedGame(card([local, outsider]));
     g.toggleHometown();
     expect(g.priceFor(local)).toBeCloseTo(floor);
@@ -668,7 +638,7 @@ describe("Homegrown (the hometown discount)", () => {
 
   it("a card with no debut-eligible players still arms — whole list grays, disarm restores", () => {
     const a = player({ debut: "SEA" });
-    const b = player({ debut: "NYY", pa: 400 });
+    const b = player({ debut: "NYY" });
     const g = landedGame(card([a, b]));
     g.toggleHometown();
     expect(g.powerups.hometown).toBe("armed");
@@ -684,8 +654,8 @@ describe("Homegrown (the hometown discount)", () => {
     // The intersection rule with one member: an armed market powerup narrows
     // the market to its own targets, so a row that cannot answer 🔁 grays
     // even though its plain sign would have been legal — disarm to sign.
-    const inf = player({ posG: { c: 0, if: 100, of: 0, dh: 0 } });
-    const of1 = player({ pos: "LF", posG: { c: 0, if: 0, of: 120, dh: 0 }, pa: 400 });
+    const inf = player({ posG: { c: 0, if: 100, of: 0} });
+    const of1 = player({ pos: "LF", posG: { c: 0, if: 0, of: 120} });
     const g = landedGame(card([inf, of1]));
     g.signPlayer(inf);
     g.phase = "landed";
@@ -702,11 +672,11 @@ describe("Homegrown (the hometown discount)", () => {
 
   it("INTERSECTION: 🔁 + 🏠 armed together light only rows that answer both", () => {
     const rp = (over: Partial<CardPlayer>) =>
-      player({ pos: "RP", posG: { c: 0, if: 0, of: 0, dh: 0 }, pa: 0, relIP: 55, ...over });
-    const seated = rp({ cost: 20, war: 1, relIP: 60 });
+      player({ pos: "RP", posG: { c: 0, if: 0, of: 0}, ...over });
+    const seated = rp({ cost: 20, war: 1 });
     const both = rp({ debut: "CHC", cost: 12, war: 3 }); // candidate AND debut match
     const tradeOnly = rp({ debut: "SEA", cost: 10, war: 2 }); // candidate, no discount
-    const homeOnly = player({ debut: "CHC", pa: 400 }); // debut match, open IF seat, no trade
+    const homeOnly = player({ debut: "CHC" }); // debut match, open IF seat, no trade
     const g = landedGame(card([seated, both, tradeOnly, homeOnly]));
     g.signPlayer(seated);
     g.phase = "landed";
@@ -729,7 +699,7 @@ describe("Homegrown (the hometown discount)", () => {
 
   it("INTERSECTION: ⭐ + 🏠 armed together browse only debut matches", () => {
     const local = player({ debut: "CHC" });
-    const outsider = player({ debut: "SEA", pa: 400 });
+    const outsider = player({ debut: "SEA" });
     const g = landedGame(card([local, outsider]));
     g.togglePrime();
     expect(g.primeBrowsable(local)).toBe(true);
@@ -781,17 +751,13 @@ describe("Homegrown (the hometown discount)", () => {
   it("TD + discount both armed: a debut-eligible swap-in commits at the discount, both spend", () => {
     const a = player({
       pos: "RP",
-      posG: { c: 0, if: 0, of: 0, dh: 0 },
-      pa: 0,
-      relIP: 60,
+      posG: { c: 0, if: 0, of: 0},
       cost: 20,
       war: 1,
     });
     const b = player({
       pos: "RP",
-      posG: { c: 0, if: 0, of: 0, dh: 0 },
-      pa: 0,
-      relIP: 55,
+      posG: { c: 0, if: 0, of: 0},
       cost: 12,
       war: 3,
       debut: "CHC",
@@ -814,9 +780,8 @@ describe("Homegrown (the hometown discount)", () => {
     const local = player({
       debut: "CHC",
       pos: "C",
-      posG: { c: 90, if: 0, of: 0, dh: 0 },
-      cost: 8,
-    });
+      posG: { c: 90, if: 0, of: 0},
+      cost: 8 });
     const outsider = player({ debut: "SEA" });
     const g = landedGame(card([local, outsider]));
     g.toggleDoublePlay();
@@ -840,17 +805,13 @@ describe("Homegrown (the hometown discount)", () => {
   it("the triple stack: DP + TD + 🏠 — a discounted swap-in is one of DP's two picks", () => {
     const a = player({
       pos: "RP",
-      posG: { c: 0, if: 0, of: 0, dh: 0 },
-      pa: 0,
-      relIP: 60,
+      posG: { c: 0, if: 0, of: 0},
       cost: 20,
       war: 1,
     });
     const b = player({
       pos: "RP",
-      posG: { c: 0, if: 0, of: 0, dh: 0 },
-      pa: 0,
-      relIP: 55,
+      posG: { c: 0, if: 0, of: 0},
       cost: 12,
       war: 3,
       debut: "CHC",
@@ -934,8 +895,8 @@ describe("Homegrown (the hometown discount)", () => {
 describe("visiblePlayers", () => {
   it("hides below-replacement players", () => {
     const good = player({ war: 2.5 });
-    const bad = player({ war: -0.8, pa: 300 });
-    const zero = player({ war: 0, pa: 200 });
+    const bad = player({ war: -0.8 });
+    const zero = player({ war: 0 });
     const g = landedGame(card([good, bad, zero]));
     expect(g.visiblePlayers.map((p) => p.id)).toEqual([good.id, zero.id]);
   });
@@ -943,15 +904,12 @@ describe("visiblePlayers", () => {
   it("rescues the best player at a position that would vanish entirely", () => {
     const c1 = player({
       pos: "C",
-      posG: { c: 90, if: 0, of: 0, dh: 0 },
-      war: -0.4,
-    });
+      posG: { c: 90, if: 0, of: 0},
+      war: -0.4 });
     const c2 = player({
       pos: "C",
-      posG: { c: 60, if: 0, of: 0, dh: 0 },
-      war: -1.9,
-      pa: 200,
-    });
+      posG: { c: 60, if: 0, of: 0},
+      war: -1.9 });
     const ifPos = player({ war: 4 });
     const g = landedGame(card([c1, c2, ifPos]));
     // c1 is the least-bad catcher → kept; c2 stays hidden
@@ -964,15 +922,12 @@ describe("visiblePlayers", () => {
     const a = player({
       id: "vetC",
       pos: "C",
-      posG: { c: 90, if: 0, of: 0, dh: 0 },
-      war: 3,
-    });
+      posG: { c: 90, if: 0, of: 0},
+      war: 3 });
     const b = player({
       pos: "C",
-      posG: { c: 80, if: 0, of: 0, dh: 0 },
-      war: -1,
-      pa: 150,
-    });
+      posG: { c: 80, if: 0, of: 0},
+      war: -1 });
     const g = landedGame(card([a, b], { manager: null }));
     g.owner = {
       name: "x",
@@ -1002,7 +957,7 @@ describe("rowPlayable", () => {
 
   it("dead rows come alive only under an armed Trade Deadline", () => {
     const if1 = player({});
-    const if2 = player({ pa: 400 });
+    const if2 = player({  });
     const g = landedGame(card([if1, if2]));
     g.slots[1] = filler(1);
     g.slots[2] = filler(2);
@@ -1108,7 +1063,7 @@ describe("Season Ticket and Relocate franchise resolution", () => {
 
 describe("cold stove", () => {
   it("detected when nothing is actionable", () => {
-    const c = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
+    const c = player({ pos: "C", posG: { c: 90, if: 0, of: 0} });
     const g = landedGame(card([c], { manager: null }));
     g.owner = {
       name: "x",
@@ -1131,7 +1086,7 @@ describe("cold stove", () => {
 
 describe("completion and the hunt", () => {
   it("a full roster alone doesn't end the game — the hunt for the front office continues", () => {
-    const c = player({ pos: "C", posG: { c: 90, if: 0, of: 0, dh: 0 } });
+    const c = player({ pos: "C", posG: { c: 90, if: 0, of: 0} });
     const g = landedGame(card([c]));
     fillSlots(g, [0]);
     g.signPlayer(c);
@@ -1343,10 +1298,8 @@ describe("finale", () => {
       card([
         player({
           pos: "SP",
-          gs: 30,
-          posG: { c: 0, if: 0, of: 0, dh: 0 },
-          war: 5,
-        }),
+          posG: { c: 0, if: 0, of: 0},
+          war: 5 }),
       ]),
     );
     for (let i = 0; i < 8; i++) {
@@ -1399,8 +1352,7 @@ describe("finale", () => {
       card([
         player({
           pos: "SP",
-          gs: 30,
-          posG: { c: 0, if: 0, of: 0, dh: 0 },
+          posG: { c: 0, if: 0, of: 0},
           war: 5.5,
           cost: costPaid,
         }),
@@ -1454,10 +1406,8 @@ describe("finale", () => {
       card([
         player({
           pos: "SP",
-          gs: 30,
-          posG: { c: 0, if: 0, of: 0, dh: 0 },
-          war: 5,
-        }),
+          posG: { c: 0, if: 0, of: 0},
+          war: 5 }),
       ]),
     );
     for (let i = 0; i < 8; i++) {
@@ -1547,8 +1497,7 @@ describe("facts the finale collects off the roster", () => {
       card([
         player({
           pos: "SP",
-          gs: 30,
-          posG: { c: 0, if: 0, of: 0, dh: 0 },
+          posG: { c: 0, if: 0, of: 0},
           bc: "Curaçao",
           hof: true,
         }),
@@ -1584,7 +1533,7 @@ describe("facts the finale collects off the roster", () => {
   /** A pitcher for the SP seat at index 5, so a signing can be the pick that
    * completes the club. */
   const arm = () =>
-    player({ pos: "SP", gs: 30, posG: { c: 0, if: 0, of: 0, dh: 0 } });
+    player({ pos: "SP", posG: { c: 0, if: 0, of: 0} });
 
   it("earns 🤝 only when the owner is hired after the roster is full", async () => {
     store.clear();
@@ -1650,8 +1599,7 @@ describe("seed reproducibility", () => {
           player({
             id: `${e.team}${e.year}`,
             pos: "1B",
-            posG: { c: 0, if: 100, of: 0, dh: 0 },
-          }),
+            posG: { c: 0, if: 100, of: 0} }),
         ],
         { team: e.team, year: e.year, franchise: e.franchise, name: e.name },
       );
@@ -1892,10 +1840,10 @@ describe("Manager of the Year", () => {
 });
 
 describe("the dream-club ceiling", () => {
-  const POS_IF = { c: 0, if: 100, of: 0, dh: 0 };
-  const POS_OF = { c: 0, if: 0, of: 100, dh: 0 };
-  const POS_C = { c: 100, if: 0, of: 0, dh: 0 };
-  const NO_POS = { c: 0, if: 0, of: 0, dh: 0 };
+  const POS_IF = { c: 0, if: 100, of: 0};
+  const POS_OF = { c: 0, if: 0, of: 100};
+  const POS_C = { c: 100, if: 0, of: 0};
+  const NO_POS = { c: 0, if: 0, of: 0};
   const CEILING_CARDS = 11;
 
   /** Eleven spun cards, each stacked with a star at every position. One pick per
@@ -1921,8 +1869,8 @@ describe("the dream-club ceiling", () => {
           player({ id: `c${i}`, pos: "C", posG: POS_C, war: 9, cost: 20 }),
           player({ id: `if${i}`, pos: "SS", posG: POS_IF, war: 9, cost: 20 }),
           player({ id: `of${i}`, pos: "CF", posG: POS_OF, war: 9, cost: 20 }),
-          player({ id: `sp${i}`, pos: "SP", posG: NO_POS, gs: 30, war: 9, cost: 20 }),
-          player({ id: `rp${i}`, pos: "RP", posG: NO_POS, relIP: 60, war: 9, cost: 20 }),
+          player({ id: `sp${i}`, pos: "SP", posG: NO_POS, war: 9, cost: 20 }),
+          player({ id: `rp${i}`, pos: "RP", posG: NO_POS, war: 9, cost: 20 }),
         ],
         {
           team: `CE${i}`,
@@ -1944,8 +1892,7 @@ describe("the dream-club ceiling", () => {
     const g = landedGame(fetchCards.CE0_2010);
     g.seen = Array.from({ length: CEILING_CARDS }, (_, i) => ({
       team: `CE${i}`,
-      year: 2010,
-    }));
+      year: 2010 }));
     fillSlots(g); // eight 3-WAR fillers at $10M — a club the cards easily beat
     g.owner = { name: "x", budget: 100, franchise: "CE0", year: 2010, teamName: "Ceiling 0" };
     g.stadium = { park: "y", mult: 1, franchise: "CE0", year: 2010 };
@@ -1982,7 +1929,7 @@ describe("the dream-club ceiling", () => {
 
   it("has no ceiling to print when the spun cards cannot be reloaded", async () => {
     const g = landedGame(
-      card([player({ pos: "SP", gs: 30, posG: NO_POS, war: 5 })], {
+      card([player({ pos: "SP", posG: NO_POS, war: 5 })], {
         team: "GONE",
         franchise: "GONE",
         year: 1999,
@@ -2021,8 +1968,7 @@ describe("World Baseball Classic medals", () => {
       card([
         player({
           pos: "SP",
-          gs: 30,
-          posG: { c: 0, if: 0, of: 0, dh: 0 },
+          posG: { c: 0, if: 0, of: 0},
           war: 5,
           cost: 5,
           wbc,
@@ -2097,8 +2043,7 @@ describe("World Baseball Classic medals", () => {
       card([
         player({
           pos: "SP",
-          gs: 30,
-          posG: { c: 0, if: 0, of: 0, dh: 0 },
+          posG: { c: 0, if: 0, of: 0},
           war: 5,
           cost: 5,
           wbc: WBC_CHAMPION_ID,
@@ -2339,9 +2284,9 @@ describe("the manager hired last", () => {
  * The arming toggles were already permissive — nothing has ever stopped two
  * pills being lit at once — so every question here is about how an armed
  * COMBINATION resolves, which is where the gaps were. */describe("powerups combine", () => {
-  const C_POS = { c: 90, if: 0, of: 0, dh: 0 };
-  const IF_POS = { c: 0, if: 100, of: 0, dh: 0 };
-  const NO_POS = { c: 0, if: 0, of: 0, dh: 0 };
+  const C_POS = { c: 90, if: 0, of: 0};
+  const IF_POS = { c: 0, if: 100, of: 0};
+  const NO_POS = { c: 0, if: 0, of: 0};
 
   /** A one-player career card under a code no other test uses.
    *
@@ -2360,9 +2305,9 @@ describe("the manager hired last", () => {
   const catcher = (over: Partial<CardPlayer> = {}) =>
     player({ id: "star", pos: "C", posG: C_POS, ...over });
   const reliever = (over: Partial<CardPlayer> = {}) =>
-    player({ pos: "RP", posG: NO_POS, relIP: 60, ...over });
+    player({ pos: "RP", posG: NO_POS, ...over });
   const starter = (over: Partial<CardPlayer> = {}) =>
-    player({ pos: "SP", posG: NO_POS, gs: 30, ...over });
+    player({ pos: "SP", posG: NO_POS, ...over });
 
   it("arms all four toggles at once", () => {
     const g = landedGame(card([player({})]));
@@ -2645,10 +2590,10 @@ describe("the manager hired last", () => {
  * exact shape of the `stampWins` gate that shipped inert. So this drives the
  * whole path and asserts the key comes out of `finishGame` itself. */
 describe("the dream team, resolved by the engine", () => {
-  const POS_C = { c: 100, if: 0, of: 0, dh: 0 };
-  const POS_IF = { c: 0, if: 100, of: 0, dh: 0 };
-  const POS_OF = { c: 0, if: 0, of: 100, dh: 0 };
-  const NO_POS = { c: 0, if: 0, of: 0, dh: 0 };
+  const POS_C = { c: 100, if: 0, of: 0};
+  const POS_IF = { c: 0, if: 100, of: 0};
+  const POS_OF = { c: 0, if: 0, of: 100};
+  const NO_POS = { c: 0, if: 0, of: 0};
 
   /** Nine cards, each with exactly one pick worth taking: eight one-player
    * clubs that match the eight seats one-for-one, and a ninth that carries
@@ -2660,9 +2605,9 @@ describe("the dream team, resolved by the engine", () => {
     { pos: "2B", posG: POS_IF },
     { pos: "CF", posG: POS_OF },
     { pos: "DH", posG: NO_POS },
-    { pos: "SP", posG: NO_POS, gs: 30 },
-    { pos: "SP", posG: NO_POS, gs: 30 },
-    { pos: "RP", posG: NO_POS, relIP: 60 },
+    { pos: "SP", posG: NO_POS },
+    { pos: "SP", posG: NO_POS },
+    { pos: "RP", posG: NO_POS },
   ];
 
   function dreamGame(): Game {
@@ -2865,7 +2810,7 @@ describe("the history row's countries", () => {
   async function finishWith(slots: Partial<Signed>[]): Promise<void> {
     const g = landedGame(
       card([
-        player({ pos: "SP", gs: 30, posG: { c: 0, if: 0, of: 0, dh: 0 }, cost: 1 }),
+        player({ pos: "SP", posG: { c: 0, if: 0, of: 0}, cost: 1 }),
       ]),
     );
     for (let i = 0; i < 8; i++) {

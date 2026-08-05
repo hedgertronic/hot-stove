@@ -43,11 +43,10 @@ export const stubOwners: Owners = {
 
 /** posG from a primary position: enough games to be slot-eligible there. */
 function posGFor(pos: string): CardPlayer["posG"] {
-  const g = { c: 0, if: 0, of: 0, dh: 0 };
+  const g = { c: 0, if: 0, of: 0 };
   if (pos === "C") g.c = 100;
   else if (["1B", "2B", "3B", "SS"].includes(pos)) g.if = 100;
   else if (["LF", "CF", "RF", "OF"].includes(pos)) g.of = 100;
-  else if (pos === "DH") g.dh = 100;
   return g;
 }
 
@@ -56,20 +55,12 @@ export function mkPlayer(over: Partial<CardPlayer> & { name: string; pos: string
   return {
     id: over.id ?? `lab${nextId++}`,
     war: 2.0,
-    warRaw: 2.0,
     cost: 5,
-    contract: 5,
-    salary: 5_000_000,
-    est: false,
     awards: [],
     ws: false,
     pen: false,
-    pa: 600,
-    gs: over.pos.startsWith("SP") ? 30 : 0,
-    relIP: over.pos === "RP" ? 70 : 0,
     posG: posGFor(over.pos),
     debut: "XXX",
-    teams: ["SEA"],
     ...over,
   };
 }
@@ -90,8 +81,6 @@ export function mkCard(over: Partial<Card> = {}): Card {
     attendancePct: 1,
     stadiumMult: 1.05,
     budget: 92.1,
-    budgetRaw: 0,
-    contracts: [],
     prorated: 1,
     players: [],
     ...over,

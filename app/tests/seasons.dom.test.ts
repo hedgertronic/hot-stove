@@ -36,9 +36,7 @@ function rec(id: string): ArchivedFinale {
       spend: 90,
       budget: 100,
       spinCount: 8,
-      totalWar: 40,
-    },
-  } as unknown as ArchivedFinale;
+      totalWar: 40 } } as unknown as ArchivedFinale;
 }
 
 /** One finished season in the log. `archived` is what makes it reopenable. */

@@ -71,8 +71,7 @@ describe("powerup bot study", () => {
           ? ALL_POWERUPS.map((k) => ({
               name: `no-${k}`,
               enabled: new Set(ALL_POWERUPS.filter((x) => x !== k)),
-              overspend: false,
-            }))
+              overspend: false }))
           : []),
       ];
 

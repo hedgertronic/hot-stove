@@ -128,8 +128,7 @@ function finale(...countries: (string | undefined)[]): string {
     if (seat) seat.bc = bc;
   });
   return render(Finale, {
-    props: { game: g, onreplay: () => {}, onmodes: () => {}, resolved: true },
-  }).body;
+    props: { game: g, onreplay: () => {}, onmodes: () => {}, resolved: true } }).body;
 }
 
 /** The passport on a rendered surface: EVERY row of stamps it drew, in

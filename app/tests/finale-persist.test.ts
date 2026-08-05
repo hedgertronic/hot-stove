@@ -76,10 +76,7 @@ const owners: Owners = {
   franchises: {
     CHC: {
       name: "Chicago Cubs",
-      owners: [{ name: "Ricketts family", from: 2009, to: null }],
-    },
-  },
-};
+      owners: [{ name: "Ricketts family", from: 2009, to: null }] } } };
 
 function player(over: Partial<CardPlayer> = {}): CardPlayer {
   return {
@@ -87,20 +84,12 @@ function player(over: Partial<CardPlayer> = {}): CardPlayer {
     name: "Anthony Rizzo",
     pos: "1B",
     war: 5,
-    warRaw: 5,
     cost: 12,
-    contract: 12,
-    salary: 12_000_000,
-    est: false,
     awards: ["MVP"],
     ws: true,
     pen: false,
-    pa: 676,
-    gs: 0,
-    relIP: 0,
-    posG: { c: 0, if: 141, of: 0, dh: 0 },
+    posG: { c: 0, if: 141, of: 0},
     debut: "CHC",
-    teams: ["CHC"],
     age: 26,
     ...over,
   };
@@ -122,8 +111,6 @@ const theCard: Card = {
   attendancePct: 0.86,
   stadiumMult: 1.11,
   budget: 136.3,
-  budgetRaw: 74_555_288,
-  contracts: [],
   prorated: 1,
   players: [player()],
 };

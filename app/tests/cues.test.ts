@@ -25,8 +25,7 @@ const {
   firstEverPlay,
   loadCues,
   markHelpSeen,
-  noteNewBadges,
-} = await import("../src/lib/settings");
+  noteNewBadges } = await import("../src/lib/settings");
 
 const CUES_KEY = "hotstove.cues";
 
@@ -43,8 +42,7 @@ function seedHistory(...badges: string[][]): void {
         spins: 3,
         difficulty: "standard",
         bank: "classic",
-        badges: b,
-      })),
+        badges: b })),
     ),
   );
 }

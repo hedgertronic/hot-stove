@@ -71,20 +71,12 @@ function player(over: Partial<CardPlayer>): CardPlayer {
     name: "Test Player",
     pos: "C",
     war: 3,
-    warRaw: 3,
     cost: 20, // above HOMEGROWN_PRICE_M so the discount matters
-    contract: 3,
-    salary: 20_000_000,
-    est: false,
     awards: [],
     ws: false,
     pen: false,
-    pa: 400,
-    gs: 0,
-    relIP: 0,
-    posG: { c: 120, if: 0, of: 0, dh: 0 }, // catcher — single C slot, no ambiguity
+    posG: { c: 120, if: 0, of: 0}, // catcher — single C slot, no ambiguity
     debut: "OAK",
-    teams: ["OAK"],
     ...over,
   };
 }
@@ -94,7 +86,7 @@ function oakCard(year: number, players: CardPlayer[]): Card {
     year, team: "OAK", franchise: "OAK", name: "Oakland Athletics",
     park: "Oakland Coliseum", wins: 99, losses: 63, manager: "Tony La Russa",
     ws: false, pen: false, attendance: 2_500_000, attendancePct: 0.9,
-    stadiumMult: 1.0, budget: 70, budgetRaw: 0, contracts: [], prorated: 1,
+    stadiumMult: 1.0, budget: 70, prorated: 1,
     players,
   };
 }
@@ -104,7 +96,7 @@ function stlCard(year: number, players: CardPlayer[]): Card {
     year, team: "STL", franchise: "STL", name: "St. Louis Cardinals",
     park: "Busch Stadium", wins: 83, losses: 79, manager: "Tony La Russa",
     ws: false, pen: false, attendance: 3_000_000, attendancePct: 0.9,
-    stadiumMult: 1.0, budget: 80, budgetRaw: 0, contracts: [], prorated: 1,
+    stadiumMult: 1.0, budget: 80, prorated: 1,
     players,
   };
 }
@@ -286,15 +278,15 @@ describe("prime + hometown: renamed club (team code differs from franchise id)",
       year, team: "CAL", franchise: "ANA", name: "California Angels",
       park: "Anaheim Stadium", wins: 92, losses: 70, manager: "Gene Mauch",
       ws: false, pen: false, attendance: 2_600_000, attendancePct: 0.9,
-      stadiumMult: 1.0, budget: 60, budgetRaw: 0, contracts: [], prorated: 1,
+      stadiumMult: 1.0, budget: 60, prorated: 1,
       players,
     };
   }
 
   function cleanSetup() {
-    const witt = player({ id: "witt_cal", debut: "ANA", teams: ["CAL"] });
+    const witt = player({ id: "witt_cal", debut: "ANA" });
     const landedCard = calCard(1986, [witt]);
-    const calSeason = player({ id: "witt_cal", debut: "ANA", teams: ["CAL"] });
+    const calSeason = player({ id: "witt_cal", debut: "ANA" });
     fetchCards["CAL_1985"] = calCard(1985, [calSeason]);
     const g = primedHometown(landedCard);
     g.primeTapPlayer(witt);

@@ -219,8 +219,7 @@ describe("shareText golden strings", () => {
     const lines = shareText({
       ...BASE,
       seed: 0xa3f2,
-      badges: ["mariners", "perfect"],
-    }).split("\n");
+      badges: ["mariners", "perfect"] }).split("\n");
     expect(lines[4]).toBe("💚 104–58 #0000WDU");
     expect(lines[5]).toBe("🔱🏆");
   });

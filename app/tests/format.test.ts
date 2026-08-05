@@ -19,12 +19,12 @@ describe("warTier", () => {
 });
 
 describe("posLabel", () => {
-  const player = (pos: string, posG: { c: number; if: number; of: number; dh: number }) =>
+  const player = (pos: string, posG: { c: number; if: number; of: number }) =>
     ({ pos, posG }) as CardPlayer;
-  const G = (c = 0, ifG = 0, of = 0, dh = 0) => ({ c, if: ifG, of, dh });
+  const G = (c = 0, ifG = 0, of = 0) => ({ c, if: ifG, of });
 
   it("passes two-way seasons through whole", () => {
-    expect(posLabel(player("SP/DH", G(0, 0, 7, 126)))).toBe("SP/DH");
+    expect(posLabel(player("SP/DH", G(0, 0, 7)))).toBe("SP/DH");
   });
 
   it("keeps pure pitchers bare", () => {
@@ -45,8 +45,8 @@ describe("posLabel", () => {
   });
 
   it("DH implies no specialist group; earned groups still append", () => {
-    expect(posLabel(player("DH", G(0, 0, 0, 140)))).toBe("DH");
-    expect(posLabel(player("DH", G(0, 10, 0, 120)))).toBe("DH/IF");
+    expect(posLabel(player("DH", G(0, 0, 0)))).toBe("DH");
+    expect(posLabel(player("DH", G(0, 10, 0)))).toBe("DH/IF");
   });
 });
 

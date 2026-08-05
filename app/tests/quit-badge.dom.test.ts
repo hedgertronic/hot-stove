@@ -42,8 +42,7 @@ vi.stubGlobal("matchMedia", (q: string) => ({
   matches: q.includes("prefers-reduced-motion"),
   media: q,
   addEventListener() {},
-  removeEventListener() {},
-}));
+  removeEventListener() {} }));
 
 /** The real data directory, lazily — the same JSON the dev server hands the
  * app, so a shape change in the pipeline surfaces here rather than in a fixture

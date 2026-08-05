@@ -252,8 +252,7 @@ describe("PRIMETIME under the intersection rule", () => {
     const { std } = pair(PlayerList, bothArmed, (g) => ({
       game: g,
       confirmKey: null,
-      setConfirm: () => {},
-    }));
+      setConfirm: () => {} }));
     expect(std).toContain("Bonds");
     expect(std).not.toContain("prime"); // no browse affordance on a grayed row
     expect(std).toContain("dead");

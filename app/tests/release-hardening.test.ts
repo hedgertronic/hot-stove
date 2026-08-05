@@ -86,9 +86,7 @@ describe("the finale reader refuses a hollow record", () => {
       spend: 90,
       budget: 100,
       spinCount: 9,
-      totalWar: 40,
-    },
-  });
+      totalWar: 40 } });
 
   it("accepts the whole record (with the version this build writes)", () => {
     // The literal above pins v to what FINALE_VERSION was when this test was

@@ -19,8 +19,7 @@ import Sheet from "../src/components/Sheet.svelte";
 
 /** A minimal no-content snippet that satisfies Sheet's `children` prop. */
 const emptyChildren = createRawSnippet(() => ({
-  render: () => `<span></span>`,
-}));
+  render: () => `<span></span>` }));
 
 /** Tracked instances cleaned up in afterEach if a test fails mid-way. */
 const openInstances: Array<ReturnType<typeof mount>> = [];
@@ -34,9 +33,7 @@ function openSheet(): { inst: ReturnType<typeof mount>; target: HTMLElement } {
     props: {
       onclose: () => {},
       label: "test sheet",
-      children: emptyChildren,
-    },
-  });
+      children: emptyChildren } });
   flushSync();
   openInstances.push(inst);
   openTargets.push(target);

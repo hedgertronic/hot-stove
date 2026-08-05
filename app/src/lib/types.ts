@@ -7,20 +7,12 @@ export interface CardPlayer {
   name: string;
   pos: string;
   war: number;
-  warRaw: number;
   cost: number; // normalized display $M
-  contract: number;
-  salary: number;
-  est: boolean;
   awards: string[];
   ws: boolean;
   pen: boolean;
-  pa: number;
-  gs: number;
-  relIP: number;
-  posG: { c: number; if: number; of: number; dh: number };
+  posG: { c: number; if: number; of: number };
   debut: string;
-  teams: string[];
   age?: number;
   /** Birth country as its display name ("Dominican Republic", "Puerto Rico",
    * "Germany"). Historical names are folded into the current one, so a country
@@ -38,12 +30,6 @@ export interface CardPlayer {
    * Present only when the player medaled; five Classics fall inside the
    * 1985–2025 window, so all but a handful of player-seasons omit it. */
   wbc?: number;
-}
-
-export interface Contract {
-  name: string;
-  salary: number;
-  est: boolean;
 }
 
 export interface Card {
@@ -68,8 +54,6 @@ export interface Card {
   attendancePct: number;
   stadiumMult: number;
   budget: number; // normalized display $M (top-4 contracts)
-  budgetRaw: number;
-  contracts: Contract[];
   prorated: number;
   players: CardPlayer[];
 }
