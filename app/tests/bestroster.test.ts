@@ -78,6 +78,21 @@ function soloCards(players: CardPlayer[]): Card[] {
   );
 }
 
+/** One card per group: distinct team-seasons, so each group is its own spin.
+ * The card default puts a skipper on every one; pass `{ manager: null }` for a
+ * pool that only has roster seats to fill. */
+function multiCards(groups: CardPlayer[][], over: Partial<Card> = {}): Card[] {
+  return groups.map((ps, i) =>
+    card(ps, {
+      team: `T${i}`,
+      franchise: `T${i}`,
+      name: `Team ${i}`,
+      year: 1980 + i,
+      ...over,
+    }),
+  );
+}
+
 /** "team year" keys for every filled seat plus the skipper — the unit the
  * one-pick-per-card rule counts. */
 function cardKeys(best: ReturnType<typeof bestRoster>): string[] {
@@ -840,5 +855,75 @@ describe("bestRoster fills every seat, on the pools that left one open", () => {
     // makes this a rule test rather than a search test.
     const oneMan = bestRoster([cards[0]], { fixedBudgetM: 60 });
     expect(best.total!).toBeLessThan(oneMan.total!);
+  });
+
+  /** Seats per slot type, which is the rail's own capacity vector: C1 IF2 OF1
+   * FLEX1 SP2 RP1. A club carrying more men than a type has seats has nowhere
+   * to draw the extras and reads as a club a seat short. */
+  const perType = (best: ReturnType<typeof bestRoster>): number[] =>
+    [[0], [1, 2], [3], [4], [5, 6], [7]].map(
+      (idx) => idx.filter((i) => best.picks[i] !== null).length,
+    );
+
+  it("keeps a repaired club inside slot capacity", () => {
+    // The doubled human is the catcher: card 0 seats him at C and card 6 seats
+    // him at FLEX, which is the relaxed DP's best eight-seat club and illegal
+    // under one-season-per-human. Card 6's refill is its centre fielder — and
+    // card 7's man already holds the one OF seat, which is exactly the seat the
+    // refill wants. Counting the refill against the seats already taken is what
+    // keeps this a legal club; counting it against only the cards walked so far
+    // seats three men in two OF-and-FLEX seats, leaves FLEX drawn empty and
+    // drops card 7's man off the rail entirely.
+    const twice = (war: number): CardPlayer =>
+      player({ id: "doubled", pos: "C", posG: C, war });
+    const best = dream(
+      multiCards(
+        [
+          [twice(9)],
+          [player({ pos: "RP", posG: NONE, war: 5 })],
+          [player({ pos: "SP", posG: NONE, war: 6 })],
+          [player({ pos: "SP", posG: NONE, war: 5 })],
+          [player({ pos: "SS", posG: IF, war: 7 })],
+          [player({ pos: "2B", posG: IF, war: 6 })],
+          [twice(8), player({ pos: "CF", posG: OF, war: 4 })],
+          [player({ pos: "RF", posG: OF, war: 3 })],
+        ],
+        { manager: null },
+      ),
+    );
+    expect(perType(best)).toEqual([1, 2, 1, 1, 2, 1]);
+    expect(best.picks.filter((p) => p === null)).toHaveLength(0);
+    expect(best.picks.filter((p) => p?.id === "doubled")).toHaveLength(1);
+    expect(best.dreamSeats).toBe(8);
+  });
+
+  it("spends the ✌️ Double Play on the card that fills the last seat", () => {
+    // Five cards, so five picks plus the Double Play: six seats is the most
+    // this pool can field, and the sixth is only reachable by buying twice off
+    // card 2 — its catcher AND its shortstop.
+    //
+    // What hides that seat is the shortstop's other season, the reliever on
+    // card 1. The relaxed DP is happy to seat him twice, the repair has nothing
+    // left on card 2 to refill with, and the doubled club comes back the same
+    // size as the undoubled one — so the doubling looks worthless unless the
+    // club is branched on the conflict.
+    const bothSeasons = (over: Partial<CardPlayer>): CardPlayer =>
+      player({ id: "twoSeasons", ...over });
+    const best = dream(
+      multiCards([
+        [player({ pos: "SP/1B", posG: IF, war: 8 })],
+        [bothSeasons({ pos: "RP", posG: NONE, war: 5 })],
+        [
+          player({ pos: "C", posG: C, war: 8 }),
+          bothSeasons({ pos: "SS", posG: IF, war: 7.5 }),
+        ],
+        [player({ pos: "RP", posG: NONE, war: 1 })],
+        [player({ pos: "SP", posG: NONE, war: 1 })],
+      ]),
+    );
+    expect(best.dreamSeats).toBe(6);
+    expect(best.manager).not.toBeNull();
+    expect(doubledCards(best)).toBe(1);
+    expect(best.picks.filter((p) => p?.id === "twoSeasons")).toHaveLength(1);
   });
 });

@@ -251,6 +251,9 @@ const SLOT_INDICES: Record<SlotType, number[]> = {
   RP: [7],
 };
 
+/** Every seat a club fills — the eight on the rail plus the dugout. */
+const SEATS_FULL = CAPACITY.reduce((a, b) => a + b, 0);
+
 const RADIX = CAPACITY.map((c) => c + 1);
 const STATES = RADIX.reduce((a, b) => a * b, 1); // 288
 const STRIDE = RADIX.map((_, t) => RADIX.slice(0, t).reduce((a, b) => a * b, 1));
@@ -473,6 +476,16 @@ function findConflict(chosen: Chosen[]): [string, number, number] | null {
  * two-way bat at both IF and UTIL off the same card, and a repair that only
  * deleted would hand back a club a seat short and score it as the ceiling.
  *
+ * TWO PASSES, because a refill competes for capacity with seatings it has not
+ * walked past yet. The keepers are counted first — every seating this repair is
+ * not respending, wherever its card sits in the order — and only then is a
+ * refill offered the types still open. Counting incrementally instead lets a
+ * refill take the one OF seat a later card's keeper already holds, and the club
+ * that falls out carries three men for two seats: `SLOT_INDICES` has no index
+ * to hand the third, so the finale renders him nowhere and draws the seat the
+ * conflict vacated as empty. A club a seat short is at least a club the search
+ * can rank; one that silently loses a man it counted is not.
+ *
  * The refill can only come off the conflicting card, because that is the card
  * whose one pick is being respent; a card that already supplied something has
  * no second pick to give. So a card carrying exactly one usable human really
@@ -484,15 +497,20 @@ function findConflict(chosen: Chosen[]): [string, number, number] | null {
 function repair(chosen: Chosen[], items: Item[][], lambda: number): Chosen[] {
   const used = new Set<string>();
   const filled = [0, 0, 0, 0, 0, 0, 0];
+  const doubled: boolean[] = chosen.map(({ item }) => {
+    if (item.playerId === null || !used.has(item.playerId)) {
+      if (item.playerId !== null) used.add(item.playerId);
+      filled[item.type] += 1;
+      return false;
+    }
+    return true;
+  });
+
   const kept: Chosen[] = [];
-  const take = (c: Chosen): void => {
-    if (c.item.playerId !== null) used.add(c.item.playerId);
-    filled[c.item.type] += 1;
-    kept.push(c);
-  };
-  for (const c of chosen) {
-    if (c.item.playerId === null || !used.has(c.item.playerId)) {
-      take(c);
+  for (let i = 0; i < chosen.length; i++) {
+    const c = chosen[i];
+    if (!doubled[i]) {
+      kept.push(c);
       continue;
     }
     let best: Item | null = null;
@@ -510,7 +528,11 @@ function repair(chosen: Chosen[], items: Item[][], lambda: number): Chosen[] {
         bestVal = v;
       }
     }
-    if (best !== null) take({ card: c.card, item: best });
+    if (best !== null) {
+      if (best.playerId !== null) used.add(best.playerId);
+      filled[best.type] += 1;
+      kept.push({ card: c.card, item: best });
+    }
   }
   return kept;
 }
@@ -732,7 +754,8 @@ function pick(found: Club[], budgetM: number): { best: Club; bestUnder: Club | n
 
 /** Close the one-season-per-human gap on a club the DP relaxed: branch on
  * forbidding the doubled human from one card or the other — every legal club
- * lies in one branch — and keep whatever scores best. */
+ * lies in one branch — and keep whatever scores best. `dup` is the pool card
+ * this `dp` doubles, carried onto any club the search returns. */
 function branchAndBound(
   dp: Dp,
   cardCount: number,
@@ -741,6 +764,7 @@ function branchAndBound(
   forceManager: boolean,
   lambda: number,
   incumbent: Club,
+  dup: number,
 ): Club {
   let best = incumbent;
   let nodes = 0;
@@ -760,7 +784,7 @@ function branchAndBound(
         spend: spendOf(raw),
         seats: raw.length,
         chosen: raw,
-        dup: incumbent.dup,
+        dup,
       };
       if (better(cand, best)) best = cand;
       return;
@@ -941,16 +965,36 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
   {
     const b = winner.pair.budget;
     const lambda = b > 0 ? (2 * BUDGET_BONUS_MAX) / b : 0;
-    const d = winner.best.dup;
-    winner.best = branchAndBound(
-      d < 0 ? dp : doubled(d),
-      pool.length + (d < 0 ? 0 : 1),
-      b,
-      winner.pair.skip,
-      winner.manager,
-      lambda,
-      winner.best,
-    );
+    const branch = (d: number, incumbent: Club): Club =>
+      branchAndBound(
+        d < 0 ? dp : doubled(d),
+        pool.length + (d < 0 ? 0 : 1),
+        b,
+        winner.pair.skip,
+        winner.manager,
+        lambda,
+        incumbent,
+        d,
+      );
+    const firstDup = winner.best.dup;
+    winner.best = branch(firstDup, winner.best);
+    // A club still short of a full rail gets every ✌️ Double Play searched, not
+    // just the one pass 3 happened to leave on top. Pass 3 ranks a doubled club
+    // by what `repair` left of it, so the card whose second pick fills the last
+    // seat can tie the undoubled club at pass-3 time — one seating collides,
+    // repair has no legal refill off that card, and the seat the doubling was
+    // for goes back. Only branching recovers it, and branching a club that is
+    // already full would only be trading seats for points. The pool bounds this
+    // at one branch-and-bound per card, and it runs on games too thin to seat
+    // nine off distinct cards — the case the header's "N + 1 short of 11" slack
+    // describes.
+    if (winner.best.seats < SEATS_FULL) {
+      for (let x = 0; x < pool.length; x++) {
+        if (!frontOffice[x] || x === firstDup) continue;
+        winner.best = branch(x, winner.best);
+        if (winner.best.seats >= SEATS_FULL) break;
+      }
+    }
   }
 
   const chosen = winner.best.chosen;
@@ -972,7 +1016,12 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
     // dp maximizes the finale total; the reported totalWar stays pure WAR.
     totalWar: Math.round(totalWar * 10) / 10,
     manager,
-    dreamSeats: players.length + (manager !== null ? 1 : 0),
+    // Counted off the rail rather than off `chosen`, so this number is the one
+    // the finale draws. The two agree — `repair` respects slot capacity, so
+    // every chosen player reaches a slot — and reading the rail is what makes
+    // any future disagreement show up as a seat short in Study 15 instead of as
+    // a man the ⭐ denominator counts and the roster never shows.
+    dreamSeats: picks.filter((p) => p !== null).length + (manager !== null ? 1 : 0),
     owner:
       ownerCard === null
         ? null
