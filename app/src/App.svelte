@@ -280,8 +280,10 @@
   const optIn = $derived.by(() => {
     if (!game) return [];
     const out = [];
-    if (game.config.bank !== "classic") out.push(BANKS[game.config.bank]);
+    // Difficulty leads, bank follows — the order the share title prints, so
+    // the chip and the string a friend receives read the same way around.
     if (game.config.difficulty !== "standard") out.push(DIFFICULTIES[game.config.difficulty]);
+    if (game.config.bank !== "classic") out.push(BANKS[game.config.bank]);
     return out;
   });
   const modeChip = $derived(optIn.map((m) => m.emoji).join(" "));

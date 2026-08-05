@@ -1366,7 +1366,11 @@ export const BADGES: BadgeDef[] = [
   // ---- payroll: exactly one fires ----
   {
     key: "farm",
-    emoji: "💸",
+    // 🚜, not 💸: the money-with-wings is the Blank Check bank's face, and a
+    // share string can carry a bank emoji on its title line and badge emoji
+    // on its last — one glyph meaning two things in one string. The tractor
+    // IS the farm, and no other surface spends it.
+    emoji: "🚜",
     label: "MORTGAGED THE FARM",
     name: "Mortgaged the Farm",
     rarity: "ironic",

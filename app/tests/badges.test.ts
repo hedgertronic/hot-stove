@@ -561,7 +561,7 @@ describe("the payroll axis is exclusive", () => {
     for (const budgetM of [40, 96.7, 140]) {
       for (let spendM = 0; spendM <= budgetM * 2; spendM += 2.5) {
         // The bonus is zero whenever the cap is busted, which is the property
-        // that keeps 💸 and 💵 apart; below the cap it tracks how much is left.
+        // that keeps 🚜 and 💵 apart; below the cap it tracks how much is left.
         const budgetBonus = spendM > budgetM ? 0 : (spendM / budgetM) * 10;
         for (const [w, l] of [
           [50, 112],
@@ -1030,7 +1030,7 @@ describe("roster shape", () => {
     /** The payroll axis is exclusive and 🕶️ is not on it, so the check that
      * matters is whether it can say the opposite thing to whichever payroll
      * face fired. It cannot: 🧾 needs 60% or less and 🧮 needs 50% or less,
-     * both below 🕶️'s floor, and 💸 needs the cap busted, which 🕶️ forbids. */
+     * both below 🕶️'s floor, and 🚜 needs the cap busted, which 🕶️ forbids. */
     it("never co-fires with a payroll badge that contradicts it", () => {
       for (let spendM = 0; spendM <= 200; spendM += 2.5) {
         const budgetM = 100;

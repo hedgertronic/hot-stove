@@ -158,7 +158,7 @@
   <div class="pay disp">
     <div class="paymath">
       {#if bank === "moneyball"}
-        <span class="chip eff mb">⚾ {money(budget)} PAYROLL</span>
+        <span class="chip eff mb">🐘 {money(budget)} PAYROLL</span>
       {:else if bank === "blankcheck"}
         <span class="chip eff bc">💸 {money(budget)} BLANK CHECK</span>
       {:else if math || pending}

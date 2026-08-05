@@ -14,7 +14,7 @@
  *   1. Each rung's fire rate before and after the gate.
  *   2. How often a club clears the baseline mark and fails the stamp, which is
  *      the size of the change.
- *   3. How often a rung is won alongside 💸 MORTGAGED THE FARM ($15M or more
+ *   3. How often a rung is won alongside 🚜 MORTGAGED THE FARM ($15M or more
  *      past the cap) — the set's own definition of "way over", and the number
  *      the overrun question was actually about.
  *
@@ -118,10 +118,10 @@ function table(label: string, rows: Capture[]): string[] {
   L.push(`cleared the baseline, failed the stamp   ${pct(vetoed.length, rows.length)}`);
   L.push(`  … as a share of rung-winning seasons   ${pct(vetoed.length, anyBefore.length)}`);
   L.push("");
-  L.push(`💸 MORTGAGED THE FARM ($15M+ over)        ${pct(busted.length, rows.length)}`);
-  L.push(`a rung AND 💸, ungated                    ${pct(rows.filter((c) => ungated(c) !== null && c.busted).length, rows.length)}`);
+  L.push(`🚜 MORTGAGED THE FARM ($15M+ over)        ${pct(busted.length, rows.length)}`);
+  L.push(`a rung AND 🚜, ungated                    ${pct(rows.filter((c) => ungated(c) !== null && c.busted).length, rows.length)}`);
   L.push(`  … as a share of rung-winning seasons   ${pct(rows.filter((c) => ungated(c) !== null && c.busted).length, anyBefore.length)}`);
-  L.push(`a rung AND 💸, gated                      ${pct(rows.filter((c) => gated(c) !== null && c.busted).length, rows.length)}`);
+  L.push(`a rung AND 🚜, gated                      ${pct(rows.filter((c) => gated(c) !== null && c.busted).length, rows.length)}`);
   L.push(`any overrun at all (> $0 past the cap)   ${pct(over.length, rows.length)}`);
   L.push(`  … and won a rung, ungated              ${pct(rows.filter((c) => ungated(c) !== null && c.over > 0).length, rows.length)}`);
   L.push(`  … and won a rung, gated                ${pct(rows.filter((c) => gated(c) !== null && c.over > 0).length, rows.length)}`);
@@ -161,7 +161,7 @@ describe("study 14: the stamped-record gate on the on-field rungs", () => {
         ...table("reference arm — cap treated as a hard gate", refRows),
         ...table("overspend arm — crosses the cap when the WAR pays for it", overRows),
         "Reading: 'lost' is the rung's own fall. 'cleared the baseline, failed",
-        "the stamp' is the whole size of the change. The 💸 lines are the",
+        "the stamp' is the whole size of the change. The 🚜 lines are the",
         "overrun question — how often a rung is currently won on a busted",
         "payroll, and what the gate leaves of it.",
       ];

@@ -3,6 +3,7 @@ import { BADGES } from "../src/lib/badges";
 import { parseSeedCode, recordFromTotal } from "../src/lib/format";
 import { GAMES, MARINERS_WINS } from "../src/lib/scoring";
 import { SLOT_TYPES } from "../src/lib/types";
+import { BANKS, DIFFICULTIES } from "../src/lib/modes";
 import {
   shareBadgeLine,
   shareCells,
@@ -129,11 +130,28 @@ describe("the exclusion map tracks the badge set", () => {
   });
 });
 
+describe("one emoji, one meaning", () => {
+  it("keeps every mode emoji out of the badge set", () => {
+    // The title line and the badge line share one string. A glyph that names
+    // a bank on line one and a badge on line six would mean two things in the
+    // same message — the 💸 Blank Check / MORTGAGED THE FARM clash, fixed by
+    // giving the farm the 🚜. This pins the whole namespace apart.
+    const badgeFaces = new Set(BADGES.map((b) => b.emoji));
+    const modeFaces = [
+      ...Object.values(DIFFICULTIES).map((d) => d.emoji),
+      ...Object.values(BANKS).map((b) => b.emoji),
+    ];
+    for (const face of modeFaces) expect(badgeFaces).not.toContain(face);
+    // The five modes also stay distinct from each other.
+    expect(new Set(modeFaces).size).toBe(modeFaces.length);
+  });
+});
+
 describe("shareText golden strings", () => {
-  it("renders a plain season with no badges: five lines, tier heart on record line", () => {
+  it("renders a plain season with no badges: five lines, tier heart trailing the record", () => {
     // BASE: total 104.3 → 104 wins → mid tier (100–115) → 💚
     expect(shareText(BASE)).toBe(
-      ["HOT STOVE 📊💼", "🟩🟢🔵", "🟢🔵⚪", "🟣🟢⚪", "💚 104–58"].join("\n"),
+      ["HOT STOVE 📊🏗️", "🟩🟢🔵", "🟢🔵⚪", "🟣🟢⚪", "104–58 💚"].join("\n"),
     );
   });
 
@@ -150,11 +168,11 @@ describe("shareText golden strings", () => {
       }),
     ).toBe(
       [
-        "HOT STOVE 🔭⚾",
+        "HOT STOVE 🔭🐘",
         "🟨🟡🟣",
         "🟡🟣🔵",
         "🟡🟣🔵",
-        "💛 162–0",
+        "162–0 💛",
         "🔱🏆💵🔮",
       ].join("\n"),
     );
@@ -172,7 +190,7 @@ describe("shareText golden strings", () => {
         badges: ["skull", "farm"],
       }),
     ).toBe(
-      ["HOT STOVE 📊💸", "🟥🔴⚪", "⚪🔴⚪", "⚪⚪🔴", "💔 41–121", "💀💸"].join(
+      ["HOT STOVE 📊💸", "🟥🔴⚪", "⚪🔴⚪", "⚪⚪🔴", "41–121 💔", "💀🚜"].join(
         "\n",
       ),
     );
@@ -188,7 +206,7 @@ describe("shareText golden strings", () => {
         roster: [2.2, 4.9, 3.0, 1.4, 0.1, 5.5, 2.7, 3.9],
       }),
     ).toBe(
-      ["HOT STOVE 📊💼", "⬛🟢🔵", "🟢⚪⚪", "🔵🟢🟢", "🤍 89–73"].join("\n"),
+      ["HOT STOVE 📊🏗️", "⬛🟢🔵", "🟢⚪⚪", "🔵🟢🟢", "89–73 🤍"].join("\n"),
     );
   });
 
@@ -203,7 +221,7 @@ describe("shareText golden strings", () => {
       badges: ["dime"],
     });
     expect(s).toBe(
-      ["HOT STOVE 🔭💼", "🟦🔵🔴", "🟢🟣🟢", "🔵🟢⚪", "🤍 97–65", "💵"].join("\n"),
+      ["HOT STOVE 🔭🏗️", "🟦🔵🔴", "🟢🟣🟢", "🔵🟢⚪", "97–65 🤍", "💵"].join("\n"),
     );
     expect([...s].filter((c) => c === "🔴")).toHaveLength(1);
   });
@@ -211,7 +229,7 @@ describe("shareText golden strings", () => {
   it("trails the record line with a seed code; badges stay on their own line", () => {
     // Seed only (no badges): five lines, seed on line five.
     expect(shareText({ ...BASE, seed: 0xa3f2 })).toBe(
-      ["HOT STOVE 📊💼", "🟩🟢🔵", "🟢🔵⚪", "🟣🟢⚪", "💚 104–58 #0000WDU"].join(
+      ["HOT STOVE 📊🏗️", "🟩🟢🔵", "🟢🔵⚪", "🟣🟢⚪", "104–58 💚 #0000WDU"].join(
         "\n",
       ),
     );
@@ -220,7 +238,7 @@ describe("shareText golden strings", () => {
       ...BASE,
       seed: 0xa3f2,
       badges: ["mariners", "perfect"] }).split("\n");
-    expect(lines[4]).toBe("💚 104–58 #0000WDU");
+    expect(lines[4]).toBe("104–58 💚 #0000WDU");
     expect(lines[5]).toBe("🔱🏆");
   });
 });
@@ -287,13 +305,13 @@ describe("the string's height", () => {
     }
   });
 
-  it("starts line five with a tier heart then the win-loss record", () => {
+  it("leads line five with the win-loss record, tier heart trailing it", () => {
     for (const c of SHAPES) {
       const line5 = shareText(c).split("\n")[4];
-      // Two code points before the record: the tier heart (one emoji) and a space.
-      const afterGlyph = [...line5].slice(2).join("");
-      expect(afterGlyph).toMatch(/^\d+–\d+/);
-      expect(afterGlyph.startsWith(shareRecord(c.total))).toBe(true);
+      expect(line5.startsWith(shareRecord(c.total) + " ")).toBe(true);
+      // The code point after the record and its space is the tier heart.
+      const glyph = [...line5.slice(shareRecord(c.total).length + 1)][0];
+      expect(["💔", "🤍", "💚", "💙", "💜", "💛"]).toContain(glyph);
     }
   });
 
@@ -326,10 +344,10 @@ describe("no trailing whitespace", () => {
     }
   });
 
-  it("record line without badges reads as tier heart + space + record only", () => {
+  it("record line without badges reads as record + space + tier heart only", () => {
     // BASE: 104.3 → 104 wins → mid → 💚
     const line5 = shareText(BASE).split("\n")[4];
-    expect(line5).toBe("💚 104–58");
+    expect(line5).toBe("104–58 💚");
     expect(line5).not.toMatch(/\s$/);
   });
 
@@ -348,34 +366,34 @@ describe("no trailing whitespace", () => {
     }
     // Seed stays on the record line; the badge line remains spaceless.
     const lines = shareText({ ...BASE, badges: FOUR, seed: 0xa3f2 }).split("\n");
-    expect(lines[4].split(" ")).toHaveLength(3); // "💚 104–58 #0000WDU"
+    expect(lines[4].split(" ")).toHaveLength(3); // "104–58 💚 #0000WDU"
     expect(lines[5].split(" ")).toHaveLength(1); // "🔱🏆💵🔮"
   });
 });
 
 describe("shareRecordLine", () => {
-  it("prefixes the record with the tier heart at every ladder rung", () => {
+  it("stamps the record with the tier heart at every ladder rung", () => {
     // neg: losing season, < 81 wins
-    expect(shareRecordLine(80.4)).toBe("💔 80–82");
+    expect(shareRecordLine(80.4)).toBe("80–82 💔");
     // low: .500 to the century mark, 81–99 wins
-    expect(shareRecordLine(80.5)).toBe("🤍 81–81"); // exactly .500
-    expect(shareRecordLine(99.4)).toBe("🤍 99–63");
+    expect(shareRecordLine(80.5)).toBe("81–81 🤍"); // exactly .500
+    expect(shareRecordLine(99.4)).toBe("99–63 🤍");
     // mid: century club, 100–115 wins
-    expect(shareRecordLine(99.5)).toBe("💚 100–62");
-    expect(shareRecordLine(115.4)).toBe("💚 115–47");
+    expect(shareRecordLine(99.5)).toBe("100–62 💚");
+    expect(shareRecordLine(115.4)).toBe("115–47 💚");
     // high: Mariners record and above, 116–134 wins
-    expect(shareRecordLine(115.5)).toBe("💙 116–46");
-    expect(shareRecordLine(134.4)).toBe("💙 134–28");
+    expect(shareRecordLine(115.5)).toBe("116–46 💙");
+    expect(shareRecordLine(134.4)).toBe("134–28 💙");
     // star: 135–154 wins
-    expect(shareRecordLine(134.5)).toBe("💜 135–27");
-    expect(shareRecordLine(154.4)).toBe("💜 154–8");
+    expect(shareRecordLine(134.5)).toBe("135–27 💜");
+    expect(shareRecordLine(154.4)).toBe("154–8 💜");
     // elite: 155+ wins
-    expect(shareRecordLine(154.5)).toBe("💛 155–7");
-    expect(shareRecordLine(162)).toBe("💛 162–0");
+    expect(shareRecordLine(154.5)).toBe("155–7 💛");
+    expect(shareRecordLine(162)).toBe("162–0 💛");
   });
 
   it("appends the seed code on the same line as the record", () => {
-    expect(shareRecordLine(104.3, 0xa3f2)).toBe("💚 104–58 #0000WDU");
+    expect(shareRecordLine(104.3, 0xa3f2)).toBe("104–58 💚 #0000WDU");
   });
 
   it("reads tier from the record ladder, not from warTier(wins)", () => {
@@ -383,8 +401,8 @@ describe("shareRecordLine", () => {
     // returns "mid" because 104 wins falls in the 100–115 band. The heart must
     // agree with the finale stamp, which reads recordFromTotal — not warTier.
     const line = shareRecordLine(104.3);
-    expect(line.startsWith("💚")).toBe(true); // mid → 💚
-    expect(line.startsWith("💛")).toBe(false); // not elite → not 💛
+    expect(line.endsWith("💚")).toBe(true); // mid → 💚
+    expect(line.endsWith("💛")).toBe(false); // not elite → not 💛
   });
 });
 
@@ -425,9 +443,9 @@ describe("shareRecord", () => {
     ]) {
       const { wins, losses } = recordFromTotal(total, GAMES, MARINERS_WINS);
       expect(shareRecord(total)).toBe(`${wins}–${losses}`);
-      // The same record appears two code points in on line five of shareText.
+      // The same record leads line five of shareText, heart trailing it.
       const line5 = shareText({ ...BASE, total }).split("\n")[4];
-      expect([...line5].slice(2).join("").startsWith(shareRecord(total))).toBe(true);
+      expect(line5.startsWith(shareRecord(total) + " ")).toBe(true);
     }
   });
 
@@ -477,9 +495,9 @@ describe("the optional seed", () => {
 
 describe("shareTitle", () => {
   it("always stamps both mode emoji, defaults included", () => {
-    expect(shareTitle("standard", "classic")).toBe("HOT STOVE 📊💼");
+    expect(shareTitle("standard", "classic")).toBe("HOT STOVE 📊🏗️");
     expect(shareTitle("scout", "blankcheck")).toBe("HOT STOVE 🔭💸");
-    expect(shareTitle("scout", "moneyball")).toBe("HOT STOVE 🔭⚾");
+    expect(shareTitle("scout", "moneyball")).toBe("HOT STOVE 🔭🐘");
   });
 });
 
@@ -590,7 +608,7 @@ describe("cell shapes and colors", () => {
 
 describe("line width budget", () => {
   /** Line six (the badge run) is now the longest the format can produce.
-   * Line five (tier heart + record) tops at 8 code points seedless or 17
+   * Line five (record + tier heart) tops at 8 code points seedless or 17
    * with a seed; the title is 12; a grid row is 3. The badge run is the only
    * line whose length the badge set can grow.
    *
@@ -605,14 +623,14 @@ describe("line width budget", () => {
    * 🕸️, and 🏖️ each carry a variation selector and cost two. Counting from
    * BADGES means a new badge widens the stated ceiling instead of silently
    * breaking a hand-computed one. */
-  const TIER_GLYPH_LEN = 2; // one heart (1 cp) + one space (1 cp)
+  const TIER_GLYPH_LEN = 2; // one space (1 cp) + one heart (1 cp)
   const RECORD_LEN = 6;     // max record length: "104–58"
   const SEED_LEN = 9;       // " #" plus a seven-character code
   const cost = (keys: string[]) => keys.reduce((n, k) => n + badgeCost(k), 0);
   /** Badge line: just the emoji run, no prefix or separator — each badge costs
    * exactly its own code-point width, and nothing is spent between them. */
   const lineBadge = (keys: string[]) => (keys.length > 0 ? cost(keys) : 0);
-  /** Record line: tier heart + space + record + optional seed. */
+  /** Record line: record + space + tier heart + optional seed. */
   const lineRecord = (withSeed = false) =>
     TIER_GLYPH_LEN + RECORD_LEN + (withSeed ? SEED_LEN : 0);
 
@@ -675,18 +693,23 @@ describe("line width budget", () => {
 
   it("keeps a four-badge line — the pill row's cap — well under the ceiling", () => {
     const s = shareText({ ...BASE, total: 104.3, badges: FOUR });
-    // Record line (index 4): tier heart (1) + space (1) + "104–58" (6) = 8.
+    // Record line (index 4): "104–58" (6) + space (1) + tier heart (1) = 8.
     expect(codePoints(s.split("\n")[4])).toBe(8);
     // Badge line (index 5): four emoji, no separator between them.
     expect(codePoints(s.split("\n")[5])).toBe(4); // 🔱🏆💵🔮
   });
 
   it("pins the title's width", () => {
-    expect(codePoints(shareTitle("standard", "classic"))).toBe(12);
+    // 13, not 12: 🏗️ carries a variation selector, so the classic stamp costs
+    // two code points where 📊 costs one. Every bank's width is pinned so a
+    // future face can widen the title only by failing here first.
+    expect(codePoints(shareTitle("standard", "classic"))).toBe(13);
+    expect(codePoints(shareTitle("standard", "moneyball"))).toBe(12);
+    expect(codePoints(shareTitle("standard", "blankcheck"))).toBe(12);
   });
 
   it("pins the record line's max width, with and without a seed", () => {
-    // Seedless: tier heart (1) + space (1) + max-record (6) = 8.
+    // Seedless: max-record (6) + space (1) + tier heart (1) = 8.
     expect(lineRecord()).toBe(8);
     // With seed: 8 + space (1) + "#" (1) + 7-char code (7) = 17.
     expect(lineRecord(true)).toBe(17);
@@ -702,7 +725,7 @@ describe("degenerate inputs", () => {
     expect(
       shareText({ ...BASE, total: 50, managerWins: null, roster: [] }),
     ).toBe(
-      ["HOT STOVE 📊💼", "⬛⬛⬛", "⬛⬛⬛", "⬛⬛⬛", "💔 50–112"].join("\n"),
+      ["HOT STOVE 📊🏗️", "⬛⬛⬛", "⬛⬛⬛", "⬛⬛⬛", "50–112 💔"].join("\n"),
     );
   });
 
@@ -714,7 +737,7 @@ describe("degenerate inputs", () => {
       managerWins: null,
       roster: [],
     });
-    expect(s.split("\n")[4]).toBe("💔 0–162");
+    expect(s.split("\n")[4]).toBe("0–162 💔");
     expect(s).not.toContain("-");
   });
 

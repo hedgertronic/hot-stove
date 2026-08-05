@@ -44,9 +44,11 @@ export const BANKS: Record<Bank, BankInfo> = {
    * where those rows exist at all (Game.fixedCap gates them off for the two
    * fixed-cap banks). Displayed as "Clean House" through v0.x; the key stays
    * `classic` regardless: saves and the record book index on it. */
-  classic: { emoji: "💼", name: "From the Ground Up", cash: "$ · · ·", team: "", cls: "open" },
+  classic: { emoji: "🏗️", name: "From the Ground Up", cash: "$ · · ·", team: "", cls: "open" },
   moneyball: {
-    emoji: "⚾",
+    // 🐘, the A's own elephant — in a baseball game a ⚾ carries no
+    // information, and every mode face has to say which mode it is.
+    emoji: "🐘",
     name: "Moneyball",
     cash: money(MONEYBALL_BUDGET_M),
     team: "OAK 2002",

@@ -548,8 +548,8 @@
        in two sections is a rate that can disagree with itself. -->
   <p class="cap">You can go over. The bar goes orange and the figure says by how much.</p>
   <ul>
-    <li><b>💼 From the Ground Up:</b> owner × ballpark sets the payroll, as above.</li>
-    <li><b>⚾ Moneyball:</b> a fixed {BANKS.moneyball.cash}. No hires. The 2002 A's.</li>
+    <li><b>🏗️ From the Ground Up:</b> owner × ballpark sets the payroll, as above.</li>
+    <li><b>🐘 Moneyball:</b> a fixed {BANKS.moneyball.cash}. No hires. The 2002 A's.</li>
     <li><b>💸 Blank Check:</b> a fixed {BANKS.blankcheck.cash}. The 2005 Yankees.</li>
   </ul>
 
@@ -982,15 +982,15 @@
     gap: 3px;
     flex: none;
   }
-  /* PlayerList's CHIP INSET RULE, copied so the specimen teaches the row the
-     market actually draws: 10px of air between salary and chip, chip pulled
-     to 6px inside the row's stroke. */
+  /* PlayerList's .right, copied so the specimen teaches the row the market
+     actually draws: 10px of air between salary and chip, and the chip stops
+     at the row's full padding (the chip inset rule is retired — PlayerList's
+     .right documents it). */
   .right {
     margin-left: auto;
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-right: -4px;
     flex: none;
   }
   .cost {

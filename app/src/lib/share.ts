@@ -10,19 +10,20 @@ import type { GameIndex, Meta, Owners } from "./types";
  * The shareable result string. Five lines for a clean game, six for one
  * where at least one badge fired:
  *
- *   HOT STOVE 📊💼        HOT STOVE 🔭⚾
+ *   HOT STOVE 📊🏗️        HOT STOVE 🔭🐘
  *   🟩🟢🔵                 🟨🟡🟣
  *   🟢🔵⚪                 🟡🟣🔵
  *   🟣🟢⚪                 🟡🟣🔵
- *   💚 104–58 #CODE        💛 162–0
+ *   104–58 💚 #CODE        162–0 💛
  *                          🔱🏆💵🔮
  *
  *   1.   Title — the game, and the two mode emoji that qualify the score.
  *   2-4. The finished roster as a fixed 3×3: the manager, then the eight
  *        slots in SLOT_TYPES order.
- *   5.   The record line: one heart in the season's tier color, then the
- *        win-loss record, then the seed code when one was shared. The heart
- *        is the tier signal; the record is the punchline.
+ *   5.   The record line: the win-loss record, then one heart in the
+ *        season's tier color, then the seed code when one was shared. The
+ *        record leads because it is the punchline; the heart stamps the
+ *        verdict on it.
  *   6.   The badge run — the emoji of every badge that fired, butting against
  *        each other with no separator, on their own line. Absent when no badge
  *        fires, so a clean game and a decorated one differ by exactly one line.
@@ -34,7 +35,7 @@ import type { GameIndex, Meta, Owners } from "./types";
  * Wordle's rectangle scannable: your top-left is my top-left. Row three lands
  * as SP·SP·RP, so the pitching staff reads as its own line.
  *
- * The record line's leading heart uses a color vocabulary distinct from the
+ * The record line's trailing heart uses a color vocabulary distinct from the
  * grid's circles and squares, so the tier signal never reads as a stray roster
  * cell. The color ramp is the same ladder: 💔 for a losing season, 🤍 at .500,
  * 💚 at the century mark, 💙 at the Mariners record, 💜 for 135+, 💛 for 155+.
@@ -131,7 +132,7 @@ export interface ShareInput {
    * truncated to eight, so the grid is 3×3 whatever arrives. */
   roster: (number | null)[];
   /** Off by default. When supplied, the seed code trails the record line as
-   * `💚 104–58 #WDU` — the code the home screen's PLAY A SEED input takes,
+   * `104–58 💚 #WDU` — the code the home screen's PLAY A SEED input takes,
    * which turns the string from a scorecard back into a replayable challenge.
    * It rides the record line rather than the title so the title stays free of
    * digits, and rather than the badge line so the seed is always on line five
@@ -192,8 +193,9 @@ export function shareRecord(total: number): string {
   return `${wins}–${losses}`;
 }
 
-/** The fifth line: a tier heart, the win-loss record, and the seed code when
- * one was asked for.
+/** The fifth line: the win-loss record, a tier heart, and the seed code when
+ * one was asked for. The record leads — it is the punchline — and the heart
+ * trails it as the verdict stamp.
  *
  * The heart encodes which rung of the record ladder the season landed on —
  * the same thresholds `format.recordFromTotal` uses, so the heart and the
@@ -209,7 +211,7 @@ export function shareRecord(total: number): string {
 export function shareRecordLine(total: number, seed?: number): string {
   const { wins, losses, tier } = recordFromTotal(total, GAMES, MARINERS_WINS);
   const heart = RECORD_TIER_EMOJI[tier];
-  const parts = [`${heart} ${wins}–${losses}`];
+  const parts = [`${wins}–${losses} ${heart}`];
   if (seed !== undefined) parts.push(`#${seedCode(seed)}`);
   return parts.join(" ");
 }
