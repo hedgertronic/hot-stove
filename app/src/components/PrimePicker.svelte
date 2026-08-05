@@ -102,13 +102,13 @@
   confirmLabel="CANCEL"
 >
     {#if failed}
-      <div class="note">Couldn't load the career. Try again.</div>
+      <div class="picker-note">Couldn't load the career. Try again.</div>
     {:else if seasons === null}
-      <div class="note">Pulling the card file…</div>
+      <div class="picker-note">Pulling the card file…</div>
     {:else if seasons.length === 0}
-      <div class="note">One-season wonder: no other years to visit.</div>
+      <div class="picker-note">One-season wonder: no other years to visit.</div>
     {:else}
-      <div class="list">
+      <div class="picker-list">
         {#each seasons as sea ((sea.team + sea.year))}
           {@const plabel = posLabel(sea.p)}
           {@const price = game.primePriceFor(sea.p, sea.franchise)}
@@ -142,18 +142,8 @@
 <style>
   /* Header, subtitle, ✕ and the CANCEL button all belong to Sheet — a picker
      is a thing you back out of, so its bottom button says CANCEL rather than
-     CLOSE. */
-  .note {
-    text-align: center;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--muted);
-    padding: 18px 0;
-  }
-  .list {
-    display: grid;
-    gap: 6px;
-  }
+     CLOSE. The .picker-note and .picker-list chrome shared with
+     SpecialPrimePicker lives in app.css. */
   .srow {
     display: flex;
     align-items: center;

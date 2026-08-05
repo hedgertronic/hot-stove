@@ -102,13 +102,13 @@
   confirmLabel="CANCEL"
 >
   {#if failed}
-    <div class="note">Couldn't load the career. Try again.</div>
+    <div class="picker-note">Couldn't load the career. Try again.</div>
   {:else if rows === null}
-    <div class="note">Pulling the file…</div>
+    <div class="picker-note">Pulling the file…</div>
   {:else if rows.length <= 1}
-    <div class="note">One-year wonder — no other seasons to visit.</div>
+    <div class="picker-note">One-year wonder — no other seasons to visit.</div>
   {:else}
-    <div class="list">
+    <div class="picker-list">
       {#each rows as row ((row.team + row.year))}
         <!-- The card's own manager row, one field swapped: the FRONT OFFICE
              row leads with the skipper's name, and here the person is fixed
@@ -137,19 +137,9 @@
 </Sheet>
 
 <style>
-  .note {
-    text-align: center;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--muted);
-    padding: 18px 0;
-  }
-  /* No bottom margin: the shell owns the gap between the scrolling body and
-     the CANCEL button it draws, so a margin here would double it. */
-  .list {
-    display: grid;
-    gap: 6px;
-  }
+  /* The .picker-note and .picker-list chrome shared with PrimePicker
+     lives in app.css. No bottom margin on .picker-list: the shell owns the
+     gap between the scrolling body and the CANCEL button it draws. */
   /* ---------- a market row, so: white cardstock in --line ----------
      This sheet is a MARKET — the whole point of it is comparing 23 seasons of
      one career and choosing one — and app.css's rule is that a row still being

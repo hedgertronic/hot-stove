@@ -140,7 +140,7 @@
    * this specimen with it. The rest of the CardPlayer shape is not consulted
    * for a position tag, which is what the cast is for. */
   const UTIL: Spec = {
-    pos: posLabel({ pos: "2B", posG: { c: 0, if: 108, of: 75, dh: 1 } } as CardPlayer),
+    pos: posLabel({ pos: "2B", posG: { c: 0, if: 108, of: 75 } } as CardPlayer),
     name: "Ben Zobrist",
     awards: ["AS"],
     war: 8.6,

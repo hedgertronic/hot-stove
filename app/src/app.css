@@ -23,10 +23,13 @@
        fill was --amber and the dash was ink for a long while — amber now
        belongs solely to the trophy-register surfaces, and ink's dash to the
        gray empty-seat invitation.)
-     * COMMITTED — a solid ink fill (the SIGN pill, the pitcher tag). An ink
-       fill has no rung 2, so a pill built on one inverts instead: --brag.legend
-       is ink under a light gold ring, which is why legend still reads as "off
-       the top of the ladder" rather than as one more gold pill.
+     * COMMITTED — a solid ink fill (the SIGN pill, the pitcher tag), bordered
+       in var(--line): an ink stroke on an ink fill is invisible, so the frame
+       shares the page's gray rule with the pitcher tag rather than doubling
+       the fill. An ink fill has no rung 2, so a pill built on one inverts
+       instead: --brag.legend is ink under a light gold ring, which is why
+       legend still reads as "off the top of the ladder" rather than as one
+       more gold pill.
 
    ---------- WHERE THE RUNG IS WORN ----------
 
@@ -719,6 +722,77 @@ button {
   letter-spacing: 0.1em;
   line-height: 1.2;
   padding: 1.2px 5px 0.8px;
+}
+
+/* ---------- the shared confirm pill ----------
+   One committed-action pill recipe used by the player market (PlayerList) and
+   the FRONT OFFICE rows (SpecialRows). Each component keeps only its own
+   flex-position delta (margin-left: auto for SpecialRows; flex: none and
+   margin-right inset for both); the core pill lives here so the two surfaces
+   cannot drift. The 8px of padding splits 4.28 / 3.72 — the optical centering
+   rule at 12px type (0.047 × 12 = 0.56px), paid out of the 24px pinned height
+   so the row never twitches when the pill appears. */
+.confirm {
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--card);
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1;
+  padding: 4.28px 12px 3.72px;
+  white-space: nowrap;
+}
+/* Ink fill on dark background — browser default focus ring may not read.
+   Inset blue ring matches the .btn:focus-visible and seedgo recipes. */
+.confirm:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: -3px;
+}
+
+/* ---------- the row tap surface ----------
+   PlayerList's .prow-btn and SpecialRows' .srow-btn are one control spelled
+   twice: a <button> filling the market-row div as a flex item, all UA styles
+   stripped, cursor/font/color inherited from the parent div so dead, taken,
+   and inert states propagate without duplication. The wide gap tier is a
+   separate rule below; child-combinator .mid scoping stays in each component. */
+.prow-btn,
+.srow-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  cursor: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  text-align: left;
+}
+@media (min-width: 760px) {
+  .prow-btn,
+  .srow-btn {
+    gap: 12px;
+  }
+}
+
+/* ---------- picker chrome ----------
+   PrimePicker and SpecialPrimePicker share identical loading/error/empty-state
+   notes and the same career-row list grid. One home so both sheets cannot drift. */
+.picker-note {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 18px 0;
+}
+.picker-list {
+  display: grid;
+  gap: 6px;
 }
 
 /* Dashed section separator (FRONT OFFICE / PLAYERS) */

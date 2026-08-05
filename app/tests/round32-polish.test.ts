@@ -32,8 +32,8 @@ describe("the FRONT OFFICE confirm sits on the market's right edge", () => {
   const rows = read("components/SpecialRows.svelte");
 
   it("takes the chip inset rule at both padding tiers, base first", () => {
-    // The player rows' confirm inherits −4/−8 from their `.right` column;
-    // these rows' confirm is a direct flex child and carries its own.
+    // Both the player rows' and FRONT OFFICE rows' confirm pills are direct
+    // flex children carrying their own chip inset margins.
     const base = rows.indexOf("margin-right: -4px;\n  }\n  @media (min-width: 760px) {");
     expect(base, "base −4px followed by the wide −8px tier").toBeGreaterThan(-1);
     // Order is the whole ballgame: a media query adds no specificity.
@@ -107,11 +107,48 @@ describe("review fixes: names and keys assistive tech is owed", () => {
     expect(read("App.svelte")).toContain('"Quit this game"');
   });
 
-  it("every role=button confirm answers Space as well as Enter", () => {
+  it("confirms are real <button> elements — no role=button spans remain", () => {
     for (const f of ["components/PlayerList.svelte", "components/SpecialRows.svelte"]) {
       const src = read(f);
-      // No confirm keydown handler that checks Enter alone.
-      expect(src, f).not.toMatch(/onkeydown=\{\(e\) => e\.key === "Enter" &&/);
+      // No span with role="button" — confirms are native buttons now.
+      expect(src, f).not.toContain('role="button"');
+      // No manual keyboard handler — native buttons handle Enter and Space.
+      expect(src, f).not.toContain("onkeydown");
+      // The confirm button carries class="confirm" on a real <button> element.
+      expect(src, f).toMatch(/<button[^>]*class="confirm"/);
+    }
+  });
+});
+
+describe("review fixes: the confirm pill wears the --line frame", () => {
+  const css = read("app.css");
+
+  it(".confirm base lives in app.css with --line border and ink fill", () => {
+    const confirmIdx = css.indexOf(".confirm {");
+    expect(confirmIdx, "app.css has a .confirm block").toBeGreaterThan(-1);
+    // Slice only the base .confirm block — stops at the first closing brace.
+    const block = css.slice(confirmIdx, css.indexOf("}", confirmIdx) + 1);
+    expect(block, "app.css .confirm uses --line border").toContain("border: 2px solid var(--line)");
+    expect(block, "app.css .confirm has no ink border").not.toContain("border: 2px solid var(--ink)");
+    expect(block, "app.css .confirm ink fill is preserved").toContain("background: var(--ink)");
+  });
+
+  it("components keep only their position deltas — no base re-declaration", () => {
+    // Each component's .confirm block must NOT re-declare the shared base
+    // properties (border, background) that live in app.css. The delta blocks
+    // carry flex-position properties only (margin-left, flex, margin-right).
+    for (const f of ["components/PlayerList.svelte", "components/SpecialRows.svelte"]) {
+      const src = read(f);
+      const confirmIdx = src.indexOf(".confirm {");
+      // A component may have no bare .confirm block (all deltas on .prow > .confirm).
+      if (confirmIdx === -1) continue;
+      const block = src.slice(confirmIdx, src.indexOf("}", confirmIdx) + 1);
+      expect(block, `${f} .confirm does not re-declare base border`).not.toContain(
+        "border: 2px solid var(--line)",
+      );
+      expect(block, `${f} .confirm does not re-declare base background`).not.toContain(
+        "background: var(--ink)",
+      );
     }
   });
 });
@@ -156,5 +193,67 @@ describe("the empty-front-office bank is From the Ground Up", () => {
     expect(help).toContain("From the Ground Up adds an owner and a ballpark.");
     expect(help).toContain("<b>💼 From the Ground Up:</b>");
     expect(help).not.toContain("Clean House");
+  });
+});
+
+describe("CSS consolidation: shared bases live in app.css", () => {
+  const css = read("app.css");
+
+  it("the row tap surface reset (.prow-btn, .srow-btn) is declared in app.css", () => {
+    // One shared base for PlayerList and SpecialRows so the two reset blocks
+    // cannot drift. Both class names appear in the combined rule.
+    expect(css).toContain(".prow-btn,");
+    expect(css).toContain(".srow-btn {");
+    const btnIdx = css.indexOf(".prow-btn,");
+    const block = css.slice(btnIdx, css.indexOf("}", btnIdx) + 1);
+    expect(block).toContain("background: none");
+    expect(block).toContain("cursor: inherit");
+    expect(block).toContain("flex: 1");
+  });
+
+  it("PlayerList and SpecialRows do not re-declare the row-btn reset", () => {
+    for (const [f, cls] of [
+      ["components/PlayerList.svelte", ".prow-btn {"],
+      ["components/SpecialRows.svelte", ".srow-btn {"],
+    ] as const) {
+      const src = read(f);
+      // If the class appears it must not carry the reset properties — only
+      // the child-combinator .mid scoping rule is allowed to remain.
+      const idx = src.indexOf(cls);
+      if (idx === -1) continue; // no block at all is also correct
+      const block = src.slice(idx, src.indexOf("}", idx) + 1);
+      expect(block, `${f} ${cls} must not re-declare background: none`).not.toContain(
+        "background: none",
+      );
+      expect(block, `${f} ${cls} must not re-declare cursor: inherit`).not.toContain(
+        "cursor: inherit",
+      );
+    }
+  });
+
+  it("the picker chrome (.picker-note, .picker-list) is declared in app.css", () => {
+    // PrimePicker and SpecialPrimePicker share the same loading/error/list
+    // chrome; one home in app.css so the two sheets cannot drift.
+    expect(css).toContain(".picker-note {");
+    expect(css).toContain(".picker-list {");
+    const noteIdx = css.indexOf(".picker-note {");
+    const noteBlock = css.slice(noteIdx, css.indexOf("}", noteIdx) + 1);
+    expect(noteBlock).toContain("text-align: center");
+    expect(noteBlock).toContain("color: var(--muted)");
+    const listIdx = css.indexOf(".picker-list {");
+    const listBlock = css.slice(listIdx, css.indexOf("}", listIdx) + 1);
+    expect(listBlock).toContain("display: grid");
+    expect(listBlock).toContain("gap: 6px");
+  });
+
+  it("both pickers use the global picker-note and picker-list classes", () => {
+    for (const f of ["components/PrimePicker.svelte", "components/SpecialPrimePicker.svelte"]) {
+      const src = read(f);
+      expect(src, `${f} uses picker-note in markup`).toContain('class="picker-note"');
+      expect(src, `${f} uses picker-list in markup`).toContain('class="picker-list"');
+      // Local .note/.list blocks are gone — the global provides the declarations.
+      expect(src, `${f} does not re-declare .note {`).not.toContain("\n  .note {");
+      expect(src, `${f} does not re-declare .list {`).not.toContain("\n  .list {");
+    }
   });
 });
