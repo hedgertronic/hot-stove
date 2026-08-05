@@ -22,12 +22,12 @@ from pathlib import Path
 
 from pipeline import fetch
 from pipeline.scoring import (
-    REPLACEMENT_WINS, WBC_CHAMPION_POINTS, WBC_RUNNERUP_POINTS,
+    REPLACEMENT_WINS, WBC_CHAMPION_ID, WBC_RUNNERUP_ID,
 )
 from pipeline.transform import (
     BANKROLL_GAMMA, BANKROLL_MIN_M, BANKROLL_PIVOT_M, BANKROLL_SCALE,
-    DISPLAY_AVG_M, MIN_GS, MIN_PA, MIN_RELIEF_IP, SLOTS,
-    YEAR_MAX, YEAR_MIN, GameData, _i,
+    DISPLAY_AVG_M, MIN_GS, MIN_PA, MIN_PA_CATCHER, MIN_POS_G_C, MIN_RELIEF_IP,
+    SLOTS, YEAR_MAX, YEAR_MIN, GameData, _i,
 )
 
 
@@ -55,15 +55,17 @@ LAHMAN_TABLES = ["People", "Teams", "Appearances", "Batting", "Pitching",
                  "Salaries", "AwardsPlayers", "AwardsSharePlayers", "Managers",
                  "AllstarFull", "AwardsManagers", "HallOfFame"]
 
-# The card value a Classic placing is worth. The mapping is one-way on
-# purpose: data/wbc.json stores the PLACING and pipeline/scoring.py owns the
-# POINTS, so the file and the scorer can never drift apart on what a medal is
-# worth. The consequence is that editing either constant in scoring.py is an
-# economy change AND a data change — the cards carry the number, so they have
-# to be rebuilt for the new value to reach the game.
-WBC_PLACING_POINTS = {
-    "champion": WBC_CHAMPION_POINTS,
-    "runnerUp": WBC_RUNNERUP_POINTS,
+# The card value for a Classic placing is a DISCRIMINANT (2 gold / 1 silver),
+# never the points. Every frontend consumer — the market row's medal, the
+# finale's, the engine's pedigree counts, the solver — matches this value with
+# strict equality against WBC_CHAMPION_ID / WBC_RUNNERUP_ID, then multiplies
+# counts by scoring.py's WBC_*_POINTS at scoring time. Writing the points here
+# instead is the historical bug this comment guards: 1.5 matches neither id,
+# so every medal rendered silver in the market, vanished in the finale, and
+# scored zero.
+WBC_PLACING_ID = {
+    "champion": WBC_CHAMPION_ID,
+    "runnerUp": WBC_RUNNERUP_ID,
 }
 
 
@@ -126,19 +128,31 @@ def display_pos(gd: GameData, lahman_id: str, year: int, e: dict, factor: float)
 def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]:
     players = []
     # Short seasons scale the eligibility floors too (150 PA is a full-time
-    # season in 2020's 60 games).
-    min_pa, min_gs, min_rip = MIN_PA / factor, MIN_GS / factor, MIN_RELIEF_IP / factor
+    # season in 2020's 60 games). The catcher PA floor is also scaled, but the
+    # games-at-C threshold is not — it must stay at 10 to match the frontend's
+    # C-slot gate (eligibility.ts MIN_POS_G).
+    min_pa = MIN_PA / factor
+    min_gs = MIN_GS / factor
+    min_rip = MIN_RELIEF_IP / factor
+    min_pa_c = MIN_PA_CATCHER / factor
     for (bbref_id, y), e in gd.war.items():
         if y != year or br not in e["teams"]:
             continue
         war_raw = e["war_bat"] + e["war_pitch"]
         war = round(war_raw * factor, 1)
+        lahman_id = gd.b2l.get(bbref_id, bbref_id)
         # Playing-time floors, with a WAR override so a high-value short
         # stint (deadline rental, September call-up) still makes the card.
+        # Catchers qualify on a lower PA floor: the job is shared, so a
+        # backup receiver clears 75+ PA but may not reach the standard 150.
+        # The games-at-C check matches eligibility.ts so every player this
+        # admits is one the game can seat at the C slot.
+        is_catcher = (gd.pos_games.get((lahman_id, year), {}).get("C", 0)
+                      >= MIN_POS_G_C)
         if not (e["pa"] >= min_pa or e["gs"] >= min_gs
-                or e["ip_relief"] >= min_rip or war >= 2.0):
+                or e["ip_relief"] >= min_rip or war >= 2.0
+                or (is_catcher and e["pa"] >= min_pa_c)):
             continue
-        lahman_id = gd.b2l.get(bbref_id, bbref_id)
         salary, _ = gd.resolve_salary(lahman_id, year)
         contract = gd.to_display_m(salary, year)
         games = gd.pos_games.get((lahman_id, year), {})
@@ -186,7 +200,7 @@ def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]
         # absent from well over 99% of player-seasons and writing a 0 on all
         # of them would cost bytes on every card to say nothing.
         if placing := gd.wbc.get((bbref_id, year)):
-            player["wbc"] = WBC_PLACING_POINTS[placing]
+            player["wbc"] = WBC_PLACING_ID[placing]
         players.append(player)
     players.sort(key=lambda p: p["war"], reverse=True)
     return players

@@ -558,7 +558,8 @@ describe("the Hall of Fame supply", () => {
   const hofSeats = seats.filter((p) => p.hof === true);
 
   it("still carries the Hall on the cards, players and skippers both", () => {
-    expect(hofSeats.length).toBe(955);
+    // 960 = 955 prior + 5 HoF backup catchers admitted by the catcher PA floor.
+    expect(hofSeats.length).toBe(960);
     expect(new Set(hofSeats.map((p) => p.id)).size).toBe(70);
     expect(CARDS.filter((c) => c.managerHof === true).length).toBe(125);
     // Nine men, not fourteen: the flag is `category = "Manager"` strictly, so
@@ -578,7 +579,9 @@ describe("the Hall of Fame supply", () => {
   it("can still deal several Hall of Famers off a single card", () => {
     const per = CARDS.map((c) => c.players.filter((p) => p.hof === true).length);
     expect(Math.max(...per)).toBeGreaterThanOrEqual(4);
-    expect(per.filter((n) => n > 0).length).toBe(558);
+    // 561 = 558 prior + 3 cards whose only HoF player was a backup catcher now
+    // admitted by the catcher PA floor (MIN_PA_CATCHER = 75).
+    expect(per.filter((n) => n > 0).length).toBe(561);
   });
 
   it("records that the recent end of the dataset can never carry the flag", () => {

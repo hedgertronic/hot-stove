@@ -42,6 +42,12 @@ OF_POS = {"LF", "CF", "RF"}
 
 # Card eligibility floors (sub-floor players still count toward slot-8 payrolls).
 MIN_PA, MIN_GS, MIN_RELIEF_IP = 150, 10, 20
+# Catcher-only PA floor: the position is split between two receivers, so a
+# backup catcher clears 75-149 PA in a full season and misses the standard 150
+# floor. MIN_POS_G_C is the games-at-C threshold that matches the frontend's
+# C-slot gate (app/src/lib/eligibility.ts MIN_POS_G), so every player admitted
+# by this path is one the game can seat at catcher.
+MIN_PA_CATCHER, MIN_POS_G_C = 75, 10
 
 AWARD_CODES = {
     "Most Valuable Player": "MVP",

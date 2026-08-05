@@ -41,6 +41,14 @@ PENNANT_POINTS = 1   # per player whose team won the pennant but lost the Series
 # handful of eligible card years own the axis outright.
 WBC_CHAMPION_POINTS = 1.5  # per player on the World Baseball Classic winner that year
 WBC_RUNNERUP_POINTS = 0.5  # per player on the Classic's losing finalist
+# What the cards CARRY for a medal: a discriminant, not the points. The
+# frontend filters by medal type (gold vs silver emoji, pedigree counts) with
+# strict equality against these ids and multiplies the counts by the POINTS
+# above at scoring time — so a point-value retune never requires a data
+# rebuild, and a card can never smuggle a stale price. Mirrored in
+# app/src/lib/scoring.ts as WBC_CHAMPION_ID / WBC_RUNNERUP_ID.
+WBC_CHAMPION_ID = 2  # card-data value for a WBC gold medal
+WBC_RUNNERUP_ID = 1  # card-data value for a WBC silver medal
 # A Classic is worth half a Series at both rungs (WS ring 3 / pennant 1):
 # round 28 set gold = 1.5 and silver = 0.5 (supersedes round 5's 2 / 1).
 # Hired manager: (team W - team L) x this, negative allowed. 0.2 makes the

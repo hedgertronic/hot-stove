@@ -215,14 +215,15 @@ function stampFor(markup: string, country: string): Element {
  * its style hash — the tier a reader actually sees, rather than the tier the
  * reader returned. An empty list is a stamp with no tier at all.
  *
- * `pill` and `stamp` are both structural: `pill` is the one shared chip every
- * badge and country renders through, `stamp` is the rectangular shape's hook.
- * Neither is a tier, so neither counts here. */
+ * `chipbox`, `pill` and `stamp` are all structural: `chipbox` is app.css's
+ * shared chip box, `pill` is the one shared chip every badge and country
+ * renders through, `stamp` is the rectangular shape's hook. None is a tier, so
+ * none counts here. */
 function stampClass(markup: string, country: string): string[] {
   const chip = stampFor(markup, country).querySelector(".stamp");
   if (!chip) throw new Error(`no chip inside the stamp for ${country}`);
   return [...chip.classList].filter(
-    (c) => c !== "pill" && c !== "stamp" && !c.startsWith("svelte-"),
+    (c) => c !== "chipbox" && c !== "pill" && c !== "stamp" && !c.startsWith("svelte-"),
   );
 }
 
@@ -308,7 +309,9 @@ describe("the country table", () => {
     // measured.
     expect(Object.keys(COUNTRIES).sort()).toEqual([...SUPPLY.keys()].sort());
     expect(SUPPLY.size).toBe(39);
-    expect(SEASONS).toBe(35720);
+    // 36431 = 35720 prior + 711 backup-catcher entries admitted by the catcher
+    // PA floor (MIN_PA_CATCHER = 75, posG.c >= 10).
+    expect(SEASONS).toBe(36431);
   });
 
   it("records the rate each country was actually measured at", () => {
@@ -397,7 +400,7 @@ describe("passport()", () => {
   it("decorates each stamp out of the country table", () => {
     seed(game(["Japan", "USA", "Curaçao"]));
     const by = new Map(passport().map((s) => [s.country, s]));
-    expect(by.get("Japan")).toMatchObject({ flag: "🇯🇵", rarity: "uncommon", freq: 6.38 });
+    expect(by.get("Japan")).toMatchObject({ flag: "🇯🇵", rarity: "uncommon", freq: 6.26 });
     expect(by.get("USA")).toMatchObject({ flag: "🇺🇸", rarity: "common", freq: 100 });
     expect(by.get("Curaçao")).toMatchObject({ flag: "🇨🇼", rarity: "rare" });
   });
@@ -819,7 +822,7 @@ describe("the passport board", () => {
     // errand, which is the one thing a souvenir must not become.
     seed(game(["Japan", "Cuba"]));
     const body = modal();
-    expect(body).toContain("TROPHY CASE");
+    expect(body).toContain("COLLECTIBLES");
     // A fraction, specifically — 🤝 WORD OF MOUTH is a badge label and has
     // every right to those two letters.
     expect(body).not.toMatch(/\d+ OF \d+/);
