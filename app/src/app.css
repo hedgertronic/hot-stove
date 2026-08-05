@@ -332,7 +332,14 @@ body {
 body {
   background: var(--ground);
   color: var(--ink);
-  font: 16px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif;
+  /* The game's own face is the FLOOR, not a per-surface opt-in. This was the
+     system stack for a long while, with .disp layering Nunito per surface —
+     and every element that missed a .disp (the finale's badge pills and
+     passport stamps, via `button { font: inherit }`) silently rendered the
+     OS font. On a Mac, SF passes for Nunito at a glance; on Windows, Segoe
+     UI Bold does not, which is how the gap shipped unseen. With the body on
+     var(--disp) a missed .disp costs nothing — the fallback IS the font. */
+  font: 16px/1.55 var(--disp);
   touch-action: manipulation;
   overscroll-behavior-y: none;
 }
