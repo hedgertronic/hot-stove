@@ -309,9 +309,10 @@ describe("the country table", () => {
     // measured.
     expect(Object.keys(COUNTRIES).sort()).toEqual([...SUPPLY.keys()].sort());
     expect(SUPPLY.size).toBe(39);
-    // 36431 = 35720 prior + 711 backup-catcher entries admitted by the catcher
-    // PA floor (MIN_PA_CATCHER = 75, posG.c >= 10).
-    expect(SEASONS).toBe(36431);
+    // 36897 = 35720 under the flat 150 PA floor plus the backup catchers the
+    // catcher-only floor admits (MIN_PA_CATCHER = 30, posG.c >= 10 — the
+    // working C2 tier: 11-36 games caught on 29-72 PA).
+    expect(SEASONS).toBe(36897);
   });
 
   it("records the rate each country was actually measured at", () => {
@@ -400,7 +401,7 @@ describe("passport()", () => {
   it("decorates each stamp out of the country table", () => {
     seed(game(["Japan", "USA", "Curaçao"]));
     const by = new Map(passport().map((s) => [s.country, s]));
-    expect(by.get("Japan")).toMatchObject({ flag: "🇯🇵", rarity: "uncommon", freq: 6.26 });
+    expect(by.get("Japan")).toMatchObject({ flag: "🇯🇵", rarity: "uncommon", freq: 6.18 });
     expect(by.get("USA")).toMatchObject({ flag: "🇺🇸", rarity: "common", freq: 100 });
     expect(by.get("Curaçao")).toMatchObject({ flag: "🇨🇼", rarity: "rare" });
   });

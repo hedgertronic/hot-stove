@@ -396,22 +396,22 @@ export interface CountryDef {
 export const COUNTRIES: Record<string, CountryDef> = {
   // ---- common: a fifth of clubs or more ----
   USA: { flag: "🇺🇸", rarity: "common", freq: 100.0 },
-  "Dominican Republic": { flag: "🇩🇴", rarity: "common", freq: 52.42 },
-  Venezuela: { flag: "🇻🇪", rarity: "common", freq: 33.65 },
-  "Puerto Rico": { flag: "🇵🇷", rarity: "common", freq: 22.33 },
+  "Dominican Republic": { flag: "🇩🇴", rarity: "common", freq: 52.18 },
+  Venezuela: { flag: "🇻🇪", rarity: "common", freq: 34.02 },
+  "Puerto Rico": { flag: "🇵🇷", rarity: "common", freq: 22.62 },
   // ---- uncommon: one club in ten to one in five ----
   Cuba: { flag: "🇨🇺", rarity: "uncommon", freq: 10.23 },
   Mexico: { flag: "🇲🇽", rarity: "uncommon", freq: 9.3 },
   Canada: { flag: "🇨🇦", rarity: "uncommon", freq: 8.49 },
-  Japan: { flag: "🇯🇵", rarity: "uncommon", freq: 6.26 },
+  Japan: { flag: "🇯🇵", rarity: "uncommon", freq: 6.18 },
   // ---- rare: one club in twenty to one in a hundred ----
   Panama: { flag: "🇵🇦", rarity: "rare", freq: 4.29 },
-  Colombia: { flag: "🇨🇴", rarity: "rare", freq: 2.57 },
+  Colombia: { flag: "🇨🇴", rarity: "rare", freq: 2.66 },
   "South Korea": { flag: "🇰🇷", rarity: "rare", freq: 2.37 },
-  "Curaçao": { flag: "🇨🇼", rarity: "rare", freq: 2.15 },
+  "Curaçao": { flag: "🇨🇼", rarity: "rare", freq: 2.08 },
   Germany: { flag: "🇩🇪", rarity: "rare", freq: 1.89 },
-  Australia: { flag: "🇦🇺", rarity: "rare", freq: 1.78 },
-  Nicaragua: { flag: "🇳🇮", rarity: "rare", freq: 1.58 },
+  Australia: { flag: "🇦🇺", rarity: "rare", freq: 1.72 },
+  Nicaragua: { flag: "🇳🇮", rarity: "rare", freq: 1.53 },
   // ---- ultra: under one club in a hundred. Twenty-four countries, and 15 of
   // them have exactly one draftable man in the whole corpus. ----
   Jamaica: { flag: "🇯🇲", rarity: "ultra", freq: 0.87 },
