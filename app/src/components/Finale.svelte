@@ -1338,7 +1338,9 @@
   .qrow {
     display: flex;
     align-items: center;
-    gap: 8px;
+    /* 9px — the row's own padding, so the salary-to-chip gap equals the
+       chip-to-edge air (the one-number rule the board's rows follow). */
+    gap: 9px;
     background: var(--card);
     /* Card-level box weight (2.5px), matching the market/ledger rows. */
     border: 2.5px solid var(--line);

@@ -398,7 +398,9 @@
        still uses the plain .rwar rule below to push itself right. */
     .chips {
       flex-direction: row;
-      gap: 6px;
+      /* The one-number rule (PlayerList's .prow documents it): salary-to-chip
+         equals chip-to-edge, and the row pads 10px. */
+      gap: 10px;
       margin-top: 0;
       margin-left: auto;
     }

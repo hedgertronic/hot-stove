@@ -29,7 +29,11 @@
   {@const cols = pickerCols(divisions.map((d) => d.teams.length))}
   {#each divisions as d (d.label)}
     {@const rows = splitDivision(d.teams, cols)}
-    <div class="div-h">{d.label}</div>
+    <!-- The game's standard section rule — dashed line, centered caps — the
+         same .psep device every other surface headers with, instead of a
+         private left-aligned caption only this sheet spoke. -->
+    <div class="psep">{d.label}</div>
+    <div class="divrows">
     {#each rows as row}
       <div class="pickgrid" style="--div-cols: {cols}">
         {#each row as t (t.team)}
@@ -48,33 +52,39 @@
         {/each}
       </div>
     {/each}
+    </div>
   {/each}
 </Sheet>
 
 <style>
   /* Header, ✕ and the CANCEL button all belong to Sheet — a picker is a thing
      you back out of, so its bottom button says CANCEL rather than CLOSE. */
-  .div-h {
-    font-size: 9.5px;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    color: var(--muted);
-    margin: 8px 2px 5px;
+  /* The division header is app.css's .psep; only the air between sections is
+     this sheet's to set. Its bottom padding (8px) is the rule's own; the top
+     margin separates a section from the grids above it, and the first takes
+     its air from the sheet's header gap instead of stacking on it. */
+  .psep {
+    margin-top: 10px;
   }
-  /* The first heading takes its air from the sheet's own header gap; its own
-     margin would stack on top and push six divisions toward a scroll. */
-  .div-h:first-child {
+  .psep:first-child {
     margin-top: 0;
   }
   /* Division rows stacked (pre-1994 seasons use four groups; 1994+ use six).
      Large divisions (n ≥ 6) emit two grids — ⌈n/2⌉ teams then ⌊n/2⌋ — both
      sharing the same --div-cols so tile widths stay aligned within the group.
-     Small divisions emit one grid. Column count is per-row via --div-cols
-     (rows[0].length), not a global max, so an AL 7-team split (4 cols) and an
-     NL 6-team split (3 cols) are independent. The scoped rule wins over
-     app.css's unscoped `.pickgrid` due to Svelte's specificity bump. */
+     Small divisions emit one grid. The wrapper's gap is .pickgrid's own 7px —
+     the SEASON TICKET sheet's line spacing — so a split division's two lines
+     sit exactly as far apart as any two lines of the year grid, instead of
+     the tighter margin they used to keep. Column count is per-row via
+     --div-cols (rows[0].length), not a global max, so an AL 7-team split
+     (4 cols) and an NL 6-team split (3 cols) are independent. The scoped rule
+     wins over app.css's unscoped `.pickgrid` due to Svelte's specificity
+     bump. */
+  .divrows {
+    display: grid;
+    gap: 7px;
+  }
   .pickgrid {
-    margin-bottom: 4px;
     grid-template-columns: repeat(var(--div-cols, 5), 1fr);
   }
   /* Each tile is a club color, so it wears the pair — the accent thinned into
