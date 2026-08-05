@@ -20,9 +20,9 @@ import type { Owners, SpecialsIndex } from "../src/lib/types";
 const CLASSIC: GameConfig = { difficulty: "standard", bank: "classic" };
 const EYE: GameConfig = { difficulty: "scout", bank: "classic" };
 
-/** The three front-office buttons, in render order: owner · stadium · skipper. */
-function rows(target: HTMLElement): HTMLButtonElement[] {
-  return [...target.querySelectorAll<HTMLButtonElement>("button.srow")];
+/** The three front-office row divs, in render order: owner · stadium · skipper. */
+function rows(target: HTMLElement): HTMLElement[] {
+  return [...target.querySelectorAll<HTMLElement>("div.srow")];
 }
 
 function mountRows(game: Game): { target: HTMLElement; comp: Record<string, unknown> } {
@@ -46,7 +46,7 @@ describe("front-office rows while Prime Time is armed", () => {
     let [owner, stadium, skipper] = rows(target);
     expect(rows(target)).toHaveLength(3);
     for (const b of [owner, stadium, skipper]) {
-      expect(b.disabled).toBe(false);
+      expect(b.querySelector<HTMLButtonElement>(".srow-btn")!.disabled).toBe(false);
       expect(b.className).not.toContain("taken");
     }
 
@@ -54,11 +54,11 @@ describe("front-office rows while Prime Time is armed", () => {
     flushSync();
     [owner, stadium, skipper] = rows(target);
     for (const b of [owner, stadium]) {
-      expect(b.disabled).toBe(true);
+      expect(b.querySelector<HTMLButtonElement>(".srow-btn")!.disabled).toBe(true);
       expect(b.className).toContain("taken");
     }
     // The one valid target keeps its amber "browsable" look and its tap.
-    expect(skipper.disabled).toBe(false);
+    expect(skipper.querySelector<HTMLButtonElement>(".srow-btn")!.disabled).toBe(false);
     expect(skipper.className).not.toContain("taken");
     expect(skipper.className).toContain("prime");
 
@@ -67,7 +67,7 @@ describe("front-office rows while Prime Time is armed", () => {
     flushSync();
     [owner, stadium, skipper] = rows(target);
     for (const b of [owner, stadium, skipper]) {
-      expect(b.disabled).toBe(false);
+      expect(b.querySelector<HTMLButtonElement>(".srow-btn")!.disabled).toBe(false);
       expect(b.className).not.toContain("taken");
     }
     expect(skipper.className).not.toContain("prime");
@@ -93,7 +93,7 @@ describe("front-office rows while Prime Time is armed", () => {
     });
     const { target, comp } = mountRows(game);
     const [owner] = rows(target);
-    expect(owner.disabled).toBe(false);
+    expect(owner.querySelector<HTMLButtonElement>(".srow-btn")!.disabled).toBe(false);
     expect(owner.className).toContain("swap");
 
     await unmount(comp as never);
@@ -119,9 +119,7 @@ const LONG_PARK = "Stade Olympique/Hiram Bithorn Stadium";
 
 const longOwners: Owners = {
   franchises: {
-    KCA: { name: "Kansas City Royals", owners: [{ name: OWNER_STORED, from: 1993, to: 2000 }] },
-  },
-};
+    KCA: { name: "Kansas City Royals", owners: [{ name: OWNER_STORED, from: 1993, to: 2000 }] } } };
 
 /** What the row's overflow fix rests on, in markup terms.
  *
@@ -166,7 +164,7 @@ describe("front-office rows under the corpus's longest names", () => {
       expect(val).not.toBeNull();
       // A sibling of the shrinking box, never a descendant of it.
       expect(mid!.contains(val!)).toBe(false);
-      expect(val!.parentElement).toBe(row);
+      expect(val!.parentElement).toBe(row.querySelector(".srow-btn"));
     }
     unmount(comp as never);
     target.remove();
@@ -211,9 +209,7 @@ describe("the manager career sheet colors every season by its rung", () => {
       l,
       att: 1,
       mult: 1.05,
-      budget: 92.1,
-    })),
-  };
+      budget: 92.1 })) };
 
   globalThis.fetch = (async (url: unknown) =>
     String(url).endsWith("data/specials.json") ?

@@ -70,8 +70,8 @@ describe("item 1 — manager tile: wins chip is the color carrier", () => {
     // re-introduce a tint without the CSS change, so this asserts the markup
     // carries no overriding inline style.
     const body = specialBody();
-    // Extract the opening tag of the manager srow.
-    const mgrBtn = body.match(/<button class="srow skip[^"]*"[^>]*/)?.[0] ?? "";
+    // Extract the opening tag of the manager srow (now a div wrapper).
+    const mgrBtn = body.match(/<div class="srow skip[^"]*"[^>]*/)?.[0] ?? "";
     expect(mgrBtn).not.toContain('style="background');
     expect(mgrBtn).not.toContain("style=");
   });
@@ -109,8 +109,8 @@ describe("item 6 — stadium row: orange identity hue, not sky/blue", () => {
     // stadium button's opening tag — those tokens lived in the old CSS rule and
     // the old comment; confirming the source text changed is a build-time check.
     const body = specialBody();
-    // The stad button's opening tag must not carry a --sky or --blue inline style.
-    const stadMatch = body.match(/<button class="srow stad[^"]*"[^>]*/);
+    // The stad div's opening tag must not carry a --sky or --blue inline style.
+    const stadMatch = body.match(/<div class="srow stad[^"]*"[^>]*/);
     const stadTag = stadMatch?.[0] ?? "";
     expect(stadTag).not.toContain("--sky");
     expect(stadTag).not.toContain("--blue");

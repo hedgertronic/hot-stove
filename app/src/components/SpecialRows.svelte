@@ -188,30 +188,38 @@
     {@const primeBlocked = !taken && row.key !== "manager" && game?.primeArmed === true}
     {@const tdBlocked = tdArmed && canAct && !swappable}
     {@const hgBlocked = hgArmed && canAct}
-    <button
+    {@const sSignConfirm = confirmKey === `s:${row.key}` && !taken && !primeBlocked}
+    {@const sSwapConfirm = confirmKey === `w:${row.key}` && swappable}
+    <div
       class="srow {row.cls}"
       class:taken={(taken && !swappable) || primeBlocked || tdBlocked || hgBlocked}
       class:swap={swappable}
       class:prime={primeable}
-      disabled={primeBlocked || tdBlocked || hgBlocked}
       inert={specimen != null}
-      onclick={(e) => tap(row, e)}
     >
-      <span class="ic">{row.ic}</span>
-      <span class="mid">
-        <span class="who">{row.who}</span>
-        {#if row.meta}<span class="meta">{row.meta}</span>{/if}
-        {#if row.moty}<AwardPill code="MOY" small />{/if}
-      </span>
-      {#if confirmKey === `s:${row.key}` && !taken && !primeBlocked}
-        <!-- role=button owes both keys, same as the market rows' confirm. -->
-        <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commit(row.key); }} onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); commit(row.key); } }}>{row.val ? `${row.verb} ${row.val}${row.unit ? ` ${row.unit}` : ""}` : row.verb}</span>
-      {:else if confirmKey === `w:${row.key}` && swappable}
-        <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSwap(row.key); }} onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); commitSwap(row.key); } }}>🔁 TRADE IN</span>
-      {:else}
-        <span class="val {row.tier ? `warchip ${row.tier}` : ''}">{row.val}{#if row.val && row.unit}<span class="unit">{row.unit}</span>{/if}</span>
+      <button
+        type="button"
+        class="srow-btn"
+        disabled={primeBlocked || tdBlocked || hgBlocked}
+        inert={specimen != null}
+        onclick={(e) => tap(row, e)}
+      >
+        <span class="ic">{row.ic}</span>
+        <span class="mid">
+          <span class="who">{row.who}</span>
+          {#if row.meta}<span class="meta">{row.meta}</span>{/if}
+          {#if row.moty}<AwardPill code="MOY" small />{/if}
+        </span>
+        {#if !sSignConfirm && !sSwapConfirm}
+          <span class="val {row.tier ? `warchip ${row.tier}` : ''}">{row.val}{#if row.val && row.unit}<span class="unit">{row.unit}</span>{/if}</span>
+        {/if}
+      </button>
+      {#if sSignConfirm}
+        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commit(row.key); }}>{row.val ? `${row.verb} ${row.val}${row.unit ? ` ${row.unit}` : ""}` : row.verb}</button>
+      {:else if sSwapConfirm}
+        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitSwap(row.key); }}>🔁 TRADE IN</button>
       {/if}
-    </button>
+    </div>
   {/each}
 </div>
 
@@ -275,14 +283,17 @@
   .srow:active {
     transform: translate(-1px, -1px);
   }
-  /* A specimen tile is a diagram: inert blocks the tap and the tab stop, and
-     the cursor withdraws the offer of one. */
+  /* A specimen tile is a diagram: inert on the outer div blocks the active
+     transform; the cursor withdraws the offer of interaction. */
   .srow[inert] {
     cursor: default;
   }
   .srow[inert]:active {
     transform: none;
   }
+  /* The row tap surface (.srow-btn) reset lives in app.css: one shared rule
+     for PlayerList and SpecialRows. Only the child-combinator .mid scoping
+     stays here because the `mid` rung token shares the name. */
   /* The icon IS the type label — fixed width like .pos so front-office
      names align vertically with the player names below them. */
   .srow .ic {
@@ -304,7 +315,7 @@
      is the name span's SIBLING, both direct children of the row — so excluding
      the chip by name is the fix, exactly as the manager career sheet fences the
      same collision on the same token. */
-  .srow > .mid:not(.warchip) {
+  .srow-btn > .mid:not(.warchip) {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -426,30 +437,14 @@
   .srow.prime .meta {
     color: var(--muted-2);
   }
-  /* Pinned to 24px (12 text + 8 pad + 4 border) like the player rows'
-     confirm — an unconstrained line box made tapping change the row height.
-     The 8px of padding splits 4.28 / 3.72 rather than evenly: that is app.css's
-     optical centering rule at 12px type (0.047 × 12 = 0.56px), and the 24px
-     total is untouched, so the row still cannot twitch. HIRE $203.2M is white
-     on ink, the highest-contrast type in the game, which is exactly where type
-     riding high is easiest to see. */
+  /* The confirm pill base recipe (border, background, padding, etc.) lives in
+     app.css. Position deltas only: margin-left: auto pushes the pill to the
+     right edge of the flex row; CHIP INSET RULE, box-against-box arm — the
+     confirm ends a drawn row, so it takes the same 6px seat the skipper's
+     wins chip does, matching PlayerList's .prow > .confirm right edge. */
   .confirm {
     margin-left: auto;
     flex: none;
-    border: 2px solid var(--ink);
-    border-radius: 999px;
-    background: var(--ink);
-    color: var(--card);
-    font-weight: 800;
-    font-size: 12px;
-    line-height: 1;
-    padding: 4.28px 12px 3.72px;
-    white-space: nowrap;
-    /* CHIP INSET RULE, box-against-box arm: the confirm is a drawn pill
-       ending a drawn row, so it takes the same 6px seat the skipper's wins
-       chip does — the player rows' confirm sits inside their `.right` column
-       and inherits the identical pull, and the two columns' confirm pills
-       must land on one right edge. */
     margin-right: -4px;
   }
   @media (min-width: 760px) {

@@ -123,64 +123,73 @@
          $1M…" — wear the armed orange the way 🔁's candidates and ⭐'s
          browsables do. One law for all three: armed lights the rows that
          answer it. ⭐ and 🔁 outrank when they claim the same row's tap. -->
-    <button
+    <!-- A pending confirm is suppressed on a row ⭐ has claimed, not on
+         every row while ⭐ is armed. The tap opens the career sheet there,
+         so no confirm can be raised on it — but `confirmKey` survives the
+         arming, and an armed ⭐ must not leave a live SIGN pill sitting on
+         a row whose tap now goes somewhere else. Rows ⭐ cannot browse (a
+         man already on the club) keep their own pill, which is what makes
+         the suppression match the routing exactly. -->
+    {@const signConfirm = confirmKey === `p:${p.id}` && open && !swappable && !primeable}
+    {@const tradeConfirm = confirmKey === `t:${p.id}` && swappable && !primeable}
+    <div
       class="prow"
       class:dead={!playable && !primeable}
       class:swap={swappable && !primeable}
       class:prime={primeable}
       class:hg={discounted && playable && !swappable && !primeable}
-      onclick={(e) => tap(p, e)}
     >
-      <span class="pos" class:pit={isPitcher(p)} class:long={plabel.length > 5}>{plabel}</span>
-      <span class="mid">
-        <span class="nameline">
-          <span class="pname">{p.name}</span>
+      <button
+        type="button"
+        class="prow-btn"
+        aria-disabled={(!playable && !primeable) ? "true" : undefined}
+        onclick={(e) => tap(p, e)}
+      >
+        <span class="pos" class:pit={isPitcher(p)} class:long={plabel.length > 5}>{plabel}</span>
+        <span class="mid">
+          <span class="nameline">
+            <span class="pname">{p.name}</span>
+          </span>
+          {#if hasBadges(p)}<span class="badges"
+              >{#each sortAwards(p.awards) as a}<AwardPill code={a} small />{/each}</span
+            >{/if}
+          <!-- WBC medal follows award chips, mirroring the Finale's own order:
+               award pills → WS ring → pennant → WBC gold → WBC silver.
+               Team rings and pennants live on the finale's squad rows; what
+               belongs here is the individual hardware only, so the order is
+               award chips then the medal. The medal is a sibling of .badges
+               so it remains in the mid flex and wraps independently — placing
+               it inside .badges would hide it for players with no award chips. -->
+          {#if wbc}<span
+              class="wbc"
+              role="img"
+              aria-label="World Baseball Classic {wbc === 2 ? 'champion' : 'finalist'}"
+              >{wbc === 2 ? "🥇" : "🥈"}</span
+            >{/if}
         </span>
-        {#if hasBadges(p)}<span class="badges"
-            >{#each sortAwards(p.awards) as a}<AwardPill code={a} small />{/each}</span
-          >{/if}
-        <!-- WBC medal follows award chips, mirroring the Finale's own order:
-             award pills → WS ring → pennant → WBC gold → WBC silver.
-             Team rings and pennants live on the finale's squad rows; what
-             belongs here is the individual hardware only, so the order is
-             award chips then the medal. The medal is a sibling of .badges
-             so it remains in the mid flex and wraps independently — placing
-             it inside .badges would hide it for players with no award chips. -->
-        {#if wbc}<span
-            class="wbc"
-            role="img"
-            aria-label="World Baseball Classic {wbc === 2 ? 'champion' : 'finalist'}"
-            >{wbc === 2 ? "🥇" : "🥈"}</span
-          >{/if}
-      </span>
-      <span class="right">
-        {#if game.slotPick === p.id}
-          <!-- The picker lives in the rail — point there, cardstock-terse.
-               The rail sits ABOVE the market on the phone and LEFT of it at
-               width, so the glyph is two spans and the 760px media tier picks
-               the one that points at the actual rail. -->
-          <span class="confirm hint"><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span> PICK A SLOT</span>
-        {:else if game.releasePick === p.id}
-          <span class="confirm hint"><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span> TAP WHO TO TRADE</span>
-        <!-- A pending confirm is suppressed on a row ⭐ has claimed, not on
-             every row while ⭐ is armed. The tap opens the career sheet there,
-             so no confirm can be raised on it — but `confirmKey` survives the
-             arming, and an armed ⭐ must not leave a live SIGN pill sitting on
-             a row whose tap now goes somewhere else. Rows ⭐ cannot browse (a
-             man already on the club) keep their own pill, which is what makes
-             the suppression match the routing exactly. -->
-        {:else if confirmKey === `p:${p.id}` && open && !swappable && !primeable}
-          <!-- role=button owes both keys: Enter and Space (Space preventDefaulted
-               so it cannot also scroll the page). -->
-          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitSign(p); }} onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); commitSign(p); } }}>SIGN {money(price)}</span>
-        {:else if confirmKey === `t:${p.id}` && swappable && !primeable}
-          <span class="confirm" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); commitTrade(p); }} onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); commitTrade(p); } }}>TRADE FOR {money(price)}</span>
-        {:else}
-          <span class="cost {discounted ? 'cheap' : costTier(price)}">{money(price)}</span>
-          {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
+        {#if !signConfirm && !tradeConfirm}
+          <span class="right">
+            {#if game.slotPick === p.id}
+              <!-- The picker lives in the rail — point there, cardstock-terse.
+                   The rail sits ABOVE the market on the phone and LEFT of it at
+                   width, so the glyph is two spans and the 760px media tier picks
+                   the one that points at the actual rail. -->
+              <span class="confirm hint"><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span> PICK A SLOT</span>
+            {:else if game.releasePick === p.id}
+              <span class="confirm hint"><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span> TAP WHO TO TRADE</span>
+            {:else}
+              <span class="cost {discounted ? 'cheap' : costTier(price)}">{money(price)}</span>
+              {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
+            {/if}
+          </span>
         {/if}
-      </span>
-    </button>
+      </button>
+      {#if signConfirm}
+        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitSign(p); }}>SIGN {money(price)}</button>
+      {:else if tradeConfirm}
+        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitTrade(p); }}>TRADE FOR {money(price)}</button>
+      {/if}
+    </div>
   {/each}
   {#if !expanded && sorted.length > visible.length}
     <button class="more" onclick={(e) => { e.stopPropagation(); expanded = true; }}>
@@ -239,6 +248,9 @@
       gap: 12px;
     }
   }
+  /* The row tap surface (.prow-btn) reset lives in app.css: one shared rule
+     for PlayerList and SpecialRows. Only the child-combinator .mid scoping
+     stays here because the WAR ladder's `mid` rung token shares the name. */
   /* Position is a filter cue, not the headline: a compact fixed-width tag so
      the left edge scans as a column. Pitchers flip to filled ink — one subtle
      two-way split (arms vs bats), no rainbow. */
@@ -279,7 +291,7 @@
      top of the label's own 2.5px margin, and `min-width: 0` canceled the
      chip's 42px floor, so only the green chip was 6px wide and 6px gappy. The
      collision is a name collision; the child combinator is the fix for it. */
-  .prow > .mid {
+  .prow-btn > .mid {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -392,8 +404,8 @@
      hue — faded by the row's opacity and a mild desaturation — so a gold you
      can't reach still reads gold ("need Trade Deadline for him"). Modes that
      hide a chip render nothing here, so nothing new leaks. */
-  .prow.dead > .pos,
-  .prow.dead > .mid {
+  .prow.dead .prow-btn > .pos,
+  .prow.dead .prow-btn > .mid {
     filter: grayscale(1);
   }
   .prow.dead .warchip,
@@ -424,22 +436,19 @@
     opacity: 1;
     filter: none;
   }
-  /* Pinned to 24px (12 text + 8 pad + 4 border) so the pill fits the row's
-     content box at both padding tiers — an unconstrained line box made
-     tapping grow the row. The 8px splits 4.28 / 3.72, which is app.css's
-     optical centering rule at 12px type (0.047 × 12 = 0.56px), paid out of the
-     padding so the 24px total holds. Same numbers as the FRONT OFFICE rows'
-     confirm, which is the same pill on the same ladder of type sizes. */
-  .confirm {
-    border: 2px solid var(--ink);
-    border-radius: 999px;
-    background: var(--ink);
-    color: var(--card);
-    font-weight: 800;
-    font-size: 12px;
-    line-height: 1;
-    padding: 4.28px 12px 3.72px;
-    white-space: nowrap;
+  /* The confirm pill base recipe lives in app.css (.confirm + :focus-visible).
+     Position deltas only: flex: none keeps it from growing; the negative right
+     margin pulls it to the same 6px inset the .right column's chips occupy.
+     Pinned height (24px = 12px text + 8px pad + 4px border) is enforced by
+     the app.css padding asymmetry — no local height rule needed. */
+  .prow > .confirm {
+    flex: none;
+    margin-right: -4px;
+  }
+  @media (min-width: 760px) {
+    .prow > .confirm {
+      margin-right: -8px;
+    }
   }
   /* Pending pick: the next tap belongs to the rail, not this row — the pill
      goes orange (the rail hint's color) and points up at it. On the pair, so
