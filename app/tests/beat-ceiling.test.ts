@@ -85,3 +85,21 @@ describe("beatCeilingDecision", () => {
     expect(result.scoutHits).toBe(2);
   });
 });
+
+describe("the badges read RAW scout hits, never the beatCeiling upgrade", () => {
+  /* Source-level pin, the chip-centering suite's technique: the engine's
+   * earnedBadges call must feed `scoutHits: scoutHitsRaw`, so 🌠 THE DREAM
+   * TEAM stays a claim about genuinely matching all nine seats. Feeding the
+   * upgraded count made outscouting the solver (🦉's feat) auto-earn 🌠 while
+   * the finale's dream-team column visibly differed from the player's club. */
+  it("the engine's badge facts carry scoutHitsRaw", async () => {
+    const fs = await import("node:fs");
+    const { fileURLToPath } = await import("node:url");
+    const src = fs.default.readFileSync(
+      fileURLToPath(new URL("../src/lib/engine.svelte.ts", import.meta.url)),
+      "utf8",
+    );
+    const call = src.slice(src.indexOf("earnedBadges({"));
+    expect(call).toContain("scoutHits: scoutHitsRaw,");
+  });
+});

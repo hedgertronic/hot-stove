@@ -178,11 +178,11 @@
   <div class="cap">Roster full → unsigned rows are amber swap targets (TRADE FOR)</div>
   <PlayerList game={td} confirmKey={confirmTd} setConfirm={(k) => (confirmTd = k)} />
 
-  <div class="psep">MARKET · PRIMETIME ARMED</div>
+  <div class="psep">MARKET · PRIME TIME ARMED</div>
   <div class="cap">Signable rows carry the ⭐ career-browse affordance</div>
   <PlayerList game={prime} confirmKey={null} setConfirm={noop} />
 
-  <div class="psep">PRIMETIME · MANAGER CAREER SHEET</div>
+  <div class="psep">PRIME TIME · MANAGER CAREER SHEET</div>
   <div class="cap">
     ⭐ on the open 🧢 tile — Piniella's real 23-season timeline from
     specials.json: MOY pills (Box Score), negative-value TBD years, grayed

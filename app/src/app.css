@@ -118,7 +118,9 @@
    and by the manager's chair, which draw it under `writing-mode: sideways-lr`;
    a stated height and a flex box would move both. It is padding-driven and
    auto-height, so its correction lands at full measure — the one box model the
-   arithmetic is actually true for.
+   arithmetic is actually true for. (On trim-capable engines the chip's own
+   @supports branch beside its recipe retires the constant the way the
+   chipbox's does — the constant remains the fallback, not the truth.)
 
    IT DESCRIBES ALL-CAPS TEXT AND DIGITS ONLY. Both sit in one band — measured
    out of the file, flat caps run 0 to 705, round caps and digits overshoot to
@@ -551,6 +553,29 @@ button {
   padding-block: 0.517px 0;
   padding-inline: 4px;
 }
+/* THE CHIP'S OWN TRIM BRANCH — the atomic trade the chipbox recipe makes,
+   restated for the one recipe that is padding-driven rather than pinned. The
+   hand constants above are a guess about where an engine seats a line box's
+   baseline, and Windows Blink seats it differently from macOS: measured
+   there, the numeral rode visibly high. The chip is an inline-block — a block
+   container — so the trim can land on the chip itself with no label wrapper:
+   the content box becomes the cap band (0.705em: 9.5175px at 13.5px type,
+   7.755px at 11px), and SYMMETRIC padding re-derives the same load-bearing
+   outer heights the leading built — 26.275px full (2 + 6.379 + 9.5175 +
+   6.379 + 2) and 21.017px small (2 + 4.631 + 7.755 + 4.631 + 2) — with the
+   band centered by construction on every engine and OS. Padding-block stays
+   logical for the sideways-lr chair's reason above. The unit keeps its
+   baseline `vertical-align`: it rides the same line box, and the trim reads
+   the block's primary font, not the unit's. */
+@supports (text-box: trim-both cap alphabetic) {
+  .warchip {
+    text-box: trim-both cap alphabetic;
+    padding-block: 6.379px;
+  }
+  .warchip.sm {
+    padding-block: 4.631px;
+  }
+}
 /* ---------- the rung, as a pair of custom properties ----------
    The ONLY place the six tiers are enumerated. Every surface that wears a rung
    — the chip below, the rail seats, the manager's chair, both finale squads,
@@ -868,7 +893,10 @@ button {
   --chip-h: 24px;
   border: 2px solid var(--line);
   border-radius: 999px;
-  background: var(--ink);
+  /* Fill matches the ring — one gray, not ink-in-a-gray-frame: the two-tone
+     read as a chip wearing a halo, and the .pos.pit position tags made the
+     same trade on the same day. Cream type on --line still clears 7:1. */
+  background: var(--line);
   color: var(--card);
   font-weight: 800;
   font-size: 12px;
@@ -876,6 +904,10 @@ button {
   /* A real button whose row sets cursor context — the pill is always the
      committing tap, so it always promises one. */
   cursor: pointer;
+  /* Positioned so a commit pill paints ABOVE its row button's invisible
+     tap extension (the earlier sibling's ::after would otherwise cover it —
+     see the row tap surface below). */
+  position: relative;
 }
 /* Ink fill on dark background — browser default focus ring may not read.
    Inset blue ring matches the .btn:focus-visible and seedgo recipes. */
@@ -906,6 +938,25 @@ button {
   font-size: inherit;
   color: inherit;
   text-align: left;
+  position: relative;
+}
+/* The button fills the row's CONTENT box, so the row's own padding and border
+   were a dead ring — a tap on a row's visible edge did nothing while the
+   whole card reads as one control. The invisible extension (the pills' own
+   device) reaches exactly to the row's outer edge: 6px padding + 2.5px border
+   at phone, 8px padding at wide. The commit pill that swaps in beside this
+   button stays tappable because .confirm is positioned (see its recipe). */
+.prow-btn::after,
+.srow-btn::after {
+  content: "";
+  position: absolute;
+  inset: -8.5px -12.5px;
+}
+@media (min-width: 760px) {
+  .prow-btn::after,
+  .srow-btn::after {
+    inset: -10.5px -12.5px;
+  }
 }
 @media (min-width: 760px) {
   .prow-btn,

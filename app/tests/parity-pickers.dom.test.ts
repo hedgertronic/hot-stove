@@ -253,10 +253,10 @@ describe("the help sheet teaches with the real parts", () => {
     await ui.done();
   });
 
-  it("says PRIMETIME, one word, exactly as the pill does", async () => {
+  it("says PRIME TIME, two words, exactly as the pill does", async () => {
     const ui = open(HelpModal, {});
-    expect(ui.target.innerHTML).toContain("PRIMETIME");
-    expect(ui.target.innerHTML).not.toContain("PRIME TIME");
+    expect(ui.target.innerHTML).toContain("PRIME TIME");
+    expect(ui.target.innerHTML).not.toContain("PRIMETIME");
     await ui.done();
   });
 });

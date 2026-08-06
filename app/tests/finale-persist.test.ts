@@ -185,6 +185,40 @@ describe("archiving the finale", () => {
   });
 });
 
+describe("a reload during finalization", () => {
+  it("still reaches the finale — the pre-finishGame save is resumable", async () => {
+    // `endSpin` saves a completed club as "landed, nothing left" BEFORE
+    // handing it to the async `finishGame`, so a tab evicted in that window
+    // cannot lose the club-completing move. This is the other half of that
+    // promise: the restore path must re-run `endSpin` (outside any Double
+    // Play branch — where the call once hid) so `finishGame` starts over.
+    // Without it the restored game sits on a card with no legal action and
+    // no route to its own finale.
+    const g = new Game(meta, index, owners, 42, {
+      difficulty: "standard",
+      bank: "moneyball",
+    });
+    g.card = theCard;
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    g.seen = [{ team: "CHC", year: 2016 }];
+    for (let i = 0; i < SLOT_TYPES.length; i++) g.slots[i] = filler(i);
+    g.hireManager();
+    // The window: endSpin's save exists, finishGame has not finished.
+    const midSave = store.get(SAVE_KEY);
+    expect(midSave).toBeDefined();
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+
+    store.clear();
+    store.set(SAVE_KEY, midSave!);
+    const back = await Game.restore(meta, index, owners);
+    expect(back).not.toBeNull();
+    await vi.waitFor(() => expect(back!.phase).toBe("finale"));
+    expect(back!.finale).not.toBeNull();
+    expect(back!.finale!.wins).toBe(g.finale!.wins);
+  });
+});
+
 describe("restoring on boot", () => {
   it("renders the same finale it stored", async () => {
     const g = await playToFinale();

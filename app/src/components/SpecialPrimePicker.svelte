@@ -110,15 +110,15 @@
 <Sheet
   {onclose}
   label="Pick a season of this manager's career"
-  title="⭐ PRIMETIME: 🧢 {skipper}"
+  title="⭐ PRIME TIME: 🧢 {skipper}"
   confirmLabel="CANCEL"
 >
   {#if failed}
     <div class="picker-note">Couldn't load the career. Try again.</div>
   {:else if rows === null}
     <div class="picker-note">Pulling the file…</div>
-  {:else if rows.length <= 1}
-    <div class="picker-note">One-year wonder — no other seasons to visit.</div>
+  {:else if rows.length === 0}
+    <div class="picker-note">No seasons on file for this manager.</div>
   {:else}
     <div class="picker-list">
       {#each rows as row ((row.team + row.year))}

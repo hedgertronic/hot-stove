@@ -95,6 +95,7 @@ describe("review fixes: the two markets share one right edge", () => {
     // back into any of them, or that surface's chips overhang the rest.
     for (const f of [
       "components/PlayerList.svelte",
+      "components/MarketRow.svelte",
       "components/PrimePicker.svelte",
       "components/SpecialPrimePicker.svelte",
       "components/SpecialRows.svelte",
@@ -152,7 +153,7 @@ describe("review fixes: names and keys assistive tech is owed", () => {
 describe("review fixes: the confirm pill wears the --line frame", () => {
   const css = read("app.css");
 
-  it(".confirm base lives in app.css with --line border and ink fill", () => {
+  it(".confirm base lives in app.css with --line border and matching fill", () => {
     // Two blocks answer to `.confirm`: the shared `.chipbox, .confirm` recipe
     // and the pill's own. The last one is the pill's.
     const blocks = [...css.matchAll(/(?:^|\n)\.confirm \{([^}]*)\}/g)].map((m) => m[1]);
@@ -160,7 +161,10 @@ describe("review fixes: the confirm pill wears the --line frame", () => {
     const block = blocks.at(-1)!;
     expect(block, "app.css .confirm uses --line border").toContain("border: 2px solid var(--line)");
     expect(block, "app.css .confirm has no ink border").not.toContain("border: 2px solid var(--ink)");
-    expect(block, "app.css .confirm ink fill is preserved").toContain("background: var(--ink)");
+    // The fill matches the ring (owner's call, round four): one gray, not
+    // ink in a gray frame — .pos.pit made the same trade the same day.
+    expect(block, "app.css .confirm fill matches its ring").toContain("background: var(--line)");
+    expect(block, "app.css .confirm has no ink fill").not.toContain("background: var(--ink)");
   });
 
   it("components keep only their position deltas — no base re-declaration", () => {
@@ -177,7 +181,7 @@ describe("review fixes: the confirm pill wears the --line frame", () => {
         "border: 2px solid var(--line)",
       );
       expect(block, `${f} .confirm does not re-declare base background`).not.toContain(
-        "background: var(--ink)",
+        "background: var(--line)",
       );
     }
   });

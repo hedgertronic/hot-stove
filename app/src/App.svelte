@@ -68,20 +68,34 @@
     import("./lab/Lab.svelte").then((m) => (LabComp = m.default));
   }
 
+  /** The boot meter's numerator: the five discrete steps between mount and a
+   * playable screen — four data files plus the save restore. Steps rather
+   * than bytes on purpose: byte progress needs streamed fetches for four
+   * differently-sized files and buys a smoother lie, while a step meter is
+   * honest about what boot actually is and costs one counter. On a warm
+   * cache the whole bar fills in a blink, which is the right message. */
+  const BOOT_STEPS = 5;
+  let bootDone = $state(0);
+
   $effect(() => {
+    const step = <T,>(p: Promise<T>): Promise<T> =>
+      p.then((r) => {
+        bootDone += 1;
+        return r;
+      });
     void (async () => {
       try {
         const [meta, index, owners, cols] = await Promise.all([
-          loadMeta(),
-          loadIndex(),
-          loadOwners(),
-          loadColors(),
+          step(loadMeta()),
+          step(loadIndex()),
+          step(loadOwners()),
+          step(loadColors()),
         ]);
         deps = { meta, index, owners };
         colors = cols;
         // A mid-game save resumes straight into the game (iOS tab eviction);
         // otherwise land on the mode-select home screen.
-        const saved = await Game.restore(meta, index, owners);
+        const saved = await step(Game.restore(meta, index, owners));
         if (saved) {
           game = saved;
           screen = "game";
@@ -149,19 +163,31 @@
    * reconstruction is inert, and this path deliberately avoids `startGame`
    * (which saves settings and clears the stored finale), `openFinale` (which
    * claims the boot screen), and `goHome` (which releases that claim). */
+  /** Single-flight: reconstruction awaits card fetches, and a second GO tap
+   * during that window would stash the FIRST replay as the "original" screen
+   * — exiting would then land on a replay that thinks it isn't one. The
+   * second tap is refused instead (the home screen answers with its shake,
+   * which is honest enough for a double-tap). */
+  let replayBusy = false;
+
   async function openReplay(code: string): Promise<boolean> {
-    if (!deps) return false;
-    const back = await replayShortcode(deps.meta, deps.index, deps.owners, code);
-    if (!back) return false;
-    stashed = { game, screen, restoredFinale };
-    game = back;
-    // Resolved, like every finale that was not just earned here: no reveal to
-    // sit through, no `game_finish` event, and no trophy cue for badges that
-    // belong to somebody else's season.
-    restoredFinale = true;
-    replaying = true;
-    screen = "game";
-    return true;
+    if (!deps || replayBusy) return false;
+    replayBusy = true;
+    try {
+      const back = await replayShortcode(deps.meta, deps.index, deps.owners, code);
+      if (!back) return false;
+      stashed = { game, screen, restoredFinale };
+      game = back;
+      // Resolved, like every finale that was not just earned here: no reveal
+      // to sit through, no `game_finish` event, and no trophy cue for badges
+      // that belong to somebody else's season.
+      restoredFinale = true;
+      replaying = true;
+      screen = "game";
+      return true;
+    } finally {
+      replayBusy = false;
+    }
   }
 
   /** Leave a replay for whatever the viewer had before it — their live game,
@@ -239,7 +265,7 @@
       // confirm the player let lapse. It is the one badge no resolver pushes:
       // badges are read off a finished season and this path produces none, so
       // it is written straight into the log as an unscored row.
-      recordQuit();
+      if (game) recordQuit(game.config.difficulty, game.config.bank);
       // The confirmed tap only, matching recordQuit: arming the ✕ and thinking
       // better of it is not a quit and must not be counted as one.
       track("game_quit");
@@ -375,7 +401,36 @@
 {:else if bootError}
   <div class="boot disp">Couldn't load the league. {bootError}</div>
 {:else if !booted || !colors}
-  <div class="boot disp">Warming up the stove…</div>
+  <!-- The same title card index.html paints before the bundle arrives — the
+       HOME masthead (the real <Logo big/> here; a hand-inlined replica of it
+       in index.html #static-boot, values matched span for span) at the same
+       38vh anchor, so the static→app handoff is pixel-still. The loading
+       line and meter live in .bootload, which fades in on a CSS delay: a
+       warm-cache boot swaps to the game before the delay expires, so a fast
+       load is one steady title card with no meter flash, and only a
+       genuinely slow load ever shows the bar. -->
+  <div class="boot disp">
+    <div class="bootmast"><Logo big /></div>
+    <div class="boottag">Spin for teams. Sign players. Chase 162 wins.</div>
+    <!-- `now`: the static card's warming line already served its 400ms wait —
+         the bundle alone took longer than the delay — so this card's copy of
+         the line shows immediately instead of blinking out for a second
+         400ms. performance.now() counts from navigation start, which is the
+         same clock the static line's CSS delay effectively started on. -->
+    <div class="bootload" class:now={typeof performance !== "undefined" && performance.now() > 400}>
+      <div class="bootline">Warming up the stove…</div>
+      <div
+        class="bootmeter"
+        role="progressbar"
+        aria-label="Loading the league"
+        aria-valuemin="0"
+        aria-valuemax={BOOT_STEPS}
+        aria-valuenow={bootDone}
+      >
+        <div class="bootfill" style="width: {(bootDone / BOOT_STEPS) * 100}%"></div>
+      </div>
+    </div>
+  </div>
 {:else if screen === "home" || !game}
   <Home config={settings} onplay={startGame} onopen={openFinale} onreplay={openReplay} />
 {:else}
@@ -404,7 +459,7 @@
       {#if modeChip}<span class="modechip" title={modeTitle} aria-label={modeTitle}>{modeChip}</span>{/if}
     </span>
     <button
-      class="quit"
+      class="quit chipbox"
       class:armed={quitArmed}
       class:instant={game.phase === "finale"}
       class:pushed={undoArmed}
@@ -416,7 +471,7 @@
           ? "Back to the home screen"
           : "Quit this game"}
     >
-      {#if quitArmed}QUIT?{:else}<CloseGlyph />{/if}
+      {#if quitArmed}<span class="chiplbl">QUIT?</span>{:else}<CloseGlyph />{/if}
     </button>
   </header>
 
@@ -483,8 +538,78 @@
   .boot {
     text-align: center;
     color: var(--muted);
-    padding: 40vh 0;
+    /* Static boot's exact box (index.html #static-boot): same 38vh anchor,
+       same side padding, same stated line-height (the static card can't
+       inherit app.css's), so the pre-mount card and this one don't jump. */
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 38vh 24px 0;
+    line-height: 1;
     font-weight: 700;
+  }
+  /* The masthead line: <Logo big> here, its hand-inlined twin in the static
+     card. The wrapper exists because Logo is inline-flex and the h1 twin
+     needs a matching block seat to center in. */
+  .bootmast {
+    color: var(--ink);
+  }
+  /* Home's .pitch voice, verbatim — the boot card is the masthead, so the
+     tagline wears the caption register the home screen gives it. */
+  .boottag {
+    margin-top: 8px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  /* Loading UI held back behind a pure-CSS delay: opacity only (no layout
+     shift), so a boot that finishes inside the delay never flashes it. */
+  .bootload {
+    opacity: 0;
+    animation: bootfade 0.25s ease 0.4s forwards;
+  }
+  /* The wait was already served by the static card's line (see the `now`
+     comment in the markup): show, don't re-fade. */
+  .bootload.now {
+    opacity: 1;
+    animation: none;
+  }
+  /* app.css kills every animation for reduce-motion readers, and this box
+     RELIES on one to become visible — rest it visible there instead, or a
+     slow load shows no sign of life at all. */
+  @media (prefers-reduced-motion: reduce) {
+    .bootload {
+      opacity: 1;
+    }
+  }
+  @keyframes bootfade {
+    to {
+      opacity: 1;
+    }
+  }
+  .bootline {
+    margin-top: 22px;
+  }
+  /* The meter: a small cardstock capsule under the line, filling with the
+     stove's own heat orange as the five boot steps land (BOOT_STEPS above).
+     The transition smooths step jumps into a pour; on a warm cache it fills
+     in one hop, which reads as the fast load it is. Height and border are
+     whole pixels for the chip-recipe reason. */
+  .bootmeter {
+    width: 180px;
+    height: 12px;
+    margin: 12px auto 0;
+    border: 2px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    overflow: hidden;
+  }
+  .bootfill {
+    height: 100%;
+    background: var(--orange-8);
+    border-radius: 999px;
+    transition: width 0.25s ease;
   }
   .hud {
     display: flex;
@@ -509,19 +634,19 @@
     /* 12px, not 10: the trophy is a 13px drawing, and a 10px glyph beside it
        read as the smaller sibling rather than its twin. */
     font-size: 12px;
-    line-height: 1;
-    padding: 0;
+    /* Inline only: the block axis belongs to the chipbox recipe this pill now
+       wears (markup class) — its fallback constant and trim branch seat the
+       armed "QUIT?" caps on center in both engines. A `padding: 0` shorthand
+       would kill the recipe's padding-block correction on non-trim engines. */
+    padding-inline: 0;
     width: 28px;
     text-align: center;
     cursor: pointer;
     /* Fixed height and centering so all three corner pills share one box: the
        ? and ✕ are text glyphs and the trophy is a 13px drawing, and letting
        content set the height made the trophy the odd one out. */
-    height: 22px;
+    --chip-h: 22px;
     box-sizing: border-box;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     /* The same press dip its three corner twins carry (CornerButtons .help)
        — the ✕ was the one pill in the row that did not move under a tap.
        app.css kills the transition for reduced-motion readers. */

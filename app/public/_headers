@@ -1,0 +1,27 @@
+# Cloudflare Workers static-assets headers (Pages-style syntax). GH Pages
+# ignores this file — its headers are fixed (max-age=600, gzip only) — so it
+# costs nothing there and takes effect on the workers.dev deploy now and on
+# the hedgertronic.com zone route after the nameserver move.
+
+# Baseline hardening, everywhere. No CSP on purpose for now: the GA snippet
+# is an inline script plus a Google-hosted loader, and a policy tight enough
+# to be worth shipping needs nonces or hashes wired through the build — a
+# deliberate follow-up, not a one-liner. Framing is left OPEN on purpose too:
+# there is nothing to clickjack (no auth, no payments), and an embeddable
+# game spreads further than a framed-blocked one.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Content-hashed bundle files: safe to cache forever — a redeploy changes the
+# filename, never the content behind one.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Data files are NOT hashed (data/index.json, data/cards/*.json), so they must
+# stay revalidatable: immutable here would strand players on a stale league
+# after a data rebuild. One hour keeps repeat spins off the network without
+# pinning a redeploy out of reach.
+/data/*
+  Cache-Control: public, max-age=3600

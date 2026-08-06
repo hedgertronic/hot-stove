@@ -120,11 +120,12 @@ const seatsOf = (name: string): string[] =>
  * silently: give RailSeat a wrapper element and every match truncates at the
  * wrong closing tag, `seatsOf` returns nothing for everybody, and a test whose
  * every assertion is "each seat found wears the right rung" passes over an
- * empty set. Pinning the count is what makes that failure loud instead — eleven
+ * empty set. Pinning the count is what makes that failure loud instead — twelve
  * chairs: nine in the rail (the manager plus the full eight player seats) and
- * two lit by the slot picker. A specimen added or removed lands here first. */
+ * three lit by the slot picker (IF, OF, and the UTIL seat the multi-group rule
+ * pools with them). A specimen added or removed lands here first. */
 it("finds every chair the sheet draws", () => {
-  expect(SEATS).toHaveLength(11);
+  expect(SEATS).toHaveLength(12);
 });
 
 describe("the help sheet's player specimens", () => {
@@ -188,9 +189,13 @@ describe("the help sheet's player specimens", () => {
     expect(BODY).toContain(">Ben Zobrist<");
     expect(BODY).toContain(">8.6<");
     expect(BODY).toContain("$1M");
-    // Two lit seats and an instruction, which is the screen those two
-    // eligibilities actually produce.
-    expect(BODY).toContain("↑ PICK A SLOT");
+    // Three lit seats and an instruction, which is the screen those two
+    // eligibilities actually produce: the multi-group rule (engine
+    // `pickableSlotCells`) pools UTIL with the specialist seats. The arrow
+    // is its own span with the market's 4px margin, not a character inside
+    // the label, so the pin reads the two parts separately.
+    expect(BODY).toMatch(/class="[^"]*\bph\b[^"]*"[^>]*>↑</);
+    expect(BODY).toContain(">PICK A SLOT<");
   });
 });
 
@@ -246,7 +251,11 @@ describe("the help sheet's manager specimen", () => {
         path.resolve(path.dirname(fileURLToPath(import.meta.url)), `../src/components/${f}`),
         "utf8",
       );
-    for (const f of ["HelpModal.svelte", "PlayerList.svelte", "PrimePicker.svelte"]) {
+    // MarketRow carries the market's own `.right` (the help specimen and
+    // PlayerList both render it, so drift is impossible by construction);
+    // HelpModal keeps a geometry-only copy for its paint-stripped legend, and
+    // PrimePicker its own market-twin — both must keep matching.
+    for (const f of ["HelpModal.svelte", "MarketRow.svelte", "PrimePicker.svelte"]) {
       // The base rule is the one anchoring the column (`margin-left: auto`);
       // matching bare `.right {` could land on a media-tier override instead.
       const right = read(f).match(/\.right \{[^}]*margin-left: auto[^}]*\}/)?.[0] ?? "";
@@ -293,12 +302,12 @@ describe("the help sheet is a diagram, not a control surface", () => {
   const BUTTONS = [...BODY.matchAll(/<button[^>]*>/g)].map((m) => m[0]);
 
   it("renders every embedded specimen control inert", () => {
-    // The components that render buttons — RailSeat's two pickable seats, lit
-    // by the slot picker, and SpecialRows' three tiles — all take the specimen
-    // flag, which puts the native `inert` attribute on them: no tab stop, no
-    // click, no promise of one.
+    // The components that render buttons — RailSeat's three pickable seats,
+    // lit by the slot picker, and SpecialRows' three tiles — all take the
+    // specimen flag, which puts the native `inert` attribute on them: no tab
+    // stop, no click, no promise of one.
     const specimens = BUTTONS.filter((b) => /class="[^"]*(?:cell|srow)/.test(b));
-    expect(specimens).toHaveLength(5);
+    expect(specimens).toHaveLength(6);
     for (const b of specimens) expect(b).toContain("inert");
   });
 
@@ -414,9 +423,9 @@ describe("the help sheet's scoring copy", () => {
     // The POWERUPS section is the pill table and the two spent/off pills, and
     // that is all: the 🔁 two-tap mock taught nothing its own table row did
     // not already say. Its instruction pill is the tell.
-    expect(BODY).not.toContain("TAP WHO TO TRADE");
+    expect(BODY).not.toContain("WHO GOES?");
     // The slot picker's is the sheet's one remaining instruction pill.
-    expect(BODY).toContain("↑ PICK A SLOT");
+    expect(BODY).toContain(">PICK A SLOT<");
   });
 
   it("removes the armed sample pills from the POWERUPS table", () => {
@@ -536,7 +545,7 @@ describe("the help sheet's position chip updates (round 1.0.0)", () => {
   const chipMap = new Map(posChips);
 
   it("shows SP and RP chips with the pit (inverted) class", () => {
-    // Market rows mark pitchers with an ink-on-card fill (.pos.pit); the seat
+    // Market rows mark pitchers with a line-gray fill (.pos.pit); the seat
     // badges must match so the help sheet doesn't teach a different visual.
     // Svelte SSR: class="svelte-HASH pit" — match word boundary, not prefix.
     expect(chipMap.has("SP"), "SP chip not in slot-badges").toBe(true);

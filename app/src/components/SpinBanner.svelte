@@ -189,7 +189,11 @@
 {#if game.loadFailed}
   <div class="cold disp">
     <div class="coldmsg">📡 SIGNAL LOST: the card didn't come through</div>
-    <button class="btn spinbtn disp" onclick={retry}>TAP TO RETRY</button>
+    <!-- The market's SHOW N MORE capsule, not the big spin button: a retry is
+         a small recovery, and the full-width 48px button gave it a spin's
+         weight. (SPIN AGAIN · FREE below keeps the big button — it IS the
+         spin.) -->
+    <button class="retry disp" onclick={retry}>TAP TO RETRY</button>
   </div>
 {:else if game.coldStove}
   <div class="cold disp">
@@ -241,7 +245,7 @@
     gap: 7px;
   }
   .bline.team {
-    margin-top: 5px;
+    margin-top: 8px;
   }
   /* The spun year is a club color, so it takes the pair like everything else —
      except that its hue arrives at runtime from colors.json and can't be looked
@@ -301,6 +305,31 @@
     width: 100%;
     margin: 4px 0 12px;
     min-height: 48px;
+  }
+  /* PlayerList's .more capsule, verbatim — the two are the board's small
+     tap-to-continue voice (both sized to the powerup pills' base recipe). */
+  .retry {
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    width: fit-content;
+    margin: 6px auto 12px;
+    padding: 5px 11px;
+    cursor: pointer;
+    background: var(--card);
+    border: 2px solid var(--line);
+    border-radius: 999px;
+    font-family: inherit;
+    transition: transform 0.08s;
+    display: block;
+  }
+  .retry:active {
+    transform: translateY(2px);
+  }
+  .retry:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
   }
   .cold {
     text-align: center;

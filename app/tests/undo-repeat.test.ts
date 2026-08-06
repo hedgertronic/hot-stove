@@ -1,11 +1,11 @@
-/** 🎠 MERRY-GO-ROUND — repeated undo of the same move.
+/** 🎠 MERRY-GO-ROUND — three or more moves taken back in one game.
  *
- * The badge fires when the same actionSig is undone three or more times in
- * one game: make a move, undo it, remake it exactly, undo it, remake it,
- * undo it. The counter (`undoCounts`) is a run fact that is never
- * decremented and never reset by a rewind (a snapshot was taken before the
- * move it records, so a hydrate that carried it would clear it on the one
- * call that earns it). */
+ * The trigger reads TOTAL undos: the once-per-spin rule (engine
+ * `undoSpent`) closed the old make → undo → remake carousel, so the badge
+ * now asks for three rewinds across a season. The counters (`undoCounts`)
+ * are a run fact, never decremented and never reset by a rewind (a snapshot
+ * was taken before the move it records, so a hydrate that carried them would
+ * clear them on the one call that earns them). */
 import { beforeEach, describe, expect, it } from "vitest";
 import { earnedBadges, BADGE_BY_KEY, type BadgeFacts } from "../src/lib/badges";
 import { Game, SLOT_TYPES } from "../src/lib/engine.svelte";
@@ -37,8 +37,6 @@ function player(over: Partial<CardPlayer> = {}): CardPlayer {
   };
 }
 
-const SHARED_PLAYER = player({ id: "shared01", pos: "1B" });
-
 function card(team: string, year: number): Card {
   return {
     year,
@@ -56,8 +54,16 @@ function card(team: string, year: number): Card {
     stadiumMult: 1.1,
     budget: 130,
     prorated: 1,
-    // All cards share the same player so the same action sig can be repeated.
-    players: [SHARED_PLAYER],
+    // A bench per card, one man per slot family: the reel draws with
+    // replacement, so a re-spun card can come back with some men already
+    // rostered — the tests sign "whoever is open" and need someone to be.
+    players: [
+      player({ id: `${team.toLowerCase()}C`, pos: "C", posG: { c: 100, if: 0, of: 0 } }),
+      player({ id: `${team.toLowerCase()}IF`, pos: "1B", posG: { c: 0, if: 100, of: 0 } }),
+      player({ id: `${team.toLowerCase()}OF`, pos: "CF", posG: { c: 0, if: 0, of: 100 } }),
+      player({ id: `${team.toLowerCase()}SP`, pos: "SP", posG: { c: 0, if: 0, of: 0 } }),
+      player({ id: `${team.toLowerCase()}RP`, pos: "RP", posG: { c: 0, if: 0, of: 0 } }),
+    ],
   };
 }
 
@@ -158,84 +164,114 @@ describe("🎠 MERRY-GO-ROUND", () => {
     expect(def.freq).toBeNull();
   });
 
-  it("is NOT set after only two undos of the same move", async () => {
-    // Two undos: make → undo → remake → undo. One short of the threshold.
-    const g = await spunOn("AAA");
-    const p = g.card!.players[0];
+  /** The landed card's first signable man — the reel draws with replacement,
+   * so a returning card can hold men already rostered. */
+  function openPlayer(g: Game) {
+    const p = g.card!.players.find((x) => g.playerState(x) === "open");
+    if (!p) throw new Error("no open player on the landed card");
+    return p;
+  }
 
-    g.signPlayer(p);
+  /** Rewind the current turn, re-commit, and move the reel on — the only way
+   * to spend more than one undo now that a turn holds exactly one. */
+  async function undoAndMoveOn(g: Game) {
     g.undo();
-    g.signPlayer(p);
-    g.undo();
+    g.signPlayer(openPlayer(g));
+    g.spin();
+    await g.land();
+  }
+
+  it("is NOT set after only two undos", async () => {
+    const g = await spunOn("AAA");
+    g.signPlayer(openPlayer(g));
+    await undoAndMoveOn(g); // undo 1, next turn
+    g.signPlayer(openPlayer(g));
+    await undoAndMoveOn(g); // undo 2, next turn
     expect(g.repeatedUndo).toBe(false);
   });
 
-  it("is set on the third undo of the same action sig", async () => {
+  it("is set on the third undo of the game", async () => {
     const g = await spunOn("AAA");
-    const p = g.card!.players[0];
-
-    // Spin 1: sign → undo (count 1)
-    g.signPlayer(p);
+    g.signPlayer(openPlayer(g));
+    await undoAndMoveOn(g); // undo 1
     expect(g.repeatedUndo).toBe(false);
-    g.undo();
+    g.signPlayer(openPlayer(g));
+    await undoAndMoveOn(g); // undo 2
     expect(g.repeatedUndo).toBe(false);
-
-    // Spin 2: same player, same card → same sig → undo (count 2)
-    g.signPlayer(p);
-    g.undo();
-    expect(g.repeatedUndo).toBe(false);
-
-    // Spin 3: same player again → undo (count 3 → badge)
-    g.signPlayer(p);
-    g.undo();
+    g.signPlayer(openPlayer(g));
+    g.undo(); // undo 3 → badge
     expect(g.repeatedUndo).toBe(true);
   });
 
   it("is sticky — stays true once set", async () => {
     const g = await spunOn("AAA");
-    const p = g.card!.players[0];
-
-    g.signPlayer(p); g.undo();
-    g.signPlayer(p); g.undo();
-    g.signPlayer(p); g.undo();
+    g.signPlayer(openPlayer(g));
+    await undoAndMoveOn(g);
+    g.signPlayer(openPlayer(g));
+    await undoAndMoveOn(g);
+    g.signPlayer(openPlayer(g));
+    await undoAndMoveOn(g); // undo 3 → true
     expect(g.repeatedUndo).toBe(true);
 
-    // A fourth undo: stays true.
-    g.signPlayer(p);
+    // A fourth, on the fourth turn: stays true.
+    g.signPlayer(openPlayer(g));
     g.undo();
     expect(g.repeatedUndo).toBe(true);
   });
 
-  it("does not fire for undos of DIFFERENT action sigs", async () => {
-    // Each card's spin produces a sign|SHARED01|<team>|<year>|<slot> —
-    // switching cards changes the team/year part, so even though the player
-    // id is the same, the sigs differ.
+  it("a turn holds exactly one rewind — THE ONCE-PER-TURN RULE", async () => {
     const g = await spunOn("AAA");
-    const p = g.card!.players[0];
-
-    // Two undos on AAA 2001
-    g.signPlayer(p); g.undo();
-    g.signPlayer(p); g.undo();
+    const p = openPlayer(g);
+    g.signPlayer(p);
+    expect(g.canUndo).toBe(true);
+    g.undo();
+    // Re-committing on the same landed card takes a fresh point, but this
+    // turn's rewind is spent: the pill stays dark and a second undo is a
+    // no-op.
+    g.signPlayer(p);
+    expect(g.canUndo).toBe(false);
+    const slotsAfter = JSON.stringify(g.slots);
+    g.undo();
+    expect(JSON.stringify(g.slots)).toBe(slotsAfter);
     expect(g.repeatedUndo).toBe(false);
 
-    // Move to a different card (manually force a different card to avoid
-    // spinning into the same one again)
-    const bbb = CARDS.find((c) => c.team === "BBB")!;
-    g.card = bbb;
-    const pBbb = bbb.players[0];
+    // The reel moving on does NOT resurrect the re-commit — its point was
+    // taken on a spent turn and is dead for good. Undo from the new card's
+    // window would land the player back on the audited card with the loop
+    // reopened, which is exactly what the rule closes.
+    g.spin();
+    await g.land();
+    expect(g.canUndo).toBe(false);
 
-    // One undo on BBB 2002 — different sig, so NOT a third undo for AAA
-    g.signPlayer(pBbb); g.undo();
-    expect(g.repeatedUndo).toBe(false);
+    // The NEXT decision is what re-arms the pill: a fresh point, flag down.
+    g.signPlayer(openPlayer(g));
+    expect(g.canUndo).toBe(true);
+  });
+
+  it("the spent flag survives the save/restore round trip", async () => {
+    const g = await spunOn("AAA");
+    const p = openPlayer(g);
+    g.signPlayer(p);
+    g.undo();
+    g.signPlayer(p); // same window, spent — and save() has run
+    expect(g.canUndo).toBe(false);
+
+    // A reload must not hand the same window a second rewind: the restored
+    // game holds no undo point at all (that is the reload's own rule), and
+    // the spent flag comes back with it.
+    const back = (await Game.restore(meta, index, owners))!;
+    expect(back.canUndo).toBe(false);
+    expect(back.undoSpent).toBe(true);
   });
 
   it("survives the save/restore round trip", async () => {
     const g = await spunOn("AAA");
-    const p = g.card!.players[0];
-
-    g.signPlayer(p); g.undo();
-    g.signPlayer(p); g.undo();
-    g.signPlayer(p); g.undo();
+    g.signPlayer(openPlayer(g));
+    await undoAndMoveOn(g);
+    g.signPlayer(openPlayer(g));
+    await undoAndMoveOn(g);
+    g.signPlayer(openPlayer(g));
+    g.undo();
     expect(g.repeatedUndo).toBe(true);
     expect(store.has(SAVE_KEY)).toBe(true);
 
@@ -245,7 +281,7 @@ describe("🎠 MERRY-GO-ROUND", () => {
 
   it("old saves without repeatedUndo restore as false (never a free badge)", async () => {
     const g = await spunOn("AAA");
-    const p = g.card!.players[0];
+    const p = openPlayer(g);
     g.signPlayer(p);
     const raw = JSON.parse(store.get(SAVE_KEY)!);
     delete raw.repeatedUndo;

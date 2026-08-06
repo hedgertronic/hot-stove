@@ -4,7 +4,7 @@
  * `finishGame` from the season the game produced, and quitting produces no
  * season: it drops the save and goes home without ever reaching a finale, so
  * `earnedBadges()` never runs on that path and no trigger can be written
- * inside it. `recordQuit()` writes it straight into the log instead.
+ * inside it. `recordQuit("standard", "classic")` writes it straight into the log instead.
  *
  * What makes that safe is the row's SHAPE, and that is what most of this file
  * asserts. A quit row carries a date and the key and nothing else — no
@@ -58,7 +58,7 @@ beforeEach(() => store.clear());
 
 describe("the row a quit writes", () => {
   it("carries the badge key and no score at all", () => {
-    recordQuit();
+    recordQuit("standard", "classic");
     const log = loadHistory();
     expect(log).toHaveLength(1);
     expect(log[0].badges).toEqual(["packedin"]);
@@ -69,13 +69,28 @@ describe("the row a quit writes", () => {
     expect(log[0].record).toBeUndefined();
     expect(log[0].spins).toBeUndefined();
     expect(typeof log[0].date).toBe("string");
+    // The abandoned game's mode, stamped like a finished row's — without it
+    // the quit row named no mode and 🧳 vanished under every trophy-case lens.
+    expect(log[0].difficulty).toBe("standard");
+    expect(log[0].bank).toBe("classic");
+    expect(log[0].v).toBe(2);
+  });
+
+  it("shows under the lens of the mode it abandoned, and no other", () => {
+    recordQuit("scout", "moneyball");
+    const under = (f: Parameters<typeof badgeCase>[0]) =>
+      badgeCase(f).tiles.some((t) => t.key === "packedin");
+    expect(under({ difficulties: ["scout"] })).toBe(true);
+    expect(under({ banks: ["moneyball"] })).toBe(true);
+    expect(under({ difficulties: ["standard"] })).toBe(false);
+    expect(under({ banks: ["classic"] })).toBe(false);
   });
 
   it("names a key the badge table still owns", () => {
     // `recordQuit` spells "packedin" itself — nothing in the badge resolver
     // pushes it, so a rename in badges.ts would otherwise leave this writing a
     // key the trophy case drops on the floor, silently and forever.
-    recordQuit();
+    recordQuit("standard", "classic");
     const def = BADGE_BY_KEY[loadHistory()[0].badges![0]];
     expect(def).toBeDefined();
     expect(def.label).toBe("PACKED IT IN");
@@ -89,8 +104,8 @@ describe("what a quit must not disturb", () => {
     const before = bestFor("standard", "classic");
     expect(before.games).toBe(1);
 
-    recordQuit();
-    recordQuit();
+    recordQuit("standard", "classic");
+    recordQuit("standard", "classic");
 
     const after = bestFor("standard", "classic");
     expect(after.games).toBe(1);
@@ -99,7 +114,7 @@ describe("what a quit must not disturb", () => {
   });
 
   it("counts for nothing in an empty record book either", () => {
-    recordQuit();
+    recordQuit("standard", "classic");
     expect(bestFor("standard", "classic")).toEqual({
       best: null,
       bestRecord: null,
@@ -110,7 +125,7 @@ describe("what a quit must not disturb", () => {
   it("leaves N OF M alone — an anti-trophy is not progress", () => {
     finished();
     const before = badgeCase();
-    recordQuit();
+    recordQuit("standard", "classic");
     const after = badgeCase();
     expect(after.earned).toBe(before.earned);
     expect(after.total).toBe(before.total);
@@ -121,7 +136,7 @@ describe("what a quit must not disturb", () => {
     // firstEverPlay asks "do you know how this works", not "have you pressed
     // PLAY". A player who quit their first game has still seen no result.
     expect(firstEverPlay()).toBe(true);
-    recordQuit();
+    recordQuit("standard", "classic");
     expect(firstEverPlay()).toBe(true);
     finished();
     expect(firstEverPlay()).toBe(false);
@@ -130,7 +145,7 @@ describe("what a quit must not disturb", () => {
 
 describe("what a quit does show", () => {
   it("puts a tile in the case", () => {
-    recordQuit();
+    recordQuit("standard", "classic");
     const tiles = badgeCase().tiles;
     expect(tiles.map((t) => t.key)).toContain("packedin");
     expect(tiles.find((t) => t.key === "packedin")!.count).toBe(1);
@@ -140,14 +155,14 @@ describe("what a quit does show", () => {
     // A citation, not a target: four quits read as 🧳 ×4, the same way four
     // games that earned a badge read as ×4. Nothing about the case treats it
     // as a special case, which is what makes it read sanely.
-    for (let i = 0; i < 4; i++) recordQuit();
+    for (let i = 0; i < 4; i++) recordQuit("standard", "classic");
     expect(badgeCase().tiles.find((t) => t.key === "packedin")!.count).toBe(4);
     expect(loadHistory()).toHaveLength(4);
   });
 
   it("lights the trophy cue the first time and never again", () => {
     expect(loadCues().pendingBadges).toEqual([]);
-    recordQuit();
+    recordQuit("standard", "classic");
     expect(loadCues().pendingBadges).toEqual(["packedin"]);
 
     // The case has been opened; a second quit is no longer news.
@@ -155,7 +170,7 @@ describe("what a quit does show", () => {
       "hotstove.cues",
       JSON.stringify({ v: 1, pendingBadges: [], helpSeen: true }),
     );
-    recordQuit();
+    recordQuit("standard", "classic");
     expect(loadCues().pendingBadges).toEqual([]);
   });
 
@@ -164,7 +179,7 @@ describe("what a quit does show", () => {
     // reads as no history, so the cue lights — the conservative answer, and
     // the same one every other reader in settings.ts gives.
     store.set(HISTORY_KEY, "%%%");
-    recordQuit();
+    recordQuit("standard", "classic");
     expect(loadCues().pendingBadges).toEqual(["packedin"]);
   });
 });

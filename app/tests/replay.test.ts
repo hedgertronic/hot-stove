@@ -32,7 +32,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Game, HOMEGROWN_PRICE_M, SLOT_TYPES } from "../src/lib/engine.svelte";
-import type { GameConfig } from "../src/lib/engine.svelte";
+import type { CompactAction, GameConfig } from "../src/lib/engine.svelte";
 import { decodeDecisionLog, replayShortcode } from "../src/lib/share";
 import type { Card, CardPlayer, GameIndex, Meta, Owners } from "../src/lib/types";
 
@@ -277,6 +277,30 @@ describe("encode → replay round-trip", () => {
     expect(back!.slots[1]!.id).toBe(g.slots[1]!.id);
     expect(back!.slots[2]!.id).toBe(g.slots[2]!.id);
     expect(back!.spinCount).toBe(g.spinCount);
+  });
+});
+
+describe("legacy rewind grammar", () => {
+  it("drives a double rewind in one window (v2 codes minted before once-per-spin)", async () => {
+    // Live play can no longer produce S U S U on one landed card — the
+    // once-per-spin rule darkens the pill after the first U — but shared
+    // codes minted before the rule legally carry it, and a replay is history,
+    // not a live request. The driver lifts the gate per recorded U; a build
+    // that forgot would refuse the second U, log three tokens, and reject
+    // every such code in the wild.
+    const g = new Game(meta, index, owners, 42, { difficulty: "standard", bank: "classic" });
+    const actions: CompactAction[] = [
+      { verb: "S", pi: 0, si: 0 },
+      { verb: "U" },
+      { verb: "S", pi: 0, si: 0 },
+      { verb: "U" },
+    ];
+    const n = await g.driveReplay(actions);
+    // Every token applied; the drive stops short of a finale (the club is
+    // unfinished), which driveReplay reports as actions.length.
+    expect(n).toBe(actions.length);
+    expect(g.decisionLog.map((a) => a.verb)).toEqual(["S", "U", "S", "U"]);
+    expect(g.slots.every((sl) => sl === null)).toBe(true);
   });
 });
 

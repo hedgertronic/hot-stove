@@ -32,6 +32,7 @@
   import type { CardPlayer } from "../lib/types";
   import AwardPill from "./AwardPill.svelte";
   import BadgePill from "./BadgePill.svelte";
+  import MarketRow from "./MarketRow.svelte";
   import PayrollBox from "./PayrollBox.svelte";
   import PowerupPill from "./PowerupPill.svelte";
   import RailSeat from "./RailSeat.svelte";
@@ -55,9 +56,9 @@
    * pill points at the seats it is talking about.
    *
    * The powerups get no such screen. Each one is a row of the POWERUPS table —
-   * its pill, the armed pill it becomes, and a line of copy — and a mocked-up
-   * screenshot of one mid-use taught nothing the armed pill and that line did
-   * not already say.
+   * its pill and a line of copy naming the armed label it turns into — and a
+   * mocked-up screenshot of one mid-use taught nothing that line did not
+   * already say.
    *
    * ---- How the specimens are built ----
    *
@@ -115,7 +116,8 @@
     awards?: string[];
     war: number;
     cost: number;
-    /** A pitcher's position tag is filled ink rather than card white. */
+    /** A pitcher's position tag is filled to the ring's own gray rather than
+     * card white. */
     pit?: boolean;
     /** Nowhere to put him: the market's gray. */
     dead?: boolean;
@@ -208,7 +210,7 @@
   /** One run per unique slot label — [label, count, isPitcher] — with duplicates
    * collapsed. Built once so the slot-badges chips and any prose summary share
    * the same derived array; a seat added to SLOT_TYPES moves both with it.
-   * SP and RP are the pitcher seats; their chips wear the inverted fill the
+   * SP and RP are the pitcher seats; their chips wear the line-gray fill the
    * market rows use, matching the established read a player brings to the sheet.
    * eligibility.ts's isPitcher() works on CardPlayer.pos, not a slot type
    * string, so the pitcher check lives here as its own two literals. */
@@ -248,13 +250,13 @@
     ["8+", 8],
   ];
 
-  /** One aligned row per powerup: the resting pill, the ARMED pill it turns
-   * into, and what the sheet then asks for. The armed labels are the strings
-   * PowerupRow builds — same words, so the sheet names a thing the player will
-   * recognise on sight rather than paraphrasing it. Season Ticket and Relocate
-   * have no armed pill: their tap opens a picker grid outright, and the text
-   * carries that. */
-  const POWERUPS: { label: string; armed?: string; text: string }[] = [
+  /** One aligned row per powerup: the resting pill and what its tap opens.
+   * Where the copy quotes a label ("PICK TWO…"), it quotes the string
+   * PowerupRow builds — same words, so the sheet names a thing the player
+   * will recognise on sight rather than paraphrasing it. The armed pills
+   * themselves are not drawn: arming is taught by playing, and
+   * tests/help-specimens.test.ts pins their absence. */
+  const POWERUPS: { label: string; text: string }[] = [
     {
       label: "🎟️ SEASON TICKET",
       text: "Same franchise, any year. Opens a grid of every season the club has played; tap one and that season is your card.",
@@ -265,22 +267,18 @@
     },
     {
       label: "✌️ DOUBLE PLAY",
-      armed: "✌️ PICK TWO…",
       text: "Two signings on one spin. The pill reads PICK TWO… until the first lands, then ONE MORE… until the second.",
     },
     {
       label: "🔁 TRADE DEADLINE",
-      armed: "🔁 TAP A TRADE…",
       text: "Swap a signed player, owner or ballpark for this card's. Every row you could take goes orange; tap the one you want, then who he replaces.",
     },
     {
-      label: "⭐ PRIMETIME",
-      armed: "⭐ TAP A PLAYER…",
+      label: "⭐ PRIME TIME",
       text: "Tap any player and his whole career opens; take any season of it. The open skipper tile browses careers too.",
     },
     {
       label: "🏠 HOMEGROWN",
-      armed: "🏠 SIGN AT $1M…",
       text: "Rows that debuted with another club gray out; everyone still live signs for $1M.",
     },
   ];
@@ -360,21 +358,26 @@
      real row shows while a pick is in flight — the same either/or the live
      row runs, so a specimen can never show both at once when the board
      never does. -->
-{#snippet prow(p: Spec, hint?: string)}
+{#snippet prow(p: Spec, hint?: "slot" | "trade")}
   <div class="prow" class:dead={p.dead}>
-    <span class="pos" class:pit={p.pit}>{p.pos}</span>
-    <span class="mid">
-      <span class="pname">{p.name}</span>
-      {#if p.awards}<span class="badges">{#each p.awards as a (a)}<AwardPill code={a} small />{/each}</span>{/if}
-    </span>
-    <span class="right">
-      {#if hint}
-        <span class="confirm hint"><span class="chiplbl">{hint}</span></span>
-      {:else}
-        <span class="cost {costTier(p.cost)}">{money(p.cost)}</span>
-        <span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>
-      {/if}
-    </span>
+    <!-- The market's own MarketRow — the same component PlayerList wraps in
+         its button, so this specimen cannot drift from the live row (both of
+         the sheet's real staleness bugs lived in the old hand copy).
+         `hintAbove` pins the hint's ↑ at every width: on this sheet the
+         armed seats sit above the row in every layout, so the wide tier's ←
+         would point at nothing. -->
+    <MarketRow
+      pos={p.pos}
+      pit={p.pit}
+      name={p.name}
+      awards={p.awards}
+      priceText={money(p.cost)}
+      priceTier={costTier(p.cost)}
+      war={p.war}
+      hint={hint ?? null}
+      hintAbove
+      dead={p.dead}
+    />
   </div>
 {/snippet}
 
@@ -401,8 +404,8 @@
     <li>Then the season is scored. <b>162 points is a perfect season.</b></li>
   </ul>
   <!-- SEAT_BADGE_RUNS: one chip per unique seat label, duplicate labels
-       collapsed to a ×N count beside the chip. SP and RP get the inverted
-       ink-on-card fill the market rows use — a player who has already signed
+       collapsed to a ×N count beside the chip. SP and RP get the line-gray
+       fill the market rows use — a player who has already signed
        Pedro Martínez already knows that glyph means "pitcher"; it says the
        same thing on a seat badge. Counts appear beside the chip, not inside
        it, so the chip's fixed 38px width is not disturbed. -->
@@ -481,8 +484,9 @@
   <div class="picks">
     <RailSeat label="IF" pickable specimen />
     <RailSeat label="OF" pickable specimen />
+    <RailSeat label={slotLabel("FLEX")} pickable specimen />
   </div>
-  {@render prow(UTIL, "↑ PICK A SLOT")}
+  {@render prow(UTIL, "slot")}
   <p class="cap">Tap him and every seat he fits lights up. Tap the one you want.</p>
 
   <div class="psep">FRONT OFFICE</div>
@@ -561,9 +565,9 @@
   </ul>
 
   <div class="psep">POWERUPS · ONE USE EACH</div>
-  <!-- One aligned row per powerup: its pill, the ARMED pill it becomes, and
-       one line saying what the tap opens and what the sheet then asks for.
-       The armed labels are PowerupRow's own strings. -->
+  <!-- One aligned row per powerup: its pill and one line saying what the tap
+       opens and what the sheet then asks for. Where the line quotes an armed
+       label, it quotes PowerupRow's own string. -->
   <div class="pgrid">
     {#each POWERUPS as pu (pu.label)}
       <span class="pstack">
@@ -891,7 +895,12 @@
     gap: 5px;
   }
 
-  /* ---------- specimen: a market row (PlayerList's anatomy) ---------- */
+  /* ---------- specimen: a market row ----------
+     The row's CONTENT is MarketRow — the live market's own component, so
+     nothing about the tag, the columns, the hint pill or the dead-state
+     filters is drawn here any more. What stays is the row BOX (cardstock,
+     border, dead wash), the same split PlayerList keeps: the box is the
+     surface's own, the innards are shared. */
   .prow {
     display: flex;
     align-items: center;
@@ -907,33 +916,10 @@
     border-color: var(--gray-ink);
     opacity: 0.55;
   }
-  /* The pending pill, PlayerList's numbers exactly — the 24px .confirm box
-     from app.css's chip recipe (flex-centered at --chip-h, symmetric padding)
-     so the row does not change height when the chip and the price step aside
-     for it. Orange because the next tap belongs to the rail: the pill is an
-     arrow, not a button. */
-  .confirm.hint {
-    border: 2px solid var(--orange-8);
-    border-radius: 999px;
-    background: var(--orange-2);
-    color: var(--ink);
-    font-weight: 800;
-    font-size: 12px;
-    line-height: 1;
-    padding-inline: 12px;
-    white-space: nowrap;
-  }
-  .prow.dead > .pos,
-  .prow.dead > .mid {
-    filter: grayscale(1);
-  }
-  .prow.dead .warchip,
-  .prow.dead .cost {
-    filter: saturate(0.7);
-  }
-  .prow.dead .pos {
-    background: transparent;
-  }
+  /* ---------- the seat badges' and legend's own chip ----------
+     NOT the market row's tag (that is MarketRow's): this .pos draws the seat
+     badges above the rail and the legend's skeleton, which share the tag's
+     geometry but carry their own variants (.mgr, the paint-stripped .lt). */
   .pos {
     width: 38px;
     border-radius: 7px;
@@ -950,7 +936,7 @@
     padding: 4px 0;
     flex: none;
   }
-  /* The MGR chip's third look: batters are white, pitchers inverted ink, and
+  /* The MGR chip's third look: batters are white, pitchers line-gray, and
      the dugout — not a market position at all — wears the warm gray pair so
      the two-way arms/bats split stays a two-way split. Ink text, not
      gray-on-gray: the chip is a label, not a dead row. */
@@ -958,34 +944,16 @@
     background: var(--gray-bg);
     border-color: var(--gray-ink);
   }
+  /* Filled to the ring's own gray, not ink — one tone, no halo, PlayerList's
+     own trade (its .pos.pit and the confirm pill both made it). */
   .pos.pit {
-    background: var(--ink);
+    background: var(--line);
     color: var(--card);
   }
-  .prow > .mid {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 2px 6px;
-    min-width: 0;
-    overflow: hidden;
-  }
-  .pname {
-    font-weight: 800;
-    font-size: 14px;
-    line-height: 1.15;
-    white-space: nowrap;
-  }
-  .badges {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    flex: none;
-  }
-  /* PlayerList's .right, copied so the specimen teaches the row the market
-     actually draws: 10px of air between salary and chip, and the chip stops
-     at the row's full padding (the chip inset rule is retired — PlayerList's
-     .right documents it). */
+  /* The legend's .right/.cost skeleton, MarketRow's numbers (10px salary↔chip
+     gap, 56px price floor) so the paint-stripped labels keep sitting under
+     the columns they name. Geometry only — the specimen's own column is
+     MarketRow's. */
   .right {
     margin-left: auto;
     display: flex;
@@ -1000,12 +968,6 @@
     font-size: 13px;
     white-space: nowrap;
     min-width: 56px;
-  }
-  .cost.cheap {
-    color: var(--green);
-  }
-  .cost.spendy {
-    color: var(--orange);
   }
 
   /* ---------- the seat and pill specimens' CONTAINERS ---------- */
@@ -1029,16 +991,18 @@
       gap: 7px;
     }
   }
-  /* The two seats a pick offers, side by side. The rail's own grid is nine
-     chairs wide and this is a crop of it — the two that lit up — so it gets the
-     two columns it holds rather than the rail's `auto repeat(2, 1fr)`, whose
-     leading `auto` track belongs to the manager's chair. Same gap as the rail,
-     and the same collapse to a column at the width RailSeat changes shape at,
-     for the same reason: a full-width seat row inside a two-column grid is a
-     row with no room. */
+  /* The seats a pick offers, side by side. The rail's own grid is nine
+     chairs wide and this is a crop of it — the three that lit up: a
+     multi-group man's picker pools UTIL with his specialist seats
+     (engine `pickableSlotCells`), so the crop shows it too. It gets the
+     three columns it holds rather than the rail's `auto repeat(4, 1fr)`,
+     whose leading `auto` track belongs to the manager's chair. Same gap as
+     the rail, and the same collapse to a column at the width RailSeat
+     changes shape at, for the same reason: a full-width seat row inside a
+     narrow grid column is a row with no room. */
   .picks {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 6px;
   }
   @media (min-width: 760px) {
@@ -1073,8 +1037,8 @@
     align-items: center;
     container-type: inline-size;
   }
-  /* The resting pill over the armed pill it becomes, left-flush so the two
-     columns keep a straight rule down the sheet. */
+  /* The pill's column, left-flush so the two columns keep a straight rule
+     down the sheet. */
   .pstack {
     display: flex;
     flex-direction: column;

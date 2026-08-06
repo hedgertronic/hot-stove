@@ -285,7 +285,7 @@ describe("PRIMETIME under the intersection rule", () => {
 });
 
 describe("Trade Deadline release hint", () => {
-  it("the pending pill reads TAP WHO TO TRADE in both modes", () => {
+  it("the pending pill reads WHO GOES? in both modes", () => {
     const { std, sct } = pair(
       PlayerList,
       (g) => {
@@ -298,7 +298,7 @@ describe("Trade Deadline release hint", () => {
       (g) => ({ game: g, confirmKey: null, setConfirm: () => {} }),
     );
     for (const body of [std, sct]) {
-      expect(body).toContain("TAP WHO TO TRADE");
+      expect(body).toContain("WHO GOES?");
       expect(body).not.toContain("TRADE AWAY");
     }
   });

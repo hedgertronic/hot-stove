@@ -158,14 +158,15 @@
 </script>
 
 <button
-  class="help"
+  class="help chipbox"
   class:home
   class:cue={helpCue}
   onclick={openHelp}
-  aria-label={helpCue ? "How to play: start here" : "How to play"}>?</button
+  aria-label={helpCue ? "How to play: start here" : "How to play"}
+  ><span class="chiplbl">?</span></button
 >
 <button
-  class="help trophy"
+  class="help trophy chipbox"
   class:home
   class:cue={badgeCue}
   onclick={openTrophy}
@@ -185,14 +186,14 @@
      a 10px text-glyph pill sits low and reads as a sticker on a control. -->
 {#if game}
   <button
-    class="help undo"
+    class="help undo chipbox"
     class:armed={undoArmed}
     class:pushed={pushed && !undoArmed}
     disabled={!game.canUndo}
     bind:this={undoEl}
     onclick={tapUndo}
     aria-label={undoArmed ? "Undo last move: tap again to confirm" : "Undo last move"}
-    >{#if undoArmed}UNDO?{:else}<svg class="tico" viewBox="0 0 14 14" aria-hidden="true"
+    >{#if undoArmed}<span class="chiplbl">UNDO?</span>{:else}<svg class="tico" viewBox="0 0 14 14" aria-hidden="true"
         ><path d="M11 11.5V8.5A4 4 0 0 0 7 4.5H2.5 M5.5 2 2.5 4.5l3 2.5" /></svg
       >{/if}</button
   >
@@ -222,19 +223,16 @@
     /* 12px, not 10: the trophy is a 13px drawing, and a 10px ? beside it read
        as the smaller sibling rather than its twin. */
     font-size: 12px;
-    line-height: 1;
-    padding: 0;
+    /* Inline only — the block axis belongs to the chipbox recipe these pills
+       wear (markup class), which seats the caps on center in both engines; a
+       `padding: 0` shorthand would kill its non-trim fallback correction. */
+    padding-inline: 0;
     width: 28px;
     text-align: center;
     cursor: pointer;
-    /* Fixed height and centering so all three corner pills share one box: the
-       ? and ✕ are 10px text glyphs and the trophy is a 13px drawing, and
-       letting content set the height made the trophy the odd one out. */
-    height: 22px;
+    /* One pinned box for all three corner pills (text glyphs + 13px trophy). */
+    --chip-h: 22px;
     box-sizing: border-box;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     /* Press feedback. app.css kills every transition for reduced-motion readers
        with `* { transition: none !important }`, so no component-level guard
        is needed here. */
@@ -328,7 +326,9 @@
     font-size: 10.5px;
     letter-spacing: 0.04em;
     width: 62px;
-    padding: 0 8px;
+    /* Inline only — a `padding: 0 8px` shorthand would zero the chipbox
+       recipe's padding-block correction on non-trim engines. */
+    padding-inline: 8px;
     z-index: 2;
   }
   /* The neighbour of a live confirm, and the whole of request #3: while one

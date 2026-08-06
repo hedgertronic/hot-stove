@@ -193,9 +193,11 @@ describe("item 3 — WBC medal order: award chips → WBC medal", () => {
     expect(badgesIdx).toBeLessThan(wbcIdx);
   });
 
-  it("the WBC glyph renders as a sibling of .badges, not inside it", () => {
-    // The medal is inside .prow > .mid as a direct child, NOT nested inside
-    // .badges, so it renders for players with no awards (hasBadges is false).
+  it("the WBC glyph renders inside .badges, and for medal-only players too", () => {
+    // The medal lives INSIDE .badges so the whole hardware group wraps as one
+    // unit at the pills' 3px gap (as a sibling it took the mid flex's wider
+    // 6px column gap and wrapped to its own line). The span's render gate is
+    // hardware-or-medal, so a player with no awards still shows his medal.
     const game = forgeGame(CLASSIC, (g) => {
       g.card = mkCard({
         players: [
@@ -205,10 +207,17 @@ describe("item 3 — WBC medal order: award chips → WBC medal", () => {
       if (g.card) g.card.players[0] = { ...g.card.players[0], wbc: 1 }; // silver
     });
     const body = ssr(PlayerList, { game, confirmKey: null, setConfirm: () => {} });
-    // The medal shows even without any .badges span.
+    // The medal shows even without any award pills, and the .badges wrapper
+    // renders to hold it.
     expect(body).toContain("🥈");
-    // No .badges section (no awards → hasBadges is false, badges span is absent).
-    expect(body).not.toContain("badges");
+    expect(body).toContain("badges");
+    // The medal is nested inside the .badges span, not a sibling after it.
+    const badgesOpen = body.indexOf('class="badges');
+    const wbcIdx = body.indexOf('class="wbc');
+    const badgesClose = body.indexOf("</span>", wbcIdx);
+    expect(badgesOpen).toBeGreaterThanOrEqual(0);
+    expect(wbcIdx).toBeGreaterThan(badgesOpen);
+    expect(badgesClose).toBeGreaterThan(wbcIdx);
   });
 });
 

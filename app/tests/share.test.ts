@@ -645,14 +645,15 @@ describe("line width budget", () => {
     // failing width rather than a silently longer share string. (It was 49
     // until 2️⃣ RE2PECT and 🎆 THE WALK-OFF were retired, and 47 until 🫡 🚒
     // 🧤 🪙 stacked onto the roster axis — 💳 joined the on-field group, which
-    // already had a representative, so it costs the line nothing. ↩️ SECOND
-    // THOUGHTS stacks on the meta axis and carries a variation selector, so it
-    // costs the line two. 🦉 OUTSCOUTED stacks on the goal axis, +1 stacker.
+    // already had a representative, so it costs the line nothing. ✳️ THE
+    // ASTERISK (the undo badge) stacks on the meta axis and carries a
+    // variation selector, so it costs the line two. 🦉 OUTSCOUTED stacks on the goal axis, +1 stacker.
     // 🔂 DÉJÀ VU stacks on the meta axis and is a single code point, +1 stacker
     // and +1 to the shipped width. 🎠 MERRY-GO-ROUND stacks on the meta axis,
-    // +1 stacker and +1 to the shipped width.)
+    // +1 stacker and +1 to the shipped width. The replayed-seed badge's face
+    // change ✳️ → 📼 dropped a variation selector, −1 to both widths.)
     expect(MAXIMAL).toHaveLength(55);
-    expect(SHIPPED_MAX_LEN).toBe(72);
+    expect(SHIPPED_MAX_LEN).toBe(71);
     // total 104.3 gives the six-character record; the badge line is index 5.
     const s = shareText({ ...BASE, total: 104.3, badges: MAXIMAL });
     expect(codePoints(s.split("\n")[5])).toBe(SHIPPED_MAX_LEN);
@@ -663,8 +664,9 @@ describe("line width budget", () => {
     // one, moving the paranoia bound by exactly five; ↩️ moved it by two more,
     // because a variation selector is a code point the line pays for;
     // 🦉 (OUTSCOUTED) moved it by one more; 🔂 (DÉJÀ VU) moved it by one more;
-    // 🎠 (MERRY-GO-ROUND) moved it by one more.
-    expect(MAX_LEN).toBe(90);
+    // 🎠 (MERRY-GO-ROUND) moved it by one more; the replayed-seed badge's
+    // ✳️ → 📼 face change dropped a variation selector, −1.
+    expect(MAX_LEN).toBe(89);
     const s = shareText({
       ...BASE,
       total: 104.3,

@@ -1,4 +1,4 @@
-/** ↩️ Undo — one move back, and the seed it is not allowed to break.
+/** ✳️ Undo — one move back, and the seed it is not allowed to break.
  *
  * The feature is a single held snapshot of the save's own shape, restored
  * through the same `hydrate` a reload goes through. Almost everything worth
@@ -301,8 +301,8 @@ describe("the seed", () => {
   });
 });
 
-describe("one level, repeatable", () => {
-  it("refuses a second rewind in a row, and offers one again after the next move", async () => {
+describe("one level, once per spin", () => {
+  it("refuses a second rewind in a row, and refuses the same window a second one", async () => {
     const g = await spun();
     g.signPlayer(g.card!.players[0]);
     expect(g.canUndo).toBe(true);
@@ -314,11 +314,15 @@ describe("one level, repeatable", () => {
     g.undo();
     expect(JSON.stringify(g.slots)).toBe(held);
 
-    // A fresh move takes a fresh point.
+    // A fresh move takes a fresh point — but this SPIN's rewind is spent
+    // (`undoSpent`), so the pill stays dark: undo is a fat-finger escape,
+    // not a solver for auditioning every option on one landed card. The next
+    // reel re-arms it (undo-repeat.test.ts pins that half).
     g.signPlayer(g.card!.players[0]);
-    expect(g.canUndo).toBe(true);
+    expect(g.canUndo).toBe(false);
+    const resigned = JSON.stringify(g.slots);
     g.undo();
-    expect(g.slots.every((s) => s === null)).toBe(true);
+    expect(JSON.stringify(g.slots)).toBe(resigned);
   });
 
   it("takes back the pick, not the spin the stove rolled straight after it", async () => {
@@ -474,7 +478,7 @@ describe("the finale boundary", () => {
   });
 });
 
-describe("↩️ SECOND THOUGHTS", () => {
+describe("✳️ THE ASTERISK (undo)", () => {
   it("is set by the rewind that earns it, and not cleared by it", async () => {
     const g = await spun();
     expect(g.undoUsed).toBe(false);
@@ -542,7 +546,7 @@ describe("↩️ SECOND THOUGHTS", () => {
 
   it("is an anti-trophy with no measurable population", () => {
     const def = BADGE_BY_KEY.secondthoughts;
-    expect(def.label).toBe("SECOND THOUGHTS");
+    expect(def.label).toBe("THE ASTERISK");
     expect(def.axis).toBe("meta");
     // No bot arm presses a button, so there is nothing to measure this against
     // — `null`, like every other meta badge, and never a fabricated rate.

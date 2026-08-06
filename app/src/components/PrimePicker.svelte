@@ -4,6 +4,7 @@
   import type { Game } from "../lib/engine.svelte";
   import { costTier, money, posLabel, sortAwards, warTier } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
+  import { wrapnudge } from "../lib/wrapnudge";
   import AwardPill from "./AwardPill.svelte";
   import Sheet from "./Sheet.svelte";
 
@@ -115,7 +116,7 @@
 <Sheet
   {onclose}
   label="Pick a season of this player's career"
-  title="⭐ PRIMETIME: {listed?.name ?? ''}"
+  title="⭐ PRIME TIME: {listed?.name ?? ''}"
   confirmLabel="CANCEL"
 >
     {#if failed}
@@ -133,8 +134,8 @@
           {@const isArmed = armed === key}
           <div class="srow" class:dead={!sea.fits || sea.here}>
             <button class="srow-btn" disabled={!sea.fits || sea.here} onclick={() => arm(sea)}>
-              <span class="pos" class:pit={isPitcher(sea.p)} class:long={plabel.length > 5}
-                >{plabel}</span
+              <span class="pos chipbox" class:pit={isPitcher(sea.p)} class:long={plabel.length > 5}
+                ><span class="chiplbl">{plabel}</span></span
               >
               <!-- The market row with one field swapped: the list leads with the
                    player's NAME, and here the player is fixed while the season
@@ -143,7 +144,9 @@
                    badges-wrap-names-don't idiom the market rows use. Unsignable
                    rows (current card's own season, no fitting open seat) just
                    gray — no explanatory copy, same as every other gray row. -->
-              <span class="mid">
+              <!-- wrapnudge: the market rows' wrapped-pills rebalance, at this
+                   label's own 13px (1.3px = half of 0.199em at 13px). -->
+              <span class="mid" use:wrapnudge={1.3}>
                 <span class="yr">{sea.year} {sea.team}</span>
                 {#if hasBadges(sea.p)}<span class="badges"
                     >{#each sortAwards(sea.p.awards) as a}<AwardPill code={a} small />{/each}</span
@@ -209,24 +212,23 @@
   .srow.dead:active {
     transform: none;
   }
+  /* Chipbox recipe, PlayerList's .pos exactly — see its comment. */
   .pos {
     width: 38px;
+    --chip-h: 22px;
     border-radius: 7px;
     background: var(--card);
     color: var(--ink);
     border: 2px solid var(--line);
-    display: grid;
-    place-content: center;
-    text-align: center;
     font-weight: 800;
     font-size: 9.5px;
     letter-spacing: 0.03em;
-    line-height: 1;
-    padding: 4px 0;
     flex: none;
   }
+  /* Filled to the ring's own gray for PlayerList's reason — the two markets'
+     tags are twins. */
   .pos.pit {
-    background: var(--ink);
+    background: var(--line);
     color: var(--card);
   }
   /* Multi-group labels ("C/IF/OF") shrink to keep the fixed-width column. */

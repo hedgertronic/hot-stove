@@ -1,9 +1,9 @@
 <script lang="ts">
   import { isPitcher } from "../lib/eligibility";
   import type { Game } from "../lib/engine.svelte";
-  import { costTier, lastName, money, posLabel, sortAwards, warTier } from "../lib/format";
+  import { costTier, lastName, money, posLabel } from "../lib/format";
   import type { CardPlayer } from "../lib/types";
-  import AwardPill from "./AwardPill.svelte";
+  import MarketRow from "./MarketRow.svelte";
 
   let {
     game,
@@ -106,8 +106,8 @@
   }
 
   // Team pedigree (💍/🚩) lives beside the team name in the spin banner — the
-  // rows only badge individual hardware.
-  const hasBadges = (p: CardPlayer) => game.showAwards && p.awards.length > 0;
+  // rows only badge individual hardware; what a row shows and how it grays is
+  // MarketRow's, this file only decides WHICH facts each mode hands it.
   // A World Baseball Classic medal IS individual hardware — he won it in March
   // with his country, and the club he is carded with had no part in it — so the
   // row wears it, on the award pills' own `showAwards` gate. 🥇 champion, 🥈
@@ -154,44 +154,24 @@
         aria-disabled={(!playable && !primeable) ? "true" : undefined}
         onclick={(e) => tap(p, e)}
       >
-        <span class="pos" class:pit={isPitcher(p)} class:long={plabel.length > 5}>{plabel}</span>
-        <span class="mid">
-          <span class="nameline">
-            <span class="pname">{p.name}</span>
-          </span>
-          {#if hasBadges(p)}<span class="badges"
-              >{#each sortAwards(p.awards) as a}<AwardPill code={a} small />{/each}</span
-            >{/if}
-          <!-- WBC medal follows award chips, mirroring the Finale's own order:
-               award pills → WS ring → pennant → WBC gold → WBC silver.
-               Team rings and pennants live on the finale's squad rows; what
-               belongs here is the individual hardware only, so the order is
-               award chips then the medal. The medal is a sibling of .badges
-               so it remains in the mid flex and wraps independently — placing
-               it inside .badges would hide it for players with no award chips. -->
-          {#if wbc}<span
-              class="wbc"
-              role="img"
-              aria-label="World Baseball Classic {wbc === 2 ? 'champion' : 'finalist'}"
-              >{wbc === 2 ? "🥇" : "🥈"}</span
-            >{/if}
-        </span>
-        {#if !signConfirm && !tradeConfirm}
-          <span class="right" class:lone={!game.showWar}>
-            {#if game.slotPick === p.id}
-              <!-- The picker lives in the rail — point there, cardstock-terse.
-                   The rail sits ABOVE the market on the phone and LEFT of it at
-                   width, so the glyph is two spans and the 760px media tier picks
-                   the one that points at the actual rail. -->
-              <span class="confirm hint"><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span><span class="chiplbl"> PICK A SLOT</span></span>
-            {:else if game.releasePick === p.id}
-              <span class="confirm hint"><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span><span class="chiplbl"> TAP WHO TO TRADE</span></span>
-            {:else}
-              <span class="cost {discounted ? 'cheap' : costTier(price)}">{money(price)}</span>
-              {#if game.showWar}<span class="warchip {warTier(p.war)}">{p.war.toFixed(1)}<span class="unit">WAR</span></span>{/if}
-            {/if}
-          </span>
-        {/if}
+        <!-- The row's whole content is MarketRow — the presentational lift the
+             help sheet shares, so its specimens cannot drift from this row.
+             This file keeps the wiring: which predicate feeds each prop, and
+             the confirm buttons below. -->
+        <MarketRow
+          pos={plabel}
+          pit={isPitcher(p)}
+          name={p.name}
+          awards={game.showAwards ? p.awards : undefined}
+          {wbc}
+          priceText={money(price)}
+          priceTier={discounted ? "cheap" : costTier(price)}
+          war={game.showWar ? p.war : null}
+          hint={game.slotPick === p.id ? "slot" : game.releasePick === p.id ? "trade" : null}
+          rightHidden={signConfirm || tradeConfirm}
+          freeze={signConfirm || tradeConfirm || game.slotPick === p.id || game.releasePick === p.id}
+          dead={!playable && !primeable}
+        />
       </button>
       {#if signConfirm}
         <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitSign(p); }}><span class="chiplbl">SIGN {money(price)}</span></button>
@@ -202,10 +182,10 @@
   {/each}
   {#if !expanded && sorted.length > visible.length}
     <button type="button" class="more" onclick={(e) => { e.stopPropagation(); expanded = true; }}>
-      <!-- The caret rides the label's own size: `.bic` is the EMOJI recipe,
-           pinned at 19px, and a text triangle at emoji size reads as a
-           misprint rather than an icon. -->
-      SHOW {sorted.length - visible.length} MORE ▾
+      <!-- The arrow is the PICK A SLOT hint's glyph (↓ here — the hidden rows
+           sit below), in the hint's own aria-hidden span so a screen reader
+           gets the words without the arrow. -->
+      <span aria-hidden="true">↓</span> SHOW {sorted.length - visible.length} MORE
     </button>
   {/if}
 </div>
@@ -221,8 +201,8 @@
      Narrower than the FRONT OFFICE rows' blowout by 70px, which is why this one
      needs the longest name in a 6,375-name corpus to show and the other needs
      only a Kansas City card — but it is the same bug and the same one-line fix.
-     A zero floor lets the track take the width it is given; `.prow > .mid`
-     already carries `min-width: 0`, so the name ellipsizes inside it. */
+     A zero floor lets the track take the width it is given; MarketRow's mid
+     column already carries `min-width: 0`, so the name ellipsizes inside it. */
   .plist {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -268,170 +248,22 @@
     }
   }
   /* The row tap surface (.prow-btn) reset lives in app.css: one shared rule
-     for PlayerList and SpecialRows. Only the child-combinator .mid scoping
-     stays here because the WAR ladder's `mid` rung token shares the name. */
-  /* Position is a filter cue, not the headline: a compact fixed-width tag so
-     the left edge scans as a column. Pitchers flip to filled ink — one subtle
-     two-way split (arms vs bats), no rainbow. */
-  .pos {
-    width: 38px;
-    border-radius: 7px;
-    background: var(--card);
-    color: var(--ink);
-    border: 2px solid var(--line);
-    display: grid;
-    place-content: center;
-    text-align: center;
-    font-weight: 800;
-    font-size: 9.5px;
-    letter-spacing: 0.03em;
-    line-height: 1;
-    padding: 4px 0;
-    flex: none;
-  }
-  .pos.pit {
-    background: var(--ink);
-    color: var(--card);
-  }
-  /* Multi-group labels ("C/IF/OF") shrink to keep the fixed-width column. */
-  .pos.long {
-    font-size: 7.5px;
-    letter-spacing: 0.01em;
-  }
-  /* Name and hardware share a line when they fit; the badges wrap to a second
-     line when they don't (narrow phones). The name never shrinks to make room
-     for pills — a name longer than the whole row still ellipsizes via the
-     nameline's max-width. */
-  /* Scoped to the row's own child, not to `.mid` anywhere: the WAR ladder's
-     middle rung is ALSO called `mid`, so a bare `.mid` selector reached into
-     the row's mid-tier WAR chip and turned it into a wrapping flex container.
-     That is where the green chip's extra gap came from — the chip's number and
-     its WAR label became flex items and picked up this rule's 6px column gap on
-     top of the label's own 2.5px margin, and `min-width: 0` canceled the
-     chip's 42px floor, so only the green chip was 6px wide and 6px gappy. The
-     collision is a name collision; the child combinator is the fix for it. */
-  .prow-btn > .mid {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 2px 6px;
-    min-width: 0;
-    overflow: hidden;
-  }
-  .nameline {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex: none;
-    max-width: 100%;
-    min-width: 0;
-  }
-  .pname {
-    font-weight: 800;
-    font-size: 14px;
-    line-height: 1.15;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .badges {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    flex: none;
-  }
-  /* The medal rides inside the nameline rather than with the badges, so it can
-     never wrap to the second line away from the man who won it. It sits under
-     the name's 14px because a glyph reads at its whole box where type reads at
-     its cap band, and line-height 1 keeps the emoji's taller line box from
-     setting the row's height. */
-  .wbc {
-    font-size: 12px;
-    line-height: 1;
-    flex: none;
-  }
-  /* min-height = the WAR chip's exact height (13.5px × 1.65 line + 4px
-     border), so swapping the chip+price for the shorter confirm pill can't
-     change the row height — the tap must not make the card twitch. */
-  /* THE CHIP INSET RULE IS RETIRED, everywhere at once (this row, both
-     prime pickers, SpecialRows' skipper chip and confirms, the rail, the
-     finale squads): the chip now stops at the row's FULL padding, exactly
-     where bare type stops. The inset's box-against-box optic put every
-     chip-terminated row 4–8px past every text-terminated one — the market's
-     WAR column overhung the owner's and ballpark's plain values — and one
-     right edge for every row beats the optic. Any new row that ends in a
-     chip gets no pull; the rows only align because nobody does. */
-  .right {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: none;
-  }
-  /* Eye Test gates the WAR chip off, leaving the price as bare rightmost
-     text; the pinned height is the chip's, so the swap cannot change the
-     row's. */
-  .right.lone {
-    min-height: 26.3px;
-  }
-  /* Salary sits inboard; the WAR chip is flush right, the last thing the eye
-     lands on. The chip lives in app.css because PrimePicker draws the same
-     ladder and two copies of six rules drift.
-     The chip is the rightmost item now, so its right edge has to be consistent
-     or the WAR column jitters as values vary. app.css's `min-inline-size: 42px`
-     is a floor, not a fixed width — "12.3 WAR" is wider than that. 64px seats
-     the widest values the visible-players filter passes (above-replacement only)
-     with the same side room the salary's 56px floor provided. A separate scoped
-     rule rather than touching app.css: the global chip is shared by the finale,
-     the rail, and the career sheet, none of which need PlayerList's column pin.
-     The text stays CENTERED in that box, like every other chip in the game —
-     the outer margins are the inset rule's job (see .right above), not the
-     type's. */
-  .right .warchip {
-    min-inline-size: 64px;
-  }
-  /* Structural right-alignment (flex, not text-align) so every engine agrees. */
-  .cost {
-    display: inline-flex;
-    justify-content: flex-end;
-    font-weight: 800;
-    font-size: 13px;
-    white-space: nowrap;
-    min-width: 56px;
-  }
-  .cost.cheap {
-    color: var(--green);
-  }
-  .cost.spendy {
-    color: var(--orange);
-  }
+     for PlayerList and SpecialRows. Everything INSIDE the button — position
+     tag, mid column, price/WAR column, the picker hints, and the dead-state
+     content filters — is MarketRow's, shared with the help sheet's specimen
+     so the two cannot drift. This file keeps the row box and its four live
+     state washes below. */
   .prow.dead {
     background: var(--gray-bg);
     border-color: var(--gray-ink);
     opacity: 0.55;
     cursor: default;
   }
-  /* A dead row still whispers its tier: the identity bits (position tag,
-     name, award pills) go monochrome, but the WAR chip and salary keep their
-     hue — faded by the row's opacity and a mild desaturation — so a gold you
-     can't reach still reads gold ("need Trade Deadline for him"). Modes that
-     hide a chip render nothing here, so nothing new leaks. */
-  .prow.dead .prow-btn > .pos,
-  .prow.dead .prow-btn > .mid {
-    filter: grayscale(1);
-  }
-  .prow.dead .warchip,
-  .prow.dead .cost {
-    filter: saturate(0.7);
-  }
+  /* The dead row's CONTENT treatment (grayscale identity, desaturated chips,
+     the pit tag's gray-ink pair) lives in MarketRow, driven by its `dead`
+     prop — the same reason the content markup does. */
   .prow.dead:active {
     transform: none;
-  }
-  .prow.dead .pos {
-    background: transparent;
-  }
-  .prow.dead .pos.pit {
-    background: var(--gray-ink);
   }
   /* TD swap targets and Prime-browsable rows share one "tappable for a
      powerup" look; the classes stay separate because the tap routes differ.
@@ -456,45 +288,32 @@
   .prow > .confirm {
     flex: none;
   }
-  /* Pending pick: the next tap belongs to the rail, not this row — the pill
-     goes orange (the rail hint's color) and points up at it. On the pair, so
-     the one ink pill on the row is the one that is still tappable. */
-  .confirm.hint {
-    background: var(--orange-2);
-    border-color: var(--orange-8);
-    color: var(--ink);
-  }
-  /* The hint's arrow, one glyph per layout: ↑ while the rail rides above the
-     market (phone), ← once the wide grid seats it to the left. Declared after
-     the base so the wide block's swap wins on source order. */
-  .hint .wd {
-    display: none;
-  }
-  @media (min-width: 760px) {
-    .hint .ph {
-      display: none;
-    }
-    .hint .wd {
-      display: inline;
-    }
-  }
+  /* THE ROW MUST NOT RESHAPE UNDER THE TAP. The confirm replaces the value
+     column, and the two are different widths, so the swap used to hand the
+     mid column the difference and snap wrapped award pills back to one line
+     for exactly the life of the pill. The guard is wrapnudge's `freeze`,
+     passed through MarketRow: the mid column's width is clamped to its
+     pre-swap value while a confirm or hint is up. */
   /* The list expander, in the system's own button voice: a quiet full-width
      capsule — cardstock on the structural line, caps at the action-row
      tracking, the standard press dip and focus ring, and a real tap target.
      It was bare lowercase text for a long while, the one interactive surface
-     in the game with no border, no dip, and no focus style. Muted rather
-     than ink: it reveals rows, it doesn't commit anything, and the full
-     ink-on-card weight belongs to the rows it reveals. */
+     in the game with no border, no dip, and no focus style. Ink, like every
+     other capsule's type — muted was tried and read as disabled next to the
+     powerup pills it is sized to match. */
   .more {
     text-align: center;
-    font-size: 11px;
+    /* Sized to the powerup pills' base recipe (PowerupPill.svelte: 10.5px/800,
+       5px 11px padding, 2px border) so the two capsule families read as one
+       control voice across the board. */
+    font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.04em;
-    color: var(--muted);
+    color: var(--ink);
     width: fit-content;
     justify-self: center;
     margin-top: 2px;
-    padding: 7px 16px;
+    padding: 5px 11px;
     cursor: pointer;
     background: var(--card);
     border: 2px solid var(--line);

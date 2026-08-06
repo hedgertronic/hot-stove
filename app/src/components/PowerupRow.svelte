@@ -58,8 +58,9 @@
   );
 
   const canAct = $derived(game.phase === "landed" && game.choicesLeft > 0);
-  // One word, as the powerup is spoken. The internal key stays `prime`.
-  const primeLabel = $derived(p.prime === "armed" ? "⭐ TAP A PLAYER…" : "⭐ PRIMETIME");
+  // Two words — it's time for a prime, not a TV slot. The internal key
+  // stays `prime`.
+  const primeLabel = $derived(p.prime === "armed" ? "⭐ TAP A PLAYER…" : "⭐ PRIME TIME");
   const hdLabel = $derived(p.hometown === "armed" ? "🏠 SIGN AT $1M…" : "🏠 HOMEGROWN");
   function pillState(
     own: "ready" | "armed" | "spent",
@@ -135,8 +136,9 @@
 
 <style>
   /* Two explicit pill rows (ST/RELO/PT and DP/TD/HD) stacked in a column.
-     The column gap and each row's own wrap gap are the same 8px, so the
-     vertical rhythm is uniform at EVERY wrap count — forced 3+3, or a
+     The column gap and each row's own wrap gap are the same 7px — and the
+     same 7px as the base tier's horizontal gap, one number on both axes —
+     so the vertical rhythm is uniform at EVERY wrap count: forced 3+3, or a
      natural three-line wrap at narrow widths. (This replaces a zero-height
      flex-break element whose doubled row-gap needed magic-number halving.)
      `container-type` is PowerupPill's contract: its type tier is keyed to this
@@ -145,7 +147,7 @@
   .pprow {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 7px;
     margin: 6px 0 10px;
     container-type: inline-size;
   }
@@ -153,7 +155,7 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px 7px;
+    gap: 7px;
   }
   /* The narrow lattice tier's other pixel source: PowerupPill shrinks its own
      type and padding at this same 390px boundary (390 covers the iOS font
@@ -164,7 +166,7 @@
      keep meeting exactly. */
   @container (max-width: 390px) {
     .row {
-      gap: 8px 5px;
+      gap: 7px 5px;
     }
   }
 </style>

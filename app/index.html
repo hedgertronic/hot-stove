@@ -4,6 +4,31 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#f6f1e3" />
+    <!-- The canvas color before the stylesheet lands: without it the page
+         flashes UA white until app.css's --ground applies. Same hex as
+         theme-color above and app.css's --ground — change all three together. -->
+    <!-- hsboot: the static card's "Warming up the stove…" line fades in on
+         the same 400ms delay App.svelte's .bootload uses — a fast load never
+         shows it, a slow bundle download gets a sign of life. Keyframes must
+         live in a stylesheet, hence this block rather than the card's inline
+         styles. -->
+    <!-- The reduced-motion arm: app.css kills every animation with
+         !important for reduce-motion readers, and the warming line RELIES on
+         one to become visible — without this override it would rest at
+         opacity 0 forever and a slow load would read as hung. Immediately
+         visible is the correct degradation of "fades in later". -->
+    <style>html{background:#f6f1e3}@keyframes hsboot{to{opacity:1}}@media (prefers-reduced-motion:reduce){#warmline{opacity:1 !important}}</style>
+    <!-- Boot data, warming while the JS bundle downloads and parses. The four
+         fetches in App.svelte can't start until the module executes; preloading
+         removes that serial round trip. `crossorigin` matches fetch()'s default
+         cors mode so the preload cache key matches (the same rule the font
+         preload in vite.config.ts documents). Relative ./data/ hrefs survive
+         both deploy paths, like base: "./" does. index.json is the heavy one;
+         the other three are under 10KB each but share the round trip. -->
+    <link rel="preload" as="fetch" crossorigin href="./data/index.json" />
+    <link rel="preload" as="fetch" crossorigin href="./data/meta.json" />
+    <link rel="preload" as="fetch" crossorigin href="./data/owners.json" />
+    <link rel="preload" as="fetch" crossorigin href="./data/colors.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Hot Stove" />
@@ -19,15 +44,26 @@
     <!-- Social cards. og:image is an ABSOLUTE /hot-stove/ URL on purpose: it
          resolves on GitHub Pages today and keeps resolving after the move to
          hedgertronic.com/games/hot-stove, because /hot-stove 301s there and
-         scrapers follow redirects. og:url names the forever home. -->
+         scrapers follow redirects.
+         og:url and the canonical name the URL that RESOLVES TODAY, not the
+         forever home: scrapers follow og:url as the canonical share target and
+         a 404 there collapses the card and splits share counts. Flip both to
+         /games/hot-stove/ at migration, in the redeploy that move requires
+         anyway. -->
+    <link rel="canonical" href="https://hedgertronic.com/hot-stove/" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://hedgertronic.com/games/hot-stove/" />
+    <meta property="og:url" content="https://hedgertronic.com/hot-stove/" />
     <meta property="og:title" content="Hot Stove" />
     <meta
       property="og:description"
       content="A baseball drafting game. Spin for real team-seasons, sign players at their real salaries, and chase 162 wins."
     />
     <meta property="og:image" content="https://hedgertronic.com/hot-stove/og-image.png" />
+    <!-- Width/height let Facebook draw the card on the FIRST share, before its
+         scrape completes — on a launch, the first share is the one that spreads. -->
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Hot Stove — a baseball roster-drafting game" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@hedgertronic" />
     <meta name="twitter:title" content="Hot Stove" />
@@ -36,8 +72,33 @@
       content="A baseball drafting game. Spin for real team-seasons, sign players at their real salaries, and chase 162 wins."
     />
     <meta name="twitter:image" content="https://hedgertronic.com/hot-stove/og-image.png" />
+    <meta name="twitter:image:alt" content="Hot Stove — a baseball roster-drafting game" />
+    <!-- The short name, owner's call: the keyworded tab title read as SEO
+         furniture. The query words ("baseball", "drafting game") ride in the
+         meta description and the JSON-LD instead, which is where engines
+         actually read them from. -->
     <title>Hot Stove</title>
-    <!-- Google Analytics -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Hot Stove",
+        "url": "https://hedgertronic.com/hot-stove/",
+        "image": "https://hedgertronic.com/hot-stove/og-image.png",
+        "description": "A free browser baseball roster-drafting game. Each spin deals a random real team-season from 1985 to 2025 — sign a player at his real salary, or hire that year's manager, owner, or stadium. Fill eight roster slots, stay under payroll, and chase 116 wins.",
+        "genre": "Sports strategy",
+        "playMode": "SinglePlayer",
+        "gamePlatform": "Web browser",
+        "applicationCategory": "Game",
+        "operatingSystem": "Any",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "hedgertronic" }
+      }
+    </script>
+    <!-- Google Analytics. Preconnect first: the async script still pays DNS +
+         TLS to a third-party origin during the boot window; warming the
+         connection overlaps that with the HTML parse. -->
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-35RY8Y6Q5V"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -47,7 +108,47 @@
     </script>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- Static copy inside the mount target: real text for crawlers and
+           preview bots that never run JS, and the page's paint until the
+           bundle executes (main.ts removes it just before mount). Inline
+           styles because app.css arrives with the bundle — by the time the
+           stylesheet exists, so does the app. Muted ink on the inlined
+           --ground, roughly the app's own .boot voice. -->
+      <!-- The pre-mount boot card: on screen only while the JS bundle loads,
+           then removed by main.ts before mount. One line, not a paragraph —
+           a human sees this for a blink and it has to read as a title card,
+           not ad copy; the long description crawlers want already rides the
+           meta description and the JSON-LD above. Vertically anchored near
+           the app's own boot line (App.svelte .boot) so the handoff doesn't
+           jump. -->
+      <!-- The HOME masthead, hand-inlined: Logo.svelte's big wordmark (HOT in
+           ink, STOVE in the heat orange, the BETA chip) over the pitch line in
+           its caps-meta voice. Every value is the component's own — 34px/800,
+           0.01em tracking, 10px gap; chip: 2px #c98a08 ring on #ffd43b,
+           9.5px/800/0.1em; pitch: 10px/800/0.08em in --muted — so the swap to
+           App.svelte's real <Logo big/> card is pixel-still. Hexes are
+           app.css tokens inlined (--ink/--orange-8/--gold-8/--yellow/--muted);
+           change them together. The font stack is --disp minus the flag face:
+           in the built page the stylesheet <link> lands before first paint and
+           vite.config.ts preloads nunito.woff2, so this card paints in the
+           game's own Nunito, not a system stand-in. line-height: 1 on both
+           cards, stated rather than inherited — the UA default and app.css
+           would disagree and nudge the pitch line between frames. -->
+      <div id="static-boot" style="max-width: 480px; margin: 0 auto; padding: 38vh 24px 0; text-align: center; font-family: 'Nunito', ui-rounded, 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif; line-height: 1; color: #24221c">
+        <h1 style="display: inline-flex; align-items: center; gap: 10px; margin: 0; font-size: 34px; font-weight: 800; letter-spacing: 0.01em"><span>HOT<span style="color: #e8590c">STOVE</span></span><span style="border: 2px solid #c98a08; border-radius: 999px; background: #ffd43b; font-size: 9.5px; letter-spacing: 0.1em; padding: 3.5px 8px">BETA</span></h1>
+        <p style="margin: 8px 0 0; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: #6b6759">
+          Spin for teams. Sign players. Chase 162 wins.
+        </p>
+        <!-- .bootline's twin (16px/700 muted, 22px above): the app card's
+             warming line lands in this exact seat, so a slow load reads as
+             one card gaining a meter rather than two cards trading places. -->
+        <p id="warmline" style="margin: 22px 0 0; font-size: 16px; font-weight: 700; color: #6b6759; opacity: 0; animation: hsboot 0.25s ease 0.4s forwards">Warming up the stove…</p>
+        <noscript>
+          <p style="font-size: 14px; font-weight: 700; margin: 14px 0 0; line-height: 1.4; color: #24221c">Hot Stove requires JavaScript to play.</p>
+        </noscript>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

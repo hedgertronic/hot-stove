@@ -366,6 +366,17 @@
     font-weight: 600;
     flex: none;
   }
+  /* The fans count and the skipper's record are DIGITS — they sit in the cap
+     band (the optical rule in app.css), so line-box centering rides them high
+     by an amount WebKit and Blink disagree on: centered on desktop Chrome,
+     visibly high on an iPhone. The trim is the same measurement the chips use;
+     the span is a flex item (blockified), so it lands. No fallback constant:
+     on a non-trim engine the line-box centering above stands as it always has. */
+  @supports (text-box: trim-both cap alphabetic) {
+    .meta {
+      text-box: trim-both cap alphabetic;
+    }
+  }
   /* `flex: none` is what makes the price column structural rather than
      incidental, matching the market rows' `.right`. Once a long name pushes the
      row to its limit, flex hands the shortfall to whichever items can shrink;

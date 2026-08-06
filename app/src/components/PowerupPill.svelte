@@ -110,19 +110,19 @@
 {#if onclick}
   <button
     bind:this={pillEl}
-    class="pp"
+    class="pp chipbox"
     class:spent={mode === "spent"}
     class:off={mode === "off"}
     class:armed={mode === "armed"}
-    {onclick}><span class="lb" bind:this={lbEl}>{label}</span></button
+    {onclick}><span class="lb chiplbl" bind:this={lbEl}>{label}</span></button
   >
 {:else}
   <span
     bind:this={pillEl}
-    class="pp"
+    class="pp chipbox"
     class:spent={mode === "spent"}
     class:off={mode === "off"}
-    class:armed={mode === "armed"}><span class="lb" bind:this={lbEl}>{label}</span></span
+    class:armed={mode === "armed"}><span class="lb chiplbl" bind:this={lbEl}>{label}</span></span
   >
 {/if}
 
@@ -140,7 +140,16 @@
     border: 2px solid var(--line);
     border-radius: 999px;
     background: var(--card);
-    padding: 5px 11px;
+    /* The pill is a chip (the `chipbox` class in its markup, the label a
+       `.chiplbl`), so its caps are seated by the recipe rather than by the
+       page's line box: as a padding-driven box the label rode the engine's
+       baseline seat — measured by the render probe at 0.9px high in Chrome
+       and 0.3px in Safari, one rule, two rides. The pinned heights are the
+       old 5px pair's outcomes at each tier's type, landed on whole pixels
+       (30.3 / 29.5 / 28.7 natural). Vertical geometry only: the 7px row gap
+       and the ::after tap extension are untouched. */
+    --chip-h: 30px;
+    padding-inline: 11px;
     font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.04em;
@@ -165,13 +174,33 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* On trim engines the label's box IS the cap band, and `overflow: hidden`
+     (the ellipsis clamp above) clips to it — which slices the ink an emoji
+     carries above the cap line: measured live, WebKit cut the ⭐'s top point
+     flat. The pair below re-arms the clamp without moving any type: padding
+     extends the clip edge past the emoji's ascent, the equal negative margin
+     hands the layout box straight back to the cap band, so flex centering
+     still lands on the measured caps and the emoji hangs into the padding,
+     visible. 0.35em clears the platform emoji faces' ~0.15em of ink beyond
+     the cap line with margin to spare. AwardPill solves this by splitting
+     the emoji out of its `.chiplbl` instead; this label is one prop string
+     that the arm animation measures and the clamp ellipsizes WHOLE, so it
+     stays one element and pays the clip margin here. Scoped to this file:
+     no other .chiplbl clips. */
+  @supports (text-box: trim-both cap alphabetic) {
+    .lb {
+      padding-block: 0.35em;
+      margin-block: -0.35em;
+    }
+  }
   /* Invisible extension grows the tap target without growing the pill. Capped
-     at half the 8px row spacing so adjacent lines' targets meet but never
-     overlap (a later pill's extension would otherwise cover the pill above). */
+     at half the 7px row spacing (PowerupRow's one gap number) so adjacent
+     lines' targets meet but never overlap (a later pill's extension would
+     otherwise cover the pill above). */
   .pp::after {
     content: "";
     position: absolute;
-    inset: -4px 0;
+    inset: -3.5px 0;
   }
   /* Only the wired pill is an offer: the span variant is a diagram, and a
      pointer cursor on it would promise a tap that does nothing. */
@@ -213,15 +242,17 @@
      rule and in descending order — equal specificity, source order decides.) */
   @container (max-width: 410px) {
     .pp {
+      --chip-h: 30px;
       font-size: 10px;
-      padding: 5px 8px;
+      padding-inline: 8px;
       letter-spacing: 0.02em;
     }
   }
   @container (max-width: 390px) {
     .pp {
+      --chip-h: 29px;
       font-size: 9.5px;
-      padding: 5px 6px;
+      padding-inline: 6px;
       letter-spacing: 0.01em;
     }
   }

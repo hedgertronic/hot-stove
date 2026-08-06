@@ -29,7 +29,10 @@ function rec(id: string): ArchivedFinale {
     // Whole enough to clear loadStoredFinale's structural floor — the reader
     // refuses a record missing anything the finale screen dereferences.
     finale: {
-      parts: { total: 100 },
+      parts: {
+        expectedWins: 0, managerWins: 0, budgetBonus: 0, awardPoints: 0,
+        ringPoints: 0, scoutBonus: 0, luxuryTax: 0, total: 100,
+      },
       wins: 100,
       losses: 62,
       badges: [],

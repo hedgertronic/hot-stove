@@ -94,11 +94,22 @@ export interface HistoryEntry {
 
 /** Every row ever written, oldest first. A corrupt or absent store reads as
  * no history rather than throwing: the record book and the trophy case are
- * both decoration over a game that has to stay playable without them. */
+ * both decoration over a game that has to stay playable without them.
+ *
+ * MEMBERS ARE VETTED HERE, at the one boundary, not by every reader: a
+ * `null` or a bare number inside an otherwise-valid array reached a dozen
+ * call sites, and while the trophy case's own readers guard with `e?.`, the
+ * home screen's season count and the seasons sheet read `e.total` plainly —
+ * one hand-corrupted row bricked the home screen and, worse, threw inside
+ * `finishGame`'s history append, leaving a finished season unrecorded. A row
+ * that is not a plain object is not a row. */
 export function loadHistory(): HistoryEntry[] {
   try {
     const h = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
-    return Array.isArray(h) ? h : [];
+    if (!Array.isArray(h)) return [];
+    return h.filter(
+      (e): e is HistoryEntry => typeof e === "object" && e !== null && !Array.isArray(e),
+    );
   } catch {
     return [];
   }
@@ -172,11 +183,11 @@ export function earnedBadgeKeys(): Set<string> {
  *
  * ---- One obligation ----
  *
- * The shape check below repeats `loadStoredFinale`'s rather than calling it.
- * Importing that function would make the log depend on the engine at runtime
- * and close the very cycle this module's position in the stack exists to
- * avoid — so the two dereferences every finale surface performs are checked
- * twice, on purpose. (Version skew needs no obligation: rows carry `v`, and
+ * The shape check is `renderableFinale` below, and `loadStoredFinale` calls
+ * the same predicate — sharing runs DOWN the stack (the engine imports this
+ * module), so one definition serves both without the upward import this
+ * module's position exists to avoid. (Version skew needs no obligation: rows
+ * carry `v`, and
  * `loadArchive` drops any row whose version this build doesn't render, exactly
  * as `loadStoredFinale` does for `hotstove.finale`. A bump silently retires
  * the old rows instead of relying on someone remembering to clear the key.) */
@@ -196,6 +207,41 @@ export const ARCHIVE_CAP = 50;
  * shared with its log row. */
 export type ArchivedFinale = StoredFinale & { id: string };
 
+/** Everything the finale screen dereferences WITHOUT guards, checked as one
+ * predicate so the two storage readers (`loadStoredFinale` in the engine, and
+ * `loadArchive` below) cannot drift apart on what "renderable" means. It
+ * lives HERE, at the bottom of the stack, because the engine already imports
+ * this module and the reverse import would be a cycle.
+ *
+ * The parts sweep is the reason this exists: the ledger calls `.toFixed()` on
+ * every `ScoreParts` number (expected wins, luxury tax, the bonuses), and the
+ * old check stopped at `parts.total` — a record that parsed, carried the
+ * right version, and held a truncated `parts` passed the reader and
+ * white-screened the finale on `undefined.toFixed`. */
+export function renderableFinale(f: unknown): boolean {
+  const fin = f as {
+    parts?: Record<string, unknown>;
+    badges?: unknown;
+  } & Record<string, unknown>;
+  if (typeof fin !== "object" || fin === null) return false;
+  for (const k of ["wins", "losses", "spend", "budget", "totalWar", "spinCount"])
+    if (typeof fin[k] !== "number") return false;
+  const parts = fin.parts;
+  if (typeof parts !== "object" || parts === null) return false;
+  for (const k of [
+    "expectedWins",
+    "managerWins",
+    "budgetBonus",
+    "awardPoints",
+    "ringPoints",
+    "scoutBonus",
+    "luxuryTax",
+    "total",
+  ])
+    if (typeof parts[k] !== "number") return false;
+  return Array.isArray(fin.badges);
+}
+
 /** Every reopenable game, oldest first. Rows missing an id or missing what the
  * finale screen dereferences are dropped rather than handed on: an archive
  * record exists to be rendered, and one that cannot be is no record. Corrupt or
@@ -208,7 +254,7 @@ export function loadArchive(): ArchivedFinale[] {
       (r) =>
         r?.v === FINALE_VERSION &&
         typeof r?.id === "string" &&
-        typeof r.finale?.parts?.total === "number" &&
+        renderableFinale(r.finale) &&
         Array.isArray(r.slots),
     );
   } catch {

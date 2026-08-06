@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- A mangled shared link (/hot-stove/anything) previously fell through to
+         the parent site's 404; the game is one URL, so every miss under its
+         path goes home. Meta refresh rather than JS so it works for every
+         agent; noindex so the redirect page itself never enters the index. -->
+    <meta name="robots" content="noindex" />
+    <meta http-equiv="refresh" content="0; url=/hot-stove/" />
+    <title>Hot Stove</title>
+  </head>
+  <body>
+    <p><a href="/hot-stove/">Hot Stove has moved — take me to the game.</a></p>
+  </body>
+</html>

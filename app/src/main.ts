@@ -24,4 +24,10 @@ polyfillCountryFlagEmojis("Twemoji Country Flags", flagFontUrl);
 // on the first tap rather than the second.
 document.addEventListener("touchstart", () => {}, { passive: true });
 
+// The static boot copy (index.html) is for crawlers and the pre-JS paint;
+// Svelte 5's mount() APPENDS to the target rather than replacing its
+// children, so the copy is removed by hand or it would sit above the game
+// forever.
+document.getElementById("static-boot")?.remove();
+
 export default mount(App, { target: document.getElementById("app")! });

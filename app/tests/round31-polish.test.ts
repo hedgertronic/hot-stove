@@ -99,14 +99,18 @@ describe("tapping a pending picker row cancels it", () => {
 });
 
 describe("the picker hint points at where the rail actually is", () => {
-  const list = read("components/PlayerList.svelte");
+  // The hint lives in MarketRow now — ONE markup block serves both pickers
+  // (the label is the only variable), which is why the counts are 1 where
+  // they were 2 in PlayerList's day. The intent is unchanged: both arrows
+  // exist and the wide tier swaps them (unless `.above` pins ↑ for surfaces
+  // whose rail never moves — the help sheet).
+  const row = read("components/MarketRow.svelte");
 
   it("carries both arrows and swaps them at the wide tier", () => {
-    // ↑ on the phone (rail above the market), ← at width (rail in the left
-    // column). Both hints carry the pair.
-    expect(list.match(/class="ph" aria-hidden="true">↑</g)?.length).toBe(2);
-    expect(list.match(/class="wd" aria-hidden="true">←</g)?.length).toBe(2);
-    expect(list).toContain(".hint .wd {\n    display: none;");
+    expect(row.match(/class="ph" aria-hidden="true">↑</g)?.length).toBe(1);
+    expect(row.match(/class="wd" aria-hidden="true">←</g)?.length).toBe(1);
+    expect(row).toContain(".hint .wd {\n    display: none;");
+    expect(row).toContain(".hint:not(.above) .wd {\n      display: inline;");
   });
 });
 

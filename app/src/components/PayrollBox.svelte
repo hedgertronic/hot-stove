@@ -234,7 +234,16 @@
     font-size: 12px;
     font-weight: 700;
   }
+  /* Pinned height, because the ghost and the hire must be ONE box: the ghost
+     is a bare emoji and the hire is emoji + digits, and letting each line box
+     set its own height measured 25px against 26px (tools/probe_centering.py)
+     — a dashed empty seat visibly taller or shorter than the chip that fills
+     it, depending on the platform's emoji metrics. 26px is the filled chip's
+     measured height, whole-pixel per the chip recipes' grid rule. */
   .chip {
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
     border: 2px solid var(--line);
     border-radius: 999px;
     padding: 1px 8px;

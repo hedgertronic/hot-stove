@@ -266,12 +266,15 @@ describe("log accumulates with actions", () => {
     const g = await spun();
     g.signPlayer(g.card!.players[0]);
     g.undo();
+    // The rewind APPENDED rather than removed: the sign it took back is still
+    // in the log, with the U after it — hydrate never touches the log.
+    expect(g.decisionLog.map((e) => e.verb)).toEqual(["S", "U"]);
 
     g.signPlayer(g.card!.players[0]);
+    // Same spin window: the once-per-spin rule refuses this rewind, so it is
+    // a no-op and writes nothing — a refused undo must not forge a U.
     g.undo();
-    expect(g.decisionLog).toHaveLength(4);
-    const verbs = g.decisionLog.map((e) => e.verb);
-    expect(verbs).toEqual(["S", "U", "S", "U"]);
+    expect(g.decisionLog.map((e) => e.verb)).toEqual(["S", "U", "S"]);
   });
 });
 

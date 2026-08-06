@@ -122,13 +122,18 @@ describe("no chip is centered by hand-tuned padding", () => {
     });
   }
 
-  it("HelpModal's specimen confirm carries none either", () => {
-    // The help sheet draws its own `.confirm.hint` — a scoped copy of the
-    // pill. It rides the shared .confirm chip box from app.css and states
-    // only `padding-inline`, so no measured vertical pair survives anywhere.
-    const help = read("components/HelpModal.svelte");
-    expect(help.match(handTuned) ?? []).toEqual([]);
-    expect(help).toContain("padding-inline: 12px;");
+  it("the market/help hint pill carries none either", () => {
+    // The specimen's hint is MarketRow's `.confirm.hint` now (the help sheet
+    // draws no confirm of its own). It rides the shared .confirm chip box
+    // from app.css — colors only, no box properties — so no measured
+    // vertical pair survives anywhere.
+    const row = read("components/MarketRow.svelte");
+    expect(row.match(handTuned) ?? []).toEqual([]);
+    const at = row.indexOf(".confirm.hint {");
+    expect(at).toBeGreaterThan(-1);
+    const hintBlock = row.slice(at, row.indexOf("}", at));
+    expect(hintBlock).not.toContain("padding");
+    expect(hintBlock).not.toContain("border-radius");
   });
 
   it("the WAR chip is the one recipe still allowed one, and says why", () => {
@@ -217,20 +222,31 @@ describe("every run of type inside a chip is wrapped in .chiplbl", () => {
   });
 
   it("every .confirm pill in the game wraps its label", () => {
-    // Count equality per file: a new confirm added without a label wrapper
-    // fails here rather than shipping a run the trim cannot reach.
+    // Per-pill adjacency: each confirm's own markup must carry a .chiplbl
+    // within the next few hundred characters, so a new confirm added without
+    // a label wrapper fails here rather than shipping a run the trim cannot
+    // reach. Adjacency rather than count-equality because .chiplbl is not
+    // confirm-exclusive — the market's position chips wrap their labels too,
+    // and a file-wide tally would let one naked confirm hide behind one of
+    // those. `class="confirm` only ever matches markup: the styles reference
+    // the class as a selector, never as an attribute.
     for (const f of [
       "components/PlayerList.svelte",
       "components/SpecialRows.svelte",
       "components/PrimePicker.svelte",
       "components/SpecialPrimePicker.svelte",
-      "components/HelpModal.svelte",
+      // The market/help hint pill lives in MarketRow now; HelpModal draws no
+      // confirm of its own any more.
+      "components/MarketRow.svelte",
     ]) {
       const src = read(f);
-      const pills = (src.match(/class="confirm/g) ?? []).length;
-      const labels = (src.match(/class="chiplbl"/g) ?? []).length;
-      expect(pills, `${f} draws confirm pills`).toBeGreaterThan(0);
-      expect(labels, `${f} wraps every confirm label`).toBe(pills);
+      const pills = src.split('class="confirm').slice(1);
+      expect(pills.length, `${f} draws confirm pills`).toBeGreaterThan(0);
+      for (const seg of pills)
+        expect(
+          seg.slice(0, 400).includes('class="chiplbl"'),
+          `${f}: a confirm pill without a .chiplbl label`,
+        ).toBe(true);
     }
   });
 });

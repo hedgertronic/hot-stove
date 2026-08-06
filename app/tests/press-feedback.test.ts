@@ -76,29 +76,32 @@ describe("CornerButtons.svelte — press feedback", () => {
 describe("PillSlot.svelte — press feedback", () => {
   const src = read("PillSlot.svelte");
 
-  it("adds a transform transition in the 0.08–0.15 s band to .slot", () => {
-    // Same window-slice approach as the .help test — the comment contains `}`
-    // which would stop `[^}]*` before reaching the transition declaration.
-    const start = src.indexOf(".slot {");
-    expect(start, ".slot { selector must exist").toBeGreaterThan(-1);
-    const window = src.slice(start, start + 700);
-    const m = window.match(/transition:\s*transform\s+([\d.]+s)/);
-    expect(m, ".slot must have a transition: transform declaration").not.toBeNull();
-    const dur = parseFloat(m![1]);
+  // The press rides the CHIP, not the button: a scaled button drags its own
+  // hit region, and a rim press on a wide pill ended outside the transformed
+  // box (the click resolved to the body). The button holds still — which is
+  // also what keeps measure()'s btnEl rect honest through a persisting
+  // :active on touch. These pins follow the mechanism to the chip child.
+  const CHIP = String.raw`\.slot(:active)?\s*>\s*:global\(\.chipbox\)`;
+
+  it("adds a transform transition in the 0.08–0.15 s band to the chip", () => {
+    const m = src.match(new RegExp(`${CHIP}\\s*\\{[^}]*transition:\\s*transform\\s+([\\d.]+s)`));
+    expect(m, "the chip must have a transition: transform declaration").not.toBeNull();
+    const dur = parseFloat(m![2]);
     expect(dur, "transition duration must be 0.08–0.15 s").toBeGreaterThanOrEqual(0.08);
     expect(dur, "transition duration must be 0.08–0.15 s").toBeLessThanOrEqual(0.15);
   });
 
-  it("adds an :active transform to .slot", () => {
-    expect(src).toMatch(/\.slot:active\s*\{[^}]*transform:/);
+  it("adds an :active transform to the chip — and none to the button", () => {
+    expect(src).toMatch(new RegExp(`\\.slot:active\\s*>\\s*:global\\(\\.chipbox\\)\\s*\\{[^}]*transform:`));
+    // The button must never transform: that is the wide-pill rim-tap bug.
+    expect(src).not.toMatch(/\.slot:active\s*\{[^}]*transform:/);
   });
 
-  it(".slot:active uses scale — not translate — to avoid displacing getBoundingClientRect center", () => {
-    // `measure()` reads `btnEl.getBoundingClientRect()` to point the reveal
-    // arrow at the chip's center. A translate would shift the center; a scale
-    // about the origin preserves it. The test checks the `:active` block only
-    // contains `scale(`, not a bare `translate(` or `translate(`.
-    const activeBlock = src.match(/\.slot:active\s*\{([^}]*)\}/)?.[1] ?? "";
+  it("the :active press uses scale — not translate — so the chip stays centered", () => {
+    // A translate would shift the chip's visual center away from where
+    // measure() points the reveal arrow; a scale about the center preserves it.
+    const activeBlock =
+      src.match(/\.slot:active\s*>\s*:global\(\.chipbox\)\s*\{([^}]*)\}/)?.[1] ?? "";
     expect(activeBlock).toMatch(/scale\(/);
     expect(activeBlock).not.toMatch(/\btranslate\s*\(/);
     expect(activeBlock).not.toMatch(/\btranslateX\s*\(/);

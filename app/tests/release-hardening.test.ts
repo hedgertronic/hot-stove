@@ -79,7 +79,10 @@ describe("the finale reader refuses a hollow record", () => {
     stadium: null,
     manager: null,
     finale: {
-      parts: { total: 100 },
+      parts: {
+        expectedWins: 0, managerWins: 0, budgetBonus: 0, awardPoints: 0,
+        ringPoints: 0, scoutBonus: 0, luxuryTax: 0, total: 100,
+      },
       wins: 100,
       losses: 62,
       badges: [],

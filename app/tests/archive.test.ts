@@ -55,7 +55,14 @@ function rec(id: string, total = 100): ArchivedFinale {
     owner: null,
     stadium: null,
     manager: null,
-    finale: { parts: { total } } } as unknown as ArchivedFinale;
+    finale: {
+      parts: {
+        expectedWins: 0, managerWins: 0, budgetBonus: 0, awardPoints: 0,
+        ringPoints: 0, scoutBonus: 0, luxuryTax: 0, total,
+      },
+      wins: 0, losses: 0, spend: 0, budget: 0, totalWar: 0, spinCount: 8,
+      badges: [],
+    } } as unknown as ArchivedFinale;
 }
 
 /** One finished season in the log, pointing at the archive record of the same

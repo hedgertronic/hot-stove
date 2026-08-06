@@ -1,5 +1,6 @@
 import { badgeEmoji } from "./badges";
 import { Game } from "./engine.svelte";
+import { decodeLogBody, encodeLogBody } from "./logcodec";
 import type { Bank, Difficulty, CompactAction, DecisionLogHeader, GameConfig } from "./engine.svelte";
 import { recordFromTotal, seedCode, warTier, type WarTier } from "./format";
 import { BANKS, DIFFICULTIES } from "./modes";
@@ -309,52 +310,11 @@ export function shareText(input: ShareInput): string {
  *   so the arm state is what the log records.
  * ------------------------------------------------------------------------ */
 
-/** Encode a compact action sequence to a body string (no header). */
-function encodeBody(actions: CompactAction[]): string {
-  let s = "";
-  for (const a of actions) {
-    if (a.verb === "S" || a.verb === "W") {
-      s += a.verb + a.pi.toString(36) + a.si.toString(36);
-    } else if (a.verb === "P" || a.verb === "V") {
-      s += a.verb + a.ci.toString(36).padStart(2, "0") + a.pi.toString(36) + a.si.toString(36);
-    } else if (a.verb === "Q" || a.verb === "T" || a.verb === "R") {
-      s += a.verb + a.ci.toString(36).padStart(2, "0");
-    } else {
-      s += a.verb; // O, A, M, U, C, D, H
-    }
-  }
-  return s;
-}
-
-/** Decode a compact body string to CompactAction[]. Returns [] on corrupt input. */
-function decodeBody(body: string): CompactAction[] {
-  const actions: CompactAction[] = [];
-  let i = 0;
-  while (i < body.length) {
-    const verb = body[i++];
-    if (verb === "S" || verb === "W") {
-      const pi = parseInt(body[i++], 36);
-      const si = parseInt(body[i++], 36);
-      actions.push({ verb, pi, si });
-    } else if (verb === "P" || verb === "V") {
-      const ci = parseInt(body.slice(i, i + 2), 36); i += 2;
-      const pi = parseInt(body[i++], 36);
-      const si = parseInt(body[i++], 36);
-      actions.push({ verb, ci, pi, si });
-    } else if (verb === "Q" || verb === "T" || verb === "R") {
-      const ci = parseInt(body.slice(i, i + 2), 36); i += 2;
-      actions.push({ verb, ci });
-    } else if (
-      verb === "O" || verb === "A" || verb === "M" ||
-      verb === "U" || verb === "C" || verb === "D" || verb === "H"
-    ) {
-      actions.push({ verb } as CompactAction);
-    } else {
-      return []; // unrecognized — corrupt
-    }
-  }
-  return actions;
-}
+/** The body codec lives in lib/logcodec — ONE implementation shared with the
+ * engine's save/finale writers, imported under this module's historical local
+ * names so the grammar comment above keeps describing exactly what runs. */
+const encodeBody = encodeLogBody;
+const decodeBody = decodeLogBody;
 
 /** The format version this build MINTS. Decoding accepts older versions —
  * replaying does not (see the grammar note above). */

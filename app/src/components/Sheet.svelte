@@ -54,6 +54,7 @@
     title = null,
     subtitle = null,
     confirmLabel = null,
+    corner = null,
     children,
   }: {
     onclose: () => void;
@@ -70,6 +71,12 @@
      * CLOSE is the neutral fallback. Null draws no button and leaves the
      * sheet scrolling as one piece. */
     confirmLabel?: string | null;
+    /** Optional control in the header's top-LEFT corner — the ✕'s mirror
+     * seat. The caller draws the pill itself (the trophy case's filter
+     * toggle is the first tenant); the shell only reserves the seat and
+     * rebalances the title, whose optical centering pads against whichever
+     * corners are occupied. */
+    corner?: Snippet | null;
     children: Snippet;
   } = $props();
 
@@ -150,7 +157,8 @@
   >
     {#if title !== null}
       <div class="head">
-        <span class="title">{title}</span>
+        {#if corner}{@render corner()}{/if}
+        <span class="title" class:solo={corner === null}>{title}</span>
         <button class="x" onclick={onclose} aria-label="Close"><CloseGlyph /></button>
       </div>
       {#if subtitle !== null}<div class="sub">{subtitle}</div>{/if}
@@ -225,15 +233,30 @@
        floor, a grid picker's top-right tile sits under the corner's target. */
     min-height: 26px;
   }
-  /* Optically centered against the ✕ rather than against the row: the pill and
-     its gap take 34px off the right, so the same 34px comes off the left. */
+  /* Optically centered against the corners rather than against the row: the
+     ✕ and its gap take 34px off the right, so with the left seat empty the
+     same 34px comes off the left (.solo). A corner tenant is the ✕'s twin
+     pill at the same 28px + 6px gap, so its presence balances the row by
+     itself and the padding stands down. */
   .title {
     flex: 1;
-    padding-left: 34px;
     text-align: center;
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.08em;
+  }
+  .title.solo {
+    padding-left: 34px;
+  }
+  /* The title's caps seat on their cap band where the engine can trim —
+     line-box-centered they rode ~0.3–0.9px high (highest on WebKit), which
+     is what made the perfectly centered ✕ beside them read as LOW. Same
+     branch the chip recipes take; on engines without it the title keeps the
+     line box, as all bare caps do. */
+  @supports (text-box: trim-both cap alphabetic) {
+    .title {
+      text-box: trim-both cap alphabetic;
+    }
   }
   .sub {
     flex: none;

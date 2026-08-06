@@ -1,3 +1,4 @@
+import type { Bank } from "./engine.svelte";
 import { GOAL_POINTS, MANAGER_PER_NET_WIN } from "./scoring";
 
 /* The badge set — one table, read by the finale pill row, the share string,
@@ -160,6 +161,16 @@ export interface BadgeDef {
    * case still says "a hundred wins is a thing", and everything above it is a
    * discovery. */
   secret?: boolean;
+  /** The only banks whose MECHANICS can produce this badge; absent means every
+   * bank can. The four front-office badges carry `["classic"]`: Moneyball and
+   * Blank Check are fixed-cap banks with no owner or stadium seat at all, so a
+   * condition that needs one is unearnable there by construction, not by
+   * policy. The trophy case reads this to keep such a badge off the board and
+   * out of the N OF M denominator under a bank lens that excludes every bank
+   * it can fire in — a silhouette that says "could aim at" would be lying
+   * under that lens. Difficulty needs no twin field: Eye Test hides
+   * information but locks nothing out. */
+  banks?: Bank[];
   /** Plain-language trigger, shown when a player opens an earned badge in the
    * trophy case. Written as the condition they met, not as a rule they should
    * chase — locked badges never reveal it. */
@@ -263,6 +274,12 @@ export interface BadgeFacts {
   budgetM: number;
   /** `ScoreParts.budgetBonus`; 💵 wants it near its 10-point ceiling. */
   budgetBonus: number;
+  /** RAW dream-team hits — the count of seats genuinely matched, BEFORE the
+   * engine's beatCeiling scoring upgrade (which raises the scored count to
+   * `dreamSeats` as a courtesy to a club that beat the ceiling). The badges
+   * read the raw number: 🌠 is a claim about matching, 🦉 about beating, and
+   * feeding the upgraded count here made outscouting auto-earn 🌠 while the
+   * finale's dream-team column visibly disagreed with the player's club. */
   scoutHits: number;
   /** The seats the dream club can actually fill — nine with a manager, fewer
    * when the reel showed too few cards to put one pick in every chair
@@ -349,7 +366,9 @@ export interface BadgeFacts {
    * Optional for `konami`'s reason and it fails the same way: a fact set built
    * before the field existed reports no redo rather than a free badge. */
   redone?: boolean;
-  /** The same action was undone three or more times in one game — 🎠 MERRY-GO-ROUND.
+  /** Three or more moves were taken back in one game — 🎠 MERRY-GO-ROUND.
+   * (Read total undos: the once-per-spin rule closed the same-move carousel
+   * — see the engine's `repeatedUndo` note.)
    *
    * Optional for `konami`'s reason and it fails the same way: a fact set built
    * before the field existed reports no repeated undo rather than a free badge. */
@@ -1835,6 +1854,7 @@ export const BADGES: BadgeDef[] = [
   },
   {
     key: "homefield",
+    banks: ["classic"],
     emoji: "⛲",
     label: "HOME FIELD ADVANTAGE",
     name: "Home Field Advantage",
@@ -1845,6 +1865,7 @@ export const BADGES: BadgeDef[] = [
   },
   {
     key: "companytown",
+    banks: ["classic"],
     emoji: "🏭",
     label: "COMPANY TOWN",
     name: "Company Town",
@@ -1943,6 +1964,7 @@ export const BADGES: BadgeDef[] = [
    * is the best possible version of the story. */
   {
     key: "flyingblind",
+    banks: ["classic"],
     emoji: "🕶️",
     label: "FLYING BLIND",
     name: "Flying Blind",
@@ -1973,6 +1995,7 @@ export const BADGES: BadgeDef[] = [
    * `ironic` and not `secret`, for the reason beside 🪑. */
   {
     key: "blindbust",
+    banks: ["classic"],
     emoji: "🙈",
     label: "DIDN'T ASK THE PRICE",
     name: "Didn't Ask the Price",
@@ -2221,16 +2244,24 @@ export const BADGES: BadgeDef[] = [
   },
   /* The two seed badges. Both are jokes about provenance rather than facts
    * about baseball, and they are a matched pair pointed in opposite
-   * directions: ✳️ is what you did to yourself, 🤝 is what someone did for
+   * directions: 📼 is what you did to yourself, 🤝 is what someone did for
    * you. */
   {
+    // THE KEY IS HISTORY, THE FACE IS NOT. This badge wore ✳️ THE ASTERISK
+    // from launch until the undo button earned the name better — an asterisk
+    // in baseball is a tainted record, and a season with a move taken back is
+    // the tainted one, not a season replayed on a known code. The ✳️ identity
+    // moved to `secondthoughts` (the undo badge, below) and this one became
+    // the RERUN, which is what a replayed seed literally is. The KEYS did not
+    // move: history rows store keys, and re-keying either badge would orphan
+    // every earned copy in every player's trophy case.
     key: "asterisk",
     // No `secret: true`. It would be redundant — BadgePill and TrophyModal's
     // anonymous predicate both treat `ironic` OR `secret` as sufficient to
     // withhold the name, and no shipped badge carries both.
-    emoji: "✳️",
-    label: "THE ASTERISK",
-    name: "The Asterisk",
+    emoji: "📼",
+    label: "THE RERUN",
+    name: "The Rerun",
     rarity: "ironic",
     axis: "meta",
     ironic: true,
@@ -2259,7 +2290,7 @@ export const BADGES: BadgeDef[] = [
     name: "Word of Mouth",
     rarity: "rare",
     axis: "meta",
-    // Unmeasurable for the ✳️ reason: no bot arm types a seed in.
+    // Unmeasurable for the 📼 reason: no bot arm types a seed in.
     freq: null,
     how: "Played a seed someone else gave you.",
   },
@@ -2291,7 +2322,7 @@ export const BADGES: BadgeDef[] = [
     name: "Cheat Codes",
     rarity: "ultra",
     axis: "meta",
-    // Unmeasurable for the ✳️ / 🤝 reason, one step further along: a bot arm
+    // Unmeasurable for the 📼 / 🤝 reason, one step further along: a bot arm
     // drives the engine directly and never touches a keyboard at all.
     freq: null,
     how: "Entered the Konami code.",
@@ -2301,24 +2332,27 @@ export const BADGES: BadgeDef[] = [
    * that stood before it, RNG cursor included, so re-doing the same thing
    * deals the same card.
    *
-   * `ironic` for ✳️ THE ASTERISK's reason rather than 🧳 PACKED IT IN's. A
+   * `ironic` for 📼 THE RERUN's reason rather than 🧳 PACKED IT IN's. A
    * mulligan is a joke at your own expense: the season you finished is one
-   * decision less committed than the one the seed dealt you, which is the same
-   * shrug ✳️ makes about replaying a code you had already played. Both belong
-   * beside the result and neither belongs in the progress fraction — and the
-   * locked slot has to stay anonymous for 💀's reason, because "↩️ SECOND
-   * THOUGHTS" printed on an empty case is an instruction to go press the
+   * decision less committed than the one the seed dealt you, which is the
+   * same shrug 📼 makes about replaying a code you had already played. Both
+   * belong beside the result and neither belongs in the progress fraction —
+   * and the locked slot has to stay anonymous for 💀's reason, because "✳️
+   * THE ASTERISK" printed on an empty case is an instruction to go press the
    * button, in a game whose whole shape is living with the card you were
    * dealt.
    *
-   * SECOND THOUGHTS over THE DO-OVER: the axis speaks in idiom about the
-   * player — PACKED IT IN, WORD OF MOUTH — and names no mechanic. "The
-   * do-over" is the feature's name; "second thoughts" is what the player had. */
+   * THE ASTERISK is the undo badge's face, and it earned it over the replayed
+   * seed: an asterisk in baseball is the mark on a tainted record, and the
+   * season with a move taken back is the tainted one. The face moved here
+   * from the replayed-seed badge (see the note on `asterisk` above); the key
+   * stays `secondthoughts` because history rows store keys and a re-key
+   * orphans every earned copy. */
   {
     key: "secondthoughts",
-    emoji: "↩️",
-    label: "SECOND THOUGHTS",
-    name: "Second Thoughts",
+    emoji: "✳️",
+    label: "THE ASTERISK",
+    name: "The Asterisk",
     rarity: "ironic",
     axis: "meta",
     ironic: true,
@@ -2332,7 +2366,7 @@ export const BADGES: BadgeDef[] = [
    *
    * `secret: true` for 🎮's reason: "🔂 DÉJÀ VU" on an empty case tells the
    * player there is a condition they can discover, and the condition itself is
-   * the reward. Always co-fires with ↩️ SECOND THOUGHTS — a redo requires
+   * the reward. Always co-fires with ✳️ THE ASTERISK — a redo requires
    * an undo.
    *
    * NOT ironic, unlike its neighbor. Replaying your own move after taking it
@@ -2360,18 +2394,20 @@ export const BADGES: BadgeDef[] = [
     rarity: "rare",
     axis: "meta",
     secret: true,
-    // Same unmeasurability as ↩️, one gate narrower: the player also has to
+    // Same unmeasurability as ✳️, one gate narrower: the player also has to
     // repeat the move they just took back.
     freq: null,
     how: "Took back a move, then immediately made the same one again.",
   },
-  /* The indecisive loop — undoing the same action at least three times in one
-   * game. Three total undos of the same actionSig: make move, undo, remake,
-   * undo, remake, undo. The counter is per-sig, so only the exact same action
-   * (same player, same card team, same card year, same slot) counts as "the
-   * same move".
+  /* The indecisive loop — three or more moves taken back in one game. It
+   * used to ask for the same actionSig undone three times, but the
+   * once-per-spin undo rule (engine `undoSpent`) closed the make → undo →
+   * remake carousel that trigger was written for. Three rewinds across a
+   * season is the same joke, still earnable — and every copy earned under
+   * the old trigger was earned under a strictly harder condition, so the
+   * history stays honest.
    *
-   * `ironic: true` like ↩️ SECOND THOUGHTS — it is a joke at the player's
+   * `ironic: true` like ✳️ THE ASTERISK — it is a joke at the player's
    * expense and excluded from the progress fraction. An anonymous locked slot
    * means the player discovers it rather than farming it, matching the axis
    * voice that names the experience rather than the mechanic. */
@@ -2384,7 +2420,7 @@ export const BADGES: BadgeDef[] = [
     axis: "meta",
     ironic: true,
     freq: null,
-    how: "Took back the same move three or more times in one game.",
+    how: "Took back three or more moves in one game.",
   },
 ];
 
@@ -2397,6 +2433,13 @@ export const BADGE_BY_KEY: Record<string, BadgeDef> = Object.fromEntries(
  * side of the ratio, so earning one must not move the fraction. They still get
  * a slot in the case, which is a separate question this list does not answer. */
 export const COLLECTIBLE = BADGES.filter((b) => !b.ironic);
+
+/** Whether a bank lens leaves this badge with no bank it can fire in — the
+ * trophy case's read of `banks` above. An empty `want` is an unfiltered axis
+ * (CaseFilter's own rule), which locks nothing. */
+export function bankLocked(b: BadgeDef, want: readonly Bank[]): boolean {
+  return want.length > 0 && b.banks !== undefined && !b.banks.some((x) => want.includes(x));
+}
 
 /** The one on-field badge a season earns, or null. Crown supersedes every
  * named rung, named rungs match exactly, and 💯 catches the rest of the

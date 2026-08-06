@@ -74,8 +74,8 @@ describe("badgeCase", () => {
   it("pins the collectible denominator to the badge table", () => {
     // The summary line prints this denominator; it lives in badges.ts, and a
     // table edit must move the fraction here rather than silently anywhere.
-    // The denominator holds at 58 while the table grows to 72: ↩️ SECOND
-    // THOUGHTS and 🎠 MERRY-GO-ROUND are anti-trophies (ironic), and an
+    // The denominator holds at 58 while the table grows to 72: ✳️ THE
+    // ASTERISK (undo) and 🎠 MERRY-GO-ROUND are anti-trophies (ironic), and an
     // anti-trophy belongs to neither side of the fraction. 🔂 DÉJÀ VU is NOT
     // ironic (it belongs in the progress fraction as something to chase), so
     // it IS counted alongside 🦉 OUTSCOUTED and the rest. That gap between
@@ -151,6 +151,14 @@ describe("badgeCase", () => {
     expect(badgeCase().tiles).toEqual([]);
   });
 
+  it("survives non-object members inside an otherwise valid array", () => {
+    // Vetted at the loadHistory boundary, not by each reader: the home
+    // screen's season count reads `e.total` without a guard, so one null row
+    // bricked the whole home screen before the boundary filter existed.
+    seed(null, 7, "row", [], game(["crystal"]));
+    expect(counts()).toEqual({ crystal: 1 });
+  });
+
   it("keeps anti-trophies out of the fraction but in the tile list", () => {
     seed(game(["skull", "pocket", "crystal", "twoway"]));
     const c = badgeCase();
@@ -168,6 +176,76 @@ describe("badgeCase", () => {
     const keys = (perTier as BadgeDef[]).map((b) => b.key);
     seed(game([...keys].reverse()));
     expect(badgeCase().tiles.map((t) => t.key)).toEqual(keys);
+  });
+});
+
+describe("the mode lens (CaseFilter)", () => {
+  // One earned badge per mode combination, so every assertion reads as a set
+  // of keys. Rows: standard/classic, standard/moneyball, scout/blankcheck,
+  // plus one row too old to name any mode.
+  const seedModes = () =>
+    seed(
+      { v: 2, total: 1, difficulty: "standard", bank: "classic", badges: ["crystal"] },
+      { v: 2, total: 1, difficulty: "standard", bank: "moneyball", badges: ["dime"] },
+      { v: 2, total: 1, difficulty: "scout", bank: "blankcheck", badges: ["twoway"] },
+      { date: "2023-01-01", total: 1, badges: ["pinch"] }, // pre-mode row
+    );
+  const keys = (f?: Parameters<typeof badgeCase>[0]) =>
+    badgeCase(f).tiles.map((t) => t.key).sort();
+
+  it("no filter (and empty axes) reads the whole history, pre-mode rows included", () => {
+    seedModes();
+    expect(keys()).toEqual(["crystal", "dime", "pinch", "twoway"]);
+    expect(keys({})).toEqual(["crystal", "dime", "pinch", "twoway"]);
+    expect(keys({ difficulties: [], banks: [] })).toEqual(["crystal", "dime", "pinch", "twoway"]);
+  });
+
+  it("selections within an axis OR together", () => {
+    seedModes();
+    expect(keys({ banks: ["classic", "moneyball"] })).toEqual(["crystal", "dime"]);
+    expect(keys({ difficulties: ["standard", "scout"] })).toEqual(["crystal", "dime", "twoway"]);
+  });
+
+  it("axes AND together", () => {
+    seedModes();
+    expect(keys({ difficulties: ["standard"], banks: ["moneyball"] })).toEqual(["dime"]);
+    expect(keys({ difficulties: ["scout"], banks: ["moneyball"] })).toEqual([]);
+  });
+
+  it("a row too old to name a mode appears under no lens, on either axis", () => {
+    // A lens can only show what a row claims; the pre-mode row claims nothing.
+    seedModes();
+    expect(keys({ difficulties: ["standard"] })).toEqual(["crystal", "dime"]);
+    expect(keys({ banks: ["classic"] })).toEqual(["crystal"]);
+  });
+
+  it("reads legacy difficulty spellings through the version stamp, like bestFor", () => {
+    // Pre-v2 rows: "eyetest" is today's scout; "scout" was the retired stats
+    // mode, standard's ancestor. Read raw, the first vanished from Eye Test
+    // and the second impersonated it.
+    seed(
+      { date: "2023-01-01", total: 1, difficulty: "eyetest", badges: ["crystal"] },
+      { date: "2023-01-02", total: 1, difficulty: "scout", badges: ["dime"] },
+    );
+    expect(keys({ difficulties: ["scout"] })).toEqual(["crystal"]);
+    expect(keys({ difficulties: ["standard"] })).toEqual(["dime"]);
+  });
+
+  it("drops bank-locked badges from N OF M under a lens that excludes their bank", () => {
+    // The fixed-cap banks have no owner or stadium seat, so the front-office
+    // badges (badges.ts `banks: ["classic"]`) cannot fire there — under such
+    // a lens they leave the denominator with the board. Three are collectible
+    // (⛲🏭🕶️); 🙈 is ironic and never counted.
+    seedModes();
+    const lockedOut = COLLECTIBLE.filter((b) => b.banks?.length === 1 && b.banks[0] === "classic");
+    expect(lockedOut.map((b) => b.key).sort()).toEqual(["companytown", "flyingblind", "homefield"]);
+    const full = badgeCase().total;
+    expect(badgeCase({ banks: ["moneyball"] }).total).toBe(full - lockedOut.length);
+    expect(badgeCase({ banks: ["moneyball", "blankcheck"] }).total).toBe(full - lockedOut.length);
+    // Any lens that still includes classic keeps the full denominator, as does
+    // an unfiltered bank axis.
+    expect(badgeCase({ banks: ["classic", "moneyball"] }).total).toBe(full);
+    expect(badgeCase({ difficulties: ["scout"] }).total).toBe(full);
   });
 });
 
@@ -221,8 +299,9 @@ describe("the trophy case sheet", () => {
     seed(game(["crystal"]));
     const body = modal();
     const buttons = (body.match(/aria-expanded=/g) ?? []).length;
-    // Exactly one earned collectible, so exactly one openable pill.
-    expect(buttons).toBe(1);
+    // Exactly one earned collectible, so exactly one openable pill — plus the
+    // header's filter funnel, the sheet's one other disclosure control.
+    expect(buttons).toBe(2);
   });
 
   it("names every locked badge without revealing its trigger", () => {

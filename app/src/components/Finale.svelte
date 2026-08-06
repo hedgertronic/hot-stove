@@ -1,6 +1,7 @@
 <script lang="ts">
   import { track } from "../lib/analytics";
   import { bragRow } from "../lib/badges";
+  import { balancewrap } from "../lib/balancewrap";
   import { ownerFor } from "../lib/data";
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
   import { costTier, lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, statValue, warTier, type WarTier } from "../lib/format";
@@ -664,7 +665,7 @@
                  AwardPill and renders as an unknown award. -->
             {#if c.code.startsWith("💍") || c.code.startsWith("🚩") || c.code.startsWith("⭐") || c.code.startsWith("🥇") || c.code.startsWith("🥈")}
               <span class="chipbox pedchip"
-                >{c.code}{#if c.n > 1}<span class="mult chiplbl">×{c.n}</span>{/if}</span
+                ><span class="erun">{c.code}</span>{#if c.n > 1}<span class="mult chiplbl">×{c.n}</span>{/if}</span
               >
             {:else}
               <AwardPill code={c.code} n={c.n} />
@@ -714,7 +715,11 @@
        of this row. visibility:hidden on .clubpass gates stamps before their
        beat — visibility IS inherited through display:contents, unlike opacity,
        which is why the old opacity:0 let stamp animations run silently. -->
-  <div class="badge-strip">
+  <!-- balancewrap: the trophy case's even-count wrapping, so the ceremony
+       row never deals two full lines and a one-chip orphan. Keyed on the
+       beats that add chips to the strip (brags mount at their beat; stamps
+       hold space from the first frame). -->
+  <div class="badge-strip" use:balancewrap={`${bragsShown ? brags.length : 0}|${clubCountries.length}`}>
     {#if bragsShown && brags.length > 0}
       <div class="brags">
         {#each brags as b, i (b.def.key)}
@@ -1128,6 +1133,20 @@
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.1em;
+  }
+  /* The chip's emoji run, as an element a correction can reach. An emoji has
+     no cap band for the trim to measure, so the box alone centers it — and
+     WebKit seats a bare emoji run 0.5–0.67px HIGH in these chips where Blink
+     centers it (measured: tools/probe_centering.py, pedchip specimens). The
+     nudge is WebKit-fenced with the -apple-system-body probe because it
+     corrects that engine's seating, not the recipe. */
+  .erun {
+    display: block;
+  }
+  @supports (font: -apple-system-body) {
+    .erun {
+      transform: translateY(0.5px);
+    }
   }
   /* The slot the payroll bar sits in. Only the width is decided here — how
      wide a bar this row can spare — because everything inside it is PayrollBox

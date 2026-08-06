@@ -4,6 +4,7 @@
 import {
   BADGE_BY_KEY,
   BADGES,
+  bankLocked,
   COLLECTIBLE,
   RARITY_ORDER,
   type Rarity,
@@ -202,12 +203,17 @@ export function firstEverPlay(): boolean {
  *
  * Called on the CONFIRMED quit only, and never from the finale's ✕ — a
  * finished game has nothing left to abandon. */
-export function recordQuit(): void {
+export function recordQuit(difficulty: Difficulty, bank: Bank): void {
   const first = !earnedBadgeKeys().has(PACKED_IN);
-  // No `v`: that stamp only disambiguates a row's stored difficulty, and an
-  // unscored row carries none.
+  // The abandoned game's own mode, stamped the way a finished game's row is —
+  // without it the quit row named no mode, so 🧳 showed under ALL but
+  // vanished under every trophy-case lens. `v` rides along for the same
+  // reason the engine writes it: it disambiguates the stored difficulty.
   appendHistory({
+    v: 2,
     date: localDateStamp(),
+    difficulty,
+    bank,
     badges: [PACKED_IN],
   });
   if (first) noteNewBadges([PACKED_IN]);
@@ -289,14 +295,58 @@ const TABLE_ORDER = new Map(BADGES.map((b, i) => [b.key, i]));
  * Nobody chases a 100-loss season, so it belongs to neither side of the ratio —
  * but it still gets a tile once it happens, which is the joke.
  */
-export function badgeCase(): {
+/** A mode lens over the case. One axis at a time — a difficulty OR a bank —
+ * because that is what the filter chips offer; `undefined` is the lifetime
+ * ALL view. */
+/** The trophy case's mode lens, multi-select on both axes. Within an axis the
+ * selections are OR (Box Score + Eye Test = games from either ladder); across
+ * axes they are AND (Box Score + Moneyball = Box Score games played on the
+ * Moneyball bank). An empty or absent array on an axis means "no lens on this
+ * axis", so `{}` and `undefined` both read as ALL. */
+export interface CaseFilter {
+  difficulties?: Difficulty[];
+  banks?: Bank[];
+}
+
+/** The bank a history row was played under, reading the legacy spelling too:
+ * pre-bank rows carried a `moneyball` boolean (true = Moneyball, false =
+ * classic), and rows older than THAT carry neither — those return null and
+ * appear only in the ALL view, which is the honest reading of a row that
+ * never said. */
+function rowBank(e: { bank?: string; moneyball?: boolean }): Bank | null {
+  if (e.bank === "classic" || e.bank === "moneyball" || e.bank === "blankcheck") return e.bank;
+  if (typeof e.moneyball === "boolean") return e.moneyball ? "moneyball" : "classic";
+  return null;
+}
+
+export function badgeCase(filter?: CaseFilter): {
   tiles: CaseTile[];
   earned: number;
   total: number;
 } {
   const counts = new Map<string, number>();
+  const wantDiff = filter?.difficulties ?? [];
+  const wantBank = filter?.banks ?? [];
   for (const e of loadHistory()) {
     if (!Array.isArray(e?.badges)) continue;
+    // The lens: a row that doesn't name any asked-for mode is excluded, and a
+    // row too old to name any mode shows only under ALL. Every badge the row
+    // earned filters together — a badge has no mode of its own, the game that
+    // earned it does. Axes AND together; selections within an axis OR.
+    // The difficulty read is bestFor's, version stamp and all: a pre-v2
+    // "eyetest" is today's scout, and a pre-v2 "scout" was the retired stats
+    // mode — standard's ancestor, not Eye Test's. A row naming NO difficulty
+    // stays null (only ALL shows it) rather than falling to the legacy
+    // default, which would dress every pre-mode row as Box Score.
+    const d =
+      typeof e.difficulty !== "string"
+        ? null
+        : typeof e.v === "number" && e.v >= 2
+          ? e.difficulty
+          : legacyDifficulty(e.difficulty);
+    if (wantDiff.length > 0 && (d === null || !wantDiff.some((x) => x === d))) continue;
+    const bank = rowBank(e);
+    if (wantBank.length > 0 && (bank === null || !wantBank.includes(bank))) continue;
     const seen = new Set<string>();
     for (const k of e.badges) {
       if (typeof k !== "string" || !BADGE_BY_KEY[k] || seen.has(k)) continue;
@@ -315,7 +365,10 @@ export function badgeCase(): {
   return {
     tiles,
     earned: tiles.filter((t) => !BADGE_BY_KEY[t.key].ironic).length,
-    total: COLLECTIBLE.length,
+    // A badge no wanted bank can mechanically produce (the four front-office
+    // badges under a fixed-cap lens) leaves the denominator with the board —
+    // an N OF M that counts unreachable slots reads as unfinished forever.
+    total: COLLECTIBLE.filter((b) => !bankLocked(b, wantBank)).length,
   };
 }
 

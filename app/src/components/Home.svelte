@@ -646,7 +646,7 @@
   .under {
     display: flex;
     flex-direction: column;
-    gap: 9px;
+    gap: 13px;
     margin-top: 14px;
   }
   /* The seed pill sits below PLAY, centered. Width transitions between the

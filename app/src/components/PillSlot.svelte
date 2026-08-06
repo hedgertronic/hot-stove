@@ -255,8 +255,11 @@
   });
 </script>
 
-<!-- A bare wrapper: no box of its own, the chip's geometry unchanged, and the
-     hit target exactly the chip. -->
+<!-- A bare wrapper: no box of its own, the chip's geometry unchanged. The hit
+     target is the chip plus a 3px invisible ring (the ::after below) — an edge
+     tap used to die on the :active scale(0.94): the chip shrank under the
+     finger, pointer-up landed outside the button, and the click resolved to
+     the body. The ring outlives the shrink, so the rim is tappable. -->
 <button
   class="slot {shape}"
   bind:this={btnEl}
@@ -296,15 +299,21 @@
     padding: 0;
     border: 0;
     background: none;
+    /* Containing block for the tap ring below. Does not re-origin the reveal
+       panel: the panel is a SIBLING, placed against the row. */
+    position: relative;
     /* A button takes the platform's own font rather than the page's, so without
        this a chip dropped out of Nunito into system sans the moment it became
        one. */
     font: inherit;
     color: inherit;
     cursor: pointer;
-    /* Press feedback. app.css kills every transition for reduced-motion readers
-       with `* { transition: none !important }`, so no component-level guard
-       is needed here. */
+  }
+  /* Press feedback rides the chip (see the :active rule below). app.css kills
+     every transition for reduced-motion readers with
+     `* { transition: none !important }`, so no component-level guard is
+     needed here. */
+  .slot > :global(.chipbox) {
     transition: transform 0.08s;
   }
   /* The focus ring takes the SHAPE OF THE CHIP INSIDE IT. A capsule outline
@@ -317,12 +326,25 @@
   .slot.rect {
     border-radius: 4px;
   }
-  /* Scale about the chip's center so the chip stays centered — `translate` would
-     shift the center and make `measure()`'s `getBoundingClientRect` read a
-     slightly displaced position on touch devices where `:active` can persist
-     through the click event. */
-  .slot:active {
+  /* The press shrinks the CHIP, not the button: a scaled button drags its
+     own hit region with it, and on a wide badge pill (a 200px name loses 6px
+     a side at 0.94) a press that started on the border ended outside the
+     transformed box — the click resolved to the body and the tap died. The
+     chip is the visual; the button holds still, so where you pressed stays
+     pressable for the whole gesture. Scale rather than translate so the chip
+     stays centered where `measure()` will read it. */
+  .slot:active > :global(.chipbox) {
     transform: scale(0.94);
+  }
+  /* The invisible tap ring: 3px past the chip on every side — a Fitts bonus
+     for the rim, meeting its neighbor's ring exactly across the bands' 6px
+     gaps. It no longer needs to out-run the press scale; the button doesn't
+     move. */
+  .slot::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: inherit;
   }
   .slot:focus-visible {
     outline: 3px solid var(--blue);

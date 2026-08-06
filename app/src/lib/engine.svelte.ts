@@ -4,9 +4,10 @@
 import { track } from "./analytics";
 import { earnedBadges } from "./badges";
 import { bestRoster, type BestRoster } from "./bestroster";
-import { loadCard, loadSpecials, ownerFor } from "./data";
+import { loadCard, loadPlayers, loadSpecials, ownerFor } from "./data";
 import { eligibleTypes, isTwoWay, visiblePlayers } from "./eligibility";
 import { localDateStamp, recordFromTotal, type WarTier } from "./format";
+import { decodeLogBody, encodeLogBody, type CompactAction } from "./logcodec";
 import {
   FINALE_VERSION,
   appendHistory,
@@ -14,6 +15,7 @@ import {
   earnedBadgeKeys,
   loadArchive,
   loadHistory,
+  renderableFinale,
 } from "./history";
 import { Rng, randomSeed } from "./rng";
 import {
@@ -193,21 +195,7 @@ interface PrimePending {
 /** A single committed action in the compact decision log — position indexes
  * rather than ids/codes keep the encoded string to ~50–70 chars for a full game.
  * See the grammar comment block in share.ts for the encoding spec. */
-export type CompactAction =
-  | { verb: "S"; pi: number; si: number }            // sign from reel card
-  | { verb: "W"; pi: number; si: number }            // swap (trade) from reel card
-  | { verb: "P"; ci: number; pi: number; si: number } // prime sign
-  | { verb: "V"; ci: number; pi: number; si: number } // prime swap
-  | { verb: "O" }                                      // hire owner
-  | { verb: "A" }                                      // buy stadium
-  | { verb: "M" }                                      // hire manager
-  | { verb: "Q"; ci: number }                          // prime manager
-  | { verb: "T"; ci: number }                          // season ticket
-  | { verb: "R"; ci: number }                          // relocate
-  | { verb: "U" }                                      // undo
-  | { verb: "C" }                                      // cold respin
-  | { verb: "D" }                                      // ✌️ Double Play toggle
-  | { verb: "H" }                                      // 🏠 Homegrown toggle
+export type { CompactAction } from "./logcodec";
 
 /** Two compact actions describe the same move — verb and every param it
  * carries. The replay driver's parity check: an action method that logged
@@ -423,21 +411,12 @@ export function loadStoredFinale(): StoredFinale | null {
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (s?.v !== FINALE_VERSION) return null;
-    // What the finale screen dereferences without guards: the ledger's parts,
-    // the stamped record, the roster it renders a seat per, and the run
-    // numbers on the receipts. A record missing any of them is not a finale —
+    // What the finale screen dereferences without guards — the ledger's full
+    // parts sweep included — is one shared predicate (`renderableFinale`,
+    // history.ts) so this reader and `loadArchive` cannot drift on what
+    // "renderable" means. A record missing any of it is not a finale —
     // better no way back than a way back that white-screens.
-    if (typeof s.finale?.parts?.total !== "number") return null;
-    if (typeof s.finale.wins !== "number" || typeof s.finale.losses !== "number")
-      return null;
-    if (
-      typeof s.finale.spend !== "number" ||
-      typeof s.finale.budget !== "number" ||
-      typeof s.finale.totalWar !== "number" ||
-      typeof s.finale.spinCount !== "number"
-    )
-      return null;
-    if (!Array.isArray(s.finale.badges)) return null;
+    if (!renderableFinale(s.finale)) return null;
     if (!Array.isArray(s.slots) || !Array.isArray(s.seen)) return null;
     return s as StoredFinale;
   } catch {
@@ -559,7 +538,7 @@ export class Game {
    * provenance flag, which only the home screen's PLAY A SEED path passes
    * (PLAY, the finale's Replay, every test fixture and every bot leave it
    * false). The bit the two seed badges divide between them: at the
-   * finale, typed + already in the local history is ✳️ THE ASTERISK, typed +
+   * finale, typed + already in the local history is 📼 THE RERUN, typed +
    * absent from it is 🤝 WORD OF MOUTH (a code that came from somewhere
    * else). A RUN fact like `konami`: serialized so an evicted tab keeps it,
    * read back by `restore()` rather than `hydrate()` so a rewind cannot
@@ -581,7 +560,7 @@ export class Game {
    * Set once by `replayShortcode` (share.ts) before the first action is
    * applied, and never cleared: an inert game is inert for its whole life. */
   inert = false;
-  /** A move was taken back during this game — ↩️ SECOND THOUGHTS.
+  /** A move was taken back during this game — ✳️ THE ASTERISK.
    *
    * A fact about the RUN, not about the position, which is exactly why
    * `hydrate` does not carry it (see the note there): every snapshot was taken
@@ -596,15 +575,21 @@ export class Game {
    * 🔂 DÉJÀ VU.
    *
    * Sticky like `undoUsed`: set once and never reset inside a run. A redo
-   * always co-fires with ↩️ SECOND THOUGHTS — a redo requires an undo.
+   * always co-fires with ✳️ THE ASTERISK — a redo requires an undo.
    *
    * The same RUN / POSITION distinction as `undoUsed` applies: `hydrate` does
    * not carry it (a snapshot taken before the action that earns it would clear
    * it on the one call that sets it), and `restore` reads it off the save
    * directly. */
   redone = $state(false);
-  /** The same action (identified by actionSig) was undone 3+ times in this game —
-   * 🎠 MERRY-GO-ROUND.
+  /** Three or more moves were taken back in this game — 🎠 MERRY-GO-ROUND.
+   *
+   * The trigger reads TOTAL undos, not per-sig repeats. It used to ask for the
+   * same actionSig undone three times, but the once-per-spin rule (see
+   * `undoSpent`) closed that loop: a rewound window stays dark until the next
+   * reel, so "the same move three times" became a chore rather than a
+   * carousel. Three rewinds across a season is the same indecision joke,
+   * still earnable.
    *
    * A RUN fact like `undoUsed`: `hydrate` does not carry it so a rewind cannot
    * clear it, and `restore` reads it off the save directly. Optional default
@@ -612,8 +597,37 @@ export class Game {
   repeatedUndo = $state(false);
   /** Per-sig count of how many times each action has been undone in this run.
    * Keyed by `actionSig`; never decremented. Used only to compute `repeatedUndo`
-   * and never read by the UI. A RUN fact: restored directly, not via `hydrate`. */
+   * (as a sum — see its note) and never read by the UI. A RUN fact: restored
+   * directly, not via `hydrate`. */
   private undoCounts: Record<string, number> = {};
+  /** This turn's one rewind is spent — THE ONCE-PER-TURN RULE, in two
+   * halves. An undo puts the player back on the card they were looking at,
+   * RNG cursor included, so nothing stopped a loop of sign → undo → sign
+   * differently → undo on one landed card until every option had been
+   * auditioned. One rewind per turn keeps undo what it is for — a
+   * fat-finger escape — instead of a solver.
+   *
+   * The flag is half the rule: while it is up, `canUndo` is dark, so the
+   * re-commit made standing on the rewound card cannot itself be taken
+   * back. The other half is the DEAD POINT — a snapshot taken while the
+   * flag is up carries `dead: true` forever, so that same re-commit stays
+   * un-undoable even after the reel moves on and the flag clears. Without
+   * it, the next card's window could rewind the re-commit, land the player
+   * back on the spent card, and reopen the audition loop one spin later.
+   * The pill re-arms when the NEXT decision commits: a fresh snapshot, flag
+   * down, dead flag off.
+   *
+   * A FLAG, not a ledger keyed by spinCount: 🎟️/🚚 and the cold-stove respin
+   * all decrement spinCount (it counts the budget, not the reel — see
+   * `spinEpoch`'s note), so no per-count set can name "this turn" honestly.
+   * `beginSpin` clears it, which makes every reel start — full spin, re-spin,
+   * cold stove — a fresh grant for the decision it deals.
+   *
+   * Serialized with `undoUsed`'s persistence so a reload cannot hand the same
+   * window a second rewind, and restored directly rather than via `hydrate` —
+   * every snapshot predates the undo that would restore it, so hydrating it
+   * would un-spend the rewind on the very call that spends it. */
+  undoSpent = $state(false);
   /** Every committed action in this game, in order. Grows monotonically —
    * undo entries are appended, never deleted. A RUN fact: read directly in
    * `restore()`, not via `hydrate()`. Persisted so a reloaded game carries
@@ -776,6 +790,10 @@ export class Game {
      * has no tap behind it. `canUndo` reads it to decide what a mid-reel
      * rewind is allowed to reach. */
     phase: Phase;
+    /** Taken while this turn's rewind was already spent — the re-commit
+     * after an undo. Permanently refused (see `undoSpent`): the reel moving
+     * on clears the FLAG, never this. */
+    dead: boolean;
   } | null>(null);
 
   constructor(
@@ -1153,6 +1171,12 @@ export class Game {
   private beginSpin(entry: IndexEntry, kind: SpinKind): void {
     this.spinEpoch += 1;
     this.phase = "spinning";
+    // A new reel puts the turn flag down — but only the flag: a point taken
+    // while it was up stays dead, so the post-undo re-commit is never
+    // undoable from here either. The NEXT decision's own snapshot is what
+    // re-arms the pill (see `undoSpent`). Every reel start passes here
+    // (full spin, 🎟️/🚚 re-pick, cold stove).
+    this.undoSpent = false;
     // The reel is leaving; whatever the resume notice had to say has been said.
     this.resumedForfeit = false;
     this.spinKind = kind;
@@ -1335,6 +1359,13 @@ export class Game {
     this.abandonPrimeSlot();
     if (this.powerups.prime === "ready") {
       this.powerups.prime = "armed";
+      // Warm both career indexes NOW, while the player is still choosing a
+      // row to browse — the picker's own fetch resolves from cache instead of
+      // starting a ~0.5MB download behind the "Pulling the card file…" note.
+      // Fire-and-forget with a swallow: a failed warm just means the picker
+      // pays the fetch itself (both loaders self-evict on rejection).
+      void loadPlayers().catch(() => {});
+      void loadSpecials().catch(() => {});
     } else if (this.powerups.prime === "armed") {
       this.powerups.prime = "ready";
       this.primePick = null;
@@ -1925,10 +1956,18 @@ export class Game {
    * two ways these can disagree.
    *
    * Specialist cells first, FLEX only as the fallback when no specialist seat
-   * is open — one exception. A two-way season (SP/DH) offers FLEX as a real
-   * second use, not a leftover: seating him at UTIL plays his bat instead of
-   * his arm, which is a choice the club makes, so his open FLEX seat joins the
-   * pool alongside his pitcher seats and the rail asks. */
+   * is open — two exceptions, one principle: FLEX joins the pool whenever
+   * seating a man there is a real choice rather than a leftover.
+   *
+   *  - A two-way season (SP/DH): seating him at UTIL plays his bat instead of
+   *    his arm, which is a choice the club makes, so his open FLEX seat joins
+   *    the pool alongside his pitcher seats and the rail asks.
+   *  - A MULTI-GROUP position player (two or more of C/IF/OF): his
+   *    versatility is the asset, and where to spend it is the decision. An
+   *    IF/OF man with the OF seats taken used to auto-sign into IF — but
+   *    parking him at UTIL to keep the IF seat open for a pure infielder is
+   *    exactly the play a flexible man exists for, so the rail asks IF or
+   *    UTIL instead of answering for the club. */
   pickableSlotCells(p: CardPlayer): number[] {
     // A pending ⭐ handoff answers for its own season: the rail arms the seats
     // the CONFIRMED career season is eligible for, which are not necessarily
@@ -1936,7 +1975,10 @@ export class Game {
     const pend = this.primeSlot;
     if (pend && pend.id === p.id) return pend.cells;
     const open = this.openSlotsFor(p);
-    if (isTwoWay(p)) return open;
+    const groups = eligibleTypes(p).filter(
+      (t) => t === "C" || t === "IF" || t === "OF",
+    );
+    if (isTwoWay(p) || groups.length >= 2) return open;
     const specialist = open.filter((i) => SLOT_TYPES[i] !== "FLEX");
     return specialist.length > 0 ? specialist : open;
   }
@@ -2356,7 +2398,14 @@ export class Game {
       spendM: this.spend,
       budgetM: this.effectiveBudget,
       budgetBonus: parts.budgetBonus,
-      scoutHits,
+      // RAW hits, never the beatCeiling upgrade: the upgrade is a SCORING
+      // courtesy (a club that beat the dream team isn't docked for not copying
+      // it), but 🌠 THE DREAM TEAM is a claim about actually matching all nine
+      // seats, and a beaten-not-matched club earning it read as the finale
+      // contradicting its own dream-team column. Beating the solver has its
+      // own badge (🦉 OUTSCOUTED, off beatCeiling); the two are different
+      // feats and now earn separately.
+      scoutHits: scoutHitsRaw,
       // 🌠's denominator. Zero when the dream solve could not run at all
       // (offline mid-game), which is the same answer as a partial club as far
       // as the badge is concerned — it asks for nine on the nose.
@@ -2390,7 +2439,7 @@ export class Game {
       repeatedUndo: this.repeatedUndo,
       // The seed badges' two halves, split by the local log BEFORE
       // recordHistory below appends this game: a typed seed already in the
-      // history is a replay (✳️), a typed seed the log has never seen came
+      // history is a replay (📼), a typed seed the log has never seen came
       // from somewhere else (🤝). Mutually exclusive by construction; a
       // rolled seed sets neither.
       replayedSeed: this.seedTyped && priorSeeds.has(this.seed),
@@ -2513,7 +2562,7 @@ export class Game {
       stadium: this.stadium,
       manager: this.manager,
       finale: this.finale,
-      decisionLog: this.decisionLog.length > 0 ? Game.encodeLogBody(this.decisionLog) : undefined,
+      decisionLog: this.decisionLog.length > 0 ? encodeLogBody(this.decisionLog) : undefined,
     } satisfies StoredFinale;
     try {
       localStorage.setItem(FINALE_KEY, JSON.stringify(rec));
@@ -2524,54 +2573,6 @@ export class Game {
     // Outside that try on purpose: `archiveGame` swallows its own failure and
     // evicts to make room, so catching here would only hide which write failed.
     archiveGame({ ...rec, id });
-  }
-
-  /** Encode CompactAction[] to a body string (no header). Mirrors encodeBody in share.ts —
-   * kept inline to avoid a circular import; the two must stay in sync. */
-  private static encodeLogBody(actions: CompactAction[]): string {
-    let s = "";
-    for (const a of actions) {
-      if (a.verb === "S" || a.verb === "W") {
-        s += a.verb + a.pi.toString(36) + a.si.toString(36);
-      } else if (a.verb === "P" || a.verb === "V") {
-        s += a.verb + a.ci.toString(36).padStart(2, "0") + a.pi.toString(36) + a.si.toString(36);
-      } else if (a.verb === "Q" || a.verb === "T" || a.verb === "R") {
-        s += a.verb + a.ci.toString(36).padStart(2, "0");
-      } else {
-        s += a.verb; // O, A, M, U, C, D, H
-      }
-    }
-    return s;
-  }
-
-  /** Decode a compact body string to CompactAction[]. Returns [] on corrupt input. */
-  private static decodeLogBody(body: string): CompactAction[] {
-    const actions: CompactAction[] = [];
-    let i = 0;
-    while (i < body.length) {
-      const verb = body[i++];
-      if (verb === "S" || verb === "W") {
-        const pi = parseInt(body[i++], 36);
-        const si = parseInt(body[i++], 36);
-        actions.push({ verb, pi, si });
-      } else if (verb === "P" || verb === "V") {
-        const ci = parseInt(body.slice(i, i + 2), 36); i += 2;
-        const pi = parseInt(body[i++], 36);
-        const si = parseInt(body[i++], 36);
-        actions.push({ verb, ci, pi, si });
-      } else if (verb === "Q" || verb === "T" || verb === "R") {
-        const ci = parseInt(body.slice(i, i + 2), 36); i += 2;
-        actions.push({ verb, ci });
-      } else if (
-        verb === "O" || verb === "A" || verb === "M" ||
-        verb === "U" || verb === "C" || verb === "D" || verb === "H"
-      ) {
-        actions.push({ verb } as CompactAction);
-      } else {
-        return []; // unrecognized — corrupt
-      }
-    }
-    return actions;
   }
 
   /** Returns a compact shortcode string encoding seed, mode settings, and every
@@ -2588,7 +2589,7 @@ export class Game {
     // sync by hand for the same reason the body encoder is duplicated there
     // (importing share.ts here would be a cycle).
     const header = "2" + seed7 + diff + bank + sv + "-";
-    return header + Game.encodeLogBody(this.decisionLog);
+    return header + encodeLogBody(this.decisionLog);
   }
 
   /* ---------- replay (drive a decoded log back through the engine) ----------
@@ -2731,6 +2732,14 @@ export class Game {
         this.coldRespin();
         return;
       case "U":
+        // The once-per-turn gates guard the LIVE pill, not the log: a
+        // recorded U is a rewind that already happened, and codes minted
+        // before the rule existed legally carry two in one window. Both
+        // halves are lifted — the flag and the point's dead mark — and
+        // neither has a hand on the RNG cursor, so nothing about what the
+        // replay deals changes: history is only allowed to repeat itself.
+        this.undoSpent = false;
+        if (this.undoPoint) this.undoPoint = { ...this.undoPoint, dead: false };
         this.undo();
         return;
       // The two arming toggles the log carries, applied rather than inferred.
@@ -2817,6 +2826,11 @@ export class Game {
    * a rewind to an identical position behind it. */
   get canUndo(): boolean {
     if (this.undoPoint === null || this.undoPoint.phase !== "landed") return false;
+    // THE ONCE-PER-TURN RULE, both halves (see `undoSpent`): dark while this
+    // turn's rewind is spent, and dark forever over a point taken during
+    // that window — the re-commit is never the thing a later undo takes
+    // back.
+    if (this.undoSpent || this.undoPoint.dead) return false;
     return this.phase === "preSpin" || this.phase === "landed" || this.phase === "spinning";
   }
 
@@ -2833,6 +2847,7 @@ export class Game {
       state: JSON.stringify(this.serialize()),
       card: this.card,
       phase: this.phase,
+      dead: this.undoSpent,
     };
   }
 
@@ -2844,13 +2859,18 @@ export class Game {
     const point = this.undoPoint!;
     this.undoPoint = null;
     this.undoUsed = true;
-    // Track per-sig undo counts for 🎠 MERRY-GO-ROUND. Three total undos of
-    // the same actionSig (make → undo → remake → undo → remake → undo) earns
-    // the badge. The count is a RUN fact, never decremented.
+    this.undoSpent = true;
+    // Spend this spin's one rewind — see `undoSpent`. Set before the hydrate
+    // below, which never touches it.
+    // Track undo counts for 🎠 MERRY-GO-ROUND: three rewinds in one game,
+    // summed across the per-sig counts (see the note on `repeatedUndo` for
+    // why the trigger reads the total). The counts are a RUN fact, never
+    // decremented.
     if (this.actionSig !== null) {
       const count = (this.undoCounts[this.actionSig] ?? 0) + 1;
       this.undoCounts = { ...this.undoCounts, [this.actionSig]: count };
-      if (count >= 3) this.repeatedUndo = true;
+      const total = Object.values(this.undoCounts).reduce((a, b) => a + b, 0);
+      if (total >= 3) this.repeatedUndo = true;
     }
     // Log the undo before any mutation so the log is a faithful audit trail.
     this.appendDecision({ verb: "U" });
@@ -2915,7 +2935,8 @@ export class Game {
       redone: this.redone,
       repeatedUndo: this.repeatedUndo,
       undoCounts: this.undoCounts,
-      decisionLog: this.decisionLog.length > 0 ? Game.encodeLogBody(this.decisionLog) : undefined,
+      undoSpent: this.undoSpent,
+      decisionLog: this.decisionLog.length > 0 ? encodeLogBody(this.decisionLog) : undefined,
       powerups: this.powerups,
       choicesLeft: this.choicesLeft,
       choicesUsed: this.choicesUsed,
@@ -3004,7 +3025,7 @@ export class Game {
     game.stadium = rec.stadium ?? null;
     game.manager = rec.manager ?? null;
     game.finale = rec.finale;
-    game.decisionLog = typeof rec.decisionLog === "string" ? Game.decodeLogBody(rec.decisionLog) : [];
+    game.decisionLog = typeof rec.decisionLog === "string" ? decodeLogBody(rec.decisionLog) : [];
     game.phase = "finale";
     return game;
   }
@@ -3101,7 +3122,10 @@ export class Game {
         typeof s.undoCounts === "object" && s.undoCounts !== null && !Array.isArray(s.undoCounts)
           ? s.undoCounts
           : {};
-      game.decisionLog = typeof s.decisionLog === "string" ? Game.decodeLogBody(s.decisionLog) : [];
+      // The once-per-spin flag; absent on an old save reads as unspent,
+      // which forgives at most the one rewind the reload already lost.
+      game.undoSpent = s.undoSpent === true;
+      game.decisionLog = typeof s.decisionLog === "string" ? decodeLogBody(s.decisionLog) : [];
       if (s.cardRef && s.phase === "landed") {
         game.card = await loadCard(s.cardRef.team, s.cardRef.year);
         game.phase = "landed";
@@ -3124,29 +3148,41 @@ export class Game {
           // is the point: replaying this "D" through `toggleDoublePlay`
           // reproduces the forfeit, including the spin end below.
           game.appendDecision({ verb: "D" });
-          // Reloading between a Double Play's two picks forfeits the second
-          // one, and a forfeited last choice ends the spin — the same rule
-          // `toggleDoublePlay` applies when the pill is disarmed by hand, run
-          // through the same `endSpin` so the two paths cannot drift.
-          //
-          // Ending it is not a nicety. Every action on a landed card is gated
-          // on `choicesLeft > 0`, and the only exits from a landed card are
-          // committing a choice or disarming the pill. Restoring to "landed,
-          // nothing left, no armed pill" satisfies neither, so the club sits
-          // on a card it can never leave.
-          //
-          // Ending it here is the one spin end no tap asked for, so it is the
-          // one the banner has to explain: `resumedForfeit` tells it to hold
-          // the card the pick was spent on instead of rolling straight off it.
-          // Set after `endSpin`, and only if the run continues — a club that
-          // completed on that pick goes to the finale, which has no reel to
-          // hold and nothing to explain. (`complete` rather than the resulting
-          // phase: `endSpin` hands a finished club to the async `finishGame`,
-          // so "preSpin" is not yet false when this line runs.)
-          if (game.choicesLeft === 0 && game.choicesUsed > 0) {
-            game.endSpin();
-            if (!game.complete) game.resumedForfeit = true;
-          }
+        }
+        // A landed card with nothing left to spend ends its spin here — the
+        // same `endSpin` every in-play exit runs through, so the paths cannot
+        // drift. TWO saves land in this state, and the check must sit OUTSIDE
+        // the Double Play block above to catch both:
+        //
+        //  - A reload between a ✌️'s two picks. The disarm above forfeits the
+        //    second pick, and a forfeited last choice ends the spin — the rule
+        //    `toggleDoublePlay` applies to a hand disarm.
+        //  - A reload DURING FINALIZATION. `endSpin` saves a completed club as
+        //    "landed, nothing left" before handing it to the async
+        //    `finishGame`, precisely so a reload in that window cannot take
+        //    the club-completing move back — and this call is the other half
+        //    of that promise, re-running `endSpin` so `finishGame` starts
+        //    over. Scoped inside the ✌️ branch (where it once lived), a plain
+        //    completed-club reload restored to a card with no legal action
+        //    and no way to reach its own finale.
+        //
+        // Ending it is not a nicety. Every action on a landed card is gated
+        // on `choicesLeft > 0`, and the only exits from a landed card are
+        // committing a choice or disarming a pill. Restoring to "landed,
+        // nothing left, no armed pill" satisfies neither, so the club would
+        // sit on a card it can never leave.
+        //
+        // This is the one spin end no tap asked for, so it is the one the
+        // banner has to explain: `resumedForfeit` tells it to hold the card
+        // the pick was spent on instead of rolling straight off it. Set after
+        // `endSpin`, and only if the run continues — a club that completed
+        // goes to the finale, which has no reel to hold and nothing to
+        // explain. (`complete` rather than the resulting phase: `endSpin`
+        // hands a finished club to the async `finishGame`, so "preSpin" is
+        // not yet false when this line runs.)
+        if (game.choicesLeft === 0 && game.choicesUsed > 0) {
+          game.endSpin();
+          if (!game.complete) game.resumedForfeit = true;
         }
       } else {
         game.phase = "preSpin";

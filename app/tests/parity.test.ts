@@ -147,7 +147,7 @@ describe("PlayerList parity", () => {
       },
       listProps,
     );
-    for (const body of [release.std, release.sct]) expect(body).toContain("TAP WHO TO TRADE");
+    for (const body of [release.std, release.sct]) expect(body).toContain("WHO GOES?");
     const slot = pair(
       PlayerList,
       (g) => {
