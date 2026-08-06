@@ -832,11 +832,11 @@ describe("the passport board", () => {
     for (const c of ["Japan", "Curaçao"]) {
       expect(stampFor(p, c).textContent, `${c} is printed as text`).not.toContain(c);
     }
-    // The count rides along with it, so "Japan, 1" is what gets announced
-    // rather than a bare flag. The detail is NOT in the name: it is the panel's
-    // to announce when the panel is opened, which is the same division a badge
-    // pill draws with its trigger.
-    expect(stampFor(p, "Japan").getAttribute("aria-label")).toBe("Japan, 1");
+    // The count rides along only above one, matching the drawn chip — at one
+    // the announcement is just the country. The detail is NOT in the name: it
+    // is the panel's to announce when the panel is opened, which is the same
+    // division a badge pill draws with its trigger.
+    expect(stampFor(p, "Japan").getAttribute("aria-label")).toBe("Japan");
   });
 
   it("flies the flag in place of the name", () => {
@@ -889,17 +889,21 @@ describe("the passport board", () => {
     expect(body).not.toContain("COUNTRIES");
   });
 
-  it("prints the unique-player count, at one as readily as at four", () => {
-    // The number means "different people", so it is information at one. The
-    // badge pills hide a ×1 on purpose and this deliberately does not: a blank
-    // stamp has to mean exactly one thing here, and it means "no season on
-    // record named anybody".
+  it("marks the unique-player count only above one", () => {
+    // The number means "different people", drawn only when there is more than
+    // one — round nine's owner call, aligning stamps with the badge pills' own
+    // rule: a ×1 restates what the chip's existence already says. The
+    // aria-label follows the same threshold, so the reader hears what the eye
+    // sees.
     seed(
       rostered({ Japan: ["ohtansh01"], Cuba: ["puigya01", "abreujo02"] }, "2026-01-01"),
     );
     const p = modal();
-    expect(stampFor(p, "Japan").querySelector(".count")?.textContent).toBe("×1");
+    const japan = stampFor(p, "Japan");
+    expect(japan.querySelector(".count")).toBeNull();
+    expect(japan.getAttribute("aria-label")).toBe("Japan");
     expect(stampFor(p, "Cuba").querySelector(".count")?.textContent).toBe("×2");
+    expect(stampFor(p, "Cuba").getAttribute("aria-label")).toBe("Cuba, 2");
   });
 
   it("shows no number rather than a zero when nothing was counted", () => {

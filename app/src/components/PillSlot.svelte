@@ -386,7 +386,16 @@
     line-height: 1.4;
     letter-spacing: normal;
     text-transform: none;
-    padding: 8px 11px;
+    /* 7/9, not 8/8 — optical, not arithmetic. Nunito declares an ascent of
+       1.011em against real ink that tops out at 0.711em, and a descent of
+       0.353em against descenders that reach −0.188em, so a symmetric box
+       leaves 3.65px of air above the ink and 2.11px below it at this size:
+       the sentence reads ~1.5px low. Moving ~1.5px of padding from top to
+       bottom centers the INK (7.23/8.77 exactly; 7/9 is the integer pair,
+       0.2px of overshoot). Same fight the chipbox cap-trim wages for the
+       small-caps chips, fought here with padding because prose keeps its
+       descenders. */
+    padding: 7px 11px 9px;
     /* Centered, and it survives the whole table because the box is sized to
        its own text: anything up to the 280px cap gets a one-line panel with
        nothing to center, and a wrapped panel is pulled in to its widest line

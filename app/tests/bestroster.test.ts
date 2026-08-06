@@ -14,7 +14,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { bestRoster } from "../src/lib/bestroster";
-import { GAMES, MANAGER_PER_NET_WIN, score } from "../src/lib/scoring";
+import {
+  GAMES,
+  MANAGER_PER_NET_WIN,
+  WBC_CHAMPION_ID,
+  WBC_CHAMPION_POINTS,
+  WBC_RUNNERUP_ID,
+  score,
+} from "../src/lib/scoring";
 import type { Card, CardPlayer } from "../src/lib/types";
 
 let pid = 0;
@@ -240,6 +247,30 @@ describe("bestRoster awards in the objective", () => {
     const best = dream([card([oddMvp], { manager: null })]);
     expect(best.picks[0]?.id).toBe("odd");
     expect(best.totalWar).toBeCloseTo(-0.5, 1);
+  });
+
+  it("a WBC gold medal is priced like the ring it now equals", () => {
+    // Same human, two seasons: 6.0 WAR + gold (WBC_CHAMPION_POINTS) beats
+    // 6.0 + WBC_CHAMPION_POINTS − 0.5 WAR plain — the medal is the whole
+    // margin, so a solver that drops it picks the other year. This is the
+    // regression the pre-round-nine solver actually had: cardItems' base and
+    // evaluate() both ignored `wbc`.
+    const gold = player({ pos: "C", posG: C, war: 6, wbc: WBC_CHAMPION_ID, id: "wbc" });
+    const plain = player({
+      pos: "C", posG: C, war: 6 + WBC_CHAMPION_POINTS - 0.5, id: "wbc",
+    });
+    const best = dream([
+      card([gold], { year: 2017, manager: null }),
+      card([plain], { year: 2018, manager: null }),
+    ]);
+    const chosen = best.picks.filter((p) => p?.id === "wbc");
+    expect(chosen).toHaveLength(1);
+    expect(chosen[0]?.year).toBe(2017);
+    // The medal survives into the pick AND into the total: rescore() counts
+    // it through score()'s own wbc terms, so a total that dropped the medal
+    // would miss by exactly WBC_CHAMPION_POINTS.
+    expect(chosen[0]?.wbc).toBe(WBC_CHAMPION_ID);
+    expect(best.total).toBeCloseTo(rescore(best), 6);
   });
 });
 
@@ -582,6 +613,12 @@ function rescore(best: ReturnType<typeof bestRoster>): number {
     awardLists: picks.map((p) => p!.awards),
     rings: picks.filter((p) => p!.ws).length + (mgr?.ws ? 1 : 0),
     pennants: picks.filter((p) => p!.pen).length + (mgr?.pen ? 1 : 0),
+    // Discriminants (2 gold / 1 silver), never point values — scoring.ts's
+    // own rule. The oracle must count medals or evaluate() dropping them
+    // would pass this suite unnoticed, which is how the pre-round-nine
+    // solver's medal blindness survived.
+    wbcChampions: picks.filter((p) => p!.wbc === WBC_CHAMPION_ID).length,
+    wbcRunnersUp: picks.filter((p) => p!.wbc === WBC_RUNNERUP_ID).length,
     managerRecord: mgr ? [mgr.netWins, 0] : null,
     scoutHits: best.dreamSeats!,
     managerMoty: mgr?.moty === true }).total;

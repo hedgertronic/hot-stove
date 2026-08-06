@@ -64,8 +64,9 @@ const EXCLUSIVE: Record<string, string[]> = {
   hardware: ["nohardware", "noallstars"],
   // Spent none vs spent all, both gated on there being powerups to spend.
   powerups: ["hardway", "toolbox"],
-  // Matching the dream club exactly supersedes merely finding seven of it.
-  scout: ["dreamteam", "crystal"],
+  // Matching the dream club exactly supersedes merely finding seven of it;
+  // the chain's last arm is zero agreement, the axis's other pole.
+  scout: ["dreamteam", "crystal", "maverick"],
 };
 
 const codePoints = (s: string) => [...s].length;
@@ -651,9 +652,12 @@ describe("line width budget", () => {
     // 🔂 DÉJÀ VU stacks on the meta axis and is a single code point, +1 stacker
     // and +1 to the shipped width. 🎠 MERRY-GO-ROUND stacks on the meta axis,
     // +1 stacker and +1 to the shipped width. The replayed-seed badge's face
-    // change ✳️ → 📼 dropped a variation selector, −1 to both widths.)
-    expect(MAXIMAL).toHaveLength(55);
-    expect(SHIPPED_MAX_LEN).toBe(71);
+    // change ✳️ → 📼 dropped a variation selector, −1 to both widths.
+    // 🎣 THE ONE THAT GOT AWAY stacks on the goal axis, +1 stacker and +1 to
+    // the shipped width; 🧭 WENT MY OWN WAY joined the exclusive scout chain,
+    // costing the line nothing.)
+    expect(MAXIMAL).toHaveLength(56);
+    expect(SHIPPED_MAX_LEN).toBe(72);
     // total 104.3 gives the six-character record; the badge line is index 5.
     const s = shareText({ ...BASE, total: 104.3, badges: MAXIMAL });
     expect(codePoints(s.split("\n")[5])).toBe(SHIPPED_MAX_LEN);
@@ -665,8 +669,9 @@ describe("line width budget", () => {
     // because a variation selector is a code point the line pays for;
     // 🦉 (OUTSCOUTED) moved it by one more; 🔂 (DÉJÀ VU) moved it by one more;
     // 🎠 (MERRY-GO-ROUND) moved it by one more; the replayed-seed badge's
-    // ✳️ → 📼 face change dropped a variation selector, −1.
-    expect(MAX_LEN).toBe(89);
+    // ✳️ → 📼 face change dropped a variation selector, −1; 🎣 and 🧭 (round
+    // nine's pair) moved it by one each.
+    expect(MAX_LEN).toBe(91);
     const s = shareText({
       ...BASE,
       total: 104.3,

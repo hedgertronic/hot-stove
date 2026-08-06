@@ -745,7 +745,9 @@ export function stampReveal(s: Pick<PassportItem, "country">): string {
  * is opened, the same division a badge draws between its pill and its
  * trigger. */
 export function stampLabel(s: Pick<PassportItem, "country" | "count" | "fresh">): string {
-  return `${s.fresh ? "New. " : ""}${s.country}${s.count !== null ? `, ${s.count}` : ""}`;
+  // Above one only, matching the drawn chip: the reader hears what the eye
+  // sees, and at one the stamp's existence already says it.
+  return `${s.fresh ? "New. " : ""}${s.country}${s.count !== null && s.count > 1 ? `, ${s.count}` : ""}`;
 }
 
 /* A stamp carries NO per-surface sentence. It used to: the case's stamps spelled
@@ -761,10 +763,11 @@ export function stampLabel(s: Pick<PassportItem, "country" | "count" | "fresh">)
 /** The stamps a career has actually collected, as the panel draws them.
  *
  * The number on a stamp is unique PLAYERS, so a man rostered in four seasons
- * counts once and two different Venezuelans count twice — and it is shown at
- * one as readily as at four, which breaks the badge pills' "only mark above
- * one" convention on purpose. A blank has to mean exactly one thing here, and
- * the thing it means is "no season on record named anybody".
+ * counts once and two different Venezuelans count twice. The stamp DRAWS it
+ * only above one, the badge pills' own rule — round nine's owner call: a ×1
+ * on a collectible restates what the chip's existence already says. `count`
+ * still records the true number (including 1) for anything that reasons about
+ * it; null alone keeps meaning "no season on record named anybody".
  *
  * `fresh` names the countries this game was the first to field. The caller
  * supplies them because only the caller knows whether a game just ended; the

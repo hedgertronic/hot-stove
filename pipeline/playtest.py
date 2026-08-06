@@ -66,21 +66,31 @@ def total_score(picks: list[dict], budget: float) -> float:
         award_lists=[p["awards"] for p in picks],
         rings=sum(p["ws"] for p in picks),
         pennants=sum(p["pen"] for p in picks),
+        # IDs, never POINTS: the card field is a discriminant (2 gold /
+        # 1 silver). Comparing against the point values happened to work at
+        # round 5's 2/1 pricing and silently counted zero medals for every
+        # retune since.
         wbc_champions=sum(
-            p.get("wbc") == scoring.WBC_CHAMPION_POINTS for p in picks),
+            p.get("wbc") == scoring.WBC_CHAMPION_ID for p in picks),
         wbc_runners_up=sum(
-            p.get("wbc") == scoring.WBC_RUNNERUP_POINTS for p in picks),
+            p.get("wbc") == scoring.WBC_RUNNERUP_ID for p in picks),
     )["total"]
 
 
 def wbc_points(picks: list[dict]) -> int:
     """Ring-chasing points a roster draws from the Classic alone.
 
-    Read off the card field rather than recomputed, so the harness measures
-    exactly what the game will score. `.get` because the field is sparse: it
-    is present only on the player-seasons that medaled.
+    The card field is a DISCRIMINANT (2 gold / 1 silver), not a price — it is
+    mapped through the scoring constants here, the same multiplication the
+    game performs. Summing the raw field only measured points while round 5's
+    2/1 pricing made the two scales coincide. `.get` because the field is
+    sparse: it is present only on the player-seasons that medaled.
     """
-    return sum(p.get("wbc", 0) for p in picks)
+    return sum(
+        scoring.WBC_CHAMPION_POINTS if p.get("wbc") == scoring.WBC_CHAMPION_ID
+        else scoring.WBC_RUNNERUP_POINTS if p.get("wbc") == scoring.WBC_RUNNERUP_ID
+        else 0
+        for p in picks)
 
 
 def main() -> None:

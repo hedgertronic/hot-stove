@@ -62,7 +62,7 @@
       ariaLabel={stampLabel(s)}
       emoji={s.flag || undefined}
       label={s.flag ? undefined : s.country}
-      count={s.count}
+      count={s.count !== null && s.count > 1 ? s.count : null}
       rarity={s.rarity}
       shape="rect"
       fresh={s.fresh}

@@ -1,19 +1,19 @@
 === Study 12: dream-club ceiling, 2000 Classic games/bot ===
 
 --- baseline ---
-achieved  mean 111.9   ceiling mean 138.2   gap mean 26.3 (median 25.2, max 78.5)
-ceiling ≥162  0.65%   ≥155 3.65%   achieved ≥162 0.00%
-clamped to the club played  0.35%   (shortfall mean 3.0, max 6.2)
-solve ms  median 26.4  p95 28.8  p99 30.5  max 44.1
-payroll   dream fill median 96.0%   over the cap 0.10% (median $6.3M, max $6.3M, worth 2.45 pts vs the best legal club)
+achieved  mean 110.5   ceiling mean 136.1   gap mean 25.6 (median 24.3, max 74.9)
+ceiling ≥162  0.20%   ≥155 1.75%   achieved ≥162 0.00%
+clamped to the club played  0.50%   (shortfall mean 12.6, max 27.8)
+solve ms  median 26.4  p95 29.0  p99 31.9  max 240.0
+payroll   dream fill median 95.9%   over the cap 0.35% (median $6.3M, max $21.3M, worth 9.90 pts vs the best legal club)
 dream club seats the ⭐ Prime Time off-reel season  0.00%  (pool loose by one item; can only bind when ≤9 cards were spun: 0.10% of games)
-⭐ hits   mean 3.13   ≥7 (🔮 CRYSTAL BALL) 1.60%   ≥5 17.70%   dream seats mean 8.99
+⭐ hits   mean 3.15   ≥7 (🔮 CRYSTAL BALL) 2.25%   ≥5 17.80%   dream seats mean 9.00
 
 --- powerups ---
-achieved  mean 136.8   ceiling mean 154.4   gap mean 17.6 (median 17.3, max 69.5)
-ceiling ≥162  21.85%   ≥155 47.45%   achieved ≥162 0.85%
-clamped to the club played  3.20%   (shortfall mean 5.8, max 18.1)
-solve ms  median 39.7  p95 47.0  p99 59.8  max 237.9
-payroll   dream fill median 96.2%   over the cap 0.50% (median $2.6M, max $11.3M, worth 2.14 pts vs the best legal club)
-dream club seats the ⭐ Prime Time off-reel season  85.10%  (pool loose by one item; can only bind when ≤9 cards were spun: 0.05% of games)
-⭐ hits   mean 4.60   ≥7 (🔮 CRYSTAL BALL) 8.50%   ≥5 53.45%   dream seats mean 8.98
+achieved  mean 134.7   ceiling mean 151.9   gap mean 17.2 (median 16.7, max 70.6)
+ceiling ≥162  13.95%   ≥155 37.10%   achieved ≥162 0.45%
+clamped to the club played  4.30%   (shortfall mean 11.1, max 35.6)
+solve ms  median 43.2  p95 50.9  p99 60.9  max 220.2
+payroll   dream fill median 96.0%   over the cap 0.70% (median $2.9M, max $9.9M, worth 3.14 pts vs the best legal club)
+dream club seats the ⭐ Prime Time off-reel season  85.45%  (pool loose by one item; can only bind when ≤9 cards were spun: 0.00% of games)
+⭐ hits   mean 4.80   ≥7 (🔮 CRYSTAL BALL) 12.50%   ≥5 55.85%   dream seats mean 9.00

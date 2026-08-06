@@ -150,10 +150,13 @@
     out.push({
       key: "pedigree",
       lbl: "Ring chasing",
-      // Names all four things the row can now be empty of, in one phrase
-      // short enough to survive the narrow phone: spelled out as "no rings,
-      // no pennants, no medals" the line ellipsizes at 320px.
-      why: pedigreeChips.length > 0 ? undefined : "nothing won",
+      // A single cobweb where the hardware would be — round nine's owner
+      // call, replacing the phrase "nothing won". The empty trophy shelf is a
+      // picture, not a sentence: every populated state of this row is pure
+      // emoji, so its empty state speaks the same language, and one glyph
+      // can never ellipsize at 320px the way "no rings, no pennants, no
+      // medals" did.
+      why: pedigreeChips.length > 0 ? undefined : "🕸️",
       chips: pedigreeChips.length > 0 ? pedigreeChips : undefined,
       amt: signed(p.ringPoints, 0),
       cls: p.ringPoints > 0 ? "plus" : "zero",
@@ -857,10 +860,10 @@
                  Classic is played in the spring of the same card season, so one
                  man can wear a ring and a medal both (2017 Alex Bregman did).
                  🥇 champion, 🥈 finalist — medal glyphs that read as WBC
-                 hardware at a glance. YOUR SQUAD only. The dream team's rows
-                 below cannot carry one: `BestPick` has no `wbc` field, so the
-                 solver's club knows nothing about medals — a gap in
-                 bestroster.ts, not something this component can answer. -->
+                 hardware at a glance. The dream team's rows below wear the
+                 same pair off `pick.wbc` — the solver carries, prices and
+                 scores medals the way it does rings. -->
+
             {#if slot.wbc === WBC_CHAMPION_ID}<span class="emo">🥇</span>{:else if slot.wbc === WBC_RUNNERUP_ID}<span
                 class="emo">🥈</span
               >{/if}

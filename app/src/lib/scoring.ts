@@ -34,27 +34,28 @@ export const PENNANT_POINTS = 1; // per player whose team won the pennant but lo
  * the card season, so a medal and a ring describe the same player-season and
  * BOTH count. 2017 Alex Bregman won the Classic with the United States and the
  * World Series with Houston: that one season is worth WBC_CHAMPION_POINTS +
- * RING_POINTS = 4.5. The stacking is a true fact about the player, not a
+ * RING_POINTS = 6. The stacking is a true fact about the player, not a
  * double-count to suppress — they are two different tournaments and he won
  * both. Nine 2017 seasons stack this way (Bregman, Clippard and Gregerson at
- * +4.5; Correa and Beltran at +3.5 as pennant winners; five more at +1.5).
+ * +6; Correa and Beltran at +4 as pennant winners; five more at +3).
  *
- * The values sit below RING_POINTS deliberately. Only five Classics land inside
- * the 1985–2025 card window, and the 2006 and 2009 champions (Japan) were
- * rosters of NPB players with almost no MLB seasons, so WBC points are far
- * scarcer than rings. Pricing a gold medal at a ring's value would let the
- * handful of eligible card years own the axis outright.
- *
- * A Classic is worth half a Series at both rungs (WS ring 3 / pennant 1):
- * round 28 set gold = 1.5 and silver = 0.5 (supersedes round 5's 2 / 1). */
-export const WBC_CHAMPION_POINTS = 1.5; // per player on the Classic winner that year
-export const WBC_RUNNERUP_POINTS = 0.5; // per player on the Classic's losing finalist
+ * A Classic is worth a Series, rung for rung: gold = RING_POINTS, silver =
+ * PENNANT_POINTS. The 2026-08 release polish set the parity (supersedes
+ * round 28's half-a-Series 1.5/0.5, which itself superseded round 5's 2/1).
+ * The earlier rounds priced medals below rings because only five Classics
+ * land inside the 1985–2025 card window; the owner's call is that a world
+ * title is a world title — scarcity makes a gold RARER than a ring, not
+ * smaller, and the scarcity itself keeps the handful of eligible card years
+ * from owning the axis. */
+export const WBC_CHAMPION_POINTS = 3; // per player on the Classic winner that year
+export const WBC_RUNNERUP_POINTS = 1; // per player on the Classic's losing finalist
 /** Card-data discriminants for WBC medals — stored as integers 2 (gold) / 1
  * (silver) in card JSON and on Signed objects. These are the values to compare
  * against when FILTERING by medal type; WBC_CHAMPION_POINTS / WBC_RUNNERUP_POINTS
  * are the SCORING weights applied after the counts are determined. Never use
- * point constants as discriminants: they changed in round 28 and would zero
- * out all pedigree counts if used for filtering. */
+ * point constants as discriminants: they have been retuned twice, and
+ * WBC_RUNNERUP_POINTS equaling WBC_RUNNERUP_ID today is a coincidence of the
+ * current pricing, not a relationship. */
 export const WBC_CHAMPION_ID = 2; // card-data value for a WBC gold medal
 export const WBC_RUNNERUP_ID = 1; // card-data value for a WBC silver medal
 export const MANAGER_PER_NET_WIN = 0.2; // hired manager: (team W − team L) × this, in WINS

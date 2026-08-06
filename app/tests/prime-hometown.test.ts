@@ -254,8 +254,8 @@ describe("WBC pedigree counts use ID constants, not scoring points", () => {
     expect(g.pedigree.wbcRunnersUp).toBe(1);
   });
 
-  it("pedigree counts work correctly after scoring constants changed to 1.5/0.5", () => {
-    // Regression guard: if pedigree used WBC_CHAMPION_POINTS (1.5) as the
+  it("pedigree counts survive point-value retunes (ids, never points)", () => {
+    // Regression guard: if pedigree used WBC_CHAMPION_POINTS (3) as the
     // discriminant instead of WBC_CHAMPION_ID (2), this count would be 0.
     const g = new Game(meta, index, owners, 42);
     g.slots[0] = filler(0, { wbc: 2 });

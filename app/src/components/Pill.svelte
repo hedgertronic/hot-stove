@@ -26,9 +26,12 @@
    *             to each shape's own untiered paper, and those two fallbacks
    *             differ on purpose; see the styles.
    *   count   — the number to print, or null for none. The THRESHOLD is the
-   *             caller's: a badge marks repetition only above one, a stamp
-   *             shows its men at one as readily as at four. Two different rules
-   *             about what a blank means, so neither belongs in here.
+   *             caller's, and today every caller agrees: badges and stamps
+   *             alike mark REPETITION only above one — existence is already
+   *             carried by the chip being there, so ×1 restates it as clutter.
+   *             The rule still lives in the callers rather than in here,
+   *             because it is a rule about what a collectible means, not about
+   *             how a chip draws.
    *
    * It draws a chip and nothing else. Whether it is tappable, what it reveals,
    * and what it announces are `PillSlot`'s. */

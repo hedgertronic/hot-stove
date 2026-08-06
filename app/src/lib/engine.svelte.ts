@@ -2381,6 +2381,10 @@ export class Game {
     // the club actually passed the solve. Strictly greater: a tie is
     // `playedTheCeiling`, not a win.
     const beatDream = solvedTotal !== null && parts.total > solvedTotal;
+    // 🎣's fact: the same raw solve `beatDream` reads, handed over as a number
+    // so the badge can press it through recordFromTotal itself. `undefined`
+    // (solve never ran) fails safe — no ceiling, nothing got away.
+    const ceilingTotal = solvedTotal ?? undefined;
     // Seeds this device has already played, read before recordHistory appends
     // this game's own row (rows without a seed predate the field and can
     // match nothing).
@@ -2395,6 +2399,7 @@ export class Game {
       stamp: { wins: stamp.wins, losses: stamp.losses },
       total: parts.total,
       beatDream,
+      ceilingTotal,
       spendM: this.spend,
       budgetM: this.effectiveBudget,
       budgetBonus: parts.budgetBonus,

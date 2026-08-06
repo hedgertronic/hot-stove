@@ -145,8 +145,15 @@
                    rows (current card's own season, no fitting open seat) just
                    gray — no explanatory copy, same as every other gray row. -->
               <!-- wrapnudge: the market rows' wrapped-pills rebalance, at this
-                   label's own 13px (1.3px = half of 0.199em at 13px). -->
-              <span class="mid" use:wrapnudge={1.3}>
+                   label's own 13px (1.3px = half of 0.199em at 13px).
+                   freeze while armed, for the market rows' reason: arming
+                   swaps the .right column (price + WAR chip) for the SIGN
+                   pill, and the widths differ — unfrozen, a wrapped badge
+                   line snapped back to one line for exactly the life of the
+                   pill (Ichiro's decorated seasons on a phone). The clamp
+                   pins .mid at its pre-arm width so the row keeps its shape
+                   under the tap. -->
+              <span class="mid" use:wrapnudge={{ px: 1.3, freeze: isArmed }}>
                 <span class="yr">{sea.year} {sea.team}</span>
                 {#if hasBadges(sea.p)}<span class="badges"
                     >{#each sortAwards(sea.p.awards) as a}<AwardPill code={a} small />{/each}</span

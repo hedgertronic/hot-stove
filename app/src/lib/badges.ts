@@ -1,4 +1,5 @@
 import type { Bank } from "./engine.svelte";
+import { recordFromTotal } from "./format";
 import { GOAL_POINTS, MANAGER_PER_NET_WIN } from "./scoring";
 
 /* The badge set — one table, read by the finale pill row, the share string,
@@ -270,6 +271,15 @@ export interface BadgeFacts {
    * Populated by the engine; the field is declared here so `earnedBadges` can
    * guard against it before the engine agent's commit lands. */
   beatCeiling?: boolean;
+  /** The solver's RAW ceiling total — `best.total` exactly as the solve
+   * returned it, the same unclamped number `beatDream` is compared against.
+   * 🎣 reads it to ask whether the cards on the table could have stamped a
+   * perfect 162–0 at all.
+   *
+   * Optional for the `beatDream` reason, and it fails safe the same way:
+   * absent means "no ceiling known", and a season whose ceiling is unknown
+   * cannot be said to have let one get away. */
+  ceilingTotal?: number;
   spendM: number;
   budgetM: number;
   /** `ScoreParts.budgetBonus`; 💵 wants it near its 10-point ceiling. */
@@ -1381,6 +1391,36 @@ export const BADGES: BadgeDef[] = [
     freq: null,
     how: "Won more games than the dream team.",
   },
+  /* The goal axis's anti-trophy: the cards on the table could have stamped a
+   * perfect 162–0 — the solver's own ceiling rounds to the full record — and
+   * the club that got built didn't. Keyed to the STAMPED record on both
+   * sides, through the same `recordFromTotal` the finale prints with: the
+   * claim is about the record a player can see, exactly the floor rungs'
+   * rule. A season that stamps 162–0 itself can never earn it, whatever the
+   * margin between the two totals.
+   *
+   * `ironic` and therefore anonymous while locked, for 💀's reason — an
+   * anti-trophy's name is an invitation to farm it, and "go find a perfect
+   * board and lose it" inverts the one instinct the game wants.
+   *
+   * Study 18 (2,000 games/arm, medal-aware solver and bots): in the
+   * reference population a perfect board turns up in 15.15% of games and the
+   * bots convert 0.45%, so the badge fires at 14.70% — common as
+   * anti-trophies go, and honestly so: with all six powerups the cards
+   * regularly hold a perfect club nobody builds. Vanilla classic the board
+   * is perfect 0.20% of the time; Moneyball's $51.5M cap almost forecloses
+   * it (0.45% with powerups, 0.00% without). */
+  {
+    key: "gotaway",
+    ironic: true,
+    emoji: "🎣",
+    label: "THE ONE THAT GOT AWAY",
+    name: "The One That Got Away",
+    rarity: "ironic",
+    axis: "goal",
+    freq: 14.7,
+    how: "A perfect 162–0 was on the table, and the club let it get away.",
+  },
 
   // ---- payroll: exactly one fires ----
   {
@@ -1490,6 +1530,34 @@ export const BADGES: BadgeDef[] = [
     axis: "scout",
     freq: 9.6,
     how: "Drafted 7 or more of the players the dream team wanted.",
+  },
+  /* The scout axis's other pole: nine chairs filled, ZERO of them the dream
+   * club's. Sharing 🌠's axis and its gates is the design — the same
+   * nine-seat dream club (`dreamSeats === 9`), the same "the club has to be
+   * whole" rule (full roster AND a hired skipper, since an empty dugout
+   * misses the ninth seat by forfeit rather than by conviction). Zero and
+   * nine are the two ends of one agreement scale, and the case shows both
+   * ends as feats.
+   *
+   * `secret` for 🌠's own reason: the dream club is invisible until the
+   * finale, so a locked slot naming total disagreement advertises a target
+   * the draft screen gives no way to aim at. Not `ironic` — a club that
+   * shares nothing with the optimizer and still posts a season is a
+   * conviction badge, not a citation.
+   *
+   * `freq` null for 🌠's reason inverted: the study bots maximize WAR at
+   * every pick, which CORRELATES them with the dream club — a bot's
+   * zero-overlap rate is a lower bound on a player's, not an estimate. */
+  {
+    key: "maverick",
+    secret: true,
+    emoji: "🧭",
+    label: "WENT MY OWN WAY",
+    name: "Went My Own Way",
+    rarity: "rare",
+    axis: "scout",
+    freq: null,
+    how: "Filled all nine chairs without a single dream-team pick.",
   },
 
 
@@ -2580,6 +2648,19 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // Stacks with both above: exceeding the solver's own ceiling is a strictly
   // stronger claim than hitting the goal or beating the dream team's score.
   if (f.beatCeiling === true) out.push("outscouted");
+  // 🎣 — the ceiling could have stamped a perfect record and the club's own
+  // stamp didn't. Both sides read through `recordFromTotal`, the finale's own
+  // press: the badge is about two records a player can see, not about two
+  // raw totals. `floor` is the stamp with the pre-stamp fallback, the same
+  // pair the floor rungs read. Fails safe twice — an unknown ceiling
+  // (`undefined`) cannot have gotten away, and a club that stamped 162–0
+  // itself has nothing to mourn.
+  if (
+    f.ceilingTotal !== undefined &&
+    recordFromTotal(f.ceilingTotal).losses === 0 &&
+    floor.losses > 0
+  )
+    out.push("gotaway");
 
   // Four faces of one axis, ordered from busted to stingiest.
   if (f.spendM - f.budgetM >= FARM_TAX_M) out.push("farm");
@@ -2592,6 +2673,7 @@ export function earnedBadges(f: BadgeFacts): string[] {
   )
     out.push("pocket");
 
+  const full = roster.length === ROSTER_SLOTS;
   // The scouting axis, resolved top down like the on-field one: a perfect
   // match IS a seven-or-better match, so 🌠 takes the slot and 🔮 keeps the
   // near misses. The nine-seat gate on the DREAM club is what stops a thin
@@ -2601,11 +2683,23 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // knowing the denominator fails the same way: an absent `dreamSeats`, a zero
   // from a solve that never ran, and a genuine partial club all miss, and 🔮
   // catches whatever the hits alone earn.
+  //
+  // 🧭 is the axis's other end, in the same chain because the axis is
+  // exclusive by design (zero can never also be seven, but the chain says so
+  // structurally). Its gates mirror 🌠's: the dream club whole
+  // (`dreamSeats === DREAM_SEATS`), and the player's club whole too — every
+  // roster seat filled AND the dugout hired, because an empty chair misses
+  // its dream pick by forfeit, and this badge is a claim about conviction.
   if (f.dreamSeats === DREAM_SEATS && f.scoutHits === DREAM_SEATS)
     out.push("dreamteam");
   else if (f.scoutHits >= CRYSTAL_HITS) out.push("crystal");
-
-  const full = roster.length === ROSTER_SLOTS;
+  else if (
+    full &&
+    f.managerName !== null &&
+    f.dreamSeats === DREAM_SEATS &&
+    f.scoutHits === 0
+  )
+    out.push("maverick");
   // No 2020 season carries an All-Star nod — the game was never played — so a
   // club with a 2020 bat in it can never earn 🏅. Verified in badges-supply.
   if (full && roster.every(hasAS)) out.push("allstars");

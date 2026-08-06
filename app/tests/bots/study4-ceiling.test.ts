@@ -25,6 +25,10 @@ import {
   MANAGER_PER_NET_WIN,
   REPLACEMENT_WINS,
   SCOUT_HIT_POINTS,
+  WBC_CHAMPION_ID,
+  WBC_CHAMPION_POINTS,
+  WBC_RUNNERUP_ID,
+  WBC_RUNNERUP_POINTS,
 } from "../../src/lib/scoring";
 import type { CardPlayer, SlotType } from "../../src/lib/types";
 import {
@@ -42,7 +46,15 @@ const N = Number(process.env.BOT_GAMES ?? 400);
 const BLANK_CHECK_M = 203.2;
 
 const awardPts = (a: string[]): number => a.reduce((s, x) => s + (AWARD_POINTS[x] ?? 0), 0);
-const ringPts = (p: { ws: boolean; pen: boolean }): number => (p.ws ? 3 : p.pen ? 1 : 0);
+// Ring-chasing whole: October's pair plus March's medal — id compared,
+// points added, scoring.ts's own two-constant discipline.
+const ringPts = (p: { ws: boolean; pen: boolean; wbc?: number }): number =>
+  (p.ws ? 3 : p.pen ? 1 : 0) +
+  (p.wbc === WBC_CHAMPION_ID
+    ? WBC_CHAMPION_POINTS
+    : p.wbc === WBC_RUNNERUP_ID
+      ? WBC_RUNNERUP_POINTS
+      : 0);
 
 interface GodPick {
   p: CardPlayer;

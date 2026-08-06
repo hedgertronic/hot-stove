@@ -29,18 +29,21 @@ PENNANT_POINTS = 1   # per player whose team won the pennant but lost the Series
 # the card season, so a medal and a ring describe the same player-season and
 # BOTH count. 2017 Alex Bregman won the Classic with the United States and the
 # World Series with Houston: that one season is worth WBC_CHAMPION_POINTS +
-# RING_POINTS = 5. The stacking is a true fact about the player, not a
+# RING_POINTS = 6. The stacking is a true fact about the player, not a
 # double-count to suppress — they are two different tournaments and he won
 # both. Nine 2017 seasons stack this way (Bregman, Clippard and Gregerson at
-# +5; Correa and Beltran at +4 as pennant winners; five more at +2).
+# +6; Correa and Beltran at +4 as pennant winners; five more at +3).
 #
-# The values sit below RING_POINTS deliberately. Only five Classics land inside
-# the 1985-2025 card window, and the 2006 and 2009 champions (Japan) were
-# rosters of NPB players with almost no MLB seasons, so WBC points are far
-# scarcer than rings. Pricing a gold medal at a ring's value would let the
-# handful of eligible card years own the axis outright.
-WBC_CHAMPION_POINTS = 1.5  # per player on the World Baseball Classic winner that year
-WBC_RUNNERUP_POINTS = 0.5  # per player on the Classic's losing finalist
+# A Classic is worth a Series, rung for rung: gold = RING_POINTS, silver =
+# PENNANT_POINTS. The 2026-08 release polish set the parity (supersedes round
+# 28's half-a-Series 1.5/0.5, which itself superseded round 5's 2/1). The
+# earlier rounds priced medals below rings because only five Classics land
+# inside the 1985-2025 card window; the owner's call is that a world title is
+# a world title — scarcity makes a gold RARER than a ring, not smaller, and
+# the scarcity itself keeps the handful of eligible card years from owning
+# the axis.
+WBC_CHAMPION_POINTS = 3  # per player on the World Baseball Classic winner that year
+WBC_RUNNERUP_POINTS = 1  # per player on the Classic's losing finalist
 # What the cards CARRY for a medal: a discriminant, not the points. The
 # frontend filters by medal type (gold vs silver emoji, pedigree counts) with
 # strict equality against these ids and multiplies the counts by the POINTS
@@ -49,8 +52,10 @@ WBC_RUNNERUP_POINTS = 0.5  # per player on the Classic's losing finalist
 # app/src/lib/scoring.ts as WBC_CHAMPION_ID / WBC_RUNNERUP_ID.
 WBC_CHAMPION_ID = 2  # card-data value for a WBC gold medal
 WBC_RUNNERUP_ID = 1  # card-data value for a WBC silver medal
-# A Classic is worth half a Series at both rungs (WS ring 3 / pennant 1):
-# round 28 set gold = 1.5 and silver = 0.5 (supersedes round 5's 2 / 1).
+# NOTE: WBC_RUNNERUP_POINTS and WBC_RUNNERUP_ID are both 1 today. That is a
+# coincidence of the retune, not a license to conflate them — filtering by a
+# point constant is exactly the bug that zeroed playtest.py's medal counts
+# for the whole half-a-Series era.
 # Hired manager: (team W - team L) x this, negative allowed. 0.2 makes the
 # hire a real decision (policy-aware bot sweep: 0.1 -> 116+ on-field 0.1%,
 # 0.2 -> 2.8% "rare but chaseable", 162+ 0.2% -> 0.75%; bots chase better

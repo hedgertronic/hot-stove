@@ -29,7 +29,13 @@ const HG_FLAT: number =
     : 1.0;
 const hgPrice = (p: { cost: number }): number => Math.min(HG_FLAT, p.cost);
 import { eligibleTypes } from "../../src/lib/eligibility";
-import { AWARD_POINTS } from "../../src/lib/scoring";
+import {
+  AWARD_POINTS,
+  WBC_CHAMPION_ID,
+  WBC_CHAMPION_POINTS,
+  WBC_RUNNERUP_ID,
+  WBC_RUNNERUP_POINTS,
+} from "../../src/lib/scoring";
 import type {
   Card,
   CardPlayer,
@@ -64,11 +70,22 @@ function readJson<T>(rel: string): T {
 // ---------------------------------------------------------------------------
 
 /** Score points a player season is worth beyond money: WAR (1 pt/win) +
- * award points + ring/pennant points. */
+ * award points + ring/pennant points + Classic medal points. The medal term
+ * reads the card's discriminant (2 gold / 1 silver) and prices it through the
+ * scoring constants — the bots were medal-blind until the round-nine retune
+ * made gold worth a full ring, at which point blindness stopped rounding
+ * away. */
 const awardPts = (a: string[]): number => a.reduce((s, x) => s + (AWARD_POINTS[x] ?? 0), 0);
 const ringPts = (ws: boolean, pen: boolean): number => (ws ? 3 : pen ? 1 : 0);
-const playerPts = (p: { war: number; awards: string[]; ws: boolean; pen: boolean }): number =>
-  p.war + awardPts(p.awards) + ringPts(p.ws, p.pen);
+const wbcPts = (wbc: number | undefined): number =>
+  wbc === WBC_CHAMPION_ID ? WBC_CHAMPION_POINTS : wbc === WBC_RUNNERUP_ID ? WBC_RUNNERUP_POINTS : 0;
+const playerPts = (p: {
+  war: number;
+  awards: string[];
+  ws: boolean;
+  pen: boolean;
+  wbc?: number;
+}): number => p.war + awardPts(p.awards) + ringPts(p.ws, p.pen) + wbcPts(p.wbc);
 
 const TYPE_SET: SlotType[] = ["C", "IF", "OF", "FLEX", "SP", "RP"];
 
@@ -492,7 +509,8 @@ function doSign(g: Game, d: HarnessData, p: CardPlayer): void {
   }
 }
 
-const signedPts = (s: Signed): number => s.war + awardPts(s.awards) + ringPts(s.ws, s.pen);
+const signedPts = (s: Signed): number =>
+  s.war + awardPts(s.awards) + ringPts(s.ws, s.pen) + wbcPts(s.wbc);
 
 /** Seats still to fill across roster + front office — the option-value clock. */
 function seatsRemaining(g: Game): number {
@@ -516,7 +534,7 @@ function optCost(g: Game, cfg: BotConfig, base: number): number {
 const CHASE_BAR = 145;
 function projectedTotal(g: Game, d: HarnessData): number {
   let t = 50 + g.totalWar + 7;
-  for (const s of g.slots) if (s) t += awardPts(s.awards) + ringPts(s.ws, s.pen);
+  for (const s of g.slots) if (s) t += awardPts(s.awards) + ringPts(s.ws, s.pen) + wbcPts(s.wbc);
   for (let i = 0; i < SLOT_TYPES.length; i++) if (g.slots[i] === null) t += d.seatEV[SLOT_TYPES[i]];
   t += g.manager ? (g.manager.wins - g.manager.losses) * 0.1 : d.mgrEV;
   return t;
@@ -538,8 +556,8 @@ function buildCandidates(g: Game, d: HarnessData, cfg: BotConfig, baseOnly = fal
   const hgSaveRate = hasExpert(cfg, "hgdp") ? 0.25 : MONEY_PT;
   // "chase": pacing elite → award/ring points get 1.5× weight in player picks.
   const chasing = hasExpert(cfg, "chase") && projectedTotal(g, d) >= CHASE_BAR;
-  const chaseBonus = (pl: { awards: string[]; ws: boolean; pen: boolean }): number =>
-    chasing ? 0.5 * (awardPts(pl.awards) + ringPts(pl.ws, pl.pen)) : 0;
+  const chaseBonus = (pl: { awards: string[]; ws: boolean; pen: boolean; wbc?: number }): number =>
+    chasing ? 0.5 * (awardPts(pl.awards) + ringPts(pl.ws, pl.pen) + wbcPts(pl.wbc)) : 0;
 
   // --- plain signs ---
   for (const p of g.visiblePlayers) {

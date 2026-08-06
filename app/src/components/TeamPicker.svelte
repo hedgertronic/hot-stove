@@ -119,5 +119,11 @@
   .pickopt .pedi {
     margin-left: 1px;
     font-size: 9px;
+    /* Emoji sit on the baseline while club codes are all caps with no
+       descenders, so a 9px medal's ink center lands 1.3–1.8px below the 13px
+       caps' center (measured against Apple Color Emoji: 💍 spans −0.75..+8.0,
+       🚩 −0.25..+6.5, the caps 0..+9.75). Raising the glyph 1.5px puts both
+       medals' centers within a quarter-pixel of the code's. */
+    vertical-align: 1.5px;
   }
 </style>

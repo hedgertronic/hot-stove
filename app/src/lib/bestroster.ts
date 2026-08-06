@@ -127,6 +127,10 @@ import {
   PENNANT_POINTS,
   RING_POINTS,
   SCOUT_HIT_POINTS,
+  WBC_CHAMPION_ID,
+  WBC_CHAMPION_POINTS,
+  WBC_RUNNERUP_ID,
+  WBC_RUNNERUP_POINTS,
   score,
 } from "./scoring";
 import type { Card, CardPlayer, SlotType } from "./types";
@@ -151,9 +155,11 @@ export interface BestPick {
    * use WBC_CHAMPION_ID / WBC_RUNNERUP_ID (not WBC_CHAMPION_POINTS /
    * WBC_RUNNERUP_POINTS) to compare against this field. Here for the same
    * reason `ws`/`pen` are: the finale draws the dream club's seats with the
-   * same hardware its own squad shows, and a medal the solver dropped would
-   * make the ceiling look like it won less than it did. Optional because most
-   * player-seasons have none, not because the solver sometimes omits it. */
+   * same hardware its own squad shows, and `evaluate()` scores the medal the
+   * way it scores a ring — a medal the solver dropped OR failed to price
+   * would make the ceiling look like it won less than it did. Optional
+   * because most player-seasons have none, not because the solver sometimes
+   * omits it. */
   wbc?: number;
 }
 
@@ -282,6 +288,16 @@ const BISECT_STEPS = 6;
 const awardPts = (awards: string[]): number =>
   awards.reduce((sum, a) => sum + (AWARD_POINTS[a] ?? 0), 0);
 
+/** Classic medal points from the card's discriminant (2 gold / 1 silver) —
+ * ids compared, points returned, the same two-constant discipline scoring.ts
+ * documents. */
+const wbcPts = (wbc: number | undefined): number =>
+  wbc === WBC_CHAMPION_ID
+    ? WBC_CHAMPION_POINTS
+    : wbc === WBC_RUNNERUP_ID
+      ? WBC_RUNNERUP_POINTS
+      : 0;
+
 /** One thing a single card can supply: a player in one slot type, or the
  * skipper. `base` is everything the finale scores except payroll; the DP
  * maximizes base + λ·cost. `playerId` is null for a manager (skippers never
@@ -384,6 +400,11 @@ function cardItems(card: Card): Item[] {
       awardPts(p.awards) +
       (p.ws ? RING_POINTS : 0) +
       (p.pen ? PENNANT_POINTS : 0) +
+      // March's medal is real points like October's ring — unpriced here, a
+      // Bregman-class season (ring AND gold) read as 3 points cheaper than
+      // the game scores it, and at gold-equals-ring pricing that is a
+      // full ring's worth of solver blindness.
+      wbcPts(p.wbc) +
       SCOUT_HIT_POINTS;
     for (const t of eligibleTypes(p))
       items.push({
@@ -545,6 +566,8 @@ function evaluate(chosen: Chosen[], budgetM: number): number {
   let spendM = 0;
   let rings = 0;
   let pennants = 0;
+  let wbcChampions = 0;
+  let wbcRunnersUp = 0;
   let scoutHits = 0;
   let managerMoty = false;
   let managerRecord: [number, number] | null = null;
@@ -556,6 +579,8 @@ function evaluate(chosen: Chosen[], budgetM: number): number {
       awardLists.push(item.pick.awards);
       if (item.pick.ws) rings += 1;
       if (item.pick.pen) pennants += 1;
+      if (item.pick.wbc === WBC_CHAMPION_ID) wbcChampions += 1;
+      if (item.pick.wbc === WBC_RUNNERUP_ID) wbcRunnersUp += 1;
       scoutHits += 1;
     } else if (item.manager !== null) {
       // score() only ever reads the difference, so net wins in the W column is
@@ -574,6 +599,8 @@ function evaluate(chosen: Chosen[], budgetM: number): number {
     awardLists,
     rings,
     pennants,
+    wbcChampions,
+    wbcRunnersUp,
     managerRecord,
     scoutHits,
     managerMoty,

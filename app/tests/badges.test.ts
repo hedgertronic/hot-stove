@@ -554,6 +554,45 @@ describe("the goal", () => {
     expect(earnedBadges(f({ total: 161.9 }))).not.toContain("perfect");
     expect(earnedBadges(f({ total: 400 }))).toContain("perfect");
   });
+
+  describe("the one that got away", () => {
+    // The stamp the club actually posted: comfortably short of perfect.
+    const short = { wins: 140, losses: 22 };
+
+    it("fires when the ceiling stamps 162–0 and the club's stamp doesn't", () => {
+      expect(
+        earnedBadges(f({ ceilingTotal: 162, stamp: short })),
+      ).toContain("gotaway");
+      // Through recordFromTotal, not a raw comparison: 161.5 ROUNDS to a
+      // 162–0 stamp, so it was on the table.
+      expect(
+        earnedBadges(f({ ceilingTotal: 161.5, stamp: short })),
+      ).toContain("gotaway");
+      expect(
+        earnedBadges(f({ ceilingTotal: 161.4, stamp: short })),
+      ).not.toContain("gotaway");
+    });
+
+    it("never fires on a club that stamped 162–0 itself", () => {
+      expect(
+        earnedBadges(
+          f({ ceilingTotal: 190, total: 170, stamp: { wins: 162, losses: 0 } }),
+        ),
+      ).not.toContain("gotaway");
+    });
+
+    it("fails safe when the ceiling is unknown", () => {
+      // No solve, no fact — a season whose ceiling never resolved cannot be
+      // said to have let one get away.
+      expect(earnedBadges(f({ stamp: short }))).not.toContain("gotaway");
+    });
+
+    it("falls back to the baseline record when the stamp is absent", () => {
+      // The same floor pair the anti-trophy rungs read: BASE's 81–81
+      // baseline has losses, so a perfect ceiling still got away.
+      expect(earnedBadges(f({ ceilingTotal: 162 }))).toContain("gotaway");
+    });
+  });
 });
 
 describe("the payroll axis is exclusive", () => {
@@ -639,6 +678,48 @@ describe("scouting", () => {
     expect(earnedBadges(f({ scoutHits: 7 }))).toContain("crystal");
     expect(earnedBadges(f({ scoutHits: 6 }))).not.toContain("crystal");
     expect(earnedBadges(f({ scoutHits: 9 }))).toContain("crystal");
+  });
+
+  describe("went my own way", () => {
+    /** Nine chairs filled against a whole dream club, zero agreement. */
+    const whole = (over: Partial<BadgeFacts> = {}) =>
+      f({
+        roster: club(8),
+        managerName: "Some Skipper",
+        dreamSeats: 9,
+        scoutHits: 0,
+        ...over,
+      });
+
+    it("fires on nine filled chairs and zero dream-team picks", () => {
+      expect(earnedBadges(whole())).toContain("maverick");
+      expect(earnedBadges(whole({ scoutHits: 1 }))).not.toContain("maverick");
+    });
+
+    it("wants the player's club whole — every seat and the dugout", () => {
+      expect(earnedBadges(whole({ roster: club(7) }))).not.toContain(
+        "maverick",
+      );
+      expect(earnedBadges(whole({ managerName: null }))).not.toContain(
+        "maverick",
+      );
+    });
+
+    it("wants the dream club whole too, nine seats on the nose", () => {
+      // 🌠's denominator discipline: a five-card reel's five-seat dream club
+      // is not a club anyone defied, and an absent solve is not one either.
+      expect(earnedBadges(whole({ dreamSeats: 5 }))).not.toContain("maverick");
+      expect(earnedBadges(whole({ dreamSeats: 0 }))).not.toContain("maverick");
+    });
+
+    it("shares the exclusive scout axis with its opposite pole", () => {
+      // The chain, not coincidence: a nine-hit club takes 🌠 alone.
+      const matched = earnedBadges(
+        whole({ scoutHits: 9 }),
+      );
+      expect(matched).toContain("dreamteam");
+      expect(matched).not.toContain("maverick");
+    });
   });
 });
 

@@ -48,5 +48,8 @@
      it: a digit ends flush where a tracked-out letter already leaves air. */
   .pickopt .pedi {
     margin-left: 3px;
+    /* Same baseline physics as the relocate sheet's medals, milder dose: at
+       the shared 11px the ink centers miss the digits' by only ~0.4–0.9px. */
+    vertical-align: 0.5px;
   }
 </style>

@@ -107,10 +107,11 @@ describe("Manager of the Year is trophy-case hardware", () => {
 describe("World Baseball Classic medals ride the Ring-chasing row", () => {
   const args = { totalWar: 30, spendM: 50, budgetM: 100, awardLists: [] };
 
-  it("a gold medal is +1.5 and a silver is +0.5, both in ringPoints", () => {
-    expect(score({ ...args, wbcChampions: 1 }).ringPoints).toBe(1.5);
-    expect(score({ ...args, wbcRunnersUp: 1 }).ringPoints).toBe(0.5);
-    expect(score({ ...args, wbcChampions: 3, wbcRunnersUp: 2 }).ringPoints).toBe(5.5);
+  it("a gold medal is +3 and a silver is +1, both in ringPoints", () => {
+    // Series parity, rung for rung: gold = ring (3), silver = pennant (1).
+    expect(score({ ...args, wbcChampions: 1 }).ringPoints).toBe(3);
+    expect(score({ ...args, wbcRunnersUp: 1 }).ringPoints).toBe(1);
+    expect(score({ ...args, wbcChampions: 3, wbcRunnersUp: 2 }).ringPoints).toBe(11);
   });
 
   it("medals land in ringPoints, never in the award or win columns", () => {
@@ -118,18 +119,17 @@ describe("World Baseball Classic medals ride the Ring-chasing row", () => {
     const medaled = score({ ...args, wbcChampions: 2 });
     expect(medaled.awardPoints).toBe(plain.awardPoints);
     expect(medaled.expectedWins).toBe(plain.expectedWins);
-    expect(medaled.total).toBeCloseTo(plain.total + 3, 5);
+    expect(medaled.total).toBeCloseTo(plain.total + 6, 5);
   });
 
   /* Stacking is the intended behavior, not a double-count. The Classic is
    * played in March and the World Series in October, so one player-season can
    * genuinely hold both: 2017 Alex Bregman won gold with the United States and
-   * a ring with Houston, and that season is worth 1.5 + 3 = 4.5. */
-  it("a ring and a gold medal in the same season stack to +4.5", () => {
-    expect(score({ ...args, rings: 1, wbcChampions: 1 }).ringPoints).toBe(4.5);
-    // 2017 Carlos Correa: gold medal, and Houston's ring — 3 + 1.5 = 4.5.
-    // 2017 Carlos Beltran on the pennant-loser ledger would be 1 + 1.5 = 2.5.
-    expect(score({ ...args, pennants: 1, wbcChampions: 1 }).ringPoints).toBe(2.5);
+   * a ring with Houston, and that season is worth 3 + 3 = 6. */
+  it("a ring and a gold medal in the same season stack to +6", () => {
+    expect(score({ ...args, rings: 1, wbcChampions: 1 }).ringPoints).toBe(6);
+    // 2017 Carlos Beltran on the pennant-loser ledger would be 1 + 3 = 4.
+    expect(score({ ...args, pennants: 1, wbcChampions: 1 }).ringPoints).toBe(4);
   });
 
   it("no medals is the default (omitted and explicit zero agree)", () => {
