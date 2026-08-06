@@ -150,21 +150,23 @@ describe("review fixes: names and keys assistive tech is owed", () => {
   });
 });
 
-describe("review fixes: the confirm pill wears the --line frame", () => {
+describe("review fixes: the confirm pill wears one tone, fill matching ring", () => {
   const css = read("app.css");
 
-  it(".confirm base lives in app.css with --line border and matching fill", () => {
+  it(".confirm base lives in app.css with an ink ring and matching fill", () => {
     // Two blocks answer to `.confirm`: the shared `.chipbox, .confirm` recipe
     // and the pill's own. The last one is the pill's.
+    // What this pin protects is the ONE-TONE rule (fill = ring, no halo);
+    // the tone itself has been the owner's call twice — ink → gray (round
+    // four: no ink-in-a-gray-frame) → ink again (round eight: the gray read
+    // washed-out). .pos.pit rode along both times.
     const blocks = [...css.matchAll(/(?:^|\n)\.confirm \{([^}]*)\}/g)].map((m) => m[1]);
     expect(blocks.length, "app.css has a .confirm block").toBeGreaterThan(0);
     const block = blocks.at(-1)!;
-    expect(block, "app.css .confirm uses --line border").toContain("border: 2px solid var(--line)");
-    expect(block, "app.css .confirm has no ink border").not.toContain("border: 2px solid var(--ink)");
-    // The fill matches the ring (owner's call, round four): one gray, not
-    // ink in a gray frame — .pos.pit made the same trade the same day.
-    expect(block, "app.css .confirm fill matches its ring").toContain("background: var(--line)");
-    expect(block, "app.css .confirm has no ink fill").not.toContain("background: var(--ink)");
+    expect(block, "app.css .confirm uses an ink border").toContain("border: 2px solid var(--ink)");
+    expect(block, "app.css .confirm has no gray border").not.toContain("border: 2px solid var(--line)");
+    expect(block, "app.css .confirm fill matches its ring").toContain("background: var(--ink)");
+    expect(block, "app.css .confirm has no gray fill").not.toContain("background: var(--line)");
   });
 
   it("components keep only their position deltas — no base re-declaration", () => {

@@ -10,7 +10,9 @@
      arrow: one path, identical everywhere, stroked in currentColor so it
      inherits each pill's resting/armed ink. Sized against its siblings: the
      ? is a 12px text glyph (~8px of ink) and the trophy a 13px drawing, so a
-     7.2px X in the trophy's 13px box reads as their twin. -->
+     7.2px X in the trophy's 13px box reads as their twin. (A geometric
+     ink-height match was tried in round eight — X to 10 units, ? to 13px —
+     and reverted the same round: the tuned sizes read better.) -->
 <svg viewBox="0 0 14 14" aria-hidden="true"
   ><path d="M3.4 3.4l7.2 7.2M10.6 3.4l-7.2 7.2" /></svg
 >

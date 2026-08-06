@@ -151,7 +151,7 @@
 
   async function retry() {
     // The reel effect's own epoch check, in the one place outside it that
-    // awaits a land. Undo is live on a stranded SIGNAL LOST spin and clears
+    // awaits a land. Undo is live on a stranded RAIN DELAY spin and clears
     // `loadFailed` with everything else, so without this a rewind taken while
     // the retry fetch is in flight would thunk the banner over the card the
     // player has already come back to.
@@ -188,12 +188,21 @@
 
 {#if game.loadFailed}
   <div class="cold disp">
-    <div class="coldmsg">📡 SIGNAL LOST: the card didn't come through</div>
-    <!-- The market's SHOW N MORE capsule, not the big spin button: a retry is
-         a small recovery, and the full-width 48px button gave it a spin's
-         weight. (SPIN AGAIN · FREE below keeps the big button — it IS the
-         spin.) -->
-    <button class="retry disp" onclick={retry}>TAP TO RETRY</button>
+    <!-- ☔ RAIN DELAY: baseball's own word for "play stopped, we wait, we
+         resume" — which is exactly what a dropped card fetch is. ONE pill,
+         message and action fused: a bare line of muted caps floating over a
+         button read as no surface of the game's, and the message here has
+         no job except to be tapped. Capsule-sized like SHOW N MORE, not the
+         big spin button — a retry is a small recovery (SPIN AGAIN · FREE
+         below keeps the big button; it IS the spin). The chipbox recipe
+         seats the all-caps label on center; the bare-text version rode the
+         cap band 0.0235em high like any uncorrected capsule. -->
+    <button
+      class="retry chipbox disp"
+      onclick={retry}
+      aria-label="Rain delay — the card didn't come through. Tap to retry."
+      ><span class="chiplbl">☔ RAIN DELAY · TAP TO RETRY</span></button
+    >
   </div>
 {:else if game.coldStove}
   <div class="cold disp">
@@ -308,21 +317,24 @@
   }
   /* PlayerList's .more capsule, verbatim — the two are the board's small
      tap-to-continue voice (both sized to the powerup pills' base recipe). */
+  /* The chipbox recipe carries the box (inline-flex, pinned height, cap
+     seating); this block is the capsule dress — SHOW N MORE's own numbers
+     (10.5px/800/0.04em, 11px inline pad, 2px --line ring on --card), at the
+     confirm pills' 24px pin. Centered by .cold's text-align, so no width
+     games. */
   .retry {
+    --chip-h: 24px;
     font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.04em;
     color: var(--ink);
-    width: fit-content;
-    margin: 6px auto 12px;
-    padding: 5px 11px;
+    margin: 6px 0 12px;
+    padding-inline: 11px;
     cursor: pointer;
     background: var(--card);
     border: 2px solid var(--line);
     border-radius: 999px;
-    font-family: inherit;
     transition: transform 0.08s;
-    display: block;
   }
   .retry:active {
     transform: translateY(2px);

@@ -110,7 +110,7 @@
 <Sheet
   {onclose}
   label="Pick a season of this manager's career"
-  title="⭐ PRIME TIME: 🧢 {skipper}"
+  title="⭐ PRIME TIME: {skipper}"
   confirmLabel="CANCEL"
 >
   {#if failed}

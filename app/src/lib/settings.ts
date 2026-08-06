@@ -319,34 +319,54 @@ function rowBank(e: { bank?: string; moneyball?: boolean }): Bank | null {
   return null;
 }
 
-export function badgeCase(filter?: CaseFilter): {
-  tiles: CaseTile[];
-  earned: number;
-  total: number;
-} {
-  const counts = new Map<string, number>();
+/** Whether a history row is inside the case's lens — ONE predicate for every
+ * surface the lens reaches (the badge board and the passport), so the two can
+ * never disagree about which games a lens shows. Axes AND together;
+ * selections within an axis OR; an empty axis is no lens on that axis.
+ *
+ * The difficulty read is bestFor's, version stamp and all: a pre-v2 "eyetest"
+ * is today's scout, and a pre-v2 "scout" was the retired stats mode —
+ * standard's ancestor, not Eye Test's. A row naming NO mode on a filtered
+ * axis shows only under ALL rather than falling to a legacy default, which
+ * would dress every pre-mode row as Box Score / classic. */
+function rowInLens(
+  e: { v?: number; difficulty?: string; bank?: string; moneyball?: boolean },
+  filter?: CaseFilter,
+): boolean {
   const wantDiff = filter?.difficulties ?? [];
   const wantBank = filter?.banks ?? [];
-  for (const e of loadHistory()) {
-    if (!Array.isArray(e?.badges)) continue;
-    // The lens: a row that doesn't name any asked-for mode is excluded, and a
-    // row too old to name any mode shows only under ALL. Every badge the row
-    // earned filters together — a badge has no mode of its own, the game that
-    // earned it does. Axes AND together; selections within an axis OR.
-    // The difficulty read is bestFor's, version stamp and all: a pre-v2
-    // "eyetest" is today's scout, and a pre-v2 "scout" was the retired stats
-    // mode — standard's ancestor, not Eye Test's. A row naming NO difficulty
-    // stays null (only ALL shows it) rather than falling to the legacy
-    // default, which would dress every pre-mode row as Box Score.
+  if (wantDiff.length > 0) {
     const d =
       typeof e.difficulty !== "string"
         ? null
         : typeof e.v === "number" && e.v >= 2
           ? e.difficulty
           : legacyDifficulty(e.difficulty);
-    if (wantDiff.length > 0 && (d === null || !wantDiff.some((x) => x === d))) continue;
+    if (d === null || !wantDiff.some((x) => x === d)) return false;
+  }
+  if (wantBank.length > 0) {
     const bank = rowBank(e);
-    if (wantBank.length > 0 && (bank === null || !wantBank.includes(bank))) continue;
+    if (bank === null || !wantBank.includes(bank)) return false;
+  }
+  return true;
+}
+
+export function badgeCase(filter?: CaseFilter): {
+  tiles: CaseTile[];
+  earned: number;
+  total: number;
+} {
+  const counts = new Map<string, number>();
+  // Only the bank axis is read here (the denominator's bankLocked drop) — the
+  // row-level lens itself lives in `rowInLens`.
+  const wantBank = filter?.banks ?? [];
+  for (const e of loadHistory()) {
+    if (!Array.isArray(e?.badges)) continue;
+    // The lens: a row that doesn't name any asked-for mode is excluded, and a
+    // row too old to name any mode shows only under ALL. Every badge the row
+    // earned filters together — a badge has no mode of its own, the game that
+    // earned it does. The predicate is `rowInLens`, shared with the passport.
+    if (!rowInLens(e, filter)) continue;
     const seen = new Set<string>();
     for (const k of e.badges) {
       if (typeof k !== "string" || !BADGE_BY_KEY[k] || seen.has(k)) continue;
@@ -598,8 +618,11 @@ function rowPlayers(entry: unknown): Map<string, string[]> {
  * ONE club, which is a season; this is every country across every season,
  * which is a career. The two never show the same thing.
  *
- * GLOBAL across difficulty and bank, and derived from `hotstove.history`
- * rather than a key of its own — both for the reasons `badgeCase()` gives. A
+ * Lifetime by default, with the case's mode lens available on top: no filter
+ * (the finale) reads every game, and a `CaseFilter` narrows the stamps to the
+ * games the lens shows, through the same `rowInLens` the badge board uses.
+ * Derived from `hotstove.history` rather than a key of its own — for the
+ * reasons `badgeCase()` gives. A
  * second key can drift from the log, and a player who cleared their history
  * would be startled to find their passport had survived it. Deriving also
  * makes the discovery ORDER and the first-seen DATE free, which is what lets
@@ -614,13 +637,18 @@ function rowPlayers(entry: unknown): Map<string, string[]> {
  * with: an absent field, a non-array, a non-string member and an empty string
  * all contribute nothing, and a corrupt store resolves to an empty passport
  * through `loadHistory()`. */
-export function passport(): PassportStamp[] {
+export function passport(filter?: CaseFilter): PassportStamp[] {
   const stamps = new Map<string, PassportStamp>();
   /** Ids per country, live alongside `stamps` — the stamp carries the SIZE of
    * these sets, and the sets themselves are what make a player rostered in
    * four seasons count once. */
   const people = new Map<string, Set<string>>();
   for (const e of loadHistory()) {
+    // The case's mode lens reaches the stamps the same way it reaches the
+    // badges — `rowInLens` is the shared predicate — so a Moneyball lens
+    // shows the countries MONEYBALL games fielded, not the career's. The
+    // finale passes no filter and keeps the lifetime passport.
+    if (!rowInLens(e ?? {}, filter)) continue;
     const date = typeof e?.date === "string" ? e.date : "";
     const ids = rowPlayers(e);
     // One visit per GAME per country, so a club with three men from one
@@ -748,8 +776,9 @@ export function stampLabel(s: Pick<PassportItem, "country" | "count" | "fresh">)
  * rest keep `passport()`'s newest-first order. */
 export function passportItems(
   fresh: ReadonlySet<string> = new Set<string>(),
+  filter?: CaseFilter,
 ): PassportItem[] {
-  return passport()
+  return passport(filter)
     .map((s) => ({
       country: s.country,
       flag: s.flag,
@@ -788,9 +817,9 @@ export function passportItems(
  * A country the table does not know sorts last. It has no measured tier, and
  * an unmeasured country at the head of a board ordered by rarity would read as
  * the rarest thing on it. */
-export function passportBoard(): PassportItem[] {
+export function passportBoard(filter?: CaseFilter): PassportItem[] {
   const rank = (r: Rarity | null) =>
     r === null ? RARITY_ORDER.length : RARITY_ORDER.indexOf(r);
-  return passportItems().sort((a, b) => rank(a.rarity) - rank(b.rarity));
+  return passportItems(undefined, filter).sort((a, b) => rank(a.rarity) - rank(b.rarity));
 }
 

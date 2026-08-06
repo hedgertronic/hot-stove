@@ -151,8 +151,13 @@
    * for why the unvisited half of the table is not on the sheet. A country
    * nobody has been to is not a locked slot here, unlike a badge — the two
    * absences are different, and the note on `passportBoard` is where the
-   * difference is argued. */
-  const items: PassportItem[] = passportBoard();
+   * difference is argued.
+   *
+   * The mode lens reaches the stamps exactly as it reaches the badges — the
+   * same `rowInLens` predicate over the same history rows — so a Moneyball
+   * lens shows the countries Moneyball games fielded. Rows too old to name a
+   * mode stamp only under ALL, the badge board's own rule. */
+  const items = $derived(passportBoard(caseFilter));
 
   /** The stamps that belong to one rarity, in the board's own order.
    *

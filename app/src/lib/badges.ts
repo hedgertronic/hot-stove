@@ -1379,7 +1379,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "legendary",
     axis: "goal",
     freq: null,
-    how: "Won more games than the dream team — the scouts owe you their notes.",
+    how: "Won more games than the dream team.",
   },
 
   // ---- payroll: exactly one fires ----

@@ -461,9 +461,10 @@ describe("passport()", () => {
     ]);
   });
 
-  it("is global across bank and difficulty, like the trophy case", () => {
+  it("is global across bank and difficulty by default, like the trophy case", () => {
     // A record book is a leaderboard and scopes by mode; a collection does
-    // not. Splitting this by bank would fragment one passport into three.
+    // not. The DEFAULT is the whole career; narrowing is the case lens's
+    // explicit ask (the describe below), never a standing split.
     seed(
       { v: 2, total: 1, difficulty: "scout", bank: "moneyball", countries: ["Aruba"] },
       { v: 2, total: 1, difficulty: "standard", bank: "blankcheck", countries: ["Panama"] },
@@ -532,6 +533,63 @@ describe("passport()", () => {
   it("survives a null row in the log", () => {
     seed(null, game(["Taiwan"]), undefined);
     expect(names()).toEqual(["Taiwan"]);
+  });
+});
+
+/* ---------- the mode lens ---------- */
+
+describe("passport() under the case lens", () => {
+  // The lens is `rowInLens`, shared verbatim with badgeCase(): the same games
+  // that show a lens's badges are the games that show its stamps. Each axis
+  // is asserted through a row that differs ONLY on that axis.
+
+  it("filters stamps by bank", () => {
+    seed(
+      game(["Japan"]), // classic
+      { ...(game(["Cuba"]) as object), bank: "moneyball" },
+    );
+    const under = (banks: ("classic" | "moneyball" | "blankcheck")[]) =>
+      passport({ banks }).map((s) => s.country);
+    expect(under(["classic"])).toEqual(["Japan"]);
+    expect(under(["moneyball"])).toEqual(["Cuba"]);
+    // No filter is the lifetime passport, unchanged.
+    expect(passport().map((s) => s.country).sort()).toEqual(["Cuba", "Japan"]);
+  });
+
+  it("filters stamps by difficulty, reading legacy spellings the way badgeCase does", () => {
+    seed(
+      game(["Japan"]), // v2 standard
+      // A pre-v2 "eyetest" is today's scout — the same normalization the
+      // badge board applies must reach the stamps, or one lens shows a
+      // game's badges while hiding its countries.
+      { date: "2025-01-01", difficulty: "eyetest", countries: ["Cuba"] },
+    );
+    expect(passport({ difficulties: ["scout"] }).map((s) => s.country)).toEqual(["Cuba"]);
+    expect(passport({ difficulties: ["standard"] }).map((s) => s.country)).toEqual(["Japan"]);
+  });
+
+  it("shows a mode-less row only under ALL", () => {
+    // A row too old to name any mode cannot honestly appear under a lens —
+    // the badge board's rule, held here so the two surfaces never disagree.
+    seed({ date: "2024-01-01", countries: ["Panama"] });
+    expect(passport().map((s) => s.country)).toEqual(["Panama"]);
+    expect(passport({ banks: ["classic"] })).toEqual([]);
+    expect(passport({ difficulties: ["standard"] })).toEqual([]);
+  });
+
+  it("a filtered-out row costs the stamp its visits and players too", () => {
+    // The lens re-derives the whole stamp from the rows it admits — a
+    // Moneyball lens must not print classic visit counts on a shared country.
+    seed(
+      rostered({ Japan: ["suzukic01", "ohtansh01"] }),
+      { ...(rostered({ Japan: ["darvisyu01"] }) as object), bank: "moneyball" },
+    );
+    const lifetime = passport().find((s) => s.country === "Japan")!;
+    expect(lifetime.visits).toBe(2);
+    expect(lifetime.players).toBe(3);
+    const lensed = passport({ banks: ["moneyball"] }).find((s) => s.country === "Japan")!;
+    expect(lensed.visits).toBe(1);
+    expect(lensed.players).toBe(1);
   });
 });
 

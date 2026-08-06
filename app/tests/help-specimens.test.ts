@@ -195,7 +195,7 @@ describe("the help sheet's player specimens", () => {
     // is its own span with the market's 4px margin, not a character inside
     // the label, so the pin reads the two parts separately.
     expect(BODY).toMatch(/class="[^"]*\bph\b[^"]*"[^>]*>↑</);
-    expect(BODY).toContain(">PICK A SLOT<");
+    expect(BODY).toContain(">WHAT SLOT?<");
   });
 });
 
@@ -425,7 +425,7 @@ describe("the help sheet's scoring copy", () => {
     // not already say. Its instruction pill is the tell.
     expect(BODY).not.toContain("WHO GOES?");
     // The slot picker's is the sheet's one remaining instruction pill.
-    expect(BODY).toContain(">PICK A SLOT<");
+    expect(BODY).toContain(">WHAT SLOT?<");
   });
 
   it("removes the armed sample pills from the POWERUPS table", () => {
@@ -545,7 +545,7 @@ describe("the help sheet's position chip updates (round 1.0.0)", () => {
   const chipMap = new Map(posChips);
 
   it("shows SP and RP chips with the pit (inverted) class", () => {
-    // Market rows mark pitchers with a line-gray fill (.pos.pit); the seat
+    // Market rows mark pitchers with an ink fill (.pos.pit); the seat
     // badges must match so the help sheet doesn't teach a different visual.
     // Svelte SSR: class="svelte-HASH pit" — match word boundary, not prefix.
     expect(chipMap.has("SP"), "SP chip not in slot-badges").toBe(true);

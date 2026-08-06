@@ -63,11 +63,11 @@ describe("two-way seat choice", () => {
     expect(g.choicesLeft).toBe(1); // opening the picker commits nothing
   });
 
-  it("the pending row shows the PICK A SLOT hint", () => {
+  it("the pending row shows the WHAT SLOT? hint", () => {
     const g = landedGame();
     g.signPlayer(ohtani);
     const comp = mountList(g);
-    expect(target.textContent).toContain("PICK A SLOT");
+    expect(target.textContent).toContain("WHAT SLOT?");
     unmount(comp);
   });
 

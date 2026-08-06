@@ -2883,7 +2883,7 @@ export class Game {
     // epoch stops the one already parked on the await, which has its own
     // reference to the promise and cannot be reached any other way. Both are
     // needed, and the epoch is the one that closes the race. `loadFailed` goes
-    // with them: a rewind out of a stranded SIGNAL LOST spin must not leave the
+    // with them: a rewind out of a stranded RAIN DELAY spin must not leave the
     // retry notice up over a position that has no fetch to retry.
     this.spinEpoch += 1;
     this.pendingCard = null;

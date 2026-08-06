@@ -2,15 +2,59 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- A mangled shared link (/hot-stove/anything) previously fell through to
          the parent site's 404; the game is one URL, so every miss under its
          path goes home. Meta refresh rather than JS so it works for every
-         agent; noindex so the redirect page itself never enters the index. -->
+         agent; noindex so the redirect page itself never enters the index.
+
+         The body is the static boot card's masthead recipe (index.html
+         #static-boot), because for the one frame — or one direct visit —
+         this page is ever seen, it should look like the game it is about to
+         become. Nunito itself can't load here (the woff2 is a hashed bundle
+         asset), so the stack opens at the same rounded fallbacks the boot
+         card falls to on a cold first visit. -->
     <meta name="robots" content="noindex" />
-    <meta http-equiv="refresh" content="0; url=/hot-stove/" />
+    <!-- The redirect is a script honoring `?review` (open /404.html?review to
+         look at this page without being bounced — there is no other way to
+         see a page that leaves in 0 seconds), with a meta refresh inside
+         noscript so agents without JS still get sent home. Between them
+         every agent is covered, which was the meta-only version's whole
+         argument. -->
+    <script>
+      if (!new URLSearchParams(location.search).has("review")) {
+        location.replace("/hot-stove/");
+      }
+    </script>
+    <noscript><meta http-equiv="refresh" content="0; url=/hot-stove/" /></noscript>
+    <!-- The game's own face, from the same paint-blocking data-URI sheet the
+         app uses — absolute path like the redirect's, since this page serves
+         at whatever URL just missed. Locally (preview at /) it 404s and the
+         rounded fallback stack below carries the card; in production the
+         masthead is pixel-true to the boot card. -->
+    <link rel="stylesheet" href="/hot-stove/nunito.css" />
     <title>Hot Stove</title>
+    <style>
+      html {
+        background: #f6f1e3;
+      }
+      body {
+        margin: 0;
+        font-family: 'Nunito', ui-rounded, 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif;
+        line-height: 1;
+        color: #24221c;
+      }
+    </style>
   </head>
   <body>
-    <p><a href="/hot-stove/">Hot Stove has moved — take me to the game.</a></p>
+    <div style="max-width: 480px; margin: 0 auto; padding: 38vh 24px 0; text-align: center">
+      <h1 style="display: inline-flex; align-items: center; gap: 10px; margin: 0; font-size: 34px; font-weight: 800; letter-spacing: 0.01em"><span>HOT<span style="color: #e8590c">STOVE</span></span><span style="border: 2px solid #c98a08; border-radius: 999px; background: #ffd43b; font-size: 9.5px; letter-spacing: 0.1em; padding: 3.5px 8px">BETA</span></h1>
+      <p style="margin: 8px 0 0; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: #6b6759">
+        Spin for teams. Sign players. Chase 162 wins.
+      </p>
+      <p style="margin: 22px 0 0; font-size: 16px; font-weight: 700; color: #6b6759">
+        <a href="/hot-stove/" style="color: inherit">Take me to the game.</a>
+      </p>
+    </div>
   </body>
 </html>

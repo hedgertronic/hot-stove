@@ -128,15 +128,14 @@
    label (the .btn row, a player's name) has real descenders, and for those the
    box's own middle is already the honest target. */
 
-/* Bundled rounded display face: ui-rounded is Safari-only (Chrome would fall
-   back to Hiragino Maru Gothic), so every browser gets the same Nunito file. */
-@font-face {
-  font-family: "Nunito";
-  src: url("./assets/nunito.woff2") format("woff2");
-  font-weight: 200 900;
-  font-style: normal;
-  font-display: swap;
-}
+/* The rounded display face (Nunito — ui-rounded is Safari-only; Chrome would
+   fall back to Hiragino Maru Gothic) is NOT declared here: its @font-face
+   lives in public/nunito.css, a render-blocking data-URI stylesheet index.html
+   links directly, so the first paint can never happen before the font exists.
+   As a bundle asset with font-display: swap it was a fetch the paint raced —
+   and lost on every load, warm cache included — flashing the boot masthead in
+   the fallback face. src/assets/nunito.woff2 stays as the canonical binary
+   that file is regenerated from. */
 
 :root {
   --ground: #f6f1e3;
@@ -891,12 +890,13 @@ button {
    pill appears, and the label is centered in it by `.chipbox`. */
 .confirm {
   --chip-h: 24px;
-  border: 2px solid var(--line);
+  border: 2px solid var(--ink);
   border-radius: 999px;
-  /* Fill matches the ring — one gray, not ink-in-a-gray-frame: the two-tone
-     read as a chip wearing a halo, and the .pos.pit position tags made the
-     same trade on the same day. Cream type on --line still clears 7:1. */
-  background: var(--line);
+  /* Fill matches the ring — the one-tone/no-halo rule that took this pill to
+     gray in round four holds; the TONE went back to ink in round eight (the
+     owner's call: gray read washed-out). .pos.pit made the same round trip.
+     Cream type on ink clears any contrast bar the gray did. */
+  background: var(--ink);
   color: var(--card);
   font-weight: 800;
   font-size: 12px;

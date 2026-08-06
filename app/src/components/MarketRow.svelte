@@ -50,6 +50,9 @@
     /** The rail sits above this row at every width (the help sheet), so the
      * hint keeps ↑ and never swaps to the wide layout's ←. */
     hintAbove?: boolean;
+    /** The host row wears the armed orange wash (a ⭐/🔁/🏠 target row):
+     * the hint pill flips to cardstock fill so it doesn't melt into it. */
+    washed?: boolean;
     /** A confirm pill has replaced the value column — render no right column
      * at all (the caller draws the pill as the button's sibling). */
     rightHidden?: boolean;
@@ -71,6 +74,7 @@
     war = null,
     hint = null,
     hintAbove = false,
+    washed = false,
     rightHidden = false,
     freeze = false,
     dead = false,
@@ -111,12 +115,19 @@
              rail sits ABOVE the market on the phone and LEFT of it at width,
              so the glyph is two spans and the 760px media tier picks the one
              that points at the actual rail (unless `hintAbove` pins ↑).
-             "WHO GOES?" is the armed 🔁 pill's own words: at 9 characters the
-             hint is narrower than the price column it replaces, so it can
-             never push a chip-heavy row to a second line. -->
-        <span class="confirm hint" class:above={hintAbove}
+             Both labels are questions about the pick itself: the slot hint
+             fires only when a man's eligible seats span more than one slot
+             TYPE (engine.svelte.ts signFromCard — same-type seats
+             auto-resolve), so "WHAT SLOT?" is literally the open question —
+             and "slot", not "position", because FLEX is one of the choices
+             and FLEX is a seat, not a position — and "WHO GOES?" is the
+             armed 🔁 pill's own words. Both run 10 characters or fewer,
+             narrower than the price column they replace, so neither can
+             push a chip-heavy row to a second line (wrapnudge's freeze pins
+             the mid column as the backstop). -->
+        <span class="confirm hint" class:above={hintAbove} class:wash={washed}
           ><span class="ph" aria-hidden="true">↑</span><span class="wd" aria-hidden="true">←</span
-          ><span class="chiplbl">{hint === "slot" ? "PICK A SLOT" : "WHO GOES?"}</span></span
+          ><span class="chiplbl">{hint === "slot" ? "WHAT SLOT?" : "WHO GOES?"}</span></span
         >
       {:else}
         <span class="cost {priceTier}">{priceText}</span>
@@ -154,10 +165,12 @@
     letter-spacing: 0.03em;
     flex: none;
   }
-  /* Filled to the ring's own gray, not ink — one tone, no halo (the confirm
-     pill made the same trade; the two families stay twins). */
+  /* Filled INK, ring to match — the one-tone/no-halo rule unchanged, back in
+     the ink voice at the owner's call (round eight: the gray fill read
+     washed-out). The confirm pill made the same round trip; twins still. */
   .pos.pit {
-    background: var(--line);
+    background: var(--ink);
+    border-color: var(--ink);
     color: var(--card);
   }
   /* Multi-group labels ("C/IF/OF") shrink to keep the fixed-width column. */
@@ -263,6 +276,13 @@
     border-color: var(--orange-8);
     color: var(--ink);
   }
+  /* ON A WASHED ROW ONLY (the `washed` prop — a ⭐/🔁/🏠 target row wears
+     the armed pills' own orange-2/orange-8 pair), the pill's orange-2 fill
+     melted into the row's: border against border, no pill. Cardstock fill
+     pops there; everywhere else the orange fill stays the hint's voice. */
+  .hint.wash {
+    background: var(--card);
+  }
   /* The hint's arrow, one glyph per layout: ↑ while the rail rides above the
      market (phone), ← once the wide grid seats it to the left. Declared after
      the base so the wide block's swap wins on source order. `.above` pins ↑
@@ -301,11 +321,18 @@
   .dead .pos {
     background: transparent;
   }
+  /* A dead pit tag STAYS INVERTED — an SP flipping to the outline family
+     read as a different chip, not a dead one — but its fill drops from ink
+     to the outline chips' own --line gray, ring to match, so the one gray
+     the dead outline rings wear is the one gray this fill wears and the
+     grayscale(1) above maps both to the same value. (Both halves are the
+     owner's calls, round eight: first the gray-ink fill read as a second
+     gray beside the outline chips; then the drained outline version read
+     as not-an-SP.) Cream type on --line was the LIVE chip's own pairing
+     before the ink round trip, so the dead contrast is a solved problem. */
   .dead .pos.pit {
-    background: var(--gray-ink);
-    /* The live chip's one-tone rule holds when the row dies: the ring follows
-       the fill to gray-ink, or grayscale(1) turns the --line ring into a
-       visible dark halo around the lighter dead fill. */
-    border-color: var(--gray-ink);
+    background: var(--line);
+    border-color: var(--line);
+    color: var(--card);
   }
 </style>

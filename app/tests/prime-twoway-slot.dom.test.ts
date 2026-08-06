@@ -5,7 +5,7 @@
  * a confirmed season eligible for MORE THAN ONE open seat type cannot resolve
  * inside the sheet. It resolves the way the market's own two-way signings do
  * (tests/twoway-slot.dom.test.ts): the sheet closes, the rail's seats arm
- * orange, the row shows ↑ PICK A SLOT, and the seat tap commits — at the PRIME
+ * orange, the row shows ↑ WHAT SLOT?, and the seat tap commits — at the PRIME
  * price, into the tapped chair.
  *
  * ⭐ is spent at that COMMIT, never at the handoff: a cancelled pick leaves the
@@ -168,11 +168,11 @@ describe("prime a two-way season with two open seat types", () => {
     expect(g.powerups.prime).toBe("armed");
   });
 
-  it("the pending row shows the PICK A SLOT hint", async () => {
+  it("the pending row shows the WHAT SLOT? hint", async () => {
     const { g } = primed("SP/DH");
     await g.applyPrime("TWO", 2021);
     const comp = mountList(g);
-    expect(target.textContent).toContain("PICK A SLOT");
+    expect(target.textContent).toContain("WHAT SLOT?");
     unmount(comp);
   });
 

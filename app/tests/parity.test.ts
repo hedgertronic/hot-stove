@@ -156,7 +156,7 @@ describe("PlayerList parity", () => {
       },
       listProps,
     );
-    for (const body of [slot.std, slot.sct]) expect(body).toContain("PICK A SLOT");
+    for (const body of [slot.std, slot.sct]) expect(body).toContain("WHAT SLOT?");
   });
 });
 

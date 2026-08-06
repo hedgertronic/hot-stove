@@ -78,8 +78,16 @@
   let bootDone = $state(0);
 
   $effect(() => {
+    // Dev-only review switch (localhost:5173/?slowboot): a local load resolves
+    // the five steps faster than the meter's 400ms fade, so the loading UI is
+    // unreviewable at real speed. The delay slows each step to walk the whole
+    // sequence — warming line, stepwise pour, completion hold, handoff — on
+    // the REAL boot path rather than a mock. DEV-gated: not in the bundle.
+    const slowboot =
+      import.meta.env.DEV && new URLSearchParams(location.search).has("slowboot");
     const step = <T,>(p: Promise<T>): Promise<T> =>
-      p.then((r) => {
+      p.then(async (r) => {
+        if (slowboot) await new Promise((done) => setTimeout(done, 700));
         bootDone += 1;
         return r;
       });
@@ -117,6 +125,17 @@
             restoredFinale = true;
             screen = "game";
           }
+        }
+        // If the load ran long enough for the meter to fade in (the .bootload
+        // 400ms delay has expired), the player is watching a partial bar —
+        // and a bar that vanishes at 60% reads as "something broke", not
+        // "done". Hold the swap just long enough for the fill's 0.25s width
+        // transition to pour to the right edge, so a shown meter always
+        // completes. A fast boot (inside the delay) pays nothing: no meter
+        // was seen, so no hold. Reduced-motion kills the transition
+        // (app.css), leaving an instant full bar and a harmless beat.
+        if (typeof performance !== "undefined" && performance.now() > 400) {
+          await new Promise((r) => setTimeout(r, 350));
         }
         booted = true;
       } catch (e) {
@@ -608,7 +627,12 @@
   .bootfill {
     height: 100%;
     background: var(--orange-8);
-    border-radius: 999px;
+    /* NO radius of its own: the track's overflow:hidden clip rounds the
+       fill's ends. A 999px radius here rounded the fill's own corners
+       INSIDE the already-rounded clip, leaving card-colored crescents
+       between fill and rim at both ends — a white outline that flickered
+       as the width animated. A square right edge mid-pour is the liquid
+       reading, not a bug. */
     transition: width 0.25s ease;
   }
   .hud {

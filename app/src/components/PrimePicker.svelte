@@ -225,10 +225,11 @@
     letter-spacing: 0.03em;
     flex: none;
   }
-  /* Filled to the ring's own gray for PlayerList's reason — the two markets'
+  /* Filled ink, ring to match, for MarketRow's reason — the two markets'
      tags are twins. */
   .pos.pit {
-    background: var(--line);
+    background: var(--ink);
+    border-color: var(--ink);
     color: var(--card);
   }
   /* Multi-group labels ("C/IF/OF") shrink to keep the fixed-width column. */

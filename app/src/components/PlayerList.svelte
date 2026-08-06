@@ -168,6 +168,7 @@
           priceTier={discounted ? "cheap" : costTier(price)}
           war={game.showWar ? p.war : null}
           hint={game.slotPick === p.id ? "slot" : game.releasePick === p.id ? "trade" : null}
+          washed={swappable || primeable || (discounted && playable)}
           rightHidden={signConfirm || tradeConfirm}
           freeze={signConfirm || tradeConfirm || game.slotPick === p.id || game.releasePick === p.id}
           dead={!playable && !primeable}
@@ -182,7 +183,7 @@
   {/each}
   {#if !expanded && sorted.length > visible.length}
     <button type="button" class="more" onclick={(e) => { e.stopPropagation(); expanded = true; }}>
-      <!-- The arrow is the PICK A SLOT hint's glyph (↓ here — the hidden rows
+      <!-- The arrow is the WHAT SLOT? hint's glyph (↓ here — the hidden rows
            sit below), in the hint's own aria-hidden span so a screen reader
            gets the words without the arrow. -->
       <span aria-hidden="true">↓</span> SHOW {sorted.length - visible.length} MORE
@@ -260,7 +261,7 @@
     cursor: default;
   }
   /* The dead row's CONTENT treatment (grayscale identity, desaturated chips,
-     the pit tag's gray-ink pair) lives in MarketRow, driven by its `dead`
+     the pit tag's line-gray fill) lives in MarketRow, driven by its `dead`
      prop — the same reason the content markup does. */
   .prow.dead:active {
     transform: none;

@@ -11,6 +11,7 @@
   import PowerupRow from "../components/PowerupRow.svelte";
   import RosterRail from "../components/RosterRail.svelte";
   import SpecialPrimePicker from "../components/SpecialPrimePicker.svelte";
+  import SpinBanner from "../components/SpinBanner.svelte";
   import {
     PILL_LADDER,
     bankGames,
@@ -44,6 +45,11 @@
   const td = tdGame();
   const prime = primeGame();
   const hd = hdGame();
+  // ☔ RAIN DELAY is a flag on a real Game, not a market shape of its own —
+  // raise it on a fresh forge and the banner's own gate renders the notice
+  // exactly as a dropped card fetch leaves it.
+  const lost = marketGame();
+  lost.loadFailed = true;
   const banks = bankGames();
   const pups = powerupGames();
   const rails = railGames();
@@ -199,6 +205,14 @@
     everyone else grays — every WAR tier represented, chips keep a faded hue
   </div>
   <PlayerList game={hd} confirmKey={null} setConfirm={noop} />
+
+  <div class="psep">SPIN BANNER · ☔ RAIN DELAY</div>
+  <div class="cap">
+    A spin whose card fetch failed: one capsule under the idle reel, message
+    and action fused (SHOW N MORE's dress on the chipbox recipe). The button
+    is live but has no stranded fetch to re-run here.
+  </div>
+  <SpinBanner game={lost} colors={{ franchises: {} }} />
 
   <div class="psep">PAYROLL BOX</div>
   <div class="cap">Pre-owner, nothing signed yet — payroll $0, gray drifting hatch</div>

@@ -18,11 +18,17 @@
          opacity 0 forever and a slow load would read as hung. Immediately
          visible is the correct degradation of "fades in later". -->
     <style>html{background:#f6f1e3}@keyframes hsboot{to{opacity:1}}@media (prefers-reduced-motion:reduce){#warmline{opacity:1 !important}}</style>
+    <!-- Nunito rides a render-blocking stylesheet whose bytes ARE the font
+         (data URI), so the boot masthead can never paint in the fallback
+         face and jump — the full argument lives at the top of the file.
+         Linked here, before the bundle's stylesheet, on every path the page
+         has (dev serves public/ too, which is what cures the dev-only
+         structural flash: the bundle CSS arrives via JS there). -->
+    <link rel="stylesheet" href="./nunito.css" />
     <!-- Boot data, warming while the JS bundle downloads and parses. The four
          fetches in App.svelte can't start until the module executes; preloading
          removes that serial round trip. `crossorigin` matches fetch()'s default
-         cors mode so the preload cache key matches (the same rule the font
-         preload in vite.config.ts documents). Relative ./data/ hrefs survive
+         cors mode so the preload cache key matches. Relative ./data/ hrefs survive
          both deploy paths, like base: "./" does. index.json is the heavy one;
          the other three are under 10KB each but share the round trip. -->
     <link rel="preload" as="fetch" crossorigin href="./data/index.json" />
@@ -130,9 +136,9 @@
            App.svelte's real <Logo big/> card is pixel-still. Hexes are
            app.css tokens inlined (--ink/--orange-8/--gold-8/--yellow/--muted);
            change them together. The font stack is --disp minus the flag face:
-           in the built page the stylesheet <link> lands before first paint and
-           vite.config.ts preloads nunito.woff2, so this card paints in the
-           game's own Nunito, not a system stand-in. line-height: 1 on both
+           nunito.css in <head> is paint-blocking and carries the font as a
+           data URI, so this card paints in the game's own Nunito on the
+           very first frame — never a system stand-in that jumps. line-height: 1 on both
            cards, stated rather than inherited — the UA default and app.css
            would disagree and nudge the pitch line between frames. -->
       <div id="static-boot" style="max-width: 480px; margin: 0 auto; padding: 38vh 24px 0; text-align: center; font-family: 'Nunito', ui-rounded, 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif; line-height: 1; color: #24221c">

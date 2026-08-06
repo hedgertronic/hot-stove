@@ -944,10 +944,11 @@
     background: var(--gray-bg);
     border-color: var(--gray-ink);
   }
-  /* Filled to the ring's own gray, not ink — one tone, no halo, PlayerList's
-     own trade (its .pos.pit and the confirm pill both made it). */
+  /* Filled ink, ring to match — one tone, no halo, MarketRow's own pair
+     (its .pos.pit and the confirm pill both wear it). */
   .pos.pit {
-    background: var(--line);
+    background: var(--ink);
+    border-color: var(--ink);
     color: var(--card);
   }
   /* The legend's .right/.cost skeleton, MarketRow's numbers (10px salary↔chip
