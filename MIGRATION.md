@@ -8,7 +8,7 @@ redeploy so the URLs never disagree with each other.
 
 ## In the hedgertronic.github.io repo, NOW (no migration needed)
 
-- [ ] Add `robots.txt` at the repo root (drafted below). GitHub Pages serves it
+- [x] Add `robots.txt` at the repo root (drafted below). GitHub Pages serves it
       at `https://hedgertronic.com/robots.txt` — the root domain owns it; the
       hot-stove repo cannot ship one.
 - [ ] Optional: add `sitemap.xml` at the root listing the site's real pages
@@ -29,15 +29,15 @@ Sitemap: https://hedgertronic.com/sitemap.xml
 
 ## At the Cloudflare flip, all in one redeploy
 
-- [ ] `app/index.html`: flip `rel=canonical`, `og:url`, `og:image`,
+- [x] `app/index.html`: flip `rel=canonical`, `og:url`, `og:image`,
       `twitter:image`, and the JSON-LD `url`/`image` from
       `…/hot-stove/` to `…/games/hot-stove/`.
-- [ ] `app/wrangler.jsonc`: uncomment the `routes` block so the Worker serves
+- [x] `app/wrangler.jsonc`: uncomment the `routes` block so the Worker serves
       `hedgertronic.com/games/hot-stove*`, then `wrangler deploy` (the block's
       own comment has the full instructions).
-- [ ] `app/public/404.html`: its meta-refresh and link target are the absolute
+- [x] `app/public/404.html`: its meta-refresh and link target are the absolute
       path `/hot-stove/` — flip both to `/games/hot-stove/`.
-- [ ] Create the 301: `hedgertronic.com/hot-stove/*` →
+- [x] Create the 301: `hedgertronic.com/hot-stove/*` →
       `hedgertronic.com/games/hot-stove/*` (Cloudflare redirect rule). Every
       shared link, QR code, and scraped og:url from the launch keeps resolving
       through it — the redirect is permanent infrastructure, not a transition

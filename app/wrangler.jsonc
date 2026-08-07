@@ -1,22 +1,21 @@
 {
   // Cloudflare Workers static-assets deploy. The dist/ bundle is served as
   // assets; worker.js exists only to serve the same bundle under the
-  // /games/hot-stove prefix once the hedgertronic.com zone is on Cloudflare —
-  // a request that misses the asset manifest (every prefixed path does) falls
-  // through to the worker, which strips the prefix and refetches.
-  //
-  // `routes` stays commented until the zone exists in this account; a deploy
-  // with a route on an unknown zone fails outright. Uncomment after the
-  // nameserver move lands, then `wrangler deploy` again:
-  // "routes": [
-  //   { "pattern": "hedgertronic.com/games/hot-stove*", "zone_name": "hedgertronic.com" }
-  // ],
+  // /games/hot-stove prefix — a request that misses the asset manifest
+  // (every prefixed path does) falls through to the worker, which strips
+  // the prefix and refetches.
+  "routes": [
+    { "pattern": "hedgertronic.com/games/hot-stove*", "zone_name": "hedgertronic.com" }
+  ],
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "hot-stove",
   "main": "worker.js",
   "compatibility_date": "2026-08-01",
   "assets": {
     "directory": "./dist",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // Serves dist/404.html (the boot-card bounce page) for any path with no
+    // asset — the same behavior GitHub Pages gave 404.html implicitly.
+    "not_found_handling": "404-page"
   }
 }

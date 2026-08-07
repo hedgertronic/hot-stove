@@ -23,16 +23,16 @@
          argument. -->
     <script>
       if (!new URLSearchParams(location.search).has("review")) {
-        location.replace("/hot-stove/");
+        location.replace("/games/hot-stove/");
       }
     </script>
-    <noscript><meta http-equiv="refresh" content="0; url=/hot-stove/" /></noscript>
+    <noscript><meta http-equiv="refresh" content="0; url=/games/hot-stove/" /></noscript>
     <!-- The game's own face, from the same paint-blocking data-URI sheet the
          app uses — absolute path like the redirect's, since this page serves
          at whatever URL just missed. Locally (preview at /) it 404s and the
          rounded fallback stack below carries the card; in production the
          masthead is pixel-true to the boot card. -->
-    <link rel="stylesheet" href="/hot-stove/nunito.css" />
+    <link rel="stylesheet" href="/games/hot-stove/nunito.css" />
     <title>Hot Stove</title>
     <style>
       html {
@@ -53,7 +53,7 @@
         Spin for teams. Sign players. Chase 162 wins.
       </p>
       <p style="margin: 22px 0 0; font-size: 16px; font-weight: 700; color: #6b6759">
-        <a href="/hot-stove/" style="color: inherit">Take me to the game.</a>
+        <a href="/games/hot-stove/" style="color: inherit">Take me to the game.</a>
       </p>
     </div>
   </body>
