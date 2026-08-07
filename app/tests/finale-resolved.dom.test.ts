@@ -337,11 +337,13 @@ describe("styling and layout contracts", () => {
     expect(FINALE_SRC).not.toContain("repeating-linear-gradient");
     expect(FINALE_SRC).toContain(".squad.dream .qrow.signed");
     expect(FINALE_SRC).toContain("var(--green-wash)");
-    // Item 4: .lrow uses the app's parchment ground tinted into --card, not bare --card;
-    // and the outer color-mix bleeds the tier's foreshadow wash (--fore) into the parchment.
+    // Item 4 (as amended thrice by the owner's foreshadow-tint calls): .lrow
+    // wears the tier's own -2 wash (--fore) at 25% into the parchment base —
+    // full strength and 50% both read too dark. Not bare --card either way.
     expect(FINALE_SRC).not.toMatch(/\.lrow\s*\{[^}]*background:\s*var\(--card\)/s);
-    expect(FINALE_SRC).toContain("color-mix(in srgb, var(--ground) 55%, var(--card))");
-    expect(FINALE_SRC).toContain("var(--fore");
+    expect(FINALE_SRC).toContain(
+      "color-mix(in srgb, var(--fore, var(--ground)) 25%, color-mix(in srgb, var(--ground) 55%, var(--card)))",
+    );
     // Item 6: seed chip font larger than the old 10px
     const seedMatch = FINALE_SRC.match(/\.seedchip\s*\{[^}]*font-size:\s*(\d+)px/s);
     expect(parseInt(seedMatch?.[1] ?? "0", 10)).toBeGreaterThan(10);

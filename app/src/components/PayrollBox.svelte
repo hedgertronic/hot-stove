@@ -158,36 +158,44 @@
   <div class="pay disp">
     <div class="paymath">
       {#if bank === "moneyball"}
-        <span class="chip eff mb">🐘 {money(budget)} PAYROLL</span>
+        <span class="chip chipbox eff mb"
+          ><span class="ph">🐘</span><span class="chiplbl">{money(budget)} PAYROLL</span></span
+        >
       {:else if bank === "blankcheck"}
-        <span class="chip eff bc">💸 {money(budget)} BLANK CHECK</span>
+        <span class="chip chipbox eff bc"
+          ><span class="ph">💸</span><span class="chiplbl">{money(budget)} BLANK CHECK</span></span
+        >
       {:else if math || pending}
         {#if ownerBudget != null}
-          <span class="chip own">💰 {money(ownerBudget)}</span>
+          <span class="chip chipbox own"
+            ><span class="ph">💰</span><span class="chiplbl">{money(ownerBudget)}</span></span
+          >
         {:else}
-          <span class="chip ghost">💰</span>
+          <span class="chip chipbox ghost"><span class="ph">💰</span></span>
         {/if}
         <span class="op">×</span>
         {#if parkMult != null}
-          <span class="chip stad">🏟️ {parkMult.toFixed(2)}</span>
+          <span class="chip chipbox stad"
+            ><span class="ph">🏟️</span><span class="chiplbl">{parkMult.toFixed(2)}</span></span
+          >
         {:else}
-          <span class="chip ghost">🏟️</span>
+          <span class="chip chipbox ghost"><span class="ph">🏟️</span></span>
         {/if}
         <span class="op">=</span>
         {#if capKnown}
-          <span class="chip eff">{money(budget)}</span>
+          <span class="chip chipbox eff"><span class="chiplbl">{money(budget)}</span></span>
         {:else}
           <!-- Dashed, because a payroll is still coming; $0, because until it
                does there genuinely isn't one. Both halves of the multiplication
                above it are still ghosts — nothing is claiming this zero is a
                product, only that it is what the club has to spend. -->
-          <span class="chip ghost">{money(0)}</span>
+          <span class="chip chipbox ghost"><span class="chiplbl">{money(0)}</span></span>
         {/if}
       {:else}
         <!-- A finished classic club with no front office on record. The payroll
              is still a fact; neither fixed-cap glyph would be true of it, and a
              TBD name would promise something that is not coming. -->
-        <span class="chip eff">{money(budget)} PAYROLL</span>
+        <span class="chip chipbox eff"><span class="chiplbl">{money(budget)} PAYROLL</span></span>
       {/if}
     </div>
     {#if bank === "classic" && (math || pending)}
@@ -234,20 +242,38 @@
     font-size: 12px;
     font-weight: 700;
   }
-  /* Pinned height, because the ghost and the hire must be ONE box: the ghost
-     is a bare emoji and the hire is emoji + digits, and letting each line box
-     set its own height measured 25px against 26px (tools/probe_centering.py)
-     — a dashed empty seat visibly taller or shorter than the chip that fills
-     it, depending on the platform's emoji metrics. 26px is the filled chip's
-     measured height, whole-pixel per the chip recipes' grid rule. */
+  /* Drawn by app.css's chipbox recipe (the `chipbox` class in the markup),
+     exactly as the powerup pills and award pills are: the box is the pinned
+     26px — whole-pixel per the grid rule, and one height whether the seat
+     holds a bare-emoji ghost or a full hire, so the dashed empty chip and
+     the chip that fills it are the SAME box. The text run is a `.chiplbl`
+     the cap trim can reach; the emoji is split out as its own flex item
+     (`.ph`, AwardPill's split) so the platform emoji face's tall ink is
+     centered by the box alone instead of dragging the label's measure.
+     This file states only the deltas: border, hue, and inline padding. */
   .chip {
-    display: inline-flex;
-    align-items: center;
-    height: 26px;
+    --chip-h: 26px;
     border: 2px solid var(--line);
     border-radius: 999px;
-    padding: 1px 8px;
+    padding-inline: 8px;
     background: var(--card);
+  }
+  /* The gap the one-run markup's literal space used to draw, as geometry:
+     whitespace between flex items isn't an item, so the seam is stated. */
+  .chip > .ph {
+    margin-inline-end: 3px;
+  }
+  /* The lone-emoji ghost: the 3px seam above is an emoji→label gap, and
+     with no label it just shoves the glyph 1.5px left of center — zeroed.
+     NO vertical correction, deliberately: the probe reads the ink bbox a
+     shade high here (tools/probe_centering.py paychip-ghost, −0.36
+     Chromium / −0.70 WebKit), but 💰 and 🏟️ carry their visual mass LOW
+     in the glyph, so bbox-centering them read visibly sunk on the board
+     (owner call). The box's own geometric seat is where the eye reads
+     them centered — the same accepted state every other bare-emoji chip
+     part sits in (powerup-pill-emoji, emo-ring). */
+  .chip.ghost > .ph {
+    margin-inline-end: 0;
   }
   /* The ballpark's own hue, and it is the ballpark's because the FRONT OFFICE
      tile a player buys it from is this exact pair (`SpecialRows .srow.stad`).

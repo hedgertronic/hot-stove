@@ -78,8 +78,11 @@
   /** Award pills follow the market rows' rule exactly: hardware is Box Score
    * knowledge. Eye Test hides which season was the MVP year — that hidden
    * edge is the mode, and the career sheet is the one screen where leaking it
-   * would hand over the whole answer at once. */
-  const hasBadges = (p: CardPlayer) => game.showAwards && p.awards.length > 0;
+   * would hand over the whole answer at once. The WBC medal rides the same
+   * gate, MarketRow's own hardware-or-medal rule. */
+  const hasBadges = (p: CardPlayer) =>
+    game.showAwards &&
+    (p.awards.length > 0 || p.wbc !== undefined || p.ws === true || p.pen === true);
 
   /** First tap arms the row; a second tap on the same row disarms it.
    * Tapping a different row arms that row instead. */
@@ -153,10 +156,23 @@
                    pill (Ichiro's decorated seasons on a phone). The clamp
                    pins .mid at its pre-arm width so the row keeps its shape
                    under the tap. -->
+              <!-- The season's hardware in the FINALE SQUAD ROW'S exact order:
+                   award pills → 💍/🚩 → WBC medal, all inside .badges so the
+                   group wraps as one unit (Box Score only). The ring used to
+                   ride the year label at the relocate tiles' 9px, which read
+                   too small beside the pills and put October before the
+                   awards — the finale is the order of record. -->
               <span class="mid" use:wrapnudge={{ px: 1.3, freeze: isArmed }}>
                 <span class="yr">{sea.year} {sea.team}</span>
                 {#if hasBadges(sea.p)}<span class="badges"
-                    >{#each sortAwards(sea.p.awards) as a}<AwardPill code={a} small />{/each}</span
+                    >{#each sortAwards(sea.p.awards) as a}<AwardPill code={a} small />{/each}{#if sea.p.ws}<span
+                      class="pedi">💍</span
+                    >{:else if sea.p.pen}<span class="pedi">🚩</span>{/if}{#if sea.p.wbc}<span
+                      class="wbc"
+                      role="img"
+                      aria-label="World Baseball Classic {sea.p.wbc === 2 ? 'champion' : 'finalist'}"
+                      >{sea.p.wbc === 2 ? "🥇" : "🥈"}</span
+                    >{/if}</span
                   >{/if}
               </span>
               {#if !isArmed}
@@ -172,7 +188,7 @@
                 class="confirm"
                 disabled={busy}
                 onclick={(e) => { e.stopPropagation(); void commit(sea); }}
-              ><span class="chiplbl">SIGN {money(price)}</span></button>
+              ><span class="chiplbl">SIGN FOR {money(price)}</span></button>
             {/if}
           </div>
         {/each}
@@ -273,6 +289,20 @@
     display: inline-flex;
     align-items: center;
     gap: 3px;
+    flex: none;
+  }
+  /* The ring/pennant wears the WBC medal's own recipe below — it sits in the
+     same .badges group at the same rank, so it reads at the same size. */
+  .pedi {
+    font-size: 12px;
+    line-height: 1;
+    flex: none;
+  }
+  /* MarketRow's own medal recipe: whole-box glyph under the label's cap band,
+     line-height 1 so the emoji's taller line box can't set the row's. */
+  .wbc {
+    font-size: 12px;
+    line-height: 1;
     flex: none;
   }
   /* PlayerList's CHIP INSET RULE, copied whole: 10px of type-against-box air

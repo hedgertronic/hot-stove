@@ -127,6 +127,20 @@
     // the finale's pills in, and for the same reason: a flagged badge is the
     // one the player opened the case to find, so it should not be somewhere in
     // the middle of a band of twelve.
+    //
+    // Behind that, each state group orders WIDEST FIRST. Definition order
+    // within a band was never a promise (fresh-first already breaks it), and
+    // a mixed-width sequence is what stranded pills alone on their lines: the
+    // wrap preserves order, so a long-named badge beside another long-named
+    // badge forces two singles even though each could have shared with a
+    // short one. Sorted by width, same-size pills sit adjacent and pair up,
+    // and each band reads as a pyramid — long pills up top, pairs and
+    // triples tightening below. The estimate is the display string's length
+    // (label plus its ×N), which is what sets a pill's width once the shared
+    // emoji and padding are subtracted; ties keep definition order.
+    const est = (s: CaseSlot) =>
+      s.def.label.length + (s.count > 1 ? 2 + String(s.count).length : 0);
+    const byWidth = (a: CaseSlot, b: CaseSlot) => est(b) - est(a);
     const earned = band
       .filter((b) => earnedCount.has(b.key))
       .map((b) => ({
@@ -135,12 +149,13 @@
         locked: false,
         fresh: freshKeys.has(b.key),
       }))
-      .sort((a, b) => Number(b.fresh) - Number(a.fresh));
+      .sort((a, b) => Number(b.fresh) - Number(a.fresh) || byWidth(a, b));
     return [
       ...earned,
       ...locked
         .filter((b) => !anonymous(b))
-        .map((b) => ({ def: b, count: 1, locked: true, fresh: false })),
+        .map((b) => ({ def: b, count: 1, locked: true, fresh: false }))
+        .sort(byWidth),
       ...locked.filter(anonymous).map((b) => ({ def: b, count: 1, locked: true, fresh: false })),
     ];
   }

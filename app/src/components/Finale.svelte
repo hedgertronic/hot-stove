@@ -304,7 +304,12 @@
           if (prog < 1) requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
-        void confettiPop();
+        // Confetti is a cheer, and a cheer that fires on most finales is
+        // wallpaper. The stamped record is the thing the pop celebrates, so
+        // the stamp decides — and only its top rung earns the burst: the
+        // gold (elite, 155+) stamp. Everything below lands in the quiet
+        // company of its own tier color.
+        if (recTier === "elite") void confettiPop();
       }, totalAt),
     );
     // Brags wait for the count-up to settle — they annotate the final number.
@@ -657,7 +662,14 @@
 <div class="ledger" style="--fore: {lrowFore}; --fline: {lrowLine}">
   {#each rows as row, i (row.key)}
     <div class="lrow disp" class:show={i < shownRows}>
-      <span class="lbl">{row.lbl}</span>
+      <!-- The label and amount wear .chiplbl so the trim branch seats their
+           cap bands on the row's geometric middle — the same axis the emoji
+           chips (💍/⭐, centered by their pinned chipbox) already sit on.
+           Untrimmed, the type rode Nunito's 0.0235em cap-high line-box seat
+           (~0.3–0.4px at these sizes) and read as the emojis hanging low
+           beside it. `.why` stays untrimmed: it can carry the 🕸️ cobweb,
+           which has no cap band for the trim to measure. -->
+      <span class="lbl chiplbl">{row.lbl}</span>
       {#if row.chips}
         <span class="chipline">
           {#each row.chips as c (c.code)}
@@ -695,7 +707,7 @@
       {/if}
       <!-- The base row shows the animated wins count-up as its amount; every
            other row's amount is the precomputed string. -->
-      <span class="amt" class:plus={row.cls === "plus"} class:minus={row.cls === "minus"}
+      <span class="amt chiplbl" class:plus={row.cls === "plus"} class:minus={row.cls === "minus"}
         >{row.key === "wins" ? dispWins.toFixed(1) : row.amt}</span
       >
     </div>
@@ -1077,16 +1089,16 @@
        its line. */
     border: 2.5px solid var(--fline, var(--line));
     border-radius: 11px;
-    /* Scorecard rows wear the app's own parchment ground (--ground) stepped
-       down from the player card surface (--card). Two distinct materials —
-       near-white cardstock for .qrow, warm parchment for .lrow — with no
-       shadows, fully within the flat-ink aesthetic.
-       --fore (set on .ledger by recTier, the same value the stamp colors) bleeds
-       the final tier's -2 wash into the parchment from the first painted frame.
-       The tint is a foreshadow, not a reveal — rows are already this color before
-       a single one deals, because recTier reads fin.parts.total, which never moves
-       during the reveal. The fallback (--ground) guards against a CSS
-       computed-value invalidation if --fore somehow lands unset. */
+    /* --fore (set on .ledger by recTier, the same value the stamp colors) is
+       the final tier's own -2 wash, at QUARTER strength into the rows'
+       parchment base. The strength has been walked repeatedly (all owner
+       calls): full-saturation read too dark, 50% still read too dark, so
+       25% stands — the palest wash that still leans toward the tier the
+       full-saturation --fline border names. The tint is a foreshadow, not a
+       reveal — rows are already this color before a single one deals,
+       because recTier reads fin.parts.total, which never moves during the
+       reveal. The fallback (--ground) guards against a CSS computed-value
+       invalidation if --fore somehow lands unset. */
     background: color-mix(in srgb, var(--fore, var(--ground)) 25%, color-mix(in srgb, var(--ground) 55%, var(--card)));
     padding: 6px 12px;
     opacity: 0;

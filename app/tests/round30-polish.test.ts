@@ -126,13 +126,27 @@ describe("the powerup lattice's phone tiers", () => {
 describe("the relocate grid holds ring clubs to one line", () => {
   const picker = read("components/TeamPicker.svelte");
 
-  it("code and medal never wrap inside a tile", () => {
-    const btn = picker.match(/\.teambtn \{[^}]*\}/s)?.[0] ?? "";
-    expect(btn).toContain("white-space: nowrap");
+  // The tiles joined the chipbox recipe (round 13): .pickopt sits in app.css's
+  // shared selector group, which states the nowrap that holds code and medal
+  // to one line, so neither picker declares a box model of its own.
+  it("code and medal never wrap inside a tile (chipbox recipe's nowrap)", () => {
+    const css = read("app.css");
+    expect(css).toMatch(/\.chipbox,\n\.confirm,\n\.pickopt \{/);
+    const recipe = css.match(/\.chipbox,\n\.confirm,\n\.pickopt \{[^}]*\}/s)?.[0] ?? "";
+    expect(recipe).toContain("white-space: nowrap");
   });
 
-  it("the medal drops to 9px beside the 13px code", () => {
-    const pedi = picker.match(/\.pickopt \.pedi \{[^}]*\}/)?.[0] ?? "";
-    expect(pedi).toContain("font-size: 9px");
+  // The private 9px medal this suite once pinned existed for 7-column
+  // divisional grids; splitDivision retired those (max 4 columns), so the
+  // relocate sheet now reads app.css's shared `.pickopt .pedi` — the SEASON
+  // TICKET sheet's exact size and margin (owner call, round 13). No raise:
+  // the medal is a bare flex item the tile's chipbox centers.
+  it("the medal is the shared rule — no private size in either picker", () => {
+    expect(picker).not.toMatch(/\.pickopt \.pedi \{/);
+    expect(read("components/YearPicker.svelte")).not.toMatch(/\.pickopt \.pedi \{/);
+    const shared = read("app.css").match(/\.pickopt \.pedi \{[^}]*\}/)?.[0] ?? "";
+    expect(shared).toContain("font-size: 11px");
+    expect(shared).toContain("margin-left: 3px");
+    expect(shared).not.toContain("vertical-align");
   });
 });

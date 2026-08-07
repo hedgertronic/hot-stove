@@ -46,7 +46,8 @@
           >
             <!-- Box Score gets the season's October history on the grid
                  (💍 champ, 🚩 pennant winner); Eye Test stays bare codes. -->
-            {t.team}{#if game.showAwards}{#if t.ws}<span class="pedi">💍</span
+            <span class="chiplbl">{t.team}</span
+            >{#if game.showAwards}{#if t.ws}<span class="pedi">💍</span
               >{:else if t.pen}<span class="pedi">🚩</span>{/if}{/if}
           </button>
         {/each}
@@ -98,32 +99,18 @@
      Only the hue and the type's own metrics are here — a three-letter
      code takes more air above and below than a four-digit year, and it is
      tracked out, so the padding and the leading are this picker's to set. */
+  /* Box, height and label seat are app.css's `.pickopt` (the chipbox
+     recipe, which also states the nowrap that holds code and medal to one
+     line). Only the hue pair and the code's tracking are this sheet's. */
   .teambtn {
     --accent: var(--ink);
     --pick-line: var(--accent);
     --pick-fill: color-mix(in srgb, var(--accent) 18%, var(--card));
     letter-spacing: 0.04em;
-    line-height: 1.2;
-    padding: 11px 0;
-    /* Code and medal are ONE line, always. The tiles carry no horizontal
-       padding, so on a phone "TOR💍" misses a 7-column tile's content box by
-       under a pixel — and the wrap that bought was a taller tile mid-row,
-       which read as the whole grid buckling. Nowrap holds the line; a
-       fractional overflow center-bleeds invisibly instead. */
-    white-space: nowrap;
   }
-  /* Down from the shared 11px: seven columns leave this picker the narrowest
-     tiles in the game, and the medal is a footnote on a club code, not a
-     second glyph of type. 9px beside 13px caps is what lets ring clubs fit
-     the same one-line tile as everyone else on a 360pt phone. */
-  .pickopt .pedi {
-    margin-left: 1px;
-    font-size: 9px;
-    /* Emoji sit on the baseline while club codes are all caps with no
-       descenders, so a 9px medal's ink center lands 1.3–1.8px below the 13px
-       caps' center (measured against Apple Color Emoji: 💍 spans −0.75..+8.0,
-       🚩 −0.25..+6.5, the caps 0..+9.75). Raising the glyph 1.5px puts both
-       medals' centers within a quarter-pixel of the code's. */
-    vertical-align: 1.5px;
-  }
+  /* The medal is app.css's shared `.pickopt .pedi` — the same 11px and
+     margin the SEASON TICKET sheet reads, centered by the tile's chipbox
+     (no raise of its own). The private 9px copy this picker once ran
+     existed for 7-column divisional grids, which splitDivision has since
+     retired (max 4 columns), so the two sheets share one rule. */
 </style>

@@ -79,8 +79,8 @@ describe("app.css holds one chip recipe", () => {
     expect(base).toContain("padding-block: 0.047em 0;");
   });
 
-  it("reaches .confirm by selector, whose markup this file cannot edit", () => {
-    expect(css).toMatch(/\.chipbox,\n\.confirm \{/);
+  it("reaches .confirm and .pickopt by selector, whose markup this file cannot edit", () => {
+    expect(css).toMatch(/\.chipbox,\n\.confirm,\n\.pickopt \{/);
   });
 
   it("gives a chip's text run a block box the engine's trim can reach", () => {
@@ -96,7 +96,7 @@ describe("app.css holds one chip recipe", () => {
     // to a box that cannot take it — is what shipped the miscentering this
     // whole saga started with, and two separate assertions would let it back.
     expect(css).toMatch(
-      /@supports \(text-box: trim-both cap alphabetic\) \{\s*\.chipbox,\s*\.confirm \{\s*padding-block: 0;\s*\}\s*\.chiplbl \{\s*text-box: trim-both cap alphabetic;\s*\}\s*\}/,
+      /@supports \(text-box: trim-both cap alphabetic\) \{\s*\.chipbox,\s*\.confirm,\s*\.pickopt \{\s*padding-block: 0;\s*\}\s*\.chiplbl \{\s*text-box: trim-both cap alphabetic;\s*\}\s*\}/,
     );
   });
 });

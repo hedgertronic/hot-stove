@@ -144,6 +144,7 @@
     <div
       class="prow"
       class:dead={!playable && !primeable}
+      class:mine={game.isRostered(p)}
       class:swap={swappable && !primeable}
       class:prime={primeable}
       class:hg={discounted && playable && !swappable && !primeable}
@@ -175,18 +176,23 @@
         />
       </button>
       {#if signConfirm}
-        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitSign(p); }}><span class="chiplbl">SIGN {money(price)}</span></button>
+        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitSign(p); }}><span class="chiplbl">SIGN FOR {money(price)}</span></button>
       {:else if tradeConfirm}
         <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitTrade(p); }}><span class="chiplbl">TRADE FOR {money(price)}</span></button>
       {/if}
     </div>
   {/each}
   {#if !expanded && sorted.length > visible.length}
-    <button type="button" class="more" onclick={(e) => { e.stopPropagation(); expanded = true; }}>
-      <!-- The arrow is the WHAT SLOT? hint's glyph (↓ here — the hidden rows
-           sit below), in the hint's own aria-hidden span so a screen reader
-           gets the words without the arrow. -->
-      <span aria-hidden="true">↓</span> SHOW {sorted.length - visible.length} MORE
+    <!-- The arrow is the WHAT SLOT? hint's glyph (↓ here — the hidden rows
+         sit below), in the hint's own aria-hidden span so a screen reader
+         gets the words without the arrow. The capsule is a chipbox with the
+         words in a .chiplbl: as a padding-driven box the caps rode the
+         engine's baseline seat, visibly high next to the powerup pills it is
+         sized to match — the recipe seats both families the same way. The
+         arrow stays a bare flex item (no cap band to trim), centered by the
+         box alone per the recipe's own rule. -->
+    <button type="button" class="more chipbox" onclick={(e) => { e.stopPropagation(); expanded = true; }}>
+      <span class="ph" aria-hidden="true">↓</span><span class="chiplbl">SHOW {sorted.length - visible.length} MORE</span>
     </button>
   {/if}
 </div>
@@ -260,6 +266,16 @@
     opacity: 0.55;
     cursor: default;
   }
+  /* A row dead because the man is ALREADY YOURS, told apart from "no seat
+     fits him" by hue rather than by a tag: the finale's own signed-row
+     vocabulary (--green-wash into the card, the saturated green on the
+     line), muted by the dead state's opacity. Scoped under .dead so an
+     armed 🔁's self-swap candidate — the same human, tappable — keeps the
+     armed orange that claims its tap. */
+  .prow.dead.mine {
+    background: color-mix(in srgb, var(--green-wash) 45%, var(--card));
+    border-color: var(--green);
+  }
   /* The dead row's CONTENT treatment (grayscale identity, desaturated chips,
      the pit tag's line-gray fill) lives in MarketRow, driven by its `dead`
      prop — the same reason the content markup does. */
@@ -305,8 +321,9 @@
   .more {
     text-align: center;
     /* Sized to the powerup pills' base recipe (PowerupPill.svelte: 10.5px/800,
-       5px 11px padding, 2px border) so the two capsule families read as one
-       control voice across the board. */
+       30px pinned chip height, 11px inline padding, 2px border) so the two
+       capsule families read as one control voice across the board — and, as
+       of the chipbox join, seat their caps identically too. */
     font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.04em;
@@ -314,13 +331,34 @@
     width: fit-content;
     justify-self: center;
     margin-top: 2px;
-    padding: 5px 11px;
+    --chip-h: 30px;
+    padding-inline: 11px;
     cursor: pointer;
     background: var(--card);
     border: 2px solid var(--line);
     border-radius: 999px;
     font-family: inherit;
     transition: transform 0.08s;
+  }
+  /* The hint pills' own arrow-to-words air — a margin, not a space character,
+     which the label's cap trim can't measure. */
+  .more .ph {
+    margin-inline-end: 4px;
+    display: block;
+  }
+  /* The arrow is a bare flex item (no cap band, so no trim) and both engines
+     seat Nunito's ↓ ink HIGH in its em square — Blink 1.86px in this 30px
+     box at 10.5px type, WebKit 0.20px (measured, tools/probe_centering.py
+     `more-arrow`; the WebKit hair confirmed by eye on the phone). Written
+     in em (1.86/10.5 = 0.177; 0.20/10.5 ≈ 0.02) because the ride is the
+     glyph's position in its em square, which scales with the type. */
+  .more .ph {
+    transform: translateY(0.02em);
+  }
+  @supports not (font: -apple-system-body) {
+    .more .ph {
+      transform: translateY(0.177em);
+    }
   }
   .more:active {
     transform: translateY(2px);

@@ -438,6 +438,12 @@
          same clock the static line's CSS delay effectively started on. -->
     <div class="bootload" class:now={typeof performance !== "undefined" && performance.now() > 400}>
       <div class="bootline">Warming up the stove…</div>
+      <!-- The fill is a background on the track itself, not a child div: a
+           clipped child leaves an antialiased card-colored crescent between
+           its rounded end and the rim (the seam between the clip edge and the
+           border's inner edge), which flickered white as the width animated.
+           A background paints out to the BORDER box, under the opaque rim, so
+           there is no seam to show — the rim itself covers the joint. -->
       <div
         class="bootmeter"
         role="progressbar"
@@ -445,9 +451,8 @@
         aria-valuemin="0"
         aria-valuemax={BOOT_STEPS}
         aria-valuenow={bootDone}
-      >
-        <div class="bootfill" style="width: {(bootDone / BOOT_STEPS) * 100}%"></div>
-      </div>
+        style="--boot-pct: {(bootDone / BOOT_STEPS) * 100}%"
+      ></div>
     </div>
   </div>
 {:else if screen === "home" || !game}
@@ -621,19 +626,22 @@
     margin: 12px auto 0;
     border: 2px solid var(--line);
     border-radius: 999px;
-    background: var(--card);
-    overflow: hidden;
-  }
-  .bootfill {
-    height: 100%;
-    background: var(--orange-8);
-    /* NO radius of its own: the track's overflow:hidden clip rounds the
-       fill's ends. A 999px radius here rounded the fill's own corners
-       INSIDE the already-rounded clip, leaving card-colored crescents
-       between fill and rim at both ends — a white outline that flickered
-       as the width animated. A square right edge mid-pour is the liquid
-       reading, not a bug. */
-    transition: width 0.25s ease;
+    /* Two layers, both painted to the border box (background-clip's default):
+       the orange pour sized by --boot-pct over the cardstock track. Painting
+       under the rim is the whole fix — the earlier overflow-clipped child div
+       left an antialiased crescent of track color between its rounded end and
+       the rim's inner edge, a white outline that flickered as it animated.
+       background-size is animatable, so the pour keeps its 0.25s ease; a
+       square right edge mid-pour is the liquid reading, not a bug. */
+    background:
+      linear-gradient(var(--orange-8), var(--orange-8)) 0 0 / var(--boot-pct, 0%) 100%
+        no-repeat,
+      var(--card);
+    /* Stated because only clip defaults to border-box — origin defaults to
+       padding-box, which would seat the pour at the rim's INNER edge and
+       quietly break the paints-under-the-rim account above. */
+    background-origin: border-box;
+    transition: background-size 0.25s ease;
   }
   .hud {
     display: flex;

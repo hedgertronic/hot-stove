@@ -283,26 +283,48 @@
   .hint.wash {
     background: var(--card);
   }
-  /* The hint's arrow, one glyph per layout: ↑ while the rail rides above the
-     market (phone), ← once the wide grid seats it to the left. Declared after
-     the base so the wide block's swap wins on source order. `.above` pins ↑
-     for surfaces where the rail sits above at every width (the help sheet). */
-  .hint .wd {
-    display: none;
-  }
   /* Air between the arrow and its words — a real margin rather than a space
      character inside the label, which the chiplbl's cap trim can't measure
-     and which read as no gap at all at this size. */
+     and which read as no gap at all at this size. Block, never inline, and
+     for two reasons: a transform on an inline box is a silent no-op, so an
+     inline arrow would shed the seat corrections below. */
   .hint .ph,
   .hint .wd {
     margin-inline-end: 4px;
+    display: block;
+  }
+  /* One glyph per layout: ↑ while the rail rides above the market (phone),
+     ← once the wide grid seats it to the left. `.above` pins ↑ for surfaces
+     where the rail sits above at every width (the help sheet). MUST come
+     after the display:block pair above — both selectors weigh the same, so
+     source order is the only thing keeping the ← hidden on the phone (it
+     shipped doubled once, when the block rule was appended below this). */
+  .hint .wd {
+    display: none;
+  }
+  /* Both engines seat Nunito's arrow glyphs high in their em square — Blink
+     by a lot, WebKit by a hair (tools/probe_centering.py `more-arrow` on
+     the SHOW N MORE capsule's ↓: −1.86px at 10.5px = 0.177em Blink,
+     −0.20px = 0.02em WebKit, the latter confirmed by eye on the phone).
+     The ↑/← here are the same glyph family in the same font, so they ride
+     the same seat; the em unit carries each correction across this pill's
+     own type size. */
+  .hint .ph,
+  .hint .wd {
+    transform: translateY(0.02em);
+  }
+  @supports not (font: -apple-system-body) {
+    .hint .ph,
+    .hint .wd {
+      transform: translateY(0.177em);
+    }
   }
   @media (min-width: 760px) {
     .hint:not(.above) .ph {
       display: none;
     }
     .hint:not(.above) .wd {
-      display: inline;
+      display: block;
     }
   }
   /* A dead row still whispers its tier: the identity bits (position tag,

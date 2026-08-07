@@ -27,8 +27,9 @@
 >
   <div class="pickgrid">
     {#each years as y (y)}
-      <button class="pickopt yearbtn" disabled={y === game.card?.year} onclick={() => pick(y)}>
-        {y}{#if ped[y]}<span class="pedi">{ped[y] === "ws" ? "💍" : "🚩"}</span>{/if}
+      <button class="pickopt" disabled={y === game.card?.year} onclick={() => pick(y)}>
+        <span class="chiplbl">{y}</span
+        >{#if ped[y]}<span class="pedi">{ped[y] === "ws" ? "💍" : "🚩"}</span>{/if}
       </button>
     {/each}
   </div>
@@ -41,15 +42,7 @@
      The grid itself, the tile and the pedigree glyph are app.css's `.pickgrid`
      / `.pickopt`, shared with the relocate sheet; a year needs no hue, so the
      tile keeps the neutral cardstock those already draw. */
-  .yearbtn {
-    padding: 9px 0;
-  }
-  /* Right after the year, and a hair further out than the relocate sheet sets
-     it: a digit ends flush where a tracked-out letter already leaves air. */
-  .pickopt .pedi {
-    margin-left: 3px;
-    /* Same baseline physics as the relocate sheet's medals, milder dose: at
-       the shared 11px the ink centers miss the digits' by only ~0.4–0.9px. */
-    vertical-align: 0.5px;
-  }
+  /* The tile IS app.css's `.pickopt` — box, height, label seat and the
+     pedigree medal all live there, one rule for this sheet and the relocate
+     sheet. Nothing left for this file to add. */
 </style>

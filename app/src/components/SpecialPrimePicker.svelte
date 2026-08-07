@@ -20,6 +20,10 @@
     year: number;
     /** Muted record ("93–69"; empty in Eye Test). */
     rec: string;
+    /** October pedigree glyph ("💍" champ, "🚩" pennant, "" neither; Box Score
+     * only). Follows the MOY pill — the finale manager row's own order
+     * (award hardware, then the club's October). */
+    pedi: string;
     /** Manager of the Year season (award visibility: Box Score only). */
     moty: boolean;
     /** Right-edge win value, bare ("4.8", "−8.4"; empty in Eye Test). The chip
@@ -64,6 +68,7 @@
             team: s.team,
             year: s.year,
             rec: game.scout ? "" : `${s.w}–${s.l}`,
+            pedi: game.showAwards ? (s.ws ? "💍" : s.pen ? "🚩" : "") : "",
             moty: game.showAwards && s.moty === true,
             // One mapping, imported, never re-derived: net wins × the scoring
             // module's own per-win rate, read through format.ts's warTier —
@@ -142,6 +147,7 @@
               <span class="who">{row.year} {row.team}</span>
               {#if row.rec}<span class="meta">{row.rec}</span>{/if}
               {#if row.moty}<AwardPill code="MOY" small />{/if}
+              {#if row.pedi}<span class="pedi">{row.pedi}</span>{/if}
             </span>
             {#if !isArmed && row.val}<span class="val warchip {row.tier}">{row.val}<span class="unit">WINS</span></span>{/if}
           </button>
@@ -241,6 +247,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  /* MarketRow's medal recipe: whole-box glyph, line-height 1 so the emoji's
+     taller line box can't set the row's. Same size the player sheet's
+     ring/medal wear — the two career sheets read as one surface. */
+  .pedi {
+    font-size: 12px;
+    line-height: 1;
+    flex: none;
   }
   /* The record rides beside the season label, the way the FRONT OFFICE row
      puts "84–78" beside the skipper's name. */

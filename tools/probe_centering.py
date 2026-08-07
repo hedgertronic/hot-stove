@@ -85,7 +85,22 @@ SPECIMENS: list[dict] = [
     {"id": "warchip-sm", "border": 2, "shoulder": 8,
      "html": '<span class="warchip sm mid">2.1<span class="unit">WAR</span></span>'},
     {"id": "confirm-pill", "border": 2, "shoulder": 12,
-     "html": '<button class="confirm"><span class="chiplbl">SIGN $23.5M</span></button>'},
+     "html": '<button class="confirm"><span class="chiplbl">SIGN FOR $23.5M</span></button>'},
+    # The picker tiles (SEASON TICKET years, relocate club codes) — real
+    # .pickopt class from the built CSS: 42px chipbox, chiplbl label, and on
+    # the team tile the pedigree medal as a bare flex item.
+    {"id": "pickopt-year", "border": 2, "shoulder": 12,
+     "html": ('<button class="pickopt" style="width:72px">'
+              '<span class="chiplbl">2001</span></button>')},
+    {"id": "pickopt-team", "border": 2, "shoulder": 12,
+     "html": ('<button class="pickopt" style="width:72px;letter-spacing:0.04em">'
+              '<span class="chiplbl">TOR</span>'
+              '<span class="pedi">\U0001f48d</span></button>')},
+    # The same tile without its medal: the medal's emoji ink skews the union
+    # bbox, so this is the reading that answers for the CODE's seat.
+    {"id": "pickopt-team-bare", "border": 2, "shoulder": 12,
+     "html": ('<button class="pickopt" style="width:72px;letter-spacing:0.04em">'
+              '<span class="chiplbl">TOR</span></button>')},
     # The market's position tag, replicated inline (PlayerList/PrimePicker .pos).
     {"id": "pos-tag", "border": 2, "shoulder": 7,
      "html": ('<span class="chipbox" style="width:38px;--chip-h:22px;'
@@ -103,20 +118,28 @@ SPECIMENS: list[dict] = [
      "html": ('<span class="chipbox" style="--chip-h:18px;font-size:12px;'
               'font-weight:800;letter-spacing:0.1em">'
               '<span class="probe-erun">⭐⭐⭐⭐⭐</span></span>')},
-    # PayrollBox math chips (replica of .paymath > .chip, height pinned at
-    # 26px like the component): filled vs ghost. These two also report height
-    # — the "is the hired chip smaller than the dashed outline" question,
-    # answered with a ruler.
-    {"id": "paychip-filled", "border": 2, "shoulder": 13, "height_check": "paychip",
-     "html": ('<span style="display:inline-flex;align-items:center;height:26px;'
+    # PayrollBox math chips (replica of .paymath > .chip): chipbox recipe,
+    # 26px pinned, emoji split out as a bare item (AwardPill's split) and the
+    # digits in a chiplbl the trim reaches. The digits-only specimen answers
+    # for the text seat; the ghost for the bare emoji's ride — but note the
+    # ghost's bbox reading is a KNOWN eye-vs-ruler split: 💰/🏟️ carry their
+    # visual mass low, and bbox-centering them read sunk on the board, so
+    # the component deliberately carries no vertical correction and a
+    # nonzero reading here is expected, not a regression. Both report
+    # height — the "is the hired chip smaller than the dashed outline"
+    # question, answered with a ruler.
+    {"id": "paychip-text", "border": 2, "shoulder": 13, "height_check": "paychip",
+     "html": ('<span class="chipbox" style="--chip-h:26px;'
               'border:2px solid #5d5847;'
-              'border-radius:999px;padding:1px 8px;background:#fffdf6;'
-              'font-size:12px;font-weight:700">\U0001f4b0 $203.2M</span>')},
+              'border-radius:999px;padding-inline:8px;background:#fffdf6;'
+              'font-size:12px;font-weight:700">'
+              '<span class="chiplbl">$203.2M</span></span>')},
     {"id": "paychip-ghost", "border": 2, "shoulder": 13, "height_check": "paychip",
-     "html": ('<span style="display:inline-flex;align-items:center;height:26px;'
+     "html": ('<span class="chipbox" style="--chip-h:26px;'
               'border:2px dashed #8a8471;'
-              'border-radius:999px;padding:1px 8px;'
-              'font-size:12px;font-weight:700">\U0001f4b0</span>')},
+              'border-radius:999px;padding-inline:8px;'
+              'font-size:12px;font-weight:700">'
+              '<span>\U0001f4b0</span></span>')},
     # A squad row's honour glyph beside its name (Finale .emo): the emoji is a
     # bare flex item next to 14px type; offset here is the emoji's ride.
     {"id": "emo-ring", "border": 0,
@@ -190,6 +213,16 @@ SPECIMENS: list[dict] = [
               'background:var(--card);padding-inline:11px;font-size:10.5px;'
               'font-weight:800;letter-spacing:0.04em">'
               '<span class="chiplbl probe-pplb">⭐ TAP A PLAYER…</span></span>')},
+    # The SHOW N MORE capsule's ↓ arrow (PlayerList .more .ph): a bare flex
+    # item in the pill's chipbox, centered by the box alone — the arrow is a
+    # TEXT glyph with no cap band, so this measures where Nunito's arrow ink
+    # sits in the em square, which no trim corrects.
+    {"id": "more-arrow", "border": 2, "shoulder": 11,
+     "html": ('<span class="chipbox" style="--chip-h:30px;'
+              'border:2px solid var(--line);border-radius:999px;'
+              'background:var(--card);padding-inline:11px;font-size:10.5px;'
+              'font-weight:800;letter-spacing:0.04em">'
+              '<span class="probe-marrow">↓</span></span>')},
 ]
 
 
@@ -280,7 +313,13 @@ def main() -> None:
         "@supports (font: -apple-system-body){.probe-erun{transform:translateY(0.5px)}}"
         ".probe-pplb{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
         "@supports (text-box: trim-both cap alphabetic)"
-        "{.probe-pplb{padding-block:0.35em;margin-block:-0.35em}}';"
+        "{.probe-pplb{padding-block:0.35em;margin-block:-0.35em}}"
+        # Mirror of PlayerList's .more .ph nudge (0.02em WebKit base, 0.177em
+        # Blink). (PayrollBox's chips are plain chipbox recipe — no component
+        # nudge to mirror.)
+        ".probe-marrow{display:block;transform:translateY(0.02em)}"
+        "@supports not (font: -apple-system-body)"
+        "{.probe-marrow{transform:translateY(0.177em)}}';"
         "  document.head.appendChild(st);"
         "  const box = document.createElement('div');"
         "  box.className = 'disp';"
@@ -301,7 +340,7 @@ def main() -> None:
         for name in args.browsers.split(","):
             browser = getattr(pw, name.strip()).launch()
             page = browser.new_page(device_scale_factor=SCALE,
-                                    viewport={"width": 800, "height": 900})
+                                    viewport={"width": 800, "height": 1500})
             page.goto(f"http://127.0.0.1:{port}/", wait_until="networkidle")
             page.evaluate(inject, SPECIMENS)
             page.wait_for_timeout(250)  # emoji faces settle after fonts.ready

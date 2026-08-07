@@ -189,8 +189,10 @@ describe("the two payroll blocks", () => {
     const g = finaleCeilingAbove();
     // owner budget × ballpark multiplier = payroll, and the product is the
     // finale's own budget field — the ledger's payroll row sums against it.
-    expect(squad).toContain("💰 $92.1M");
-    expect(squad).toContain("🏟️ 1.05");
+    // Glyph and figure are separate chip parts (the chipbox split), so the
+    // pin reads across the element seam rather than a literal space.
+    expect(squad).toMatch(/💰<\/span><span class="chiplbl">\$92\.1M/);
+    expect(squad).toMatch(/🏟️<\/span><span class="chiplbl">1\.05/);
     expect(squad).toContain(money(g.finale!.budget));
     expect(squad).toContain("Hiroshi Yamauchi");
     expect(squad).toContain("Safeco Field");
@@ -210,7 +212,7 @@ describe("the two payroll blocks", () => {
     // screen reads.
     expect(dream).toContain("Hiroshi Yamauchi");
     expect(dream).toContain("Network Associates Coliseum");
-    expect(dream).toContain("🏟️ 0.86");
+    expect(dream).toMatch(/🏟️<\/span><span class="chiplbl">0\.86/);
     expect(dream).toContain(money(best.budget!));
     expect(dream).toContain(money(best.spend!));
     // Exactly one block per list, and it closes the list rather than heading it

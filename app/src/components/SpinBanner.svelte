@@ -169,7 +169,7 @@
     <div class="bline">
       <!-- The club's accent goes in as a variable, not as a background: the
            pill derives BOTH its rungs from it (see .yr). -->
-      <span class="yr" bind:this={yrEl} style:--accent={cardView.color}>{cardView.yr}</span>
+      <span class="yr chipbox" bind:this={yrEl} style:--accent={cardView.color}><span class="chiplbl">{cardView.yr}</span></span>
     </div>
     <div class="bline team">
       <div class="tname" bind:this={tmEl} style:color={cardView.color}>{cardView.tm}</div>
@@ -181,7 +181,7 @@
       {/if}
     </div>
   {:else}
-    <div class="bline"><span class="yr idle">····</span></div>
+    <div class="bline"><span class="yr idle chipbox"><span class="chiplbl">····</span></span></div>
     <div class="bline team"><div class="tname idle">HOT STOVE</div></div>
   {/if}
 </div>
@@ -265,30 +265,25 @@
      darkest), which is exactly what a rung-8 line has to be — so the accent
      itself IS the line and only the wash has to be computed.
      --blue is the fallback for a pill that renders before an accent arrives. */
-  /* Centered by the box, not by the line box — the same fix AwardPill needed.
-     Symmetric padding does not center a glyph: it centers the LINE BOX, and
-     the line box is the font's full ascent-plus-descent while lining figures
-     use none of the descent. Measured in the app with the bundled Nunito, the
-     digits sat 7.47px from the top and 8.63px from the bottom of a 25.55px
-     pill. Flex centering alone does not fix that (it centers the same line box),
-     so the height is pinned, the line-height is explicit, and a top-only 1.16px
-     nudge — twice the 0.58px error, since padding-top moves the ink by half —
-     puts the digits at 8.055px from both edges.
-     25.55px is exactly the height the pill already occupied (2+2 border, 2+2
-     padding, 13 × 1.35 line), and it is pinned because the banner's two lines
-     have a fixed rhythm and the reel animates this element. */
+  /* Centered by the box, not by the line box — through app.css's chipbox
+     recipe (markup class, digits in a .chiplbl) rather than by hand. The
+     pill used to carry its own measured constant (a top-only 1.16px nudge,
+     twice the 0.58px error desktop measured), and that constant was only
+     ever right on the engine it was measured on: iOS WebKit seats the same
+     baseline differently and the digits rode visibly LOW on a phone. The
+     recipe's trim branch measures the cap band per engine instead, and its
+     fallback spends the one shared 0.047em constant — never this pill's own.
+     25.55px is exactly the height the pill has always occupied, pinned
+     because the banner's two lines have a fixed rhythm and the reel
+     animates this element. */
   .yr {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 25.55px;
-    line-height: 1;
+    --chip-h: 25.55px;
     --accent: var(--blue);
     background: color-mix(in srgb, var(--accent) 18%, var(--card));
     border: 2px solid var(--accent);
     color: var(--ink);
     border-radius: 999px;
-    padding: 1.16px 14px 0;
+    padding-inline: 14px;
     font-weight: 800;
     font-size: 13px;
   }

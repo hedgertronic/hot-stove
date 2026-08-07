@@ -386,16 +386,18 @@
     line-height: 1.4;
     letter-spacing: normal;
     text-transform: none;
-    /* 7/9, not 8/8 — optical, not arithmetic. Nunito declares an ascent of
-       1.011em against real ink that tops out at 0.711em, and a descent of
-       0.353em against descenders that reach −0.188em, so a symmetric box
-       leaves 3.65px of air above the ink and 2.11px below it at this size:
-       the sentence reads ~1.5px low. Moving ~1.5px of padding from top to
-       bottom centers the INK (7.23/8.77 exactly; 7/9 is the integer pair,
-       0.2px of overshoot). Same fight the chipbox cap-trim wages for the
-       small-caps chips, fought here with padding because prose keeps its
-       descenders. */
-    padding: 7px 11px 9px;
+    /* 7.25/8.75, not 8/8 — optical, not arithmetic. Nunito declares an
+       ascent of 1.011em against real ink that tops out at 0.711em, and a
+       descent of 0.353em against descenders that reach −0.188em, so a
+       symmetric box leaves 3.66px of air above the ink and 2.11px below it
+       at this size — a 1.55px imbalance, centered by moving HALF of it
+       (0.77px) from top to bottom: 7.23/8.77 exactly. The integer pair 7/9
+       shipped first and read slightly HIGH — moving the full imbalance
+       instead of half of it is a 0.23px overshoot the eye caught — so the
+       quarter-pixel pair stays. Same fight the chipbox cap-trim wages for
+       the small-caps chips, fought here with padding because prose keeps
+       its descenders. */
+    padding: 7.25px 11px 8.75px;
     /* Centered, and it survives the whole table because the box is sized to
        its own text: anything up to the 280px cap gets a one-line panel with
        nothing to center, and a wrapped panel is pulled in to its widest line

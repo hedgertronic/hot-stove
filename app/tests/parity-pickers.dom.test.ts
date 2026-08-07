@@ -39,7 +39,10 @@ const cards: Record<string, Card> = {
 const playersIndex = { star1: [["SEA", 2001], ["SEA", 2004]] };
 const specials: SpecialsIndex = {
   SEA: [
-    { team: "SEA", year: 2001, name: "Seattle Mariners", park: "Safeco Field", mgr: "Lou Piniella", w: 116, l: 46, att: 1, mult: 1.05, budget: 92.1 },
+    // ws on the 2001 season: the timeline's pedigree flag (pipeline build.py
+    // writes it lean, only when true) that the sheet hangs a 💍 on in Box
+    // Score. A fixture fact, not history — the 2001 club won no pennant.
+    { team: "SEA", year: 2001, name: "Seattle Mariners", park: "Safeco Field", mgr: "Lou Piniella", w: 116, l: 46, att: 1, mult: 1.05, budget: 92.1, ws: true },
     { team: "SEA", year: 2002, name: "Seattle Mariners", park: "Safeco Field", mgr: "Lou Piniella", w: 93, l: 69, att: 0.9, mult: 1.08, budget: 88.4, moty: true },
   ],
 };
@@ -116,6 +119,7 @@ describe("SpecialPrimePicker manager career rows", () => {
     expect(html).not.toContain("+4.8");
     expect(html).not.toContain("4.8 W<");
     expect(html).toContain("MOY"); // 2002 fixture season's pill
+    expect(html).toContain("💍"); // 2001 fixture season's ws flag, on the year label
   });
 
   it("Eye Test rows withhold the record, win value, and MOY pill entirely", async () => {
@@ -125,6 +129,8 @@ describe("SpecialPrimePicker manager career rows", () => {
     expect(html).not.toContain("4.8");
     expect(html).not.toContain("WINS");
     expect(html).not.toContain("MOY");
+    // Pedigree rides the awards gate (Box Score only), like PrimePicker's.
+    expect(html).not.toContain("💍");
   });
 });
 

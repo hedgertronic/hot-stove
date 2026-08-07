@@ -73,8 +73,10 @@ describe("each fixed-cap bank wears its club, home and in-game alike", () => {
   });
 
   it("the pills carry the mode classes in the markup", () => {
-    expect(box).toContain('class="chip eff mb"');
-    expect(box).toContain('class="chip eff bc"');
+    // `chipbox` joined the class list when the chips adopted the shared
+    // recipe (round 13: one box model for payroll, powerup and award chips).
+    expect(box).toContain('class="chip chipbox eff mb"');
+    expect(box).toContain('class="chip chipbox eff bc"');
   });
 });
 
@@ -110,7 +112,15 @@ describe("the picker hint points at where the rail actually is", () => {
     expect(row.match(/class="ph" aria-hidden="true">↑</g)?.length).toBe(1);
     expect(row.match(/class="wd" aria-hidden="true">←</g)?.length).toBe(1);
     expect(row).toContain(".hint .wd {\n    display: none;");
-    expect(row).toContain(".hint:not(.above) .wd {\n      display: inline;");
+    // block, not inline: a transform on an inline box is a silent no-op, so
+    // the wide-tier ← must be a block to take the seat correction — and the
+    // hide rule above must FOLLOW the shared display:block pair in source
+    // order, or the ← ships doubled beside the ↑ on phones (it did once).
+    expect(row).toContain(".hint:not(.above) .wd {\n      display: block;");
+    const blockPairAt = row.indexOf("margin-inline-end: 4px;\n    display: block;");
+    const hideAt = row.indexOf(".hint .wd {\n    display: none;");
+    expect(blockPairAt).toBeGreaterThan(-1);
+    expect(hideAt).toBeGreaterThan(blockPairAt);
   });
 });
 

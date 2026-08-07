@@ -455,12 +455,20 @@ button {
   grid-template-columns: repeat(5, 1fr);
   gap: 7px;
 }
+/* A tile is a chip (the chipbox recipe above, joined by selector): the label
+   is a `.chiplbl` the cap trim seats on center, and the pedigree medal is a
+   bare flex item centered by the box alone — AwardPill's split. As
+   padding-driven line boxes the labels rode the leading's seat, the caps
+   visibly high in the tile. 42px pins the taller of the two old
+   padding-driven heights (year tiles 42.15px on the body's 1.55 leading,
+   club tiles 41.6px on a private 1.2) to the recipe's whole-pixel rule, so
+   the two sheets' tiles now also stand exactly as tall as each other. */
 .pickopt {
+  --chip-h: 42px;
   border: 2px solid var(--pick-line, var(--line));
   border-radius: 9px;
   background: var(--pick-fill, var(--card));
   color: var(--ink);
-  font-family: inherit;
   font-weight: 800;
   font-size: 13px;
   cursor: pointer;
@@ -474,13 +482,19 @@ button {
   opacity: 0.32;
   cursor: default;
 }
-/* October pedigree — 💍 champion, 🚩 pennant — inline after the label. Emoji
-   render below their nominal size, so 11px sits balanced beside 13px type, and
-   its own line-height keeps a tall glyph from growing the tile. Each picker
-   sets its own left margin: a year and a team code leave different gaps. */
+/* October pedigree — 💍 champion, 🚩 pennant — after the label, ONE setup for
+   both pickers (SEASON TICKET years, relocate club codes). Emoji render below
+   their nominal size, so 11px sits balanced beside 13px type. A bare flex
+   item in the tile's chipbox, so the box centers it — no vertical-align
+   raise; that device belonged to the retired inline layout, where the glyph
+   hung off the label's baseline. line-height 1 keeps its own box at its em
+   so a tall glyph cannot grow the tile. The relocate sheet once ran a
+   private 9px copy for its 7-column divisional grids; divisions now split
+   at n ≥ 6 (max 4 columns), so the shared size fits both sheets. */
 .pickopt .pedi {
   font-size: 11px;
   line-height: 1;
+  margin-left: 3px;
 }
 
 /* ---------- the WAR chip ----------
@@ -825,13 +839,15 @@ button {
    pixel reads as an outline that fades out top and bottom rather than one that
    is drawn. Integers land on the grid at every density.
 
-   A chip joins by wearing `.chipbox`. `.confirm` joins by selector instead: its
-   markup is written in PlayerList and SpecialRows, and the recipe reaches it
-   here without either file having to spell the class. A component's own scoped
-   rules outrank this one, so its deltas — a border, a wash, a size — layer on
-   top without a specificity fight, the same arrangement `.prow-btn` uses. */
+   A chip joins by wearing `.chipbox`. `.confirm` and `.pickopt` join by
+   selector instead: their markup is written in PlayerList, SpecialRows and the
+   two picker sheets, and the recipe reaches them here without those files
+   having to spell the class. A component's own scoped rules outrank this one,
+   so its deltas — a border, a wash, a size — layer on top without a
+   specificity fight, the same arrangement `.prow-btn` uses. */
 .chipbox,
-.confirm {
+.confirm,
+.pickopt {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -853,7 +869,8 @@ button {
 }
 @supports (text-box: trim-both cap alphabetic) {
   .chipbox,
-  .confirm {
+  .confirm,
+  .pickopt {
     padding-block: 0;
   }
   .chiplbl {
@@ -898,8 +915,12 @@ button {
      Cream type on ink clears any contrast bar the gray did. */
   background: var(--ink);
   color: var(--card);
+  /* The powerup pills' type (PowerupPill .pp: 10.5px / 800 / 0.04em), so an
+     action pill speaks in one voice everywhere — SIGN and a powerup's word
+     are the same kind of offer and once ran two sizes for no reason. */
   font-weight: 800;
-  font-size: 12px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
   padding-inline: 12px;
   /* A real button whose row sets cursor context — the pill is always the
      committing tap, so it always promises one. */
