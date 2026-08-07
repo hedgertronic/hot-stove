@@ -316,6 +316,13 @@ def main() -> None:
             special["moty"] = True
         if mgr_hof:
             special["hof"] = True
+        # Pedigree rides the timeline the same lean way it rides the index
+        # (only when true), so the manager career sheet can hang 💍/🚩 on a
+        # season row without loading that season's card.
+        if card["ws"]:
+            special["ws"] = True
+        elif card["pen"]:
+            special["pen"] = True
         specials[row["franchID"]].append(special)
         (cards_dir / f"{br}_{year}.json").write_text(json.dumps(card))
         # lg/div are the season's actual league + division (Lahman Teams), so

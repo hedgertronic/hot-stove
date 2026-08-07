@@ -127,6 +127,10 @@ export interface SpecialSeason {
   moty?: boolean;
   /** The manager is in the Hall of Fame on a manager's plaque (only when true). */
   hof?: boolean;
+  /** The club won the World Series that season (only when true). */
+  ws?: boolean;
+  /** The club won the pennant but lost the Series (only when true; never set alongside ws). */
+  pen?: boolean;
   w: number;
   l: number;
   /** Attendance percentile within the year, 0–1. */
