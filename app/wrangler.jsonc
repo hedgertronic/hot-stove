@@ -14,8 +14,15 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    // Serves dist/404.html (the boot-card bounce page) for any path with no
-    // asset — the same behavior GitHub Pages gave 404.html implicitly.
-    "not_found_handling": "404-page"
+    // Every real request arrives prefixed (/games/hot-stove/...), and every
+    // prefixed path misses the manifest. Without run_worker_first the asset
+    // layer short-circuits NAVIGATION requests (Sec-Fetch-Mode: navigate)
+    // at that miss — applying not_found_handling without ever invoking the
+    // worker — so browsers got 404s (or, under not_found_handling
+    // "404-page", the bounce page in an infinite redirect loop) while curl
+    // and fetch() reached the worker and saw a healthy site. The worker
+    // must own every request; it serves dist/404.html for real misses
+    // itself, so not_found_handling stays at the default.
+    "run_worker_first": true
   }
 }

@@ -15,7 +15,12 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === PREFIX || url.pathname.startsWith(`${PREFIX}/`)) {
       url.pathname = url.pathname.slice(PREFIX.length) || "/";
-      return env.ASSETS.fetch(new Request(url, request));
+      const response = await env.ASSETS.fetch(new Request(url, request));
+      if (response.status !== 404) return response;
+      // The bounce page (GitHub Pages served it implicitly for the old
+      // deployment; assets not_found_handling can't — see wrangler.jsonc).
+      const page = await env.ASSETS.fetch(new URL("/404.html", url.origin));
+      return new Response(page.body, { status: 404, headers: page.headers });
     }
     return new Response("Not found", { status: 404 });
   },

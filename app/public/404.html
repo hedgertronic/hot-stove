@@ -44,6 +44,32 @@
         line-height: 1;
         color: #24221c;
       }
+      /* The RAIN DELAY pill's recipe (SpinBanner .retry + the chipbox
+         capsule), inlined because the bundle CSS can't load here: one
+         capsule, message and action fused, sized like a small recovery —
+         which is all a missed URL is. The 0.047em top padding is the
+         chipbox recipe's optical-centering constant at this box model's
+         half gain: it seats the cap band on the pill's geometric middle. */
+      .foul {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 24px;
+        padding: 0.047em 11px 0;
+        font-size: 10.5px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        color: #24221c;
+        text-decoration: none;
+        background: #fffdf6;
+        border: 2px solid #57534a;
+        border-radius: 999px;
+        transition: transform 0.08s;
+      }
+      .foul:active {
+        transform: scale(0.96);
+      }
     </style>
   </head>
   <body>
@@ -52,8 +78,11 @@
       <p style="margin: 8px 0 0; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: #6b6759">
         Spin for teams. Sign players. Chase 162 wins.
       </p>
-      <p style="margin: 22px 0 0; font-size: 16px; font-weight: 700; color: #6b6759">
-        <a href="/games/hot-stove/" style="color: inherit">Take me to the game.</a>
+      <!-- ⚾ FOUL BALL: this URL left the field of play. Same shape as ☔ RAIN
+           DELAY — baseball's word for the mishap, then the way back, fused
+           into the one pill there is to tap. -->
+      <p style="margin: 26px 0 0">
+        <a class="foul" href="/games/hot-stove/" aria-label="Foul ball — this page doesn't exist. Back to the game.">⚾ FOUL BALL · BACK TO THE GAME</a>
       </p>
     </div>
   </body>
