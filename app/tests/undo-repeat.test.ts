@@ -131,7 +131,6 @@ const facts = (over: Partial<BadgeFacts>): BadgeFacts => ({
   total: 81,
   spendM: 50,
   budgetM: 100,
-  budgetBonus: 0,
   scoutHits: 0,
   roster: [],
   managerTeam: null,

@@ -5,9 +5,11 @@
  * different (team, year) pair. The end state holds exactly one copy of the
  * player (new season replaces old).
  *
- * Four cases:
+ * Five cases:
  *   ALLOW  — same person, different season
  *   BLOCK  — same person, same season (would create a duplicate)
+ *   BLOCK  — same person, new season not eligible for the seated copy's slot
+ *            (UTIL excepted: the FLEX seat takes any bat)
  *   BLOCK  — plain SIGN of a rostered person (isRostered blocks normal sign path)
  *   BLOCK  — releasing a different squad member's slot for a rostered player
  */
@@ -249,6 +251,49 @@ describe("self-season swap (BLOCK — same season)", () => {
     g.tdTapPlayer(SELF_PLAYER);
     // No change.
     expect(JSON.stringify(g.slots)).toBe(slotsBefore);
+  });
+});
+
+describe("self-season swap (BLOCK — position mismatch)", () => {
+  it("refuses the swap when the new season cannot occupy the seated copy's slot", async () => {
+    // Ohtani 2001 (IF) sits at slot 1; the card's Ohtani 2003 season is
+    // OF-only. selfTradeSlots filters through occupiedSlotsFor, which
+    // admits only seats the INCOMING season is eligible for — the IF seat
+    // isn't one, so the row never arms as a trade candidate at all.
+    const g = await gameWithSelfOnCard();
+    const ofSeason: CardPlayer = {
+      ...SELF_PLAYER,
+      pos: "RF",
+      posG: { c: 0, if: 0, of: 100 },
+    };
+    g.card = makeCard("AAA", 2003, [ofSeason]);
+
+    expect(g.tdCandidate(ofSeason)).toBe(false);
+    const slotsBefore = JSON.stringify(g.slots);
+    g.tdTapPlayer(ofSeason);
+    expect(JSON.stringify(g.slots)).toBe(slotsBefore);
+    expect(g.powerups.tradeDeadline).toBe("armed"); // nothing spent
+  });
+
+  it("still allows the swap at UTIL, whose seat takes any bat", async () => {
+    // The one deliberate pass-through: seated at FLEX, any position
+    // player's season is eligible, so a cross-position self-swap lands.
+    const g = await gameWithSelfOnCard();
+    const seated = g.slots[1]!;
+    g.slots[1] = null;
+    g.slots[4] = seated; // FLEX seat
+    const ofSeason: CardPlayer = {
+      ...SELF_PLAYER,
+      pos: "RF",
+      posG: { c: 0, if: 0, of: 100 },
+    };
+    g.card = makeCard("AAA", 2003, [ofSeason]);
+
+    expect(g.tdCandidate(ofSeason)).toBe(true);
+    g.tdTapPlayer(ofSeason);
+    expect(g.slots[4]!.id).toBe("ohtansh01");
+    expect(g.slots[4]!.year).toBe(2003);
+    expect(g.slots.filter((s) => s?.id === "ohtansh01")).toHaveLength(1);
   });
 });
 

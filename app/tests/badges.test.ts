@@ -41,7 +41,6 @@ const BASE: BadgeFacts = {
   total: 100,
   spendM: 100,
   budgetM: 140,
-  budgetBonus: 4,
   scoutHits: 2,
   roster: [],
   managerTeam: null,
@@ -549,9 +548,15 @@ describe("the named rungs match exactly", () => {
 });
 
 describe("the goal", () => {
-  it("fires at exactly 162 points and not a tenth below", () => {
+  it("fires on the stamped 162–0, exactly where the finale prints it", () => {
+    // The trigger reads the STAMP, not the raw total: 161.5 rounds to 162–0
+    // on the screen and in the record book, and a case that withholds
+    // PERFECT SEASON under a printed 162–0 is the badge calling the screen a
+    // liar. 161.4 stamps 161–1 and earns nothing — the same recordFromTotal
+    // boundary 🎣 reads on the ceiling side.
     expect(earnedBadges(f({ total: 162 }))).toContain("perfect");
-    expect(earnedBadges(f({ total: 161.9 }))).not.toContain("perfect");
+    expect(earnedBadges(f({ total: 161.5 }))).toContain("perfect");
+    expect(earnedBadges(f({ total: 161.4 }))).not.toContain("perfect");
     expect(earnedBadges(f({ total: 400 }))).toContain("perfect");
   });
 
@@ -599,9 +604,8 @@ describe("the payroll axis is exclusive", () => {
   it("never fires two faces at once, over any payroll a game can produce", () => {
     for (const budgetM of [40, 96.7, 140]) {
       for (let spendM = 0; spendM <= budgetM * 2; spendM += 2.5) {
-        // The bonus is zero whenever the cap is busted, which is the property
-        // that keeps 🚜 and 💵 apart; below the cap it tracks how much is left.
-        const budgetBonus = spendM > budgetM ? 0 : (spendM / budgetM) * 10;
+        // 🚜 and 💵 are kept apart by the raw dollars themselves: the dime
+        // demands spend ≤ cap, the farm demands $15M over it.
         for (const [w, l] of [
           [50, 112],
           [81, 81],
@@ -612,7 +616,6 @@ describe("the payroll axis is exclusive", () => {
               f({
                 spendM,
                 budgetM,
-                budgetBonus,
                 baselineWins: w,
                 baselineLosses: l,
               }),
@@ -630,20 +633,24 @@ describe("the payroll axis is exclusive", () => {
 
   it("takes the farm tax at $15M over the bankroll", () => {
     expect(
-      earnedBadges(f({ spendM: 155, budgetM: 140, budgetBonus: 0 })),
+      earnedBadges(f({ spendM: 155, budgetM: 140 })),
     ).toContain("farm");
     expect(
-      earnedBadges(f({ spendM: 154.9, budgetM: 140, budgetBonus: 0 })),
+      earnedBadges(f({ spendM: 154.9, budgetM: 140 })),
     ).not.toContain("farm");
   });
 
-  it("takes the dime at a 9.9 payroll bonus", () => {
-    expect(earnedBadges(f({ budgetBonus: 9.9 }))).toContain("dime");
-    expect(earnedBadges(f({ budgetBonus: 9.8 }))).not.toContain("dime");
+  it("takes the dime at 99.5% of the cap, on the raw dollars", () => {
+    // Compared on spend/cap, not the ledger's rounded budgetBonus — a
+    // rounded 9.9 admits 99.25% spends while the copy promises 99.5%.
+    expect(earnedBadges(f({ spendM: 139.3, budgetM: 140 }))).toContain("dime");
+    expect(earnedBadges(f({ spendM: 139.2, budgetM: 140 }))).not.toContain("dime");
+    // …and never over the cap: that side of the line is the farm's.
+    expect(earnedBadges(f({ spendM: 140.1, budgetM: 140 }))).not.toContain("dime");
   });
 
   it("takes the abacus only for a cheap payroll that also won", () => {
-    const cheap = { spendM: 70, budgetM: 140, budgetBonus: 5 };
+    const cheap = { spendM: 70, budgetM: 140 };
     expect(
       earnedBadges(f({ ...cheap, baselineWins: 95, baselineLosses: 67 })),
     ).toContain("pinch");
@@ -658,7 +665,7 @@ describe("the payroll axis is exclusive", () => {
   });
 
   it("takes the receipt only for a cheap payroll that also lost", () => {
-    const cheap = { spendM: 84, budgetM: 140, budgetBonus: 5 };
+    const cheap = { spendM: 84, budgetM: 140 };
     expect(
       earnedBadges(f({ ...cheap, baselineWins: 70, baselineLosses: 92 })),
     ).toContain("pocket");
@@ -1023,6 +1030,55 @@ describe("roster shape", () => {
     ).not.toContain("franchiseplayer");
   });
 
+  describe("the albatross", () => {
+    /** Seven $5M seats at 3.0 WAR around one $50M seat. */
+    const withPricy = (over: Partial<BadgeRosterEntry>) => {
+      const roster = club(8, { costPaid: 5, war: 3.0 });
+      roster[0] = player({ costPaid: 50, ...over });
+      return roster;
+    };
+
+    it("hangs on the priciest seat being the outright worst", () => {
+      expect(
+        earnedBadges(f({ roster: withPricy({ war: 2.9 }) })),
+      ).toContain("albatross");
+      // A WAR tie with any other seat counts for the player — strict both
+      // ways, the anti-trophy fails toward silence.
+      expect(
+        earnedBadges(f({ roster: withPricy({ war: 3.0 }) })),
+      ).not.toContain("albatross");
+    });
+
+    it("takes a strict cost maximum — a tie at the top counts for nobody", () => {
+      const roster = club(8, { costPaid: 5, war: 3.0 });
+      roster[0] = player({ costPaid: 50, war: 0.5 });
+      roster[1] = player({ costPaid: 50, war: 6.0 });
+      expect(earnedBadges(f({ roster }))).not.toContain("albatross");
+    });
+
+    it("needs the full eight — 'worst of eight' is not a five-man claim", () => {
+      const roster = club(5, { costPaid: 5, war: 3.0 });
+      roster[0] = player({ costPaid: 50, war: 0.5 });
+      expect(earnedBadges(f({ roster }))).not.toContain("albatross");
+    });
+  });
+
+  describe("below replacement", () => {
+    it("fires on any seat under 0.0 WAR, and exactly 0.0 is not under", () => {
+      const roster = club(8, { war: 3.0 });
+      roster[3] = player({ war: -0.1 });
+      expect(earnedBadges(f({ roster }))).toContain("belowzero");
+      roster[3] = player({ war: 0.0 });
+      expect(earnedBadges(f({ roster }))).not.toContain("belowzero");
+    });
+
+    it("needs no full club — one negative seat is the fact itself", () => {
+      expect(
+        earnedBadges(f({ roster: [player({ war: -1.0 })] })),
+      ).toContain("belowzero");
+    });
+  });
+
   it("takes the homegrown superstar only for a discount spent on 8 WAR", () => {
     expect(
       earnedBadges(f({ roster: [player({ hero: true, war: 8.0 })] })),
@@ -1115,7 +1171,6 @@ describe("roster shape", () => {
     it("never co-fires with a payroll badge that contradicts it", () => {
       for (let spendM = 0; spendM <= 200; spendM += 2.5) {
         const budgetM = 100;
-        const budgetBonus = spendM > budgetM ? 0 : (spendM / budgetM) * 10;
         for (const [w, l] of [
           [50, 112],
           [110, 52],
@@ -1126,7 +1181,6 @@ describe("roster shape", () => {
               roster: club(8),
               budgetM,
               spendM,
-              budgetBonus,
               baselineWins: w,
               baselineLosses: l,
             }),
@@ -1148,7 +1202,6 @@ describe("roster shape", () => {
           roster: club(8),
           budgetM: 100,
           spendM: 99.9,
-          budgetBonus: 9.99,
         }),
       );
       expect(got).toContain("flyingblind");
@@ -1597,6 +1650,17 @@ describe("the era badges", () => {
       expect(got).toContain("decade");
       expect(got).toContain("fortyyears");
     });
+
+    it("takes the time capsule at four from ONE year, and not at three", () => {
+      expect(years([1998, 1998, 1998, 1998, 1985])).toContain("sameyear");
+      expect(years([1998, 1998, 1998, 1999, 1985])).not.toContain("sameyear");
+    });
+
+    it("four of one year is also headed toward one decade — ⏳ stacks with 📆", () => {
+      const got = years([2004, 2004, 2004, 2004, 2007]);
+      expect(got).toContain("sameyear");
+      expect(got).toContain("decade");
+    });
   });
 
   it("survives an empty dugout", () => {
@@ -1630,7 +1694,6 @@ describe("the earned list as a whole", () => {
         baselineLosses: 42,
         total: 200,
         spendM: 139.9,
-        budgetBonus: 10,
         scoutHits: 9,
         roster: club(8, { awards: ["AS"], war: 6, year: 1994 }),
         rings: 5,
@@ -1649,7 +1712,6 @@ describe("the earned list as a whole", () => {
         baselineLosses: 42,
         total: 200,
         spendM: 139.9,
-        budgetBonus: 10,
         scoutHits: 9,
         roster: club(8, { awards: ["AS"], war: 6, year: 2020, pos: "SP/DH" }),
         rings: 5,
@@ -1659,8 +1721,10 @@ describe("the earned list as a whole", () => {
     );
     // 🧗 and 📆 come along for the ride and belong in the list: BASE spends no
     // powerups, so a 120-win season is a handicap run, and eight 2020 seasons
-    // are eight players in one decade bucket. ⚖️ does too — eight identical
-    // 6.0-WAR seats are a club with no drop-off at all, which is the trigger.
+    // are eight players in one decade bucket — and, since ⏳ TIME CAPSULE
+    // joined the era axis, eight players from one YEAR too. ⚖️ does as well —
+    // eight identical 6.0-WAR seats are a club with no drop-off at all, which
+    // is the trigger.
     expect(got).toEqual([
       "crown",
       "perfect",
@@ -1676,6 +1740,7 @@ describe("the earned list as a whole", () => {
       "hardway",
       "covid",
       "decade",
+      "sameyear",
     ]);
   });
 });

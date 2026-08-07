@@ -25,7 +25,10 @@ import {
   WBC_CHAMPION_POINTS,
   WBC_RUNNERUP_ID,
   WBC_RUNNERUP_POINTS,
+  MANAGER_PER_NET_WIN,
   displayRecord,
+  expectedWins,
+  round1,
   score,
 } from "./scoring";
 import { SLOT_TYPES } from "./types";
@@ -322,6 +325,32 @@ export function beatCeilingDecision(
     beatCeiling,
     scoutHits: beatCeiling ? Math.max(rawScoutHits, dreamSeats) : rawScoutHits,
   };
+}
+
+/** 🧠 BEAT THE DREAM TEAM's rule: BASELINE WINS, yours against the dream
+ * club's — the roster talent comparison, not the whole ledger. "Beat the
+ * dream team" is a claim about out-BUILDING a club: more expected wins from
+ * WAR and the skipper than the best club your own cards could field. The
+ * full-total comparison belongs to 🦉 OUTSCOUTED alone (through the stamp
+ * press, beatCeilingDecision above); when both read the total the two badges
+ * were one claim at two strictnesses, and the owner split them (round
+ * twelve). Both sides go through the same round1 press the ledger prints,
+ * and strictly greater: a rounding tie is a matched baseline, not a win.
+ * A null solve fails safe — no dream club, nothing was beaten. */
+export function beatDreamDecision(
+  playerExpectedWins: number,
+  best: { totalWar: number; manager?: { netWins: number } | null } | null,
+): boolean {
+  if (best === null) return false;
+  return (
+    playerExpectedWins >
+    round1(
+      expectedWins(
+        best.totalWar,
+        (best.manager?.netWins ?? 0) * MANAGER_PER_NET_WIN,
+      ),
+    )
+  );
 }
 
 const SAVE_KEY = "hotstove.current";
@@ -1963,11 +1992,14 @@ export class Game {
    *    his arm, which is a choice the club makes, so his open FLEX seat joins
    *    the pool alongside his pitcher seats and the rail asks.
    *  - A MULTI-GROUP position player (two or more of C/IF/OF): his
-   *    versatility is the asset, and where to spend it is the decision. An
-   *    IF/OF man with the OF seats taken used to auto-sign into IF — but
-   *    parking him at UTIL to keep the IF seat open for a pure infielder is
-   *    exactly the play a flexible man exists for, so the rail asks IF or
-   *    UTIL instead of answering for the club. */
+   *    versatility is the asset, and where to spend it is the decision — but
+   *    only once the club has actually spent some of it. While EVERY group he
+   *    plays still has an open specialist seat, UTIL adds nothing the
+   *    specialist seats don't already offer, so the rail asks IF or OF and
+   *    keeps the FLEX seat out of the pool. Once one of his groups is full,
+   *    parking him at UTIL to keep the remaining seat open for a pure
+   *    specialist is exactly the play a flexible man exists for, and UTIL
+   *    joins the ask. */
   pickableSlotCells(p: CardPlayer): number[] {
     // A pending ⭐ handoff answers for its own season: the rail arms the seats
     // the CONFIRMED career season is eligible for, which are not necessarily
@@ -1978,7 +2010,14 @@ export class Game {
     const groups = eligibleTypes(p).filter(
       (t) => t === "C" || t === "IF" || t === "OF",
     );
-    if (isTwoWay(p) || groups.length >= 2) return open;
+    if (isTwoWay(p)) return open;
+    if (groups.length >= 2) {
+      const allGroupsOpen = groups.every((t) =>
+        open.some((i) => SLOT_TYPES[i] === t),
+      );
+      if (allGroupsOpen) return open.filter((i) => SLOT_TYPES[i] !== "FLEX");
+      return open;
+    }
     const specialist = open.filter((i) => SLOT_TYPES[i] !== "FLEX");
     return specialist.length > 0 ? specialist : open;
   }
@@ -2374,13 +2413,8 @@ export class Game {
     // whether it held — so this has to be built from the same call
     // `Finale.svelte` renders from or the badge and the screen can disagree.
     // `stamp` is computed above (before and after any beatCeiling scout upgrade).
-    // 🧠's fact, and it reads the solver's RAW answer rather than the ceiling
-    // the finale prints. `bestPossibleTotal` below is `max(solved, total)` —
-    // the played club is a proven-reachable incumbent, so the printed ceiling
-    // can never sit under it — which means only `best.total` can say whether
-    // the club actually passed the solve. Strictly greater: a tie is
-    // `playedTheCeiling`, not a win.
-    const beatDream = solvedTotal !== null && parts.total > solvedTotal;
+    // 🧠's fact — see beatDreamDecision beside beatCeilingDecision above.
+    const beatDream = beatDreamDecision(parts.expectedWins, best ?? null);
     // 🎣's fact: the same raw solve `beatDream` reads, handed over as a number
     // so the badge can press it through recordFromTotal itself. `undefined`
     // (solve never ran) fails safe — no ceiling, nothing got away.
@@ -2402,7 +2436,6 @@ export class Game {
       ceilingTotal,
       spendM: this.spend,
       budgetM: this.effectiveBudget,
-      budgetBonus: parts.budgetBonus,
       // RAW hits, never the beatCeiling upgrade: the upgrade is a SCORING
       // courtesy (a club that beat the dream team isn't docked for not copying
       // it), but 🌠 THE DREAM TEAM is a claim about actually matching all nine

@@ -641,7 +641,7 @@ describe("line width budget", () => {
   const MAX_LEN = lineBadge(BADGES.map((b) => b.key));
 
   it("pins the worst case the triggers allow", () => {
-    // 55 badges — 5 group representatives + 50 stackers — on their own line.
+    // 59 badges — 5 group representatives + 54 stackers — on their own line.
     // The number is asserted so a badge added without thought shows up as a
     // failing width rather than a silently longer share string. (It was 49
     // until 2️⃣ RE2PECT and 🎆 THE WALK-OFF were retired, and 47 until 🫡 🚒
@@ -655,9 +655,13 @@ describe("line width budget", () => {
     // change ✳️ → 📼 dropped a variation selector, −1 to both widths.
     // 🎣 THE ONE THAT GOT AWAY stacks on the goal axis, +1 stacker and +1 to
     // the shipped width; 🧭 WENT MY OWN WAY joined the exclusive scout chain,
-    // costing the line nothing.)
-    expect(MAXIMAL).toHaveLength(56);
-    expect(SHIPPED_MAX_LEN).toBe(72);
+    // costing the line nothing. ⚓ THE ALBATROSS and 🕳️ BELOW REPLACEMENT
+    // both stack on the roster axis: +2 stackers, and the hole carries a
+    // variation selector, so the pair costs the shipped width three.
+    // ⏳ TIME CAPSULE stacks on the era axis: +1 stacker, single code point,
+    // +1 to the shipped width.)
+    expect(MAXIMAL).toHaveLength(59);
+    expect(SHIPPED_MAX_LEN).toBe(76);
     // total 104.3 gives the six-character record; the badge line is index 5.
     const s = shareText({ ...BASE, total: 104.3, badges: MAXIMAL });
     expect(codePoints(s.split("\n")[5])).toBe(SHIPPED_MAX_LEN);
@@ -670,8 +674,10 @@ describe("line width budget", () => {
     // 🦉 (OUTSCOUTED) moved it by one more; 🔂 (DÉJÀ VU) moved it by one more;
     // 🎠 (MERRY-GO-ROUND) moved it by one more; the replayed-seed badge's
     // ✳️ → 📼 face change dropped a variation selector, −1; 🎣 and 🧭 (round
-    // nine's pair) moved it by one each.
-    expect(MAX_LEN).toBe(91);
+    // nine's pair) moved it by one each; ⚓ moved it by one and 🕳️ by two
+    // (a variation selector is a code point the line pays for); ⏳ (TIME
+    // CAPSULE) moved it by one more.
+    expect(MAX_LEN).toBe(95);
     const s = shareText({
       ...BASE,
       total: 104.3,

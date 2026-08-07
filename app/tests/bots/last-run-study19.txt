@@ -1,0 +1,29 @@
+=== Study 19: albatross + below-replacement, 2000 reference games ===
+
+full clubs 2000   priciest-seat cost tie (excluded) 0.30%
+
+--- albatross: WAR rank of the strict-priciest seat ---
+  rank 1: 25.70%
+  rank 2: 15.60%
+  rank 3: 13.90%
+  rank 4: 13.55%
+  rank 5: 12.35%
+  rank 6: 9.70%
+  rank 7: 6.20%
+  rank 8: 2.70%
+  not in top 1: 74.00%
+  not in top 2: 58.40%
+  not in top 3: 44.50%
+  not in top 4: 30.95%
+  not in top 5: 18.60%
+  not in top 6: 8.90%
+  not in top 7: 2.70%
+  priciest seat WAR: p10 4.5, median 7.3
+
+--- below replacement: seats under 0 WAR ---
+  exactly 0: 99.70%
+  exactly 1: 0.30%
+  exactly 2: 0.00%
+  exactly 3: 0.00%
+  at least 1: 0.30%   at least 2: 0.00%
+  worst seat WAR: p1 0.1, p5 0.5, p10 0.8, median 2.2

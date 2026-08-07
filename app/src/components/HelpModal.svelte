@@ -484,7 +484,6 @@
   <div class="picks">
     <RailSeat label="IF" pickable specimen />
     <RailSeat label="OF" pickable specimen />
-    <RailSeat label={slotLabel("FLEX")} pickable specimen />
   </div>
   {@render prow(UTIL, "slot")}
   <p class="cap">Tap him and every seat he fits lights up. Tap the one you want.</p>
@@ -993,17 +992,19 @@
     }
   }
   /* The seats a pick offers, side by side. The rail's own grid is nine
-     chairs wide and this is a crop of it — the three that lit up: a
-     multi-group man's picker pools UTIL with his specialist seats
-     (engine `pickableSlotCells`), so the crop shows it too. It gets the
-     three columns it holds rather than the rail's `auto repeat(4, 1fr)`,
-     whose leading `auto` track belongs to the manager's chair. Same gap as
-     the rail, and the same collapse to a column at the width RailSeat
-     changes shape at, for the same reason: a full-width seat row inside a
-     narrow grid column is a row with no room. */
+     chairs wide and this is a crop of it — the two that lit up: with both
+     of a multi-group man's groups still open, his picker offers only the
+     specialist seats (engine `pickableSlotCells`; UTIL joins the ask only
+     once one group is full), so the crop shows the fresh-club case. It
+     gets the two columns it holds rather than the rail's
+     `auto repeat(4, 1fr)`, whose leading `auto` track belongs to the
+     manager's chair. Same gap as the rail, and the same collapse to a
+     column at the width RailSeat changes shape at, for the same reason: a
+     full-width seat row inside a narrow grid column is a row with no
+     room. */
   .picks {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 6px;
   }
   @media (min-width: 760px) {

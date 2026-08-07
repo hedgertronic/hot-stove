@@ -234,7 +234,6 @@ const BASE: BadgeFacts = {
   total: 100,
   spendM: 100,
   budgetM: 140,
-  budgetBonus: 4,
   scoutHits: 2,
   roster: [],
   managerTeam: null,
@@ -643,9 +642,12 @@ describe("💳 THE BILL CAME DUE", () => {
   });
 
   it("names both records in its copy, the way the whole axis does", () => {
+    // "final record" is the stamp under the ladder's own name — the term 👑
+    // and the champion rungs use. The copy pass retired the longer "a record
+    // the finale stamps" phrasing, which garden-pathed ("stamps too low").
     const how = BADGE_BY_KEY.taxed.how.toLowerCase();
     expect(how).toContain("baseline wins");
-    expect(how).toContain("the finale stamps");
+    expect(how).toContain("final record");
   });
 });
 

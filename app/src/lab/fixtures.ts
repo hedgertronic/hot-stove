@@ -432,7 +432,6 @@ function forgeFinale(opts: {
       total: parts.total,
       spendM: opts.spend,
       budgetM: opts.budget,
-      budgetBonus: parts.budgetBonus,
       scoutHits,
       roster: opts.slots.map((s) => ({
         id: s.id,

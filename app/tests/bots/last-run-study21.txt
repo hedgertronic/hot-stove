@@ -1,0 +1,3 @@
+study 21 over 2000 reference games
+dime (raw ≥ 99.5%): 72 = 3.60%
+old rounded gate (≥ 99.25%): 101 = 5.05%

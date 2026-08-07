@@ -122,10 +122,11 @@ const seatsOf = (name: string): string[] =>
  * every assertion is "each seat found wears the right rung" passes over an
  * empty set. Pinning the count is what makes that failure loud instead — twelve
  * chairs: nine in the rail (the manager plus the full eight player seats) and
- * three lit by the slot picker (IF, OF, and the UTIL seat the multi-group rule
- * pools with them). A specimen added or removed lands here first. */
+ * two lit by the slot picker (IF and OF — with both groups open the
+ * multi-group rule keeps UTIL out of the pool; it joins only once one group
+ * is full). A specimen added or removed lands here first. */
 it("finds every chair the sheet draws", () => {
-  expect(SEATS).toHaveLength(12);
+  expect(SEATS).toHaveLength(11);
 });
 
 describe("the help sheet's player specimens", () => {
@@ -189,9 +190,10 @@ describe("the help sheet's player specimens", () => {
     expect(BODY).toContain(">Ben Zobrist<");
     expect(BODY).toContain(">8.6<");
     expect(BODY).toContain("$1M");
-    // Three lit seats and an instruction, which is the screen those two
-    // eligibilities actually produce: the multi-group rule (engine
-    // `pickableSlotCells`) pools UTIL with the specialist seats. The arrow
+    // Two lit seats and an instruction, which is the screen those two
+    // eligibilities actually produce on a fresh club: the multi-group rule
+    // (engine `pickableSlotCells`) offers only the specialist seats while
+    // both groups are open — UTIL joins once one group is full. The arrow
     // is its own span with the market's 4px margin, not a character inside
     // the label, so the pin reads the two parts separately.
     expect(BODY).toMatch(/class="[^"]*\bph\b[^"]*"[^>]*>↑</);
@@ -302,12 +304,13 @@ describe("the help sheet is a diagram, not a control surface", () => {
   const BUTTONS = [...BODY.matchAll(/<button[^>]*>/g)].map((m) => m[0]);
 
   it("renders every embedded specimen control inert", () => {
-    // The components that render buttons — RailSeat's three pickable seats,
-    // lit by the slot picker, and SpecialRows' three tiles — all take the
-    // specimen flag, which puts the native `inert` attribute on them: no tab
-    // stop, no click, no promise of one.
+    // The components that render buttons — RailSeat's two pickable seats
+    // (IF and OF; UTIL left the crop with the multi-group rule's fresh-club
+    // case), and SpecialRows' three tiles — all take the specimen flag,
+    // which puts the native `inert` attribute on them: no tab stop, no
+    // click, no promise of one.
     const specimens = BUTTONS.filter((b) => /class="[^"]*(?:cell|srow)/.test(b));
-    expect(specimens).toHaveLength(6);
+    expect(specimens).toHaveLength(5);
     for (const b of specimens) expect(b).toContain("inert");
   });
 

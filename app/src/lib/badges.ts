@@ -1,6 +1,6 @@
 import type { Bank } from "./engine.svelte";
 import { recordFromTotal } from "./format";
-import { GOAL_POINTS, MANAGER_PER_NET_WIN } from "./scoring";
+import { MANAGER_PER_NET_WIN } from "./scoring";
 
 /* The badge set — one table, read by the finale pill row, the share string,
  * and the home trophy case. Adding a badge means adding one BadgeDef and one
@@ -249,14 +249,16 @@ export interface BadgeFacts {
   stamp?: { wins: number; losses: number };
   /** Final points — 🏆 fires at the 162 goal. */
   total: number;
-  /** The season outscored the dream club solved off its own cards — strictly
-   * more points than the ceiling the finale prints, not a tie.
+  /** The season OUT-BUILT the dream club solved off its own cards — strictly
+   * more BASELINE WINS (expected wins from WAR plus the skipper) than the
+   * best club those cards could field. The talent comparison, deliberately
+   * not the whole ledger: the full-total comparison is 🦉's alone, and when
+   * both badges read the total they were one claim at two strictnesses (the
+   * owner's split, round twelve).
    *
-   * Resolved in the engine because the comparison is between two numbers only
-   * the engine holds at once: `parts.total` and the solver's own unclamped
-   * answer. The finale's `bestPossibleTotal` is already `max(solved, total)`,
-   * so it can never be below the played club and cannot answer this on its own
-   * — the raw solve is the only honest side of the comparison.
+   * Resolved in the engine because the comparison is between numbers only the
+   * engine holds at once: its own `parts.expectedWins` and the solver's
+   * roster WAR + manager, pressed through the same round1 the ledger prints.
    *
    * Optional for the `age` reason, and it fails safe: absent reads as "did not
    * beat it", which is also what a game whose dream solve could not run should
@@ -282,8 +284,6 @@ export interface BadgeFacts {
   ceilingTotal?: number;
   spendM: number;
   budgetM: number;
-  /** `ScoreParts.budgetBonus`; 💵 wants it near its 10-point ceiling. */
-  budgetBonus: number;
   /** RAW dream-team hits — the count of seats genuinely matched, BEFORE the
    * engine's beatCeiling scoring upgrade (which raises the scored count to
    * `dreamSeats` as a courtesy to a club that beat the ceiling). The badges
@@ -452,7 +452,11 @@ export interface BadgeFacts {
 }
 
 const FARM_TAX_M = 15; // $M over the bankroll before the overrun earns its pill
-const DIME_BONUS = 9.9; // payroll bonus this high means the cap is all but exactly spent
+// spend/cap at or above this, without going over, is 💵's claim — the number
+// its copy states. Compared on the raw dollars, NOT on ScoreParts.budgetBonus:
+// that figure reaches the facts rounded to one decimal, and `rounded ≥ 9.9`
+// admits spends from 99.25% while the copy promises 99.5%.
+const DIME_PCT = 0.995;
 const CHEAP_PCT = 0.6; // spend/cap at or under this is a pocketed payroll
 const PINCH_PCT = 0.5; // …and this cheap WITH a winning record is a skill brag
 const PINCH_WINS = 95;
@@ -529,6 +533,13 @@ const AGE_COUNT = 3;
  * make an ALL-EIGHTIES TEAM harder than an ALL-TENS TEAM for a reason that is
  * about where the dataset starts rather than about the player. */
 const DECADE_COUNT = 5;
+/** Four of eight from ONE season year. Study 20 (2,000 reference games): a
+ * same-year PAIR is background noise (59.50%), three is 5.00%, four is 0.30%
+ * and the reference bots never reach five — but the bots also never chase
+ * it, and 🎟️ Season Ticket rerolls the year on purpose, so the human rate
+ * runs above the measured one for whoever wants it. Four is the rung where
+ * the cohort is a decision rather than a coincidence. */
+const SAMEYEAR_COUNT = 4;
 /** Five of eight out of one division, same ladder: four is 22.8%, six is
  * 0.38%. */
 const DIVISION_COUNT = 5;
@@ -1309,7 +1320,7 @@ export const BADGES: BadgeDef[] = [
     axis: "onfield",
     ironic: true,
     freq: 0.03,
-    how: "Baseline wins worth a badge, a payroll past the cap, and a record the finale stamps too low to keep it.",
+    how: "Baseline wins worth a badge, a payroll past the cap, and a final record too low to keep it.",
   },
 
   // ---- the goal, its own axis ----
@@ -1327,48 +1338,44 @@ export const BADGES: BadgeDef[] = [
     rarity: "legendary",
     axis: "goal",
     freq: 1.01,
-    how: "A full 162 points.",
+    how: "Stamped a perfect 162–0.",
   },
-  /* The other badge keyed to the TOTAL rather than to the club that produced
-   * it, which is what `goal` collects. The axis stacks, so a 162-point season
-   * that also outscored the solver earns both — they are different claims and
-   * a season can honestly make both.
+  /* Keyed to BASELINE WINS against the dream club — the talent comparison,
+   * not the ledger. "Beat the dream team" is a claim about out-BUILDING a
+   * club: more expected wins from WAR and the skipper than the best club
+   * your own cards could field. The whole-ledger comparison is 🦉's alone
+   * (through the stamp press); when both badges read the total they were one
+   * claim at two strictnesses, and the owner split them (round twelve) so
+   * each names its own feat. The axis stacks, so a season can honestly earn
+   * this, 🏆 and 🦉 together.
    *
    * It is deliberately NOT on `scout`. That axis is exclusive and asks how
    * many of the dream club's picks you found; this asks whether your club
-   * SCORED more than theirs, which a club that matched almost none of their
-   * picks can do. 🌠 and 🔮 measure agreement, this measures the result.
+   * OUT-TALENTED theirs, which a club that matched almost none of their
+   * picks can do. 🌠 and 🔮 measure agreement, this measures the roster.
    *
-   * Not `secret`, unlike 🌠 above it. The finale already prints the ceiling as
-   * a number on screen, so the target is not a secret to give away — naming
-   * the badge is the direction the case owes a player who has seen that number
-   * and wondered whether it can be passed.
+   * Not `secret`, unlike 🌠 above it. The finale prints both clubs' win
+   * values on screen, so the target is not a secret to give away — naming
+   * the badge is the direction the case owes a player who has read the dream
+   * team's column and wondered whether it can be out-built.
    *
-   * Measured at 200 games per arm, and the arms are the argument: 2.50% with
-   * every powerup, 0.00% with the same arm and 🏠 Homegrown disabled, 3.50%
-   * with overspending allowed, 0.50% with no powerups at all. Every winner in
-   * the two Homegrown arms used 🏠. That is causal rather than correlational —
-   * the solver models ✌️ Double Play and ⭐ Prime Time but prices every player
-   * at list, and 🏠 is the one powerup that keeps a season's wins while
-   * cutting what it costs. So this is a Homegrown badge in everything but the
-   * trigger.
-   *
-   * The caveat belongs to whoever tunes the solver next. About 0.5pp of the
-   * 2.50% is search slack rather than play: the lone no-powerup beat (seed
-   * 3517525175, margin 6.20 over eleven cards, one pick each, no repeats and
-   * no off-reel season) sits entirely inside the model the solver searches, so
-   * the solver missed it through its own shortlist heuristics or node budget.
-   * Widening REFINE_PAIRS, DOUBLE_PAIRS or MAX_NODES makes this badge rarer
-   * for a reason that has nothing to do with how anyone played. */
+   * Measured under the new rule in study 20 (2,000 reference games, classic +
+   * all powerups): 11.20%, against the old total-comparison's 2.50% — which
+   * moved the badge down a tier, rare → uncommon (📆 ALL-DECADE TEAM's own
+   * 9.43% band). The gap between the two rules is the measurement's finding:
+   * the solver maximizes POINTS under budget, so a WAR-first club out-BUILDS
+   * the point-optimal solve far more often than it out-SCORES it — awards,
+   * pedigree and the payroll bonus are most of the ceiling's edge. That is
+   * exactly why the split reads: this rung is the roster, 🦉 is the ledger. */
   {
     key: "beatdream",
     emoji: "🧠",
     label: "BEAT THE DREAM TEAM",
     name: "Beat the Dream Team",
-    rarity: "rare",
+    rarity: "uncommon",
     axis: "goal",
-    freq: 2.5,
-    how: "Outscored the dream team the finale solved off your own cards.",
+    freq: 11.2,
+    how: "More baseline wins than the best club your cards could field.",
   },
   /* The peak of the goal axis: outscoring the solver's own theoretical
    * ceiling, not merely the dream team it printed. The ceiling is the best
@@ -1389,7 +1396,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "legendary",
     axis: "goal",
     freq: null,
-    how: "Won more games than the dream team.",
+    how: "Outscored the finale's own ceiling — the best total it could find in your cards.",
   },
   /* The goal axis's anti-trophy: the cards on the table could have stamped a
    * perfect 162–0 — the solver's own ceiling rounds to the full record — and
@@ -1443,10 +1450,13 @@ export const BADGES: BadgeDef[] = [
     emoji: "💵",
     label: "SPENT EVERY DIME",
     name: "Spent Every Dime",
-    rarity: "uncommon",
+    // Rare since the trigger moved to the raw dollars: the old rounded gate
+    // really fired from 99.25% and measured 4.98 (uncommon); the strict
+    // 99.5% the copy states measures 3.60 (study 21), inside the rare band.
+    rarity: "rare",
     axis: "payroll",
-    freq: 4.98,
-    how: "Spent all but a sliver of your payroll, without going over.",
+    freq: 3.6,
+    how: "Spent 99.5% or more of your payroll, without going over.",
   },
   {
     key: "pinch",
@@ -1529,7 +1539,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "uncommon",
     axis: "scout",
     freq: 9.6,
-    how: "Drafted 7 or more of the players the dream team wanted.",
+    how: "Drafted seven or more of the players the dream team wanted.",
   },
   /* The scout axis's other pole: nine chairs filled, ZERO of them the dream
    * club's. Sharing 🌠's axis and its gates is the design — the same
@@ -1557,7 +1567,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "rare",
     axis: "scout",
     freq: null,
-    how: "Filled all nine chairs without a single dream-team pick.",
+    how: "Filled all nine seats without a single dream-team pick.",
   },
 
 
@@ -1728,13 +1738,13 @@ export const BADGES: BadgeDef[] = [
     // shows a player's birth country. Not the market rows, not the roster
     // rail, not the finale. So this is not a badge a player can aim at even in
     // principle — the fact is invisible until it is already collected — and a
-    // named locked slot reading "🌎 THE WORLD TOUR" would advertise a target
+    // named locked slot reading "🌎 WORLD TOUR" would advertise a target
     // the UI gives no way to hunt. That is the exact case `secret` exists for.
     key: "worldtour",
     secret: true,
     emoji: "🌎",
-    label: "THE WORLD TOUR",
-    name: "The World Tour",
+    label: "WORLD TOUR",
+    name: "World Tour",
     rarity: "rare",
     axis: "roster",
     freq: null,
@@ -1995,6 +2005,54 @@ export const BADGES: BadgeDef[] = [
     freq: 7.35,
     how: "Your catcher was the most expensive man on the club.",
   },
+  /* The priciest-seat question turned into an anti-trophy: the man the club
+   * spent the most on was the worst man on it. The albatross is the contract
+   * around the club's neck, so the article earns its place the way THE
+   * FRANCHISE PLAYER's does — it names the one guy.
+   *
+   * Strict on BOTH comparisons: the seat must outcost every other seat (the
+   * 🚒/🧤 tie rule — 20.5% of player-seasons cost exactly $1.0M, and a `>=`
+   * would hand a club of eight minimum men the badge for free) and every
+   * other seat must strictly out-WAR it, so a WAR tie favors the player and
+   * the badge fails toward not firing. Full clubs only: "worst of eight" is
+   * not a claim a five-man club can make.
+   *
+   * The rung is WORST, not "outside the top half". Study 19 (2,000 reference
+   * games): the strict-priciest seat misses the club's top four 30.95% of
+   * the time — that is the shape of the market rather than a mistake worth
+   * naming — and is the outright worst 2.70%, which is the reading that
+   * stings. The bots maximize value at every pick, so the human rate should
+   * run higher, not lower. */
+  {
+    key: "albatross",
+    ironic: true,
+    emoji: "⚓",
+    label: "THE ALBATROSS",
+    name: "The Albatross",
+    rarity: "ironic",
+    axis: "roster",
+    freq: 2.7,
+    how: "Your most expensive man was the worst on the club.",
+  },
+  /* The other way to waste a seat: a player worth less than nothing. 0.0 is
+   * replacement level — the exact line the game's own win math stands on
+   * (50 wins plus roster WAR) — so a negative seat is the one signing that
+   * subtracts wins, worse than the empty chair it filled. The bots, which
+   * maximize WAR at every pick, do it in 0.30% of reference games (study
+   * 19); a human signing a name they love does it rather more often, which
+   * is the population this is for. No `full` gate for 🪙's reason: one
+   * negative seat is one negative seat, whatever else is signed. */
+  {
+    key: "belowzero",
+    ironic: true,
+    emoji: "🕳️",
+    label: "BELOW REPLACEMENT",
+    name: "Below Replacement",
+    rarity: "ironic",
+    axis: "roster",
+    freq: 0.3,
+    how: "Rostered a player worth less than 0.0 WAR.",
+  },
   {
     key: "minimum",
     emoji: "🪙",
@@ -2044,7 +2102,7 @@ export const BADGES: BadgeDef[] = [
     // badge's difficulty. Study 11 measures it anyway; if the arms disagree
     // wildly with each other, that is the evidence the number is about them.
     freq: null,
-    how: "Filled all eight seats before hiring an owner, then spent over 60% of a payroll you could not see, without going over.",
+    how: "Filled all eight seats before hiring an owner, then spent over 60% of the payroll and stayed under it.",
   },
   /* 🕶️'s other ending, and the pair is exclusive BY CONSTRUCTION rather than
    * by a resolver — the technique 🧾 POCKETED THE DIFFERENCE and 🕶️ already
@@ -2101,7 +2159,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "rare",
     axis: "roster",
     freq: null,
-    how: "A hundred baseline wins without spending a single powerup.",
+    how: "100 baseline wins without spending a single powerup.",
   },
   {
     key: "toolbox",
@@ -2234,7 +2292,7 @@ export const BADGES: BadgeDef[] = [
     // of top-5-WAR seats against 0.96% of all player-seasons, and a WAR-led
     // draft finds them at more than double their population share.
     freq: 18.28,
-    how: "Signed a player Major League Baseball suspended under its drug program.",
+    how: "Signed a player MLB suspended under its drug program.",
   },
   {
     key: "gambling",
@@ -2272,6 +2330,22 @@ export const BADGES: BadgeDef[] = [
     axis: "era",
     freq: 9.43,
     how: "Five players from the same decade.",
+  },
+  /* The decade badge's sharper sibling: not five from one ERA, four from one
+   * SUMMER — half the roster played the same season, against each other.
+   * SAMEYEAR_COUNT's comment carries the study-20 rung derivation; the short
+   * version is that a pair is noise, three is a coincidence, and four is a
+   * collection someone assembled — usually with 🎟️ Season Ticket doing the
+   * year-hunting, which is what makes it a chase rather than a lottery. */
+  {
+    key: "sameyear",
+    emoji: "⏳",
+    label: "TIME CAPSULE",
+    name: "Time Capsule",
+    rarity: "ultra",
+    axis: "era",
+    freq: 0.3,
+    how: "Four players from the same season.",
   },
   {
     key: "fortyyears",
@@ -2641,7 +2715,16 @@ export function earnedBadges(f: BadgeFacts): string[] {
   )
     out.push("taxed");
 
-  if (f.total >= GOAL_POINTS) out.push("perfect");
+  // 🏆 reads the STAMPED record, not the raw total: the finale prints 162–0
+  // for any total from 161.5 up (recordFromTotal rounds), and a screen that
+  // says 162–0 — and a record book that files it as the personal best — while
+  // the case withholds PERFECT SEASON is the badge calling the screen a liar,
+  // the same rule that keys the floor rungs to the stamp. `recordFromTotal`'s
+  // defaults are the engine's own stamp arguments, so the two reads agree to
+  // the pixel. 🎣 reads the ceiling through the identical press, which keeps
+  // the pair exact complements on a perfect board: one of the two always
+  // fires, never both.
+  if (recordFromTotal(f.total).losses === 0) out.push("perfect");
   // Stacks with 🏆 on purpose: one says the season hit the game's stated goal,
   // the other says it beat the best club those same cards could have built.
   if (f.beatDream === true) out.push("beatdream");
@@ -2664,7 +2747,8 @@ export function earnedBadges(f: BadgeFacts): string[] {
 
   // Four faces of one axis, ordered from busted to stingiest.
   if (f.spendM - f.budgetM >= FARM_TAX_M) out.push("farm");
-  else if (f.budgetBonus >= DIME_BONUS) out.push("dime");
+  else if (f.budgetM > 0 && f.spendM <= f.budgetM && f.spendM >= f.budgetM * DIME_PCT)
+    out.push("dime");
   else if (f.baselineWins >= PINCH_WINS && f.spendM <= f.budgetM * PINCH_PCT)
     out.push("pinch");
   else if (
@@ -2819,6 +2903,21 @@ export function earnedBadges(f: BadgeFacts): string[] {
     );
   if (priciestAt("RP")) out.push("fireman");
   if (priciestAt("C")) out.push("fieldgeneral");
+  // ⚓ — the strict-priciest seat is also the club's outright worst. Cost
+  // strict for priciestAt's reason; WAR strict the other way (every OTHER
+  // seat strictly better), so a WAR tie counts for the player and the badge
+  // fails toward silence. `full` gate: "worst of eight" needs the eight.
+  if (
+    full &&
+    roster.some(
+      (p, i) =>
+        roster.every((q, j) => j === i || q.costPaid < p.costPaid) &&
+        roster.every((q, j) => j === i || q.war > p.war),
+    )
+  )
+    out.push("albatross");
+  // 🕳️ — any seat under replacement. The one signing that subtracts wins.
+  if (roster.some((p) => p.war < 0)) out.push("belowzero");
   // No `full` gate, unlike the two above: a count badge cannot be earned by
   // vacancy, and four minimum men on a club with a seat still open is four
   // minimum men.
@@ -2919,6 +3018,10 @@ export function earnedBadges(f: BadgeFacts): string[] {
   if (roster.some(isDeferred)) out.push("deferred");
   if (maxBucket(roster.map((p) => Math.floor(p.year / 10))) >= DECADE_COUNT)
     out.push("decade");
+  // ⏳ stacks with 📆 by design (era stacks; four of one year IS five of one
+  // decade short a man, and a club can honestly hold both facts at once).
+  if (maxBucket(roster.map((p) => p.year)) >= SAMEYEAR_COUNT)
+    out.push("sameyear");
   const years = roster.map((p) => p.year);
   if (years.length > 0 && Math.max(...years) - Math.min(...years) >= SPAN_YEARS)
     out.push("fortyyears");

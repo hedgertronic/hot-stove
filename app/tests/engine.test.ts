@@ -218,6 +218,28 @@ describe("signing and slots", () => {
     expect(g.slots[1]?.id).toBe(p.id);
   });
 
+  it("a multi-group man is offered only specialist seats while every group is open", () => {
+    // Fresh club: IF (1, 2) and OF (3) all open, so UTIL adds nothing the
+    // specialist seats don't — the pool holds them alone, no FLEX (4).
+    const p = player({ posG: { c: 0, if: 117, of: 75 }, pos: "3B" });
+    const g = landedGame(card([p]));
+    expect(g.pickableSlotCells(p)).toEqual([1, 2, 3]);
+  });
+
+  it("UTIL joins a multi-group man's pool once one of his groups is full", () => {
+    // OF taken by a pure outfielder: parking the IF/OF man at UTIL to keep
+    // the IF seat open for a pure infielder is now a real play, so FLEX (4)
+    // joins his open IF seats (1, 2).
+    const of = player({ pos: "LF", posG: { c: 0, if: 0, of: 120 } });
+    const p = player({ posG: { c: 0, if: 117, of: 75 }, pos: "3B" });
+    const g = landedGame(card([of, p]));
+    g.signPlayer(of);
+    expect(g.slots[3]?.id).toBe(of.id);
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    expect(g.pickableSlotCells(p)).toEqual([1, 2, 4]);
+  });
+
   it("FLEX is used only when specialist slots are full", () => {
     const a = player({ pos: "LF", posG: { c: 0, if: 0, of: 120} });
     const b = player({ pos: "RF", posG: { c: 0, if: 0, of: 110} });
