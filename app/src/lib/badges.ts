@@ -1461,10 +1461,13 @@ export const BADGES: BadgeDef[] = [
   /* The counterfactual the payroll box invites all game: the club won big
    * without ever needing more than the $51.5M the 2002 A's played under.
    *
-   * The result bar is deliberately 🤏 THE PINCH HITTER's own 95 baseline
-   * wins — one claim at two denominators. 🤏 measures the spend against the
-   * club's OWN cap; this measures it against Moneyball's constant, so a club
-   * under a small owner can hold one without the other. That is also why it
+   * The result bar is the finale's own gold stamp — the color the record
+   * prints (the floor rungs' rule), read through `recordFromTotal` like
+   * 🎒's. "Would've WON Moneyball" is a claim about the season the screen
+   * shows, and 95 baseline wins is merely a good one: a gold record on the
+   * A's money is the feat the name promises. 🤏 keeps the 95-baseline bar at
+   * the club's OWN cap, so the two measure different denominators AND
+   * different bars, and a club can hold either without the other. This one
    * sits on `goal` and stacks rather than joining the exclusive payroll
    * chain: its benchmark is a season-against-a-target claim, not a fourth
    * face of the club's own payroll.
@@ -1490,7 +1493,7 @@ export const BADGES: BadgeDef[] = [
     axis: "goal",
     banks: ["classic", "blankcheck"],
     freq: null,
-    how: "95 baseline wins or more, spending no more than Moneyball's $51.5M.",
+    how: "A gold final record, spending no more than Moneyball's $51.5M.",
   },
 
   // ---- payroll: exactly one fires ----
@@ -2887,13 +2890,15 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // 📈 stacks with the payroll chain rather than joining it: its
   // denominator is Moneyball's own constant, not the club's cap, so it is a
   // season-against-a-benchmark claim — a goal — and 🤏 can honestly co-fire
-  // (same 95-win bar, different denominator; see the def). The bank gate
-  // fails safe: an absent bank is unknown, and unknown earns nothing.
+  // (different bar, different denominator; see the def). The result bar is
+  // the gold STAMP, read the way 🎒 reads it: "gold record" is the color the
+  // finale prints, so the badge and the screen agree to the pixel. The bank
+  // gate fails safe: an absent bank is unknown, and unknown earns nothing.
   if (
     f.bank != null &&
     f.bank !== "moneyball" &&
     f.spendM <= MONEYBALL_BUDGET_M &&
-    f.baselineWins >= PINCH_WINS
+    recordFromTotal(f.total).tier === "elite"
   )
     out.push("elephant");
 

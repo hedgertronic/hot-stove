@@ -1889,7 +1889,6 @@ describe("the how copy names its measure", () => {
       "skipper",
       "hardway",
       "pocket",
-      "elephant",
     ];
     for (const key of baselineKeyed) {
       expect(how(key).toLowerCase()).toContain("baseline wins");
@@ -1994,8 +1993,8 @@ describe("the career axis reads the previous finished season", () => {
 });
 
 describe("🐘 WOULD'VE WON MONEYBALL", () => {
-  // 🤏's own 95-win bar on a spend the A's constant covers, in another bank.
-  const win = { baselineWins: 95, baselineLosses: 67, spendM: 51.5 };
+  // A gold-stamp season on a spend the A's constant covers, in another bank.
+  const win = { total: 155, spendM: 51.5 };
 
   it("fires outside Moneyball on a spend the $51.5M cap would have covered", () => {
     expect(earnedBadges(f({ ...win, bank: "classic" }))).toContain("elephant");
@@ -2008,13 +2007,18 @@ describe("🐘 WOULD'VE WON MONEYBALL", () => {
     expect(earnedBadges(f({ ...win }))).not.toContain("elephant");
   });
 
-  it("holds both edges: the cap is inclusive, the wins bar is 🤏's own", () => {
+  it("holds both edges: the cap is inclusive, the bar is the gold stamp", () => {
     expect(
       earnedBadges(f({ ...win, spendM: 51.6, bank: "classic" })),
     ).not.toContain("elephant");
+    // 154 wins is one under the stamp's gold band — a great season, no badge.
     expect(
-      earnedBadges(f({ ...win, baselineWins: 94, bank: "classic" })),
+      earnedBadges(f({ ...win, total: 154, bank: "classic" })),
     ).not.toContain("elephant");
+    // The stamp reads the ROUNDED total the finale prints: 154.5 rounds up.
+    expect(
+      earnedBadges(f({ ...win, total: 154.5, bank: "classic" })),
+    ).toContain("elephant");
   });
 });
 
