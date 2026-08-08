@@ -25,6 +25,7 @@
          has (dev serves public/ too, which is what cures the dev-only
          structural flash: the bundle CSS arrives via JS there). -->
     <link rel="stylesheet" href="./nunito.css" />
+    <link rel="stylesheet" href="./brand.css" />
     <!-- Boot data, warming while the JS bundle downloads and parses. The four
          fetches in App.svelte can't start until the module executes; preloading
          removes that serial round trip. `crossorigin` matches fetch()'s default
@@ -35,11 +36,18 @@
     <link rel="preload" as="fetch" crossorigin href="./data/meta.json" />
     <link rel="preload" as="fetch" crossorigin href="./data/owners.json" />
     <link rel="preload" as="fetch" crossorigin href="./data/colors.json" />
+    <!-- The lockup marks, warmed the same way. Their <img> requests can't
+         start until the app mounts, so on a cold load the wordmark can paint
+         a frame before its mark and the masthead reads as text snapping
+         sideways when the boiler pops in. Both files are ~1KB. -->
+    <link rel="preload" as="image" href="./brand/boiler.svg" />
+    <link rel="preload" as="image" href="./brand/flame.svg" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Hot Stove" />
-    <!-- Real PNGs, not an SVG data URI — Safari ignores SVG favicons. The 🔥
-         in the tab comes from these, so the title stays emoji-free. -->
+    <!-- The adaptive flame SVG serves Chromium and Firefox; Safari falls
+         through to the flame PNGs. The touch icon is the boiler on ivory. -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="icon" type="image/png" href="favicon-32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="favicon-16.png" sizes="16x16" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
@@ -125,24 +133,22 @@
            meta description and the JSON-LD above. Vertically anchored near
            the app's own boot line (App.svelte .boot) so the handoff doesn't
            jump. -->
-      <!-- The HOME masthead, hand-inlined: Logo.svelte's big wordmark (HOT in
-           ink, STOVE in the heat orange, the BETA chip) over the pitch line in
-           its caps-meta voice. Every value is the component's own — 34px/800,
-           0.01em tracking, 10px gap; chip: 2px #c98a08 ring on #ffd43b,
-           9.5px/800/0.1em; pitch: 10px/800/0.08em in --muted — so the swap to
-           App.svelte's real <Logo big/> card is pixel-still. Hexes are
-           app.css tokens inlined (--ink/--orange-8/--gold-8/--yellow/--muted);
-           change them together. The font stack is --disp minus the flag face:
+      <!-- The HOME masthead, hand-inlined: Logo.svelte's big boiler-and-wordmark
+           lockup (HOT in ink, STOVE in heat orange). Every value is the
+           component's own — 34px/800,
+           0.01em tracking, 8px gap; boiler 28×37px with a 2px optical lift;
+           so the swap to App.svelte's real <Logo big/> card is
+           pixel-still. Hexes are app.css tokens inlined
+           (--ink/--orange-8); change them together. The font stack is
+           --disp minus the flag face:
            nunito.css in <head> is paint-blocking and carries the font as a
            data URI, so this card paints in the game's own Nunito on the
-           very first frame — never a system stand-in that jumps. line-height: 1 on both
-           cards, stated rather than inherited — the UA default and app.css
-           would disagree and nudge the pitch line between frames. -->
+           very first frame — never a system stand-in that jumps. line-height:
+           1 on both cards, stated rather than inherited — the UA default and
+           app.css would otherwise disagree. -->
       <div id="static-boot" style="max-width: 480px; margin: 0 auto; padding: 38vh 24px 0; text-align: center; font-family: 'Nunito', ui-rounded, 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif; line-height: 1; color: #24221c">
-        <h1 style="display: inline-flex; align-items: center; gap: 10px; margin: 0; font-size: 34px; font-weight: 800; letter-spacing: 0.01em"><span>HOT<span style="color: #e8590c">STOVE</span></span><span style="border: 2px solid #c98a08; border-radius: 999px; background: #ffd43b; font-size: 9.5px; letter-spacing: 0.1em; padding: 3.5px 8px">BETA</span></h1>
-        <p style="margin: 8px 0 0; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: #6b6759">
-          Spin for teams. Sign players. Chase 162 wins.
-        </p>
+        <h1 style="display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 34px; font-weight: 800; letter-spacing: 0.01em"><svg xmlns="http://www.w3.org/2000/svg" viewBox="13 1.5 74 95" aria-hidden="true" style="width: 28px; height: 37px; flex: none; transform: translateY(-2px)"><!-- B6 full potbelly, flared legs (short cut), elliptical belly — mirrors
+       Logo.svelte; canonical source: design/logo/boiler-b6-flared.svg. --><rect x="44" y="6" width="12" height="13" rx="2" fill="#57534a" stroke="#24221c" stroke-width="4"/><rect x="40" y="16" width="20" height="6" rx="2" fill="#24221c"/><rect x="34.2" y="77" width="6.8" height="16" rx="3.2" transform="rotate(14 37.6 85)" fill="#24221c"/><rect x="59" y="77" width="6.8" height="16" rx="3.2" transform="rotate(-14 62.4 85)" fill="#24221c"/><ellipse cx="50" cy="56" rx="32" ry="29" fill="#57534a" stroke="#24221c" stroke-width="5"/><path d="M36 70V54a14 14 0 0 1 28 0v16Z" fill="#f6f1e3" stroke="#24221c" stroke-width="4" stroke-linejoin="round"/><g transform="translate(35.91,43.72) scale(.28)"><path d="M50 6c7 15 24 21 24 44a24 24 0 0 1-48 0c0-9.4 4.2-16 8.6-21.4-.4 8.8 2.6 13.6 7.6 14.7C38.6 30 43.3 14.8 50 6Z" fill="#ff922b" stroke="#24221c" stroke-width="7.5" stroke-linejoin="round"/></g><circle cx="68.5" cy="61" r="2.6" fill="#24221c"/></svg><span><span style="color: #e8590c">HOT</span>STOVE</span></h1>
         <!-- .bootline's twin (16px/700 muted, 22px above): the app card's
              warming line lands in this exact seat, so a slow load reads as
              one card gaining a meter rather than two cards trading places. -->

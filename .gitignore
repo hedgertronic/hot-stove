@@ -6,6 +6,11 @@ DEVLOG.md
 data-backup-pre-trim.tar.gz
 .wrangler/
 
+# Local approval render; `--final` writes the committed share asset instead.
+tools/og-preview.png
+app/public/og-preview.png
+app/public/og-preview-gameplay.png
+
 .dev.vars*
 !.dev.vars.example
 .env*

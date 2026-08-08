@@ -33,6 +33,7 @@
          rounded fallback stack below carries the card; in production the
          masthead is pixel-true to the boot card. -->
     <link rel="stylesheet" href="/games/hot-stove/nunito.css" />
+    <link rel="stylesheet" href="./brand.css" />
     <title>Hot Stove</title>
     <style>
       html {
@@ -45,17 +46,18 @@
         color: #24221c;
       }
       /* The RAIN DELAY pill's recipe (SpinBanner .retry + the chipbox
-         capsule), inlined because the bundle CSS can't load here: one
-         capsule, message and action fused, sized like a small recovery —
-         which is all a missed URL is. The 0.047em top padding is the
-         chipbox recipe's optical-centering constant at this box model's
-         half gain: it seats the cap band on the pill's geometric middle. */
+         capsule), inlined because the bundle CSS can't load here. The emoji
+         is its own geometric flex item and the words are their own cap band;
+         treating both as one font run gave the ball an OS-dependent side
+         bearing and pulled the label off center. */
       .foul {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        height: 24px;
-        padding: 0.047em 11px 0;
+        box-sizing: border-box;
+        height: 30px;
+        padding: 0 11px;
+        gap: 6px;
         font-size: 10.5px;
         font-weight: 800;
         letter-spacing: 0.04em;
@@ -67,6 +69,20 @@
         border-radius: 999px;
         transition: transform 0.08s;
       }
+      .foul-ball {
+        display: block;
+        flex: none;
+        font-family: inherit;
+        font-size: inherit;
+        line-height: 1;
+      }
+      .foul-copy {
+        display: block;
+        line-height: 1;
+      }
+      @supports (text-box: trim-both cap alphabetic) {
+        .foul-copy { text-box: trim-both cap alphabetic; }
+      }
       .foul:active {
         transform: scale(0.96);
       }
@@ -74,15 +90,15 @@
   </head>
   <body>
     <div style="max-width: 480px; margin: 0 auto; padding: 38vh 24px 0; text-align: center">
-      <h1 style="display: inline-flex; align-items: center; gap: 10px; margin: 0; font-size: 34px; font-weight: 800; letter-spacing: 0.01em"><span>HOT<span style="color: #e8590c">STOVE</span></span><span style="border: 2px solid #c98a08; border-radius: 999px; background: #ffd43b; font-size: 9.5px; letter-spacing: 0.1em; padding: 3.5px 8px">BETA</span></h1>
-      <p style="margin: 8px 0 0; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: #6b6759">
-        Spin for teams. Sign players. Chase 162 wins.
-      </p>
+      <div class="hs-logo hs-logo--home" aria-label="Hot Stove">
+        <img class="hs-logo__mark" src="./brand/boiler.svg" alt="" aria-hidden="true" />
+        <span class="hs-logo__wordmark"><span class="hs-logo__hot">HOT</span>STOVE</span>
+      </div>
       <!-- ⚾ FOUL BALL: this URL left the field of play. Same shape as ☔ RAIN
            DELAY — baseball's word for the mishap, then the way back, fused
            into the one pill there is to tap. -->
       <p style="margin: 26px 0 0">
-        <a class="foul" href="/games/hot-stove/" aria-label="Foul ball — this page doesn't exist. Back to the game.">⚾ FOUL BALL · BACK TO THE GAME</a>
+        <a class="foul" href="/games/hot-stove/" aria-label="Foul ball. This page doesn't exist. Back to the game."><span class="foul-ball" aria-hidden="true">⚾</span><span class="foul-copy">FOUL BALL · BACK TO THE GAME</span></a>
       </p>
     </div>
   </body>

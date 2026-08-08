@@ -1,0 +1,69 @@
+/* One lockup recipe for the Svelte app, static 404, and rendered share card.
+   The wrappers choose a named size; mark proportions, gaps, font treatment,
+   color, and optical lifts live only here. */
+.hs-logo {
+  --hs-logo-size: 15px;
+  --hs-logo-gap: 5px;
+  --hs-mark-width: 11px;
+  --hs-mark-height: 15px;
+  --hs-mark-lift: -1.25px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hs-logo-gap);
+  color: #24221c;
+  font-family: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  font-size: var(--hs-logo-size);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+.hs-logo--home {
+  /* Sized up from 34/28x37 (owner call): the masthead is the page's one
+     piece of identity and read undersized beside the mode rows; 44px of
+     boiler also makes the door flame legible at masthead size without
+     touching the master's door/flame geometry. Lift scales with the mark
+     (2px at 37px tall -> 2.4px at 44px). */
+  --hs-logo-size: 40px;
+  --hs-logo-gap: 9px;
+  --hs-mark-width: 33px;
+  --hs-mark-height: 44px;
+  --hs-mark-lift: -2.4px;
+}
+
+.hs-logo--game {
+  --hs-logo-size: 15px;
+  --hs-logo-gap: 5px;
+  --hs-mark-width: 11px;
+  --hs-mark-height: 15px;
+  --hs-mark-lift: -1.25px;
+}
+
+.hs-logo--og {
+  --hs-logo-size: 76px;
+  --hs-logo-gap: 18px;
+  --hs-mark-width: 62px;
+  --hs-mark-height: 80px;
+  --hs-mark-lift: -4px;
+}
+
+.hs-logo__mark {
+  display: block;
+  width: var(--hs-mark-width);
+  height: var(--hs-mark-height);
+  flex: none;
+  transform: translateY(var(--hs-mark-lift));
+}
+
+.hs-logo__wordmark {
+  display: block;
+  white-space: nowrap;
+}
+
+/* HOT wears the heat — the hot word in the hot color, seated beside the
+   mark's own orange flame; STOVE settles into ink so the lockup alternates
+   dark mark, orange word, dark word instead of clumping its two darkest
+   elements on the left. Orange-8 rather than the flame's orange-5 because
+   the word is type: 3.2:1 on the ivory ground and 3.5:1 on cardstock, the
+   only orange in the family that clears 3:1 on both. */
+.hs-logo__hot { color: #e8590c; }

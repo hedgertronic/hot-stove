@@ -2,100 +2,174 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<link rel="stylesheet" href="../app/public/brand.css" />
 <style>
-  /* 1200×630 social card in the game's own cardstock voice: the wordmark,
-     the one-line pitch, and a share-string grid as the visual signature.
-     Tokens are copied from app/src/app.css :root — this file renders outside
-     the app, so it cannot read them live. */
+  /* 1200×630 social card. This is the approval candidate recovered from the
+     Claude identity artifact: current boiler lockup, then the live game's
+     spinner/market anatomy for the 1995 Seattle Mariners. No subtitle or
+     maker line — the image contains only the identity and the game itself. */
   @font-face {
     font-family: "Nunito";
     src: url("../app/src/assets/nunito.woff2") format("woff2");
     font-weight: 200 1000;
   }
-  * { margin: 0; box-sizing: border-box; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1200px; height: 630px; }
   body {
-    width: 1200px;
-    height: 630px;
-    background: #f6f1e3; /* --ground */
-    color: #24221c;      /* --ink */
+    overflow: hidden;
+    background: #fffdf6;
+    color: #24221c;
     font-family: "Nunito", sans-serif;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 72px;
-    padding: 0 48px;
   }
-  .left { text-align: center; }
-  .logo {
-    font-size: 92px;
-    font-weight: 800;
-    letter-spacing: 0.01em;
-    line-height: 1;
+  .preview {
+    width: 800px;
+    margin-top: 14px;
+    padding: 12px 20px 15px;
+    background: #f6f1e3;
+    border: 3px solid #57534a;
+    border-radius: 20px;
   }
-  .logo em { font-style: normal; color: #e8590c; } /* --orange-8 */
-  .beta {
-    display: inline-block;
-    vertical-align: 18px;
-    margin-left: 22px;
-    border: 4px solid #c98a08;   /* --gold-8 */
+  .banner {
+    --franchise: #1f6f6b;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    margin-top: 0;
+  }
+  .year {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 15px;
+    border: 3px solid var(--franchise);
     border-radius: 999px;
-    background: #ffd43b;         /* --yellow */
-    font-size: 22px;
+    background: color-mix(in srgb, var(--franchise) 18%, #fffdf6);
+    font-size: 17px;
     font-weight: 800;
-    letter-spacing: 0.1em;
-    line-height: 1;
-    padding: 9px 18px;
+    letter-spacing: .04em;
   }
-  .pitch {
-    margin-top: 26px;
-    font-size: 24px;
+  .team {
+    color: var(--franchise);
+    font-size: 30px;
     font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    color: #6b6759; /* --muted */
+    line-height: 1.1;
   }
-  /* The share grid, drawn as chips rather than emoji so the card controls its
-     own palette: manager square, eight player circles, record line under it —
-     the string a finished season texts to a friend. */
-  .card {
-    background: #fffdf6;               /* --card */
-    border: 5px solid #57534a;         /* --line */
-    border-radius: 26px;
-    padding: 36px 44px 30px;
+  .rows {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin-top: 10px;
+  }
+  .row {
+    width: 100%;
+    min-height: 62px;
+    padding: 7px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fffdf6;
+    border: 3px solid #57534a;
+    border-radius: 15px;
+  }
+  .pos {
+    width: 56px;
+    height: 31px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fffdf6;
+    color: #24221c;
+    border: 2.5px solid #57534a;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .03em;
+  }
+  .pos.pitcher { background: #24221c; border-color: #24221c; color: #fffdf6; }
+  .identity { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .name { font-size: 20px; font-weight: 800; white-space: nowrap; }
+  .awards { display: inline-flex; gap: 4px; }
+  .award {
+    height: 22px;
+    padding: 0 7px;
+    display: inline-flex;
+    align-items: center;
+    border: 2px solid #57534a;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .02em;
+  }
+  .cy { background: #a5d8ff; border-color: #1971c2; }
+  .mvp { background: #ffd43b; border-color: #c98a08; }
+  .gg { background: #d3f0d8; border-color: #2f9e44; }
+  .ss { background: #e6e0f5; border-color: #6741d9; }
+  .as { background: #fff4d6; border-color: #c98a08; }
+  .numbers { margin-left: auto; display: flex; align-items: center; gap: 14px; flex: none; }
+  .salary { min-width: 88px; text-align: right; font-size: 19px; font-weight: 800; }
+  .salary.spendy { color: #e8590c; }
+  .war {
+    min-width: 96px;
+    padding: 4px 7px;
     text-align: center;
-  }
-  .grid { display: grid; grid-template-columns: repeat(3, 56px); gap: 16px; justify-content: center; }
-  .c { width: 56px; height: 56px; border-radius: 50%; border: 5px solid; }
-  .sq { border-radius: 16px; }
-  .neg   { background: #ffc9c9; border-color: #e03131; }
-  .mid   { background: #b2f2bb; border-color: #2f9e44; }
-  .high  { background: #a5d8ff; border-color: #1971c2; }
-  .star  { background: #d0bfff; border-color: #6741d9; }
-  .elite { background: #ffec99; border-color: #c98a08; }
-  .low   { background: #e8e2d2; border-color: #6b6759; }
-  .rec {
-    margin-top: 24px;
-    font-size: 42px;
-    white-space: nowrap;
+    border: 2.5px solid;
+    border-radius: 13px;
+    color: #24221c;
+    font-size: 19px;
     font-weight: 800;
-    color: #2f9e44; /* --green-8: the century-club rung */
-    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
   }
+  .war .unit { margin-left: 4px; font-size: 12px; letter-spacing: .05em; opacity: .85; }
+  .war.mid { background: #b2f2bb; border-color: #2f9e44; }
+  .war.star { background: #d0bfff; border-color: #6741d9; }
+  .war.elite { background: #ffec99; border-color: #c98a08; }
 </style>
 </head>
 <body>
-  <div class="left">
-    <div class="logo">HOT<em>STOVE</em></div>
-    <div class="pitch">Spin for teams. Sign players. Chase 162 wins.</div>
+  <div class="hs-logo hs-logo--og" aria-label="Hot Stove">
+    <img class="hs-logo__mark" src="../app/public/brand/boiler.svg" alt="" />
+    <span class="hs-logo__wordmark"><span class="hs-logo__hot">HOT</span>STOVE</span>
   </div>
-  <div class="card">
-    <div class="grid">
-      <div class="c sq mid"></div><div class="c star"></div><div class="c high"></div>
-      <div class="c mid"></div><div class="c elite"></div><div class="c low"></div>
-      <div class="c high"></div><div class="c mid"></div><div class="c star"></div>
+
+  <div class="preview" aria-label="Gameplay preview: 1995 Seattle Mariners player market">
+    <div class="banner">
+      <span class="year">1995</span>
+      <div class="team">Seattle Mariners</div>
     </div>
-    <div class="rec">104–58 💚</div>
+
+    <div class="rows">
+    <div class="row">
+      <span class="pos pitcher">SP</span>
+      <span class="identity">
+        <span class="name">Randy Johnson</span>
+        <span class="awards"><span class="award cy">🥇CY</span><span class="award as">AS</span></span>
+      </span>
+      <span class="numbers"><span class="salary spendy">$28.9M</span><span class="war elite">9.7<span class="unit">WAR</span></span></span>
+    </div>
+    <div class="row">
+      <span class="pos">DH</span>
+      <span class="identity">
+        <span class="name">Edgar Martínez</span>
+        <span class="awards"><span class="award mvp">🥉MVP</span><span class="award ss">SS</span><span class="award as">AS</span></span>
+      </span>
+      <span class="numbers"><span class="salary">$22.2M</span><span class="war star">7.9<span class="unit">WAR</span></span></span>
+    </div>
+    <div class="row">
+      <span class="pos">CF</span>
+      <span class="identity">
+        <span class="name">Ken Griffey Jr.</span>
+        <span class="awards"><span class="award gg">GG</span><span class="award as">AS</span></span>
+      </span>
+      <span class="numbers"><span class="salary spendy">$47.0M</span><span class="war mid">3.7<span class="unit">WAR</span></span></span>
+    </div>
+    </div>
   </div>
 </body>
 </html>
