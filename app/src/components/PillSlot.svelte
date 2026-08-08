@@ -408,6 +408,25 @@
        after the width is explicit, then re-fits to the evened lines. */
     text-align: center;
   }
+  /* The quarter-pixel pair above is still a guess about where an engine puts
+     half-leading, and the chipbox's warning (app.css) holds for prose too:
+     WebKit and Blink distribute and round that leading differently, so one
+     hand constant seats the text on center in one engine and visibly high in
+     the other. Where the engine can trim, the guess retires — the same atomic
+     trade the chipbox makes: trim-both squares the first line to its cap and
+     the last to its baseline, symmetric padding then centers the ink band
+     identically on every engine, and 12px rebuilds the height the trimmed
+     leading gave up (the old 16px of padding plus 7.92px of trimmed leading,
+     halved). Descenders hang into the bottom padding, which is exactly the
+     cap-to-baseline optical centering the hand pair was approximating.
+     .how is itself a block container, so no .chiplbl-style wrapper is needed;
+     the notch is position:absolute and owns no line box. */
+  @supports (text-box: trim-both cap alphabetic) {
+    .how {
+      text-box: trim-both cap alphabetic;
+      padding-block: 12px;
+    }
+  }
   /* The panel snaps open with no transition in its pre-animation state —
      `visibility: visible` cannot be eased, and the bare `{#if open}` guard
      means the element exists for only as long as the chip is expanded.
