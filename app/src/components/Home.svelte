@@ -282,7 +282,7 @@
        than the 19px joystick and receipt on the rows around it. -->
   <div class="under">
     <button class="btn hot playbtn" onclick={() => onplay({ difficulty, bank })}
-      >PLAY <span class="bic">🔥</span></button
+      ><span class="chiplbl">PLAY</span> <span class="bic">🔥</span></button
     >
     <!-- The seed pill sits below PLAY. The compact button swaps for the field
          in place: the pill grows in width but holds its height, so PLAY above
@@ -627,6 +627,16 @@
     padding: 9.4px 12px 8.6px;
     font-size: 17px;
     letter-spacing: 0.04em;
+  }
+  /* The chipbox trade, restated for this one flex button: PLAY rides in a
+     .chiplbl, so where the engine can trim, the label measures its own cap
+     band and flex centering seats it — the hand skew above must stand down or
+     it would push the trimmed band off center. The flame is a bare flex item
+     with no cap band, centered by the box alone, like every chip emoji. */
+  @supports (text-box: trim-both cap alphabetic) {
+    .playbtn {
+      padding-block: 9px;
+    }
   }
   /* PLAY on top, SEED zone below: flex column so opening the seed field
      cannot move PLAY regardless of the zone's height. */
