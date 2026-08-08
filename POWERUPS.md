@@ -73,13 +73,43 @@ Three reads:
   games. The rerolls and Prime Time are not just the mean's engine, they are
   the whole tail: losing any one of the three cuts perfect seasons by
   two-thirds or more.
-- **Double Play is tail-NEGATIVE.** The kit without it perfects more seeds
-  than the full kit (36 vs 26, net −10 paired flips). A double commit sees
-  one fewer card over the game, and on a perfect path every card view is a
-  lottery ticket. Chasing 162–0? Leave Double Play in the drawer.
+- **Double Play is tail-NEGATIVE at the shipped bar.** The kit without it
+  perfects more seeds than the full kit (36 vs 26, net −10 paired flips). A
+  double commit sees one fewer card over the game, and on a perfect path
+  every card view is a lottery ticket. Study 23 below asks whether a
+  stricter bar fixes it.
 - **Hometown stays neutral in the tail too** (net +4 flips, inside noise),
   so its case really does rest on the dream-team/badge angles the caveats
   name, not on score in either lens.
+
+### Does a stricter Double Play bar fix the tail? (Study 23)
+
+The +3.0 bar was tuned for MEAN score, and the natural objection is that a
+player who only doubles up on genuine twin jackpots — a manager AND a player
+both well over par — should beat the ablation. Study 23 sweeps the bar with
+the full kit on the same 5,000 paired seeds
+(`app/tests/bots/last-run-study23.txt`); the bot's candidate values are
+already par-adjusted (each pick's net is measured over its seat's par, the
+manager's over manager EV), so "both above par by X" is exactly what the bar
+means.
+
+| DP bar        | Perfects | Mean  | Net paired flips vs no-DP |
+|---------------|---------:|------:|--------------------------:|
+| +3.0 (shipped)|       26 | 134.9 |                       −10 |
+| +4.5          |       36 | 135.5 |                         0 |
+| +6.0          |       38 | 135.4 |                        +2 |
+| +8.0          |       38 | 134.9 |                        +2 |
+| no Double Play|       36 | 134.1 |                         — |
+
+The tail damage is entirely the loose bar's: at +3.0 the bot doubles up on
+merely-good pairs and pays a card view for them; from +4.5 up Double Play
+stops hurting, and by +6.0 it is a statistical wash (+2 flips is noise on
+~35 events). No bar makes it a tail ENGINE — the best case is "doesn't
+hurt." The mean barely moves across the whole sweep, so strictness costs
+nothing there either. Player rule: chasing 162–0, double up only when both
+picks are huge — roughly +6 over par each, a true twin-jackpot card — or
+leave the powerup in the drawer; and note the shipped +2–3 rule of thumb
+remains right for mean-score play.
 
 ## Where a powerup lands matters: per-seat par values
 

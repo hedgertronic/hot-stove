@@ -321,6 +321,10 @@ export interface BotConfig {
   primeSpecials?: SpecialKey[];
   /** Expert refinements in force (undefined/empty = standard heuristics). */
   expert?: Set<ExpertFeature>;
+  /** ✌️ Double Play bar override: both picks must clear this net (default
+   * DP_MIN, tuned for mean score). Study 23 sweeps it under the 162–0 lens,
+   * where the card-exposure cost of a double commit weighs heavier. */
+  dpMin?: number;
 }
 
 const mgrM = (cfg: BotConfig): number => cfg.mgrMult ?? 0.1;
@@ -838,10 +842,11 @@ function maybeArmDoublePlay(g: Game, d: HarnessData, cfg: BotConfig, pool: Candi
   const plain = pool
     .filter((c) => c.feasible && dpKinds.includes(c.kind))
     .sort((a, b) => b.net - a.net);
+  const dpBar = cfg.dpMin ?? DP_MIN;
   const c1 = plain[0];
-  if (!c1 || c1.net < DP_MIN) return;
+  if (!c1 || c1.net < dpBar) return;
   const c2 = plain.find((c) => {
-    if (c === c1 || c.net < DP_MIN) return false;
+    if (c === c1 || c.net < dpBar) return false;
     if (c.kind !== "sign" || c1.kind !== "sign") return true;
     if (c.p!.id === c1.p!.id) return false;
     // Joint affordability + not fighting over one last seat.
