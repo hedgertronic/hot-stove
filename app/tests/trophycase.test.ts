@@ -82,8 +82,8 @@ describe("badgeCase", () => {
     // progress fraction as something to chase), so they ARE counted alongside
     // 🦉 OUTSCOUTED and the rest. That gap between the two numbers is the
     // assertion.
-    expect(COLLECTIBLE.length).toBe(60);
-    expect(BADGES.length).toBe(77);
+    expect(COLLECTIBLE.length).toBe(63);
+    expect(BADGES.length).toBe(81);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 
@@ -242,7 +242,11 @@ describe("the mode lens (CaseFilter)", () => {
     const lockedOut = COLLECTIBLE.filter((b) => b.banks?.length === 1 && b.banks[0] === "classic");
     expect(lockedOut.map((b) => b.key).sort()).toEqual(["companytown", "flyingblind", "homefield"]);
     const full = badgeCase().total;
-    expect(badgeCase({ banks: ["moneyball"] }).total).toBe(full - lockedOut.length);
+    // 📈 WOULD'VE WON MONEYBALL is locked by its trigger rather than by
+    // mechanics, but carries banks: ["classic", "blankcheck"] for the same
+    // display consequence — a Moneyball-only lens drops it too, while any
+    // lens that includes Blank Check keeps it on the board.
+    expect(badgeCase({ banks: ["moneyball"] }).total).toBe(full - lockedOut.length - 1);
     expect(badgeCase({ banks: ["moneyball", "blankcheck"] }).total).toBe(full - lockedOut.length);
     // Any lens that still includes classic keeps the full denominator, as does
     // an unfiltered bank axis.

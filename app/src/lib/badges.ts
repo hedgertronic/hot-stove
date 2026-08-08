@@ -1,10 +1,12 @@
-import type { Bank } from "./engine.svelte";
+import { MONEYBALL_BUDGET_M, type Bank } from "./engine.svelte";
 import { recordFromTotal } from "./format";
 import { MANAGER_PER_NET_WIN } from "./scoring";
 
 /* The badge set — one table, read by the finale pill row, the share string,
  * and the home trophy case. Adding a badge means adding one BadgeDef and one
- * trigger; nothing else in the app enumerates badges.
+ * trigger; nothing else in the app enumerates badges. Copy, face, key, and
+ * process rules live in BADGES.md at the repo root — every new badge goes
+ * through its checklist.
  *
  * Two rules govern the set:
  *
@@ -114,9 +116,16 @@ export type Rarity = (typeof RARITY_ORDER)[number];
  * the payroll, and nothing on it can be earned by playing better. It exists so
  * a per-axis tally files those four together instead of filing them under
  * `roster` and `era`, where they were the only members that named no player,
- * no season and no club. */
+ * no season and no club.
+ *
+ * `career` is the axis for badges whose subject is the RUN of seasons rather
+ * than any one of them. Both members read one fact off the local history log
+ * (`prevTotal`), resolved in the engine before this game's own row is
+ * appended — the seed flags' sequencing. They stack: gold and losing are
+ * disjoint by arithmetic, so the axis needs no resolver (the ⚖️/⛰️
+ * arrangement — the exclusivity is in the world). */
 export type BadgeAxis =
-  "onfield" | "goal" | "payroll" | "scout" | "roster" | "era" | "meta";
+  "onfield" | "goal" | "payroll" | "scout" | "roster" | "era" | "meta" | "career";
 
 export interface BadgeDef {
   key: string;
@@ -449,6 +458,27 @@ export interface BadgeFacts {
    *
    * Optional for the same reason as `replayedSeed`. */
   sharedSeed?: boolean;
+  /** The PREVIOUS finished season's points total — the newest scored row of
+   * the local history log, read by the engine before this game's own row is
+   * appended (`recordHistory`), exactly the seed flags' sequencing. Quits
+   * carry no total and are skipped: a walked-out season is not a season, so
+   * it neither extends nor breaks a back-to-back run.
+   *
+   * A total rather than a pre-chewed boolean because both career badges press
+   * it through `recordFromTotal`, the same press that stamped that season's
+   * own finale — the badge and the record the player saw that day agree by
+   * construction, and a second career badge added later reads the same fact
+   * instead of asking the engine for another flag.
+   *
+   * Optional for the `age` reason, and it fails safe: absent — a first career
+   * game, a fixture built before the field existed — reads as no previous
+   * season, and neither career badge can fire. */
+  prevTotal?: number;
+  /** Which bank this season was played under. 📈 alone reads it: "would've
+   * won Moneyball" is a counterfactual, and under the real $51.5M cap it is
+   * just the game. Optional for the `age` reason, failing safe: absent reads
+   * as unknown, which earns nothing. */
+  bank?: Bank;
 }
 
 const FARM_TAX_M = 15; // $M over the bankroll before the overrun earns its pill
@@ -1428,6 +1458,40 @@ export const BADGES: BadgeDef[] = [
     freq: 14.7,
     how: "A perfect 162–0 was on the table, and the club let it get away.",
   },
+  /* The counterfactual the payroll box invites all game: the club won big
+   * without ever needing more than the $51.5M the 2002 A's played under.
+   *
+   * The result bar is deliberately 🤏 THE PINCH HITTER's own 95 baseline
+   * wins — one claim at two denominators. 🤏 measures the spend against the
+   * club's OWN cap; this measures it against Moneyball's constant, so a club
+   * under a small owner can hold one without the other. That is also why it
+   * sits on `goal` and stacks rather than joining the exclusive payroll
+   * chain: its benchmark is a season-against-a-target claim, not a fourth
+   * face of the club's own payroll.
+   *
+   * 📈 rather than the elephant: 🐘 is Moneyball's own mode face, and
+   * mode emojis stay out of the badge set (share.test's one-emoji-one-meaning
+   * rule) — the KEY keeps the white-elephant name, the Athletics' own symbol,
+   * where no glyph collision applies. The chart is the sabermetric claim
+   * itself: value per dollar. The LABEL names Moneyball because the
+   * counterfactual is the point; the key stays clear of the mode id
+   * (🦉's naming note above).
+   *
+   * `banks` lists the two banks that can earn it. Under Moneyball itself the
+   * trigger's own gate refuses — not a mechanics impossibility like Clean
+   * House's, but the same display consequence: under a Moneyball lens the
+   * trophy case must not show a silhouette that cannot be aimed at. */
+  {
+    key: "elephant",
+    emoji: "📈",
+    label: "WOULD'VE WON MONEYBALL",
+    name: "Would've Won Moneyball",
+    rarity: "rare",
+    axis: "goal",
+    banks: ["classic", "blankcheck"],
+    freq: null,
+    how: "95 baseline wins or more, spending no more than Moneyball's $51.5M.",
+  },
 
   // ---- payroll: exactly one fires ----
   {
@@ -1664,6 +1728,38 @@ export const BADGES: BadgeDef[] = [
     // the fabricated measurement that field forbids.
     freq: null,
     how: "Five players at 8.0 WAR or better in one club.",
+  },
+  /* 🎒 CARRIED HIM — a gold final record with a below-replacement seat
+   * aboard. Murderers' Row's inversion: that badge counts the great seats,
+   * this one notices the club won gold anyway with a seat that cost it wins.
+   *
+   * Always co-fires with 🕳️ BELOW REPLACEMENT — the same seat, two
+   * verdicts: the citation for wasting it and the brag for winning gold
+   * anyway (the ✊/🚫 arrangement: opposite claims about one fact, both
+   * true, so one club can carry both).
+   *
+   * The STAMP, not the baseline — "gold record" is the color the finale
+   * prints (the record ladder's 155-win top band), and the claim is that the
+   * screen said gold while one seat pulled the other way. Read through the
+   * same `recordFromTotal` press the finale stamps with, the floor rungs'
+   * rule.
+   *
+   * `secret` for 🃏's reason: named on a locked slot it is an instruction
+   * to go sign a bad player, and discovering that the club carried one is
+   * the reward. `ultra` by judgment: a gold stamp is 4.2% of strong-play
+   * games and a negative seat is exactly what strong play avoids, so the
+   * intersection is a real feat — but no bot arm signs negative WAR on
+   * purpose, so there is no measured population behind it. */
+  {
+    key: "carried",
+    secret: true,
+    emoji: "🎒",
+    label: "CARRIED HIM",
+    name: "Carried Him",
+    rarity: "ultra",
+    axis: "roster",
+    freq: null,
+    how: "A gold record with a below-replacement player on the club.",
   },
   /* The name COOPERSTOWN CLASS moves to the badge that means it literally, and
    * the award-points badge it moves off keeps its KEY.
@@ -2564,6 +2660,50 @@ export const BADGES: BadgeDef[] = [
     freq: null,
     how: "Took back three or more moves in one game.",
   },
+
+  // ---- career: the log, not the season — both stack (exclusive by arithmetic) ----
+  /* 🏰 THE DYNASTY — back-to-back gold. The first badge whose subject is
+   * the RUN of seasons: it reads the previous finished season off the log
+   * (`prevTotal`), pressed through `recordFromTotal` so the badge agrees
+   * with the two finales the player actually saw. Gold is the record
+   * ladder's own top band — 155 wins or better stamps in gold — so the claim
+   * is "the screen said gold twice in a row", never a number of this file's
+   * own.
+   *
+   * Named rather than secret, for 💯's reason: it is the direction the
+   * case owes the player — the one badge that says seasons accumulate into
+   * something. `ultra` by judgment rather than measurement (a bot arm plays
+   * one game and can never earn it, so there is no population): a gold stamp
+   * is 4.2% of strong-play games, and two in a row gets no help from
+   * variance. */
+  {
+    key: "dynasty",
+    emoji: "🏰",
+    label: "THE DYNASTY",
+    name: "The Dynasty",
+    rarity: "ultra",
+    axis: "career",
+    freq: null,
+    how: "Back-to-back seasons in the gold band.",
+  },
+  /* 🧱 THE REBUILD — back-to-back losing seasons, the dynasty's dark
+   * twin, reading the same fact through the same press. `ironic` for 💀's
+   * reason: an anti-trophy about a result, anonymous while locked because
+   * its name is an instruction to go lose twice. The word is the joke — a
+   * rebuild is what a front office calls it on purpose. 🧱 bricks, not the
+   * crane: 🏗️ is From the Ground Up's own mode face, and mode emojis stay
+   * out of the badge set (share.test's one-emoji-one-meaning rule). */
+  {
+    key: "rebuild",
+    emoji: "🧱",
+    label: "THE REBUILD",
+    name: "The Rebuild",
+    rarity: "ironic",
+    axis: "career",
+    ironic: true,
+    freq: null,
+    how: "Back-to-back losing seasons.",
+  },
 ];
 
 export const BADGE_BY_KEY: Record<string, BadgeDef> = Object.fromEntries(
@@ -2744,6 +2884,18 @@ export function earnedBadges(f: BadgeFacts): string[] {
     floor.losses > 0
   )
     out.push("gotaway");
+  // 📈 stacks with the payroll chain rather than joining it: its
+  // denominator is Moneyball's own constant, not the club's cap, so it is a
+  // season-against-a-benchmark claim — a goal — and 🤏 can honestly co-fire
+  // (same 95-win bar, different denominator; see the def). The bank gate
+  // fails safe: an absent bank is unknown, and unknown earns nothing.
+  if (
+    f.bank != null &&
+    f.bank !== "moneyball" &&
+    f.spendM <= MONEYBALL_BUDGET_M &&
+    f.baselineWins >= PINCH_WINS
+  )
+    out.push("elephant");
 
   // Four faces of one axis, ordered from busted to stingiest.
   if (f.spendM - f.budgetM >= FARM_TAX_M) out.push("farm");
@@ -2810,6 +2962,12 @@ export function earnedBadges(f: BadgeFacts): string[] {
     if (wars.filter((w) => w >= GOLD_WAR).length >= GOLD_SEATS)
       out.push("gold");
   }
+  // 🎒 — a gold STAMP with a below-replacement seat aboard. The stamp
+  // because "gold record" is the color the finale prints (the floor rungs'
+  // rule); not gated on a full club — carrying one bad seat on a short club
+  // is the same feat.
+  if (recordFromTotal(f.total).tier === "elite" && roster.some((p) => p.war < 0))
+    out.push("carried");
   if (f.awardPoints >= COOPERSTOWN_PTS) out.push("cooperstown");
   // The skipper's chair is one of the four seats, and it is counted the same
   // way a player is. `=== true` rather than a truthiness test because both
@@ -3025,6 +3183,16 @@ export function earnedBadges(f: BadgeFacts): string[] {
   const years = roster.map((p) => p.year);
   if (years.length > 0 && Math.max(...years) - Math.min(...years) >= SPAN_YEARS)
     out.push("fortyyears");
+
+  // ---- career: both read the PREVIOUS finished season through the same
+  // recordFromTotal press that stamped it (prevTotal's note). Gold and
+  // losing are disjoint by arithmetic, so the pair needs no resolver. ----
+  if (f.prevTotal !== undefined) {
+    const prev = recordFromTotal(f.prevTotal);
+    const cur = recordFromTotal(f.total);
+    if (prev.tier === "elite" && cur.tier === "elite") out.push("dynasty");
+    if (prev.wins < prev.losses && cur.wins < cur.losses) out.push("rebuild");
+  }
 
   return out;
 }

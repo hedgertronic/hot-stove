@@ -659,9 +659,14 @@ describe("line width budget", () => {
     // both stack on the roster axis: +2 stackers, and the hole carries a
     // variation selector, so the pair costs the shipped width three.
     // ⏳ TIME CAPSULE stacks on the era axis: +1 stacker, single code point,
-    // +1 to the shipped width.)
-    expect(MAXIMAL).toHaveLength(59);
-    expect(SHIPPED_MAX_LEN).toBe(76);
+    // +1 to the shipped width. 📈 WOULD'VE WON MONEYBALL stacks on the goal
+    // axis and 🎒 CARRIED HIM on the roster axis: +2 stackers, both single
+    // code points, +2 to the shipped width. 🏰 THE DYNASTY and 🧱 THE
+    // REBUILD open the career axis as stackers — exclusive by arithmetic,
+    // not by a chain, so both count toward the ceiling per the rule above —
+    // single code points, +2 more.)
+    expect(MAXIMAL).toHaveLength(63);
+    expect(SHIPPED_MAX_LEN).toBe(80);
     // total 104.3 gives the six-character record; the badge line is index 5.
     const s = shareText({ ...BASE, total: 104.3, badges: MAXIMAL });
     expect(codePoints(s.split("\n")[5])).toBe(SHIPPED_MAX_LEN);
@@ -676,8 +681,9 @@ describe("line width budget", () => {
     // ✳️ → 📼 face change dropped a variation selector, −1; 🎣 and 🧭 (round
     // nine's pair) moved it by one each; ⚓ moved it by one and 🕳️ by two
     // (a variation selector is a code point the line pays for); ⏳ (TIME
-    // CAPSULE) moved it by one more.
-    expect(MAX_LEN).toBe(95);
+    // CAPSULE) moved it by one more; 📈 🎒 🏰 🧱 (the career round's
+    // four) moved it by four, all single code points.
+    expect(MAX_LEN).toBe(99);
     const s = shareText({
       ...BASE,
       total: 104.3,

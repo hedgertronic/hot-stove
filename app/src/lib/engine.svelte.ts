@@ -266,16 +266,14 @@ export interface FinaleResult {
    * scores less than the ceiling printed above it, so "you matched the best club
    * we found" is the honest wording rather than "you were perfect". */
   playedTheCeiling?: boolean;
-  /** True when the player's final win total (from recordFromTotal) strictly
-   * exceeds the dream team's win total from the solver's unclamped answer. The
-   * comparison uses clamped wins [0,162] so it matches what the player reads on
-   * screen — two clubs that both exceed 162 points tie at 162 wins and neither
-   * beats the other. When true, scoutHits is upgraded to the dream club's own
-   * fill count so the scoring doesn't penalise the player for not copying a
-   * club they already beat.
+  /** True when the player's raw point total strictly exceeds the solver's
+   * unclamped answer. Point-based, no [0,162] clamp: a margin too small to
+   * move the on-screen record still counts, so two clubs that both stamp
+   * 162–0 are separated by their totals. When true, scoutHits is upgraded to
+   * the dream club's own fill count so the scoring doesn't penalise the
+   * player for not copying a club they already beat.
    *
-   * NOTE: a badges.ts agent keys a legendary badge off this field. The win
-   * comparison is win-based and clamps at 162 (round 28). */
+   * NOTE: a badges.ts agent keys a legendary badge off this field. */
   beatCeiling?: boolean;
   /** True when the hired manager IS the dream team's manager. */
   managerHit: boolean;
@@ -299,13 +297,15 @@ export interface FinaleResult {
  * (floor-priced players in cheap-floor years list below $1M). */
 export const HOMEGROWN_PRICE_M = 1.0;
 
-/** Decide whether the played club beat the dream team on wins and resolve the
+/** Decide whether the played club beat the dream team and resolve the
  * scout-hit count. Pure function, exported so tests can pin the boundary
  * without running a full game.
  *
- * Comparison uses clamped wins [0,162], matching what the player reads on
- * screen. Two clubs that both exceed 162 points tie at 162 wins and neither
- * beats the other (beatCeiling false). When true, scoutHits upgrades to
+ * Comparison is on raw POINT totals, strictly greater: any margin counts,
+ * even one too small to move the clamped [0,162] record on screen (two
+ * clubs past 162 points both stamp 162–0, but the higher total still
+ * outscouted the lower). Wins derive monotonically from total, so this
+ * subsumes the wins comparison. When true, scoutHits upgrades to
  * Math.max(rawScoutHits, dreamSeats) — monotone, never lowers the count.
  *
  * The caller must pass the INITIAL parts.total (before any scoutHits upgrade)
@@ -318,9 +318,7 @@ export function beatCeilingDecision(
   dreamSeats: number,
 ): { beatCeiling: boolean; scoutHits: number } {
   if (solvedTotal === null) return { beatCeiling: false, scoutHits: rawScoutHits };
-  const pw = recordFromTotal(playerTotal, GAMES, MARINERS_WINS).wins;
-  const dw = recordFromTotal(solvedTotal, GAMES, MARINERS_WINS).wins;
-  const beatCeiling = pw > dw;
+  const beatCeiling = playerTotal > solvedTotal;
   return {
     beatCeiling,
     scoutHits: beatCeiling ? Math.max(rawScoutHits, dreamSeats) : rawScoutHits,
@@ -962,6 +960,24 @@ export class Game {
     return this.card?.manager != null;
   }
 
+  /** Proration factor for a season year — meta.proration carries the short
+   * seasons (1994 ×1.417, 1995 ×1.124, 2020 ×2.706), everything else is 1. */
+  prorationFor(year: number): number {
+    return this.meta.proration[String(year)] ?? 1;
+  }
+
+  /** The hired manager's net wins at full-season strength: (W − L) scaled by
+   * his season's proration factor. Player WAR arrives pre-prorated on the
+   * cards; the manager's record does not, so every scoring read of the dugout
+   * goes through this. Display keeps the raw W–L (43–17); only the win term
+   * scales. Zero with no hire. */
+  get managerNetWins(): number {
+    return this.manager
+      ? (this.manager.wins - this.manager.losses) *
+          this.prorationFor(this.manager.year)
+      : 0;
+  }
+
   /** Open slot indices a player could fill right now, specialist types first. */
   openSlotsFor(p: CardPlayer): number[] {
     const types = eligibleTypes(p);
@@ -1390,7 +1406,8 @@ export class Game {
       this.powerups.prime = "armed";
       // Warm both career indexes NOW, while the player is still choosing a
       // row to browse — the picker's own fetch resolves from cache instead of
-      // starting a ~0.5MB download behind the "Pulling the card file…" note.
+      // starting a ~0.5MB download behind the "🔎 CHECKING THE BACK OF THE
+      // CARD…" note.
       // Fire-and-forget with a swallow: a failed warm just means the picker
       // pays the fetch itself (both loaders self-evict on rejection).
       void loadPlayers().catch(() => {});
@@ -2357,9 +2374,9 @@ export class Game {
       awardLists: players.map((p) => p.awards),
       rings: this.pedigree.rings,
       pennants: this.pedigree.pennants,
-      managerRecord: this.manager
-        ? [this.manager.wins, this.manager.losses]
-        : null,
+      // Prorated net as [net, 0] — the same shape the dream solver feeds
+      // score(); the manager term only ever reads the difference.
+      managerRecord: this.manager ? [this.managerNetWins, 0] : null,
       scoutHits: scoutHitsRaw,
       managerMoty: this.manager?.moty === true,
       wbcChampions: this.pedigree.wbcChampions,
@@ -2384,9 +2401,7 @@ export class Game {
         awardLists: players.map((p) => p.awards),
         rings: this.pedigree.rings,
         pennants: this.pedigree.pennants,
-        managerRecord: this.manager
-          ? [this.manager.wins, this.manager.losses]
-          : null,
+        managerRecord: this.manager ? [this.managerNetWins, 0] : null,
         scoutHits,
         managerMoty: this.manager?.moty === true,
         wbcChampions: this.pedigree.wbcChampions,
@@ -2419,14 +2434,22 @@ export class Game {
     // so the badge can press it through recordFromTotal itself. `undefined`
     // (solve never ran) fails safe — no ceiling, nothing got away.
     const ceilingTotal = solvedTotal ?? undefined;
-    // Seeds this device has already played, read before recordHistory appends
-    // this game's own row (rows without a seed predate the field and can
-    // match nothing).
+    // The log BEFORE this game joins it — recordHistory below appends this
+    // game's own row, so everything read off the log must be read first.
+    const log = loadHistory();
+    // Seeds this device has already played (rows without a seed predate the
+    // field and can match nothing).
     const priorSeeds = new Set(
-      loadHistory()
-        .map((e) => e.seed)
-        .filter((s): s is number => typeof s === "number"),
+      log.map((e) => e.seed).filter((s): s is number => typeof s === "number"),
     );
+    // The previous FINISHED season's points total: the newest scored row.
+    // Quits carry no total and are skipped — a walked-out season is not a
+    // season, so it neither extends nor breaks a back-to-back run. The two
+    // career badges press this through recordFromTotal, the same press that
+    // stamped that season's own finale. Undefined on a first career game.
+    const prevTotal = [...log]
+      .reverse()
+      .find((e) => typeof e.total === "number")?.total;
     const badges = earnedBadges({
       baselineWins: wins,
       baselineLosses: losses,
@@ -2467,10 +2490,9 @@ export class Game {
       ownerLast: this.ownerHiredLast,
       managerLast: this.managerHiredLast,
       // The skipper's own net, never the club's stamp — 🪑 is a verdict on the
-      // chair. Absent dugout reads as zero, which is not under .500.
-      managerNetWins: this.manager
-        ? this.manager.wins - this.manager.losses
-        : 0,
+      // chair. Prorated, so the badges judge the same win term the ledger
+      // prints. Absent dugout reads as zero, which is not under .500.
+      managerNetWins: this.managerNetWins,
       konami: this.konami,
       undone: this.undoUsed,
       redone: this.redone,
@@ -2482,6 +2504,10 @@ export class Game {
       // rolled seed sets neither.
       replayedSeed: this.seedTyped && priorSeeds.has(this.seed),
       sharedSeed: this.seedTyped && !priorSeeds.has(this.seed),
+      prevTotal,
+      // 📈's gate: "would've won Moneyball" is a counterfactual claim, and
+      // under the real cap it is just the game.
+      bank: this.config.bank,
       managerTeam: this.manager?.team ?? null,
       managerYear: this.manager?.year ?? null,
       managerName: this.manager?.name ?? null,

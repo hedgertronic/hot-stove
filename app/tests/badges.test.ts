@@ -1889,6 +1889,7 @@ describe("the how copy names its measure", () => {
       "skipper",
       "hardway",
       "pocket",
+      "elephant",
     ];
     for (const key of baselineKeyed) {
       expect(how(key).toLowerCase()).toContain("baseline wins");
@@ -1955,5 +1956,82 @@ describe("the how copy names its measure", () => {
     for (const b of BADGES) {
       expect(b.how, `${b.key}.how missing terminal period`).toMatch(/\.$/);
     }
+  });
+});
+
+describe("the career axis reads the previous finished season", () => {
+  it("earns nothing without a previous season, however this one went", () => {
+    expect(earnedBadges(f({ total: 160 }))).not.toContain("dynasty");
+    expect(earnedBadges(f({ total: 40 }))).not.toContain("rebuild");
+  });
+
+  it("fires 🏰 only when both stamps sit in the gold band", () => {
+    expect(earnedBadges(f({ total: 160, prevTotal: 158 }))).toContain("dynasty");
+    // A miss on either side of the pair — last season or this one — is a run
+    // of one, and a run of one is not a dynasty.
+    expect(earnedBadges(f({ total: 160, prevTotal: 154 }))).not.toContain("dynasty");
+    expect(earnedBadges(f({ total: 150, prevTotal: 158 }))).not.toContain("dynasty");
+  });
+
+  it("fires 🏗️ only when both seasons finish under .500", () => {
+    expect(earnedBadges(f({ total: 70, prevTotal: 75 }))).toContain("rebuild");
+    expect(earnedBadges(f({ total: 70, prevTotal: 90 }))).not.toContain("rebuild");
+    expect(earnedBadges(f({ total: 90, prevTotal: 70 }))).not.toContain("rebuild");
+    // 81–81 is break-even, not a losing season, on either side of the pair.
+    expect(earnedBadges(f({ total: 81, prevTotal: 70 }))).not.toContain("rebuild");
+    expect(earnedBadges(f({ total: 70, prevTotal: 81 }))).not.toContain("rebuild");
+  });
+
+  it("never fires both — gold and losing are disjoint by arithmetic", () => {
+    for (let total = 0; total <= 162; total += 1) {
+      const got = earnedBadges(f({ total, prevTotal: total }));
+      expect(
+        got.includes("dynasty") && got.includes("rebuild"),
+        `both career badges fired at total ${total}`,
+      ).toBe(false);
+    }
+  });
+});
+
+describe("🐘 WOULD'VE WON MONEYBALL", () => {
+  // 🤏's own 95-win bar on a spend the A's constant covers, in another bank.
+  const win = { baselineWins: 95, baselineLosses: 67, spendM: 51.5 };
+
+  it("fires outside Moneyball on a spend the $51.5M cap would have covered", () => {
+    expect(earnedBadges(f({ ...win, bank: "classic" }))).toContain("elephant");
+    expect(earnedBadges(f({ ...win, bank: "blankcheck" }))).toContain("elephant");
+  });
+
+  it("never fires under the real cap, and fails safe with no bank at all", () => {
+    expect(earnedBadges(f({ ...win, bank: "moneyball" }))).not.toContain("elephant");
+    // A fact set built before the field existed reads as unknown, not classic.
+    expect(earnedBadges(f({ ...win }))).not.toContain("elephant");
+  });
+
+  it("holds both edges: the cap is inclusive, the wins bar is 🤏's own", () => {
+    expect(
+      earnedBadges(f({ ...win, spendM: 51.6, bank: "classic" })),
+    ).not.toContain("elephant");
+    expect(
+      earnedBadges(f({ ...win, baselineWins: 94, bank: "classic" })),
+    ).not.toContain("elephant");
+  });
+});
+
+describe("🎒 CARRIED HIM", () => {
+  const dragged = [...club(7, { war: 9 }), player({ war: -0.5 })];
+
+  it("needs the gold stamp and the below-replacement seat together", () => {
+    expect(earnedBadges(f({ total: 158, roster: dragged }))).toContain("carried");
+    expect(earnedBadges(f({ total: 150, roster: dragged }))).not.toContain("carried");
+    expect(
+      earnedBadges(f({ total: 158, roster: club(8, { war: 9 }) })),
+    ).not.toContain("carried");
+  });
+
+  it("co-fires with 🕳️ — the citation and the brag are one seat", () => {
+    const got = earnedBadges(f({ total: 158, roster: dragged }));
+    expect(got).toContain("belowzero");
+    expect(got).toContain("carried");
   });
 });
