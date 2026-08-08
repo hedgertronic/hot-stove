@@ -47,6 +47,43 @@ Rule of thumb: **don't burn a one-shot for less than ~2–3 points of clear
 gain.** The premium is option value — an unused powerup can still convert a
 future disaster card, and a use spends that insurance.
 
+## Where a powerup lands matters: per-seat par values
+
+The same WAR is not worth the same everywhere, because seats differ in what
+an average card would have given you anyway. "Par" is the mean best eligible
+WAR a random card offers each seat (all 1,188 cards; the game's own
+eligibility rules); a candidate's real value over waiting is roughly
+**his WAR minus his seat's par**.
+
+| Seat | Par (best/card) | p10–p90 | Usable depth/card | 2nd-best | Extra-card gain |
+|------|----------------:|--------:|------------------:|---------:|----------------:|
+| C    |             2.0 | 0.4–4.0 |               2.0 |      0.4 |           +0.80 |
+| RP   |             2.2 | 1.2–3.3 |               6.4 |      1.5 |           +0.47 |
+| OF   |             4.4 | 2.2–6.9 |               4.8 |      2.6 |           +1.05 |
+| SP   |             4.6 | 2.4–7.1 |               5.1 |      3.0 |           +1.05 |
+| IF   |             4.7 | 2.5–7.2 |               5.8 |      3.1 |           +1.01 |
+| FLEX |             5.6 | 3.4–7.8 |              11.7 |      4.1 |           +0.98 |
+
+(IF and SP each seat two: the second seat's par is the 2nd-best column.
+"Extra-card gain" is E[best of two cards] − E[best of one] — the raw WAR one
+more look at the market buys for that seat.)
+
+Two readings, and they point opposite directions:
+
+- **Scarcity says spend premium picks on C.** A 5-WAR catcher is +3.0 over
+  par; the same 5 WAR at FLEX is −0.6 *under* par — FLEX fills itself. When a
+  rare elite C or RP season lands, take it: the option to fix that seat later
+  is the weakest in the game (a 4+ WAR catcher appears on ~10% of cards).
+- **Shopping says don't aim rerolls at C/RP.** Their distributions are
+  compressed, so one more card gains only +0.5–0.8 WAR there vs ~+1.0 at
+  SP/IF/OF. Rerolls hunt the fat-tailed seats; the thin seats are about
+  recognizing the outlier when the reel hands it to you.
+
+Prime Time inverts par again: it pays most where the *career* ceiling beats
+the seat's par hardest, which favors SP (the dataset's top starter seasons
+run 11–13 WAR against a 4.6 par) over RP (top reliever seasons 5–7 against a
+2.2 par).
+
 ## Does the bar change over the game?
 
 In theory yes, in measurement barely. The argument: a powerup unused at the
