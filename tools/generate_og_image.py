@@ -62,6 +62,47 @@ def main() -> None:
         if args.variant == "gameplay":
             page.goto("http://localhost:5173/?og-preview")
             page.wait_for_selector(".og .frame")
+            # Snap every chip to the device-pixel grid before capture. Layout
+            # positions chips at arbitrary fractions — x from name-text widths,
+            # y from Chromium's 1/64px LayoutUnit — so each pill's border ring
+            # and cap edges anti-alias in a different phase and rows read
+            # subtly different depths. Relative-position nudges, NOT transform:
+            # a transform rasterizes the element first and composites it at
+            # the fractional offset, which blurs; relative offsets move the
+            # element before the paint pass, so type rasterizes at the snapped
+            # position. Chips are measured all-before-moved-after because a
+            # moved chip must not shift a sibling's measurement. A live page
+            # re-rasterizes every frame so this only makes sense for a frozen
+            # screenshot, which is why it lives here and not in the app's CSS.
+            page.evaluate(
+                """() => {
+                  // Chromium quantizes text origins at CSS-pixel granularity
+                  // during layout, so what makes a chip's type land centered
+                  // is the chip's CSS-pixel PHASE: a 15px chip whose top sits
+                  // on the half-pixel grid puts its 6px cap-trimmed label at
+                  // an exact integer (y+4.5), where the text snap is a no-op
+                  // and the caps rasterize dead-centered. Chips laid out at
+                  // any other fraction get their type snapped up to 0.5px off
+                  // center, differently per chip. Move every chip onto that
+                  // winning phase (y -> nearest half, x -> nearest integer so
+                  // border rings and glyphs share one AA phase), then squash
+                  // the 1/64px layout noise on the labels themselves.
+                  const snap = (sel, gx, gy) => {
+                    const moves = [...document.querySelectorAll(sel)].map((el) => {
+                      const r = el.getBoundingClientRect();
+                      return [el, Math.round(r.x - gx) + gx - r.x,
+                                  Math.round(r.y - gy) + gy - r.y];
+                    });
+                    for (const [el, dx, dy] of moves) {
+                      el.style.position = 'relative';
+                      el.style.left = `${dx}px`;
+                      el.style.top = `${dy}px`;
+                    }
+                  };
+                  snap('.chipbox, .confirm', 0, 0.5);
+                  snap('.chiplbl', 0, 0);
+                }""",
+            )
         else:
             page.goto(template.resolve().as_uri())
         page.wait_for_timeout(500)  # let the woff2 land
