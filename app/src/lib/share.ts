@@ -125,7 +125,7 @@ export interface ShareInput {
   /** Final points. Drives the record line via `recordFromTotal`. */
   total: number;
   /** The hired manager's win contribution — `ScoreParts.managerWins`, i.e.
-   * (team W − team L) × MANAGER_PER_NET_WIN. `null` when no skipper was
+   * (team W − team L, prorated to 162 games) × MANAGER_PER_NET_WIN. `null` when no skipper was
    * hired. Tiered on the same ladder as WAR, which its ≈ −6…+9 range fits. */
   managerWins: number | null;
   /** WAR per roster slot in SLOT_TYPES order (C, IF, IF, OF, FLEX, SP, SP,

@@ -6,11 +6,11 @@
  * has to remember to check them, and no future event can slip past them.
  *
  * The measurement ID G-35RY8Y6Q5V belongs to the hedgertronic.com GA4
- * property. Hot Stove is served from the same domain at /hot-stove/, so it
- * shares the property with the main site rather than owning a second one.
- * Page-path filtering in GA4 (Analytics > Reports > Pages and screens)
- * distinguishes the two surfaces: paths beginning with /hot-stove/ are the
- * game; everything else is the main site.
+ * property. Hot Stove is served from the same domain at /games/hot-stove/,
+ * so it shares the property with the main site rather than owning a second
+ * one. Page-path filtering in GA4 (Analytics > Reports > Pages and screens)
+ * distinguishes the two surfaces: paths beginning with /games/hot-stove/ are
+ * the game; everything else is the main site.
  *
  * The gtag script is loaded by index.html via the canonical Google snippet.
  * This module does NOT load it — if the script is missing (adblocker,

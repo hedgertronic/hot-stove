@@ -106,7 +106,7 @@
       // one scale for "how good is this", which is why the share string has
       // always printed the manager cell in the players' own six hues. Inventing
       // wins-specific breakpoints would put three ladders on one number.
-      const wins = (c.wins - c.losses) * MANAGER_PER_NET_WIN;
+      const wins = (c.wins - c.losses) * c.prorated * MANAGER_PER_NET_WIN;
       out.push({
         key: "manager",
         cls: "skip",

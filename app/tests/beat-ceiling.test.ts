@@ -1,19 +1,15 @@
 /** Unit tests for beatCeilingDecision — the pure function that decides whether
- * the played club beat the dream team on wins and resolves the scout-hit count.
+ * the played club beat the dream team and resolves the scout-hit count.
  *
- * beatCeiling is TRUE when the player's clamped win total (recordFromTotal of
- * parts.total) strictly exceeds the dream team's clamped win total (same
- * ladder applied to the solver's unclamped answer). Strict greater-than only:
- * a tie is not a win.
+ * beatCeiling is TRUE when the player's raw point total strictly exceeds the
+ * solver's unclamped answer. Point-based, no [0,162] clamp: a margin too
+ * small to move the on-screen record still counts, so two clubs that both
+ * stamp 162–0 are separated by their totals. Strict greater-than only: a tie
+ * is not a win.
  *
  * When true, scoutHits upgrades to Math.max(rawScoutHits, dreamSeats) so the
  * scoring doesn't penalise the player for not copying a club they already beat.
- * Math.max guarantees monotonicity — the upgrade never lowers the count.
- *
- * The clamping means two clubs both above 162 points both read 162 wins and
- * neither beats the other (beatCeiling false, beatDream can still be true).
- * The badge agent keying off beatCeiling should know it is win-based and
- * clamps at 162 (round 28). */
+ * Math.max guarantees monotonicity — the upgrade never lowers the count. */
 import { describe, expect, it } from "vitest";
 import { beatCeilingDecision, beatDreamDecision } from "../src/lib/engine.svelte";
 
@@ -26,24 +22,29 @@ const store = new Map<string, string>();
 };
 
 describe("beatCeilingDecision", () => {
-  it("player wins > dream wins → beatCeiling true, scoutHits upgraded", () => {
-    // Player 120 points (~120 wins), dream 100 points (~100 wins)
+  it("player total > dream total → beatCeiling true, scoutHits upgraded", () => {
     const result = beatCeilingDecision(120, 100, 4, 9);
     expect(result.beatCeiling).toBe(true);
     expect(result.scoutHits).toBe(9); // upgraded to dreamSeats
   });
 
-  it("player wins === dream wins → beatCeiling false, scoutHits unchanged", () => {
-    // Both round to the same integer wins — tie is not a win
-    const result = beatCeilingDecision(100.3, 100.4, 4, 9);
+  it("player total === dream total → beatCeiling false, scoutHits unchanged", () => {
+    const result = beatCeilingDecision(100.4, 100.4, 4, 9);
     expect(result.beatCeiling).toBe(false);
     expect(result.scoutHits).toBe(4);
   });
 
-  it("player wins < dream wins → beatCeiling false, scoutHits unchanged", () => {
+  it("player total < dream total → beatCeiling false, scoutHits unchanged", () => {
     const result = beatCeilingDecision(95, 110, 7, 9);
     expect(result.beatCeiling).toBe(false);
     expect(result.scoutHits).toBe(7);
+  });
+
+  it("same clamped wins, higher total → beatCeiling true", () => {
+    // 100.4 and 100.3 both stamp 100 wins on screen; the margin still counts.
+    const result = beatCeilingDecision(100.4, 100.3, 4, 9);
+    expect(result.beatCeiling).toBe(true);
+    expect(result.scoutHits).toBe(9);
   });
 
   it("solvedTotal null (offline mid-game) → beatCeiling false, scoutHits unchanged", () => {
@@ -52,15 +53,18 @@ describe("beatCeilingDecision", () => {
     expect(result.scoutHits).toBe(5);
   });
 
-  it("both totals clamp to 162 wins — tie, beatCeiling false even if beatDream true", () => {
-    // Player 175 points, dream 180 points: both exceed 162 games cap → 162 wins each
-    const result = beatCeilingDecision(175, 180, 6, 9);
-    expect(result.beatCeiling).toBe(false);
-    expect(result.scoutHits).toBe(6); // unchanged despite player beating dream in points
+  it("both stamp 162–0 — the higher total still wins", () => {
+    // Player 180 points, dream 175: both read 162 wins on screen, but the
+    // point comparison is unclamped.
+    const above = beatCeilingDecision(180, 175, 6, 9);
+    expect(above.beatCeiling).toBe(true);
+    expect(above.scoutHits).toBe(9);
+    const below = beatCeilingDecision(175, 180, 6, 9);
+    expect(below.beatCeiling).toBe(false);
+    expect(below.scoutHits).toBe(6);
   });
 
-  it("exactly one point above the dream wins boundary → beatCeiling true", () => {
-    // Player rounds to 101 wins, dream rounds to 100 wins
+  it("exactly one point above the dream total → beatCeiling true", () => {
     const result = beatCeilingDecision(101, 100, 3, 8);
     expect(result.beatCeiling).toBe(true);
     expect(result.scoutHits).toBe(8);

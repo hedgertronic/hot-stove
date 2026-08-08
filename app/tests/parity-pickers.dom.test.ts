@@ -213,6 +213,40 @@ describe("every sheet's two exits", () => {
   }
 });
 
+describe("the Help sheet's report action", () => {
+  it("opens a GitHub issue with the live game code and environment context", async () => {
+    const ui = open(HelpModal, { gameLog: "2TESTLOG-ABC" });
+    const report = ui.target.querySelector<HTMLAnchorElement>(
+      'a[aria-label="Report a bug on GitHub"]',
+    );
+    expect(report).not.toBeNull();
+    expect(report?.target).toBe("_blank");
+    expect(report?.rel).toContain("noopener");
+
+    const url = new URL(report!.href);
+    expect(url.origin + url.pathname).toBe(
+      "https://github.com/hedgertronic/hot-stove/issues/new",
+    );
+    expect(url.searchParams.get("title")).toBe("Bug: ");
+    expect(url.searchParams.get("body")).toContain("`2TESTLOG-ABC`");
+    expect(url.searchParams.get("body")).toContain("### Browser");
+    expect(url.searchParams.get("body")).toContain("### Page");
+    await ui.done();
+  });
+
+  it("still opens a useful blank report when no game is available", async () => {
+    localStorage.removeItem("hotstove.current");
+    localStorage.removeItem("hotstove.finale");
+    const ui = open(HelpModal, {});
+    const report = ui.target.querySelector<HTMLAnchorElement>(
+      'a[aria-label="Report a bug on GitHub"]',
+    );
+    const body = new URL(report!.href).searchParams.get("body");
+    expect(body).toContain("No game code was available.");
+    await ui.done();
+  });
+});
+
 describe("the help sheet teaches with the real parts", () => {
   it("renders a market row, rail seats, both payroll faces, pills, and badges", async () => {
     const ui = open(HelpModal, {});

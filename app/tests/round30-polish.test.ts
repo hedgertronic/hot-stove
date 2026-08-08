@@ -41,7 +41,7 @@ describe("the front office wears teal / orange, on both of its surfaces", () => 
   });
 
   it("the owner's bright gold is gone from the tile", () => {
-    // --yellow may live on elsewhere (BETA pill, badge rarity); what it may
+    // --yellow may live on elsewhere (badge rarity); what it may
     // not do is fill the owner row again.
     const srow = rows.match(/\.srow \{[^}]*\}/)?.[0] ?? "";
     expect(srow).not.toContain("--yellow");

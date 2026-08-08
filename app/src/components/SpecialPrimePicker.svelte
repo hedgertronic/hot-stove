@@ -76,8 +76,12 @@
             // contribution is measured in wins and the ladder is the game's one
             // scale for "how good is this", which is why the share string has
             // always printed the manager cell in the players' own six hues.
-            val: game.scout ? "" : statValue((s.w - s.l) * MANAGER_PER_NET_WIN),
-            tier: game.showWar ? warTier((s.w - s.l) * MANAGER_PER_NET_WIN) : "",
+            val: game.scout
+              ? ""
+              : statValue((s.w - s.l) * game.prorationFor(s.year) * MANAGER_PER_NET_WIN),
+            tier: game.showWar
+              ? warTier((s.w - s.l) * game.prorationFor(s.year) * MANAGER_PER_NET_WIN)
+              : "",
             here: s.team === c.team && s.year === c.year,
           }));
       } catch {
@@ -121,7 +125,8 @@
   {#if failed}
     <div class="picker-note">Couldn't load the career. Try again.</div>
   {:else if rows === null}
-    <div class="picker-note">Pulling the file…</div>
+    <!-- Identical to PrimePicker's loading note, deliberately. -->
+    <div class="picker-note busy">🔎 CHECKING THE BACK OF THE CARD…</div>
   {:else if rows.length === 0}
     <div class="picker-note">No seasons on file for this manager.</div>
   {:else}

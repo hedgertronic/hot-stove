@@ -417,7 +417,10 @@ function cardItems(card: Card): Item[] {
       });
   }
   if (card.manager != null) {
-    const netWins = card.wins - card.losses;
+    // Net wins at full-season strength — the card's proration factor scales
+    // short seasons (2020 ×2.706) the same way player WAR already arrives
+    // scaled, so the solver prices the dugout on the engine's own terms.
+    const netWins = (card.wins - card.losses) * card.prorated;
     const moty = card.managerMoty === true;
     items.push({
       type: MGR_TYPE,

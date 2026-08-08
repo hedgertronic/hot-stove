@@ -262,6 +262,15 @@
    * and it returns
    * before a single timer is created, which is why there is nothing to clean
    * up. */
+  // Re-asserts App.svelte's phase-flip scroll from AFTER this DOM has
+  // replaced the game's: the flip's own scrollTo can land while the taller
+  // game page is still mounted, and some mobile browsers then re-anchor
+  // mid-page. The document is the scroller (see the .brail note below), so
+  // window scroll is the whole reset. No reactive reads — runs once on mount.
+  $effect(() => {
+    window.scrollTo(0, 0);
+  });
+
   $effect(() => {
     if (reduced || resolved) {
       dispWins = fin.parts.expectedWins;
