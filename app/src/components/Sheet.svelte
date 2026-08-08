@@ -221,6 +221,10 @@
     min-height: 0;
     overflow-y: auto;
     margin-top: 12px;
+    /* This box is the clip edge, and a chip pressed on its bottom row dips
+       1.5px (.pickopt:active) — flush content would have its border shaved
+       mid-press. 2px clears the dip plus sub-pixel rounding. */
+    padding-bottom: 2px;
   }
   .head {
     flex: none;
