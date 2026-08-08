@@ -583,8 +583,15 @@
   }
   /* The masthead line: <Logo big> here, its hand-inlined twin in the static
      card. The wrapper exists because Logo is inline-flex and the h1 twin
-     needs a matching block seat to center in. */
+     needs a matching block seat to center in. A FLEX seat, specifically: as
+     inline content the lockup rode the wrapper's 16px text strut on its
+     baseline, which hung 2px of strut descent under it — the one seat the
+     static h1 (line-height 1, no strut) doesn't have, so the static→app
+     handoff dropped the masthead 2px. A flex item rides no strut, and the
+     two cards measure y-identical. */
   .bootmast {
+    display: flex;
+    justify-content: center;
     color: var(--ink);
   }
   /* Loading UI held back behind a pure-CSS delay: opacity only (no layout

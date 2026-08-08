@@ -17,7 +17,11 @@
          one to become visible — without this override it would rest at
          opacity 0 forever and a slow load would read as hung. Immediately
          visible is the correct degradation of "fades in later". -->
-    <style>html{background:#f6f1e3}@keyframes hsboot{to{opacity:1}}@media (prefers-reduced-motion:reduce){#warmline{opacity:1 !important}}</style>
+    <!-- body{margin:0} + #app's own top padding, inlined: the static card
+         must sit in app.css's geometry BEFORE app.css exists, or the boot
+         handoff drops 2px (UA body margin 8 vs the app shell's 10px + safe
+         area). Same values as app.css's body/#app rules; change together. -->
+    <style>html{background:#f6f1e3}body{margin:0}#app{padding-top:calc(10px + env(safe-area-inset-top))}@keyframes hsboot{to{opacity:1}}@media (prefers-reduced-motion:reduce){#warmline{opacity:1 !important}}</style>
     <!-- Nunito rides a render-blocking stylesheet whose bytes ARE the font
          (data URI), so the boot masthead can never paint in the fallback
          face and jump — the full argument lives at the top of the file.
@@ -71,9 +75,12 @@
     />
     <meta property="og:image" content="https://hedgertronic.com/games/hot-stove/og-image.png" />
     <!-- Width/height let Facebook draw the card on the FIRST share, before its
-         scrape completes — on a launch, the first share is the one that spreads. -->
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+         scrape completes — on a launch, the first share is the one that spreads.
+         The stated size is the PNG's actual pixels (a 3x render of the
+         1200x630 card; see tools/generate_og_image.py) — scrapers lay the
+         card out from these numbers, so they must match the file. -->
+    <meta property="og:image:width" content="3600" />
+    <meta property="og:image:height" content="1890" />
     <meta property="og:image:alt" content="Hot Stove — a baseball roster-drafting game" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@hedgertronic" />
@@ -135,10 +142,12 @@
            jump. -->
       <!-- The HOME masthead, hand-inlined: Logo.svelte's big boiler-and-wordmark
            lockup (HOT in heat orange, STOVE in ink). Every value is the
-           component's own — 34px/800,
-           0.01em tracking, 8px gap; boiler 28×37px with a 2px optical lift;
+           component's own — brand.css .hs-logo--home: 40px/800,
+           0.01em tracking, 9px gap; boiler 33×44px with a 2.4px optical lift;
            so the swap to App.svelte's real <Logo big/> card is
-           pixel-still. Hexes are app.css tokens inlined
+           pixel-still. A brand.css resize MUST land here too or the boot
+           handoff jumps sizes — it shipped at 34px against a 40px home
+           lockup once. Hexes are app.css tokens inlined
            (--ink/--orange-8); change them together. The font stack is
            --disp minus the flag face:
            nunito.css in <head> is paint-blocking and carries the font as a
@@ -147,7 +156,7 @@
            1 on both cards, stated rather than inherited — the UA default and
            app.css would otherwise disagree. -->
       <div id="static-boot" style="max-width: 480px; margin: 0 auto; padding: 38vh 24px 0; text-align: center; font-family: 'Nunito', ui-rounded, 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif; line-height: 1; color: #24221c">
-        <h1 style="display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 34px; font-weight: 800; letter-spacing: 0.01em"><svg xmlns="http://www.w3.org/2000/svg" viewBox="13 1.5 74 95" aria-hidden="true" style="width: 28px; height: 37px; flex: none; transform: translateY(-2px)"><!-- B6 full potbelly, flared legs (short cut), elliptical belly — mirrors
+        <h1 style="display: inline-flex; align-items: center; gap: 9px; margin: 0; font-size: 40px; font-weight: 800; letter-spacing: 0.01em"><svg xmlns="http://www.w3.org/2000/svg" viewBox="13 1.5 74 95" aria-hidden="true" style="width: 33px; height: 44px; flex: none; transform: translateY(-2.4px)"><!-- B6 full potbelly, flared legs (short cut), elliptical belly — mirrors
        Logo.svelte; canonical source: design/logo/boiler-b6-flared.svg. --><rect x="44" y="6" width="12" height="13" rx="2" fill="#57534a" stroke="#24221c" stroke-width="4"/><rect x="40" y="16" width="20" height="6" rx="2" fill="#24221c"/><rect x="34.2" y="77" width="6.8" height="16" rx="3.2" transform="rotate(14 37.6 85)" fill="#24221c"/><rect x="59" y="77" width="6.8" height="16" rx="3.2" transform="rotate(-14 62.4 85)" fill="#24221c"/><ellipse cx="50" cy="56" rx="32" ry="29" fill="#57534a" stroke="#24221c" stroke-width="5"/><path d="M36 70V54a14 14 0 0 1 28 0v16Z" fill="#f6f1e3" stroke="#24221c" stroke-width="4" stroke-linejoin="round"/><g transform="translate(35.91,43.72) scale(.28)"><path d="M50 6c7 15 24 21 24 44a24 24 0 0 1-48 0c0-9.4 4.2-16 8.6-21.4-.4 8.8 2.6 13.6 7.6 14.7C38.6 30 43.3 14.8 50 6Z" fill="#ff922b" stroke="#24221c" stroke-width="7.5" stroke-linejoin="round"/></g><circle cx="68.5" cy="61" r="2.6" fill="#24221c"/></svg><span><span style="color: #e8590c">HOT</span>STOVE</span></h1>
         <!-- .bootline's twin (16px/700 muted, 22px above): the app card's
              warming line lands in this exact seat, so a slow load reads as
