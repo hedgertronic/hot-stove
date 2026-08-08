@@ -30,7 +30,7 @@ This is the release source of truth. Check an item only after it has been verifi
 - [x] Update `README.md` to use the canonical `/games/hot-stove/` URL and current gameplay/branding copy.
 - [x] Bring the static `404.html` shell into visual parity with the live home screen.
 - [x] Reconcile completed migration items in `MIGRATION.md` and point future release work here.
-- [ ] Confirm the home, game, Help, finale, and restored-finale screens at phone and desktop widths.
+- [x] Confirm the home, game, Help, finale, and restored-finale screens at phone and desktop widths.
 - [x] Confirm keyboard focus, reduced motion, and screen-reader labels for the new links and report action.
 
 ## Release verification
@@ -43,7 +43,7 @@ This is the release source of truth. Check an item only after it has been verifi
 - [x] Commit and push the Hot Stove release intentionally.
 - [x] Commit and push the hedgertronic.com Games link intentionally.
 - [x] Deploy Hot Stove, then the website link.
-- [ ] Smoke-test the production home, one complete game, Help/report, finale, and both reciprocal links.
+- [x] Smoke-test the production home, one complete game, Help/report, finale, and both reciprocal links.
 - [ ] Refresh the X and Facebook card validators after the final OG image is live.
 - [ ] Request re-indexing in Google Search Console and verify the canonical URL and sitemap entry.
 - [x] Verify the legacy `/hot-stove/` redirect still resolves to `/games/hot-stove/`.
