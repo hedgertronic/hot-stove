@@ -36,6 +36,19 @@ jobs:
         working-directory: app
       - run: npm test
         working-directory: app
+      # The ink probe: real-browser typography gate. Renders the chip and
+      # button recipes in Chromium and fails the deploy when any label's cap
+      # band sits off its container's center — the regression class unit
+      # tests can't see. The browser binary caches on the lockfile hash, so
+      # steady-state cost is a few seconds.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('app/package-lock.json') }}
+      - run: npx playwright install --with-deps chromium
+        working-directory: app
+      - run: npm run test:ink
+        working-directory: app
       # public/data is a symlink into ../../data — the build copies it into
       # dist/data, so the bundle is fully self-contained.
       - run: npm run build

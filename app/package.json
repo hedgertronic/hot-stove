@@ -11,13 +11,16 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:ink": "node tests/probe/ink-centering.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "7.2.0",
     "@tsconfig/svelte": "5.0.8",
     "@types/canvas-confetti": "1.9.0",
     "jsdom": "29.1.1",
+    "playwright": "1.62.1",
+    "pngjs": "7.0.0",
     "svelte": "5.56.8",
     "svelte-check": "4.7.4",
     "typescript": "6.0.3",
