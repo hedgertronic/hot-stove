@@ -40,13 +40,13 @@ This is the release source of truth. Check an item only after it has been verifi
 - [x] Run the production build and inspect its asset paths under `/games/hot-stove/`.
 - [x] Run the hedgertronic.com unit tests and production build.
 - [x] Review the scoped diffs in both repositories; preserve unrelated work.
-- [ ] Commit and push the Hot Stove release intentionally.
-- [ ] Commit and push the hedgertronic.com Games link intentionally.
-- [ ] Deploy Hot Stove, then the website link.
+- [x] Commit and push the Hot Stove release intentionally.
+- [x] Commit and push the hedgertronic.com Games link intentionally.
+- [x] Deploy Hot Stove, then the website link.
 - [ ] Smoke-test the production home, one complete game, Help/report, finale, and both reciprocal links.
 - [ ] Refresh the X and Facebook card validators after the final OG image is live.
 - [ ] Request re-indexing in Google Search Console and verify the canonical URL and sitemap entry.
-- [ ] Verify the legacy `/hot-stove/` redirect still resolves to `/games/hot-stove/`.
+- [x] Verify the legacy `/hot-stove/` redirect still resolves to `/games/hot-stove/`.
 
 ## Post-launch, not blocking
 
