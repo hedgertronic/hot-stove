@@ -564,6 +564,16 @@
     font-size: 12px;
     padding: 7px 16px;
   }
+  /* The .btn trim branch's other half, owed here because the scoped padding
+     above outranks the recipe's re-derived pair. The trim itself arrives from
+     .btn; this pair re-derives the same 37.6px the 1.55 leading built —
+     2.5 + 12.07 + 8.46 + 12.07 + 2.5 — with the cap band centered by
+     construction. */
+  @supports (text-box: trim-both cap alphabetic) {
+    .sheetbtn {
+      padding-block: 12.07px;
+    }
+  }
   /* The finale manages its own page-level layout; box each instance so
      several can stack in one gallery. Wide (≥760px): break out of the lab's
      540px column so the finale renders its true two-column layout. */

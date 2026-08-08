@@ -125,8 +125,8 @@
    IT DESCRIBES ALL-CAPS TEXT AND DIGITS ONLY. Both sit in one band — measured
    out of the file, flat caps run 0 to 705, round caps and digits overshoot to
    −8/713, so the band's center lands on cap-height/2 either way. A mixed-case
-   label (the .btn row, a player's name) has real descenders, and for those the
-   box's own middle is already the honest target. */
+   label (a player's name) has real descenders, and for those the box's own
+   middle is already the honest target. */
 
 /* The rounded display face (Nunito — ui-rounded is Safari-only; Chrome would
    fall back to Hiragino Maru Gothic) is NOT declared here: its @font-face
@@ -389,6 +389,28 @@ button {
   background: var(--orange-2);
   border-color: var(--orange-8);
   color: var(--ink);
+}
+/* THE BUTTON'S OWN TRIM BRANCH — the atomic trade the chipbox recipe below
+   makes, restated for the shared button. The 9px pair above stands a 14px
+   line box on the body's 1.55 leading, which is the same guess about where an
+   engine seats a baseline that every hand constant is — measured in Chromium,
+   the caps ride about two thirds of a pixel high on it. A plain .btn is a
+   block container laying out its own inline label, so the trim lands on the
+   button itself with no label wrapper: the content box becomes the cap band
+   (0.705em: 9.87px at 14px type) and SYMMETRIC padding re-derives the same
+   44.7px the leading built — 2.5 + 14.915 + 9.87 + 14.915 + 2.5 — with the
+   band centered by construction. On a flex .btn (the .btnrow cells, Home's
+   PLAY) the property is a silent no-op — bare text there is an anonymous flex
+   item the trim cannot reach — so those labels ride in a `.chiplbl` and the
+   chipbox branch below is what trims them; their symmetric padding is a
+   minimum around the label, not a seat, and stands in both branches. A .btn
+   that re-spells its own vertical padding (Sheet's cancel, the lab's sheet
+   buttons) outranks this padding and carries its own branch beside it. */
+@supports (text-box: trim-both cap alphabetic) {
+  .btn {
+    text-box: trim-both cap alphabetic;
+    padding-block: 14.915px;
+  }
 }
 
 /* ---------- the button glyph ----------

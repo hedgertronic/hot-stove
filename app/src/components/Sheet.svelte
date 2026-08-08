@@ -313,6 +313,17 @@
     padding: 8px;
     margin-top: 12px;
   }
+  /* The .btn trim branch's other half, owed here because the scoped 8px above
+     outranks the recipe's re-derived padding. The trim itself arrives from
+     .btn; this pair re-derives the same 41.15px the 1.55 leading built —
+     2.5 + 13.4925 + 9.165 + 13.4925 + 2.5 — so the label's cap band sits
+     centered by construction and the sheet's footer stands exactly as tall
+     as before. */
+  @supports (text-box: trim-both cap alphabetic) {
+    .cancel {
+      padding-block: 13.4925px;
+    }
+  }
   /* Wide: a bottom sheet reads phone-y — center it as a cardstock modal. */
   @media (min-width: 760px) {
     .backdrop {

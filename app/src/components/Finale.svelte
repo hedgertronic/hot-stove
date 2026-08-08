@@ -794,18 +794,29 @@
      RUN IT BACK, not "Replay". The button starts a NEW season in the same mode
      on a fresh seed — it does not replay anything, and "replay" is the exact
      word for what the seed chip below it actually does. It is also the widest
-     of the three labels, which is why the row pins `white-space` below. -->
+     of the three labels, which is why the row pins `white-space` below.
+     Each label rides in a `.chiplbl`, like PLAY's on the home screen: the
+     cells are flex boxes, so a bare label is an anonymous flex item the cap
+     trim cannot reach (app.css's chipbox doctrine), and wrapped it is a block
+     container the trim seats on center. The glyphs stay bare flex items —
+     no cap band, centered by the box alone. -->
 <div class="btnrow fin-actions">
   {#if replay}
-    <button class="btn ghost disp" onclick={onmodes}>BACK <span class="bic">↩️</span></button>
+    <button class="btn ghost disp" onclick={onmodes}
+      ><span class="chiplbl">BACK</span> <span class="bic">↩️</span></button
+    >
   {:else}
-    <button class="btn ghost disp" onclick={onmodes}>MODES <span class="bic">🕹️</span></button>
-    <button class="btn disp" onclick={onreplay}>RUN IT BACK <span class="bic">🔄</span></button>
+    <button class="btn ghost disp" onclick={onmodes}
+      ><span class="chiplbl">MODES</span> <span class="bic">🕹️</span></button
+    >
+    <button class="btn disp" onclick={onreplay}
+      ><span class="chiplbl">RUN IT BACK</span> <span class="bic">🔄</span></button
+    >
   {/if}
   <button class="btn hot disp" onclick={share}>
-    {#if shareState === "idle"}SHARE <span class="bic">📣</span>{:else if shareState === "copied"}COPIED <span
-        class="bic">🔥</span
-      >{:else}COPY FAILED{/if}
+    {#if shareState === "idle"}<span class="chiplbl">SHARE</span> <span class="bic">📣</span
+      >{:else if shareState === "copied"}<span class="chiplbl">COPIED</span> <span class="bic">🔥</span
+      >{:else}<span class="chiplbl">COPY FAILED</span>{/if}
   </button>
 </div>
 
