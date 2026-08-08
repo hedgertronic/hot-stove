@@ -113,7 +113,6 @@
     const page = typeof location === "undefined" ? "Unavailable" : location.href;
     const body = [
       "### What happened?",
-      "",
       "Tell us what you expected and what happened instead.",
       "",
       "### Game code",
