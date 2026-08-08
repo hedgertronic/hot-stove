@@ -1,24 +1,28 @@
-name: Deploy to GitHub Pages
+name: Deploy to Cloudflare Workers
 
 on:
   push:
     branches: [main]
-    # Docs and design mocks never reach dist/ — skip the deploy for them.
+    # Docs and design mocks never reach dist/ — skip the run for them.
     paths-ignore: ["**.md", "design/**"]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: deploy
   cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    # Job-level because step `if:` can read the env context but not secrets —
+    # this is how the Deploy step knows whether the token exists yet.
+    # Account ID is not a secret; inlining it keeps the token the only setup.
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: 6d63b4357cfd12a3d5aaa31e5b5d6863
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,19 +36,15 @@ jobs:
         working-directory: app
       - run: npm test
         working-directory: app
+      # public/data is a symlink into ../../data — the build copies it into
+      # dist/data, so the bundle is fully self-contained.
       - run: npm run build
         working-directory: app
-      # public/data is a symlink into ../../data — the build copies it into
-      # dist/data, so the artifact is fully self-contained.
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: app/dist
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      # The lockfile-pinned wrangler pushes dist/ + worker.js to the
+      # hot-stove Worker (hedgertronic.com/games/hot-stove*). Skips — green,
+      # not red — until the CLOUDFLARE_API_TOKEN repo secret exists, so CI
+      # still gates every push in the meantime.
+      - name: Deploy
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        run: npx wrangler deploy
+        working-directory: app
