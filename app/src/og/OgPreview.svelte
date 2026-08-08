@@ -118,8 +118,18 @@
     flex-direction: column;
   }
   .seats { gap: 7px; }
-  .rows { gap: 8px; }
+  /* 9px, not 8: with the banner pinned to 62 the market column leaves the
+     rows container exactly 174px, and (174 − 2×9) / 3 = 52 — three WHOLE-pixel
+     rows. At 8 the flexed rows came out 52.797px each, so every row's award
+     pills started at a different fraction of a device pixel and the
+     rasterizer seated each row's type at a different depth (row 3 ran 0.8px
+     low in the shipped card). Gameplay never sees this: its market rows are
+     content-sized, not flex-stretched. */
+  .rows { gap: 9px; }
   .market :global(.banner) {
+    /* Whole-pixel pin over the natural 61.594px — the first fractional link
+       in the chain that made every row below it start off-grid. */
+    height: 62px;
     margin-bottom: 10px;
   }
   .prow {
