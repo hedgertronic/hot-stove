@@ -273,11 +273,14 @@
      baseline differently and the digits rode visibly LOW on a phone. The
      recipe's trim branch measures the cap band per engine instead, and its
      fallback spends the one shared 0.047em constant — never this pill's own.
-     25.55px is exactly the height the pill has always occupied, pinned
-     because the banner's two lines have a fixed rhythm and the reel
-     animates this element. */
+     26px, not the 25.55px the pill historically occupied: the recipe's
+     whole-pixel rule is load-bearing here too. A fractional height puts the
+     box's midline on a fraction of a device pixel, and at 1x — the OG card,
+     any non-retina desktop — the double rounding seated the digits a whole
+     pixel high inside the pill (5px of air above the ink, 7px below, in the
+     shipped social card). The banner's rhythm absorbs the 0.45px. */
   .yr {
-    --chip-h: 25.55px;
+    --chip-h: 26px;
     --accent: var(--blue);
     background: color-mix(in srgb, var(--accent) 18%, var(--card));
     border: 2px solid var(--accent);

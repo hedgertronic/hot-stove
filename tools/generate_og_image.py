@@ -48,7 +48,17 @@ def main() -> None:
     output = FINAL if args.final else GAMEPLAY_PREVIEW if args.variant == "gameplay" else PREVIEW
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1200, "height": 630})
+        # 3x, because low-density rasterization is where sub-pixel chip
+        # geometry goes to die. At 1x the year pill's digits landed a whole
+        # pixel high inside their box (5px of air above the ink, 7px below,
+        # in the shipped artifact), and at any density each row's fractional
+        # page position quantizes small type by up to half a device pixel —
+        # the probe tool's ±0.4px band. Resolution is the only lever that
+        # shrinks that band (±0.50 at 1x, ±0.25 at 2x, ±0.17 here); scrapers
+        # consume the card at 1200x630 logical regardless.
+        page = browser.new_page(
+            viewport={"width": 1200, "height": 630}, device_scale_factor=3
+        )
         if args.variant == "gameplay":
             page.goto("http://localhost:5173/?og-preview")
             page.wait_for_selector(".og .frame")
