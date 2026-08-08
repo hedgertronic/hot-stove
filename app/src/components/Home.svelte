@@ -7,6 +7,7 @@
   import { bestFor } from "../lib/settings";
   import CornerButtons from "./CornerButtons.svelte";
   import Logo from "./Logo.svelte";
+  import MakerLink from "./MakerLink.svelte";
   import SeasonsModal from "./SeasonsModal.svelte";
 
   let {
@@ -213,13 +214,10 @@
 
 <div class="home disp">
   <CornerButtons home />
+  <MakerLink />
 
   <div class="mast">
     <Logo big />
-    <!-- The pitch, one breath long: what a spin deals, what you do with it,
-         and what the season is for. Three two-word sentences so the whole
-         thing holds one line on a phone. -->
-    <p class="pitch">Spin for teams. Sign players. Chase 162 wins.</p>
   </div>
 
   <!-- The ladder measures how much baseball you already know, not how hard the
@@ -412,17 +410,6 @@
   .mast {
     text-align: center;
     margin-bottom: 26px;
-  }
-  /* The subtitle wears the same caps-meta voice as the mode rows' right-hand
-     labels — a caption, not a headline, so the logo keeps the masthead. */
-  .pitch {
-    margin: 8px auto 0;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    color: var(--muted);
   }
   .rows {
     display: grid;

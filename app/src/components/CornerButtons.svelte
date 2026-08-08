@@ -200,7 +200,7 @@
 {/if}
 
 {#if helpOpen}
-  <HelpModal onclose={() => (helpOpen = false)} />
+  <HelpModal onclose={() => (helpOpen = false)} gameLog={game?.debugLog() ?? null} />
 {/if}
 
 {#if trophyOpen}
@@ -252,9 +252,13 @@
     transform: none;
   }
   /* The HUD is a centered flex row and hands the pills their vertical position;
-     the home screen is a plain block, so there they pin to its top edge. */
+     the home screen is a plain block, so there they pin near its top edge —
+     at the HUD's OWN seat, not the block's. The pair is constant chrome that
+     survives the home↔game swap in place, and the two screens' containers
+     start 3.5px apart; measured against the HUD row, -3.5px is what keeps
+     the pills from hopping when the screen changes under them. */
   .help.home {
-    top: 0;
+    top: -3.5px;
   }
   /* The case sits inboard of the ?, sharing its geometry — one control group
      in the corner rather than two unrelated glyphs. `right: auto` matters on
@@ -271,13 +275,10 @@
 
      A third pill at `left: 64px`, beside the ? and the case, is the placement
      this corner was chosen OVER, and the wordmark is why. The HUD centers the
-     logo in a flex row while these pills sit absolute above it, so the two
+     lockup in a flex row while these pills sit absolute above it, so the two
      sides are not interchangeable: the left group would need 92px of corner
-     and the right pair needs 60px. Measured against the 129px logo (and the
-     +52px a mode chip adds beside it) inside `#app`'s 14px padding, `left: 64px`
-     lands on the H of HOTSTOVE at every common phone width in an opt-in mode —
-     37px of overlap at 320px, still 2px at 390px. `right: 32px` is clear
-     everywhere but 320px-with-a-chip, where it grazes by 5px.
+     and the right pair needs 60px. The compact HUD lockup and optional mode
+     chip remain clear of `right: 32px` at common phone widths.
 
      What this corner costs is a confirm's armed state. Either pill armed grows
      its word leftward — "QUIT?" to about 56px (pinned in App.svelte), "UNDO?"
