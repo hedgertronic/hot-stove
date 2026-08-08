@@ -10,6 +10,7 @@
   import PayrollBox, { FIXED_CAP_CLUB } from "../components/PayrollBox.svelte";
   import PowerupRow from "../components/PowerupRow.svelte";
   import RosterRail from "../components/RosterRail.svelte";
+  import PrimePicker from "../components/PrimePicker.svelte";
   import SpecialPrimePicker from "../components/SpecialPrimePicker.svelte";
   import SpinBanner from "../components/SpinBanner.svelte";
   import {
@@ -33,6 +34,7 @@
     marketGame,
     powerupGames,
     primeGame,
+    primePickGame,
     railGames,
     scoutGame,
     specialPrimeGame,
@@ -75,6 +77,9 @@
 
   // The manager career sheet is a modal; a button summons it over the lab.
   let mgrSheet = $state(false);
+  // The player career sheet, same summons: the wrapped award-pill rows are
+  // the gallery's subject, so open it at a phone width.
+  let primeSheet = $state(false);
 
   /* The explanation panel. Two rows, because the interesting failure is
      geometric: the panel floats, so what has to be checked is where it lands
@@ -197,6 +202,17 @@
   <button class="btn sheetbtn" onclick={() => (mgrSheet = true)}>OPEN THE SHEET</button>
   {#if mgrSheet}
     <SpecialPrimePicker game={specialPrimeGame()} onclose={() => (mgrSheet = false)} />
+  {/if}
+
+  <div class="psep">PRIME TIME · PLAYER CAREER SHEET</div>
+  <div class="cap">
+    ⭐ on a decorated player — Ichiro's real career from the index: award
+    pills wrap under the year label at phone widths, WBC medal, grayed
+    "here" row (2001 SEA)
+  </div>
+  <button class="btn sheetbtn" onclick={() => (primeSheet = true)}>OPEN THE CAREER SHEET</button>
+  {#if primeSheet}
+    <PrimePicker game={primePickGame()} onclose={() => (primeSheet = false)} />
   {/if}
 
   <div class="psep">MARKET · HOMEGROWN ARMED</div>

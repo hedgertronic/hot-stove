@@ -201,6 +201,23 @@ export function specialPrimeGame(): Game {
   });
 }
 
+/** ⭐ armed, browsing a decorated player: the career sheet (PrimePicker)
+ * pulls Ichiro's real seasons — award-pill rows dense enough to wrap to a
+ * second line at phone widths, the WBC medal, and the grayed "here" row
+ * (SEA 2001). The wrap is the point of the gallery: it is where the pill
+ * row's optical nudge meets the pills' pinned whole-pixel edges. */
+export function primePickGame(): Game {
+  return forgeGame(CLASSIC, (g) => {
+    g.card = mkCard({
+      players: [
+        mkPlayer({ id: "suzukic01", name: "Ichiro Suzuki", pos: "RF", war: 7.7, cost: 14, awards: ["MVP", "ROY", "GG", "SS", "AS"] }),
+      ],
+    });
+    g.powerups.prime = "armed";
+    g.primePick = "suzukic01";
+  });
+}
+
 /** Armed Prime Time: every signable row grows the ⭐ browse affordance. */
 export function primeGame(): Game {
   return forgeGame(CLASSIC, (g) => {

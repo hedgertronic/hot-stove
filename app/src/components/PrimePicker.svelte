@@ -125,7 +125,10 @@
     {#if failed}
       <div class="picker-note">Couldn't load the career. Try again.</div>
     {:else if seasons === null}
-      <div class="picker-note">Pulling the card file…</div>
+      <!-- The notice register (☔ RAIN DELAY, 🥶 COLD STOVE): emoji + caps.
+           Same string in SpecialPrimePicker — the two loading beats are one
+           moment and must never drift apart. -->
+      <div class="picker-note busy">🔎 CHECKING THE BACK OF THE CARD…</div>
     {:else if seasons.length === 0}
       <div class="picker-note">One-season wonder: no other years to visit.</div>
     {:else}
@@ -278,6 +281,10 @@
   .yr {
     font-weight: 800;
     font-size: 13px;
+    /* Whole-pixel line box (13px type would inherit a fractional one), so a
+       wrapped pill line below starts on the pixel grid — the pills' pinned
+       whole-pixel edges are only whole if the line above them is too. */
+    line-height: 16px;
     flex: none;
     max-width: 100%;
     min-width: 0;

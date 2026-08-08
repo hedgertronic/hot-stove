@@ -573,6 +573,19 @@
     color: var(--muted);
     margin-top: 4px;
   }
+  /* Word-to-figure air as stated geometry, not font metrics. Each side of the
+     row is a word and a figure separated by a literal space, but that space
+     renders at the label's 10.5px while the figure's own side bearings differ
+     between a "$" and a letter — the two gaps drift apart. A flex gap ignores
+     whitespace text nodes entirely, so SPENT-to-money and money-to-LEFT/OVER
+     are the same 4px by declaration. */
+  .spent,
+  .warn,
+  .left {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+  }
   .pamt {
     font-size: 16px;
     font-weight: 800;

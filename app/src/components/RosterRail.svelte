@@ -99,9 +99,7 @@
    * governs every tier signal in the rail. The `war-` prefix is deliberate —
    * tests/rail-tiers.test.ts asserts Eye Test emits no `war-` token at all,
    * and a private `mgw-*` prefix would walk out from under that. */
-  const mgrWins = $derived(
-    game.manager ? (game.manager.wins - game.manager.losses) * MANAGER_PER_NET_WIN : 0,
-  );
+  const mgrWins = $derived(game.managerNetWins * MANAGER_PER_NET_WIN);
   const mgrTier = $derived(game.manager && game.showWar ? warTier(mgrWins) : "");
 </script>
 
@@ -196,7 +194,12 @@
   }
   .rail {
     display: grid;
-    grid-template-columns: auto repeat(4, 1fr);
+    /* Five EQUAL columns. The first used to be `auto`, which sized the
+       manager's column to its content — measured ~5px wider than the four
+       player columns on a 390px phone, so the grid read as four matched
+       seats plus one odd one. minmax(0, 1fr) rather than bare 1fr so a long
+       name truncates inside its seat instead of forcing its column wide. */
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 6px;
   }
   /* Wide: the rail owns a 350–380px column, so the club reads as the finale's

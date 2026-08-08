@@ -292,13 +292,14 @@
     }
   }
   /* The manager's chair uses the same upright column layout as the eight player
-     seats — position label, name, chip — with no writing-mode rotation. Width
-     is slightly wider than the player cells (72px vs the player cells' auto
-     sizing) to give the wins chip room to breathe. Spans both grid rows so the
-     skipper sits left of the whole roster at all phone widths.
-     At 320px: 292px interior − 4×6px gaps − 72px mgr = 196px for 4 cells =
-     49px each; 49 − 5px border − 4px padding = 40px content, clearing the
-     chip's 36px min-inline-size.
+     seats — position label, name, chip — with no writing-mode rotation. Same
+     width as the player cells: the rail's five tracks are equal (the chair
+     wore a fixed 72px for a while, which read as four matched seats plus one
+     odd one). Spans both grid rows so the skipper sits left of the whole
+     roster at all phone widths.
+     At 320px: 292px interior − 4×6px gaps = 268px over 5 equal tracks =
+     53.6px each; 53.6 − 5px border − 10px padding = 38.6px of chair content,
+     clearing the chip's 36px min-inline-size.
      The grid placement is here rather than with the rail's own grid because it
      is a fact about the CHAIR — it is the only seat that spans two rows — and
      a caller laying seats out in a flex column (the help sheet, and the rail
@@ -306,7 +307,7 @@
   .mgr {
     grid-column: 1;
     grid-row: 1 / 3;
-    width: 72px;
+    width: 100%;
     border: 2.5px solid var(--line);
     border-radius: 9px;
     background: var(--card);

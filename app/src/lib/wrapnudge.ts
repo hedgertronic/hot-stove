@@ -59,7 +59,17 @@ export function wrapnudge(
     const wrapped =
       kids.length > 1 &&
       kids.some((k) => k.offsetTop > kids[0].offsetTop + kids[0].offsetHeight / 2);
-    node.style.transform = wrapped ? `translateY(${-px}px)` : "";
+    // The nudge rides the DEVICE-pixel grid, not the CSS one. The award pills
+    // on line two are pinned to whole-pixel heights precisely so their 1.5px
+    // rings never straddle a split device pixel (AwardPill's sizing note), and
+    // a raw 1.3/1.4px translate puts every ring edge back onto one — the top
+    // arc of a wrapped pill shaved thin, only while the nudge is live, which
+    // is what "sometimes the badge is cut off in the career sheet" was.
+    // Rounding to the nearest device pixel keeps the optics (within half a
+    // device pixel of the derived value) and keeps the edges whole.
+    const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+    const snapped = Math.round(px * dpr) / dpr;
+    node.style.transform = wrapped ? `translateY(${-snapped}px)` : "";
   };
   // The observer hears every reflow that can change the wrap: the viewport,
   // the confirm pill swapping the right column in and out, badges appearing

@@ -64,7 +64,12 @@
   // every component, so extreme states are reviewable without replaying games.
   // Dynamic import + DEV guard keep it out of the production bundle.
   let LabComp = $state<typeof import("./lab/Lab.svelte").default | null>(null);
-  if (import.meta.env.DEV && new URLSearchParams(location.search).has("lab")) {
+  let OgPreviewComp = $state<typeof import("./og/OgPreview.svelte").default | null>(null);
+  const devParams = import.meta.env.DEV ? new URLSearchParams(location.search) : null;
+  const ogPreview = devParams?.has("og-preview") ?? false;
+  if (ogPreview) {
+    import("./og/OgPreview.svelte").then((m) => (OgPreviewComp = m.default));
+  } else if (devParams?.has("lab")) {
     import("./lab/Lab.svelte").then((m) => (LabComp = m.default));
   }
 
@@ -78,6 +83,10 @@
   let bootDone = $state(0);
 
   $effect(() => {
+    // The share-card route mounts real presentational components against
+    // fixed specimen data. It must not restore, mutate, or fetch a live game
+    // behind the screenshot.
+    if (ogPreview) return;
     // Dev-only review switch (localhost:5173/?slowboot): a local load resolves
     // the five steps faster than the meter's 400ms fade, so the loading UI is
     // unreviewable at real speed. The delay slows each step to walk the whole
@@ -415,7 +424,9 @@
 
 <svelte:window onclick={() => (confirmKey = null)} onkeydown={onKey} />
 
-{#if LabComp}
+{#if OgPreviewComp}
+  <OgPreviewComp />
+{:else if LabComp}
   <LabComp />
 {:else if bootError}
   <div class="boot disp">Couldn't load the league. {bootError}</div>
@@ -430,7 +441,6 @@
        genuinely slow load ever shows the bar. -->
   <div class="boot disp">
     <div class="bootmast"><Logo big /></div>
-    <div class="boottag">Spin for teams. Sign players. Chase 162 wins.</div>
     <!-- `now`: the static card's warming line already served its 400ms wait —
          the bundle alone took longer than the delay — so this card's copy of
          the line shows immediately instead of blinking out for a second
@@ -472,11 +482,11 @@
       pushed={quitArmed}
       onconfirm={(armed) => (undoArmed = armed)}
     />
-    <!-- The wordmark and its chip travel as one flex item so a live confirm can
+    <!-- The HUD lockup and its chip travel as one flex item so a live confirm can
          step the whole brand back with a single rule. Two items dimmed
          separately would drift apart the moment either gained a state of its
          own, and an armed pill genuinely does reach the logo: "UNDO?" grows to
-         about 62px from a 32px anchor, which lands on the H of HOTSTOVE at
+         about 62px from a 32px anchor, which lands on the H of the lockup at
          320px. -->
     <span class="brand" class:pushed={quitArmed || undoArmed}>
       <Logo />
@@ -576,16 +586,6 @@
      needs a matching block seat to center in. */
   .bootmast {
     color: var(--ink);
-  }
-  /* Home's .pitch voice, verbatim — the boot card is the masthead, so the
-     tagline wears the caption register the home screen gives it. */
-  .boottag {
-    margin-top: 8px;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    white-space: nowrap;
   }
   /* Loading UI held back behind a pure-CSS delay: opacity only (no layout
      shift), so a boot that finishes inside the delay never flashes it. */
@@ -726,6 +726,10 @@
     opacity: 0.22;
     transform: scale(0.92);
   }
+  /* Keep the optical seat under the push: transforms replace, not compose. */
+  .brand.pushed {
+    transform: translateY(1.8px) scale(0.92);
+  }
   /* Only the ✕ takes the z-index: it is the one that shares a corner with the
      confirm. The wordmark is a static flex item and is painted under the
      absolutely positioned pills already. */
@@ -745,6 +749,13 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    /* Optical seat. The lockup's box is flex-centered on the row, but its INK
+       rides high inside the box: at line-height 1 Nunito's cap band sits above
+       the em box's middle, and the flame is lifted against that cap band
+       (--hs-mark-lift). Measured against the corner pills' ink at 3x, the
+       lockup read 1.8px high; this drops the whole lockup — text and mark
+       together, their relationship untouched — onto the row's ink center. */
+    transform: translateY(1.8px);
   }
   /* Emoji-only chip, scaled to sit beside the ?/✕ pills — and dressed as
      their sibling: plain cardstock in --line, the corner-pill uniform. It
