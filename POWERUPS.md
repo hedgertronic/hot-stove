@@ -4,8 +4,10 @@ What each powerup is worth, and how big a gain a single use must clear to be
 worth burning it. Numbers from the bot harness (`app/tests/bots/harness.ts`,
 budget-aware greedy core) playing the real engine on paired seeds — same card
 sequence with and without the powerup, so every delta is causal, not luck.
-Latest run: 600 games/bot, classic bank, 2026-08-08 (`app/tests/bots/last-run.txt`);
-a 400-game run reproduces every number below within ±0.6.
+Headline numbers: 600 games/bot, classic bank, 2026-08-08. A 400-game run
+reproduces every number within ±0.6 — and `app/tests/bots/last-run.txt`
+holds whichever run happened most recently, since every `npm test` rewrites
+it at the 400-game default.
 
 Rerun anytime:
 
@@ -47,6 +49,38 @@ Rule of thumb: **don't burn a one-shot for less than ~2–3 points of clear
 gain.** The premium is option value — an unused powerup can still convert a
 future disaster card, and a use spends that insurance.
 
+## The 162–0 lens (Study 22)
+
+Same paired-seed ablations, judged on the perfect-season rate (total ≥ 161.5,
+the stamp's 162–0 line) instead of the mean. 5,000 games/bot
+(`app/tests/bots/last-run-study22.txt`); perfects are ~0.5% events, so treat
+single digits as directional.
+
+| Kit                | Perfects (of 5,000) | Paired flips vs full kit (lost/found) |
+|--------------------|--------------------:|---------------------------------------|
+| baseline           |                   0 | — |
+| all six            |                  26 | — |
+| without Relocate   |                   5 | 23 lost / 2 found |
+| without Prime Time |                   6 | 24 lost / 4 found |
+| without Season Tkt |                   9 | 21 lost / 4 found |
+| without Trade Dl   |                  17 | 13 lost / 4 found |
+| without Hometown   |                  22 | 18 lost / 14 found |
+| without Double Play|              **36** | 23 lost / **33 found** |
+
+Three reads:
+
+- **No powerups, no perfection.** The baseline never stamps 162–0 in 5,000
+  games. The rerolls and Prime Time are not just the mean's engine, they are
+  the whole tail: losing any one of the three cuts perfect seasons by
+  two-thirds or more.
+- **Double Play is tail-NEGATIVE.** The kit without it perfects more seeds
+  than the full kit (36 vs 26, net −10 paired flips). A double commit sees
+  one fewer card over the game, and on a perfect path every card view is a
+  lottery ticket. Chasing 162–0? Leave Double Play in the drawer.
+- **Hometown stays neutral in the tail too** (net +4 flips, inside noise),
+  so its case really does rest on the dream-team/badge angles the caveats
+  name, not on score in either lens.
+
 ## Where a powerup lands matters: per-seat par values
 
 The same WAR is not worth the same everywhere, because seats differ in what
@@ -83,6 +117,33 @@ Prime Time inverts par again: it pays most where the *career* ceiling beats
 the seat's par hardest, which favors SP (the dataset's top starter seasons
 run 11–13 WAR against a 4.6 par) over RP (top reliever seasons 5–7 against a
 2.2 par).
+
+### Targeted rerolls: knowledge changes the math
+
+The rerolls are not random draws. Season Ticket reaches every year of the
+landed franchise; Relocate reaches every team of the landed year. A player
+who knows where the outlier lives can hunt it, and the ceiling of that hunt
+is a different number from the random-shopping gain above:
+
+| Seat | Par | Hunt ceiling (either reroll) | Over par | Random extra card |
+|------|----:|-----------------------------:|---------:|------------------:|
+| C    | 2.0 |                          5.7 |     +3.7 |             +0.80 |
+| RP   | 2.2 |                          4.1 |     +1.9 |             +0.47 |
+| IF   | 4.7 |                          8.7 |     +4.0 |             +1.01 |
+| OF   | 4.4 |                          9.0 |     +4.6 |             +1.05 |
+| SP   | 4.6 |                          9.2 |     +4.6 |             +1.05 |
+| FLEX | 5.6 |                          9.5 |     +3.9 |             +0.98 |
+
+(Hunt ceiling = mean over franchises/years of the best WAR the reroll's full
+reach offers that seat; the two reroll types measure within 0.2 of each other
+everywhere. It is an upper bound: it assumes you know the destination card.)
+
+The catcher's seat is where knowledge pays the biggest multiple: a blind
+extra card buys +0.8 WAR at C, but knowing which season holds the franchise's
+outlier catcher buys up to +3.7, a nearly 5x knowledge premium (SP's is ~4x
+on a bigger base, RP's is the smallest at ~4x on the smallest base). So the
+refined reroll rule: shop SP/IF/OF blind, but spend a reroll on C or RP only
+as a targeted strike, when you can name the season you are hunting.
 
 ## Does the bar change over the game?
 
