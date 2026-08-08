@@ -28,7 +28,11 @@ const SCALE = 3;
 // .chiplbl box get the tight bound; bare inline labels (label: null) are
 // scanned through the container's middle strip, which adds threshold noise.
 const LIMIT = 4;
-const LIMIT_LOOSE = 5;
+// The first Linux CI run read a lab sheet button at exactly 5 (its ink is
+// scanned through the container strip, and FreeType biases the caps' AA a
+// row differently than CoreText) — 6 keeps one raster wobble of headroom
+// between a healthy build and a red one.
+const LIMIT_LOOSE = 6;
 const PORT = 5199; // NOT 5173 — a dev server may already own that locally
 
 /** Each probe names a container recipe and the label element whose ink the
