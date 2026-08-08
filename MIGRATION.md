@@ -1,18 +1,16 @@
-# Domain migration checklist — hedgertronic.com/hot-stove → /games/hot-stove (Cloudflare)
+# Domain migration record — hedgertronic.com/hot-stove → /games/hot-stove (Cloudflare)
 
-The game currently lives at `https://hedgertronic.com/hot-stove/` (GitHub Pages
-project site under the hedgertronic.github.io user site). The forever home is
-`https://hedgertronic.com/games/hot-stove/` behind Cloudflare Workers. Nothing
-below is urgent; all of it belongs to the same flip and should land in ONE
-redeploy so the URLs never disagree with each other.
+The migration is live at `https://hedgertronic.com/games/hot-stove/` behind
+Cloudflare Workers. This file records the completed flip and the two external
+follow-ups still outstanding. Current release work belongs in `LAUNCH.md`.
 
 ## In the hedgertronic.github.io repo, NOW (no migration needed)
 
 - [x] Add `robots.txt` at the repo root (drafted below). GitHub Pages serves it
       at `https://hedgertronic.com/robots.txt` — the root domain owns it; the
       hot-stove repo cannot ship one.
-- [ ] Optional: add `sitemap.xml` at the root listing the site's real pages
-      plus `https://hedgertronic.com/hot-stove/`, and keep the Sitemap line in
+- [x] Add `sitemap.xml` at the root and list
+      `https://hedgertronic.com/games/hot-stove/`; keep the Sitemap line in
       robots.txt pointing at it.
 
 ### robots.txt draft
@@ -27,7 +25,7 @@ Sitemap: https://hedgertronic.com/sitemap.xml
 
 (If no sitemap ships, drop the Sitemap line rather than pointing at a 404.)
 
-## At the Cloudflare flip, all in one redeploy
+## Cloudflare flip
 
 - [x] `app/index.html`: flip `rel=canonical`, `og:url`, `og:image`,
       `twitter:image`, and the JSON-LD `url`/`image` from
@@ -42,7 +40,7 @@ Sitemap: https://hedgertronic.com/sitemap.xml
       shared link, QR code, and scraped og:url from the launch keeps resolving
       through it — the redirect is permanent infrastructure, not a transition
       aid.
-- [ ] Update `sitemap.xml` (if shipped) to the `/games/hot-stove/` URL.
+- [x] Update `sitemap.xml` to the `/games/hot-stove/` URL.
 - [ ] Re-verify the social card in the X/Twitter card validator and Facebook
       sharing debugger after the flip — both cache the old og:url scrape.
 - [ ] Google Search Console: request re-indexing of the new URL; the 301 plus

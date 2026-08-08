@@ -1,8 +1,8 @@
 # Hot Stove
 
-**Play it: [hedgertronic.com/hot-stove](https://hedgertronic.com/hot-stove/)**
+**Play it: [hedgertronic.com/games/hot-stove](https://hedgertronic.com/games/hot-stove/)**
 
-A baseball roster-drafting game. Each spin deals a random real team-season (1985–2025); take one thing per spin — sign a player at his real salary, or hire that year's manager, owner, or stadium. Fill 8 roster slots plus a front office, stay under your payroll, and chase 116 wins. Two difficulty modes, three bankroll tiers, and six once-per-game powerups.
+A baseball roster-drafting game. Each spin deals a random real team-season (1985–2025); take one thing per spin — sign a player at his real salary, or hire that year's manager, owner, or stadium. Fill 8 roster slots plus a front office, then score the season across wins, payroll, hardware, pedigree, and scouting. Two knowledge modes, three payroll modes, and six once-per-game powerups.
 
 ## Repository layout
 
@@ -37,12 +37,13 @@ The build is byte-stable. Raw data is snapshotted under `build/raw/` — delete 
 
 Every push to `main` runs tests, then build, then deploys to GitHub Pages via `.github/workflows/deploy.yml`. A failing test blocks the deploy. Pushes that touch only `*.md` or `design/` files skip the workflow.
 
-A Cloudflare Workers deploy of the same bundle lives at `hot-stove.josh-6d6.workers.dev` (`app/wrangler.jsonc` + `app/worker.js`; deploy with `wrangler deploy` from `app/`). It is the staging ground for the planned move to `hedgertronic.com/games/hot-stove` — the route in `wrangler.jsonc` stays commented until the zone is on Cloudflare.
+The canonical Cloudflare Workers deploy lives at `hedgertronic.com/games/hot-stove/` (`app/wrangler.jsonc` + `app/worker.js`; deploy with `wrangler deploy` from `app/`). The `hot-stove.josh-6d6.workers.dev` origin remains available as a direct Worker preview.
 
 The social-card image (`app/public/og-image.png`) is committed, not built in CI; regenerate it after a branding change with `uv run --with playwright python tools/generate_og_image.py`.
 
 ## Docs
 
+- **LAUNCH.md** — authoritative launch checklist and release verification.
 - **SPEC.md** — game rules: loop, spin economy, powerups, scoring, modes.
 - **BUILD.md** — implementation plan: stack, design tokens, data contract, state machine, components.
 - **DECISIONS.md** — every rule SPEC left undefined, with rationale.

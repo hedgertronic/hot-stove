@@ -1,0 +1,340 @@
+--- a/app/src/App.svelte
++++ b/app/src/App.svelte
+@@ -1,6 +1,7 @@
+ <script lang="ts">
+   import BankBox from "./components/BankBox.svelte";
+   import CloseGlyph from "./components/CloseGlyph.svelte";
++  import { brandfly, stashBrandRect } from "./lib/brandfly";
+   import CornerButtons from "./components/CornerButtons.svelte";
+   import Finale from "./components/Finale.svelte";
+   import Home from "./components/Home.svelte";
+@@ -81,6 +82,9 @@
+    * cache the whole bar fills in a blink, which is the right message. */
+   const BOOT_STEPS = 5;
+   let bootDone = $state(0);
++  /** The boot card's lockup, measured as the card leaves so the next
++   * screen's lockup can glide from the 38vh anchor (lib/brandfly). */
++  let bootLogoEl = $state<HTMLElement | null>(null);
+ 
+   $effect(() => {
+     // The share-card route mounts real presentational components against
+@@ -135,17 +139,35 @@
+             screen = "game";
+           }
+         }
+-        // If the load ran long enough for the meter to fade in (the .bootload
+-        // 400ms delay has expired), the player is watching a partial bar —
+-        // and a bar that vanishes at 60% reads as "something broke", not
+-        // "done". Hold the swap just long enough for the fill's 0.25s width
+-        // transition to pour to the right edge, so a shown meter always
+-        // completes. A fast boot (inside the delay) pays nothing: no meter
+-        // was seen, so no hold. Reduced-motion kills the transition
+-        // (app.css), leaving an instant full bar and a harmless beat.
+-        if (typeof performance !== "undefined" && performance.now() > 400) {
+-          await new Promise((r) => setTimeout(r, 350));
+-        }
++        // Two holds, take the longer.
++        //
++        // The title-card second: the boot card holds the screen until one
++        // full second from navigation start, however fast the load ran, and
++        // then the masthead GLIDES from the card's 38vh anchor to its seat
++        // on the next screen (stashBrandRect below → lib/brandfly). Without
++        // the hold a warm-cache boot cut to the home screen mid-blink and
++        // the handoff read as a flash; with it, every load is one steady
++        // title card and one landing. Skipped for reduce-motion readers:
++        // the glide won't play for them, and a fixed delay with no payoff
++        // is just a slower app.
++        //
++        // The meter-pour hold: if the load ran long enough for the meter to
++        // fade in (the .bootload 400ms delay expired), the player is
++        // watching a partial bar — and a bar that vanishes at 60% reads as
++        // "something broke", not "done". 350ms lets the fill's 0.25s width
++        // transition pour to the right edge, so a shown meter always
++        // completes.
++        const elapsed = typeof performance !== "undefined" ? performance.now() : Infinity;
++        const reduced =
++          typeof matchMedia !== "undefined" &&
++          matchMedia("(prefers-reduced-motion: reduce)").matches;
++        const wait = Math.max(reduced ? 0 : 1000 - elapsed, elapsed > 400 ? 350 : 0);
++        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
++        // Measured before `booted` flips and the card unmounts; whichever
++        // screen mounts next (home, or a resumed game's header), its lockup
++        // flies from here. The trip is longer than the play/quit hop, so it
++        // takes 600ms rather than 420.
++        stashBrandRect(bootLogoEl, 600);
+         booted = true;
+       } catch (e) {
+         bootError = String(e);
+@@ -155,6 +177,10 @@
+ 
+   /** An explicit seed (from the home screen's PLAY A SEED input) replays that
+    * exact card sequence; omitted, each game rolls a fresh random seed. */
++  /** The header lockup, measured on the way OUT (goHome) so the masthead
++   * can fly from it — the reverse of the trip Home stashes on PLAY. */
++  let brandEl = $state<HTMLElement | null>(null);
++
+   function startGame(config: GameConfig, seed?: number) {
+     if (!deps) return;
+     settings = config;
+@@ -258,6 +284,7 @@
+   }
+ 
+   function goHome() {
++    stashBrandRect(brandEl);
+     confirmKey = null;
+     yearPickerOpen = false;
+     teamPickerOpen = false;
+@@ -440,7 +467,7 @@
+        load is one steady title card with no meter flash, and only a
+        genuinely slow load ever shows the bar. -->
+   <div class="boot disp">
+-    <div class="bootmast"><Logo big /></div>
++    <div class="bootmast"><span class="bootlogo" bind:this={bootLogoEl}><Logo big /></span></div>
+     <!-- `now`: the static card's warming line already served its 400ms wait —
+          the bundle alone took longer than the delay — so this card's copy of
+          the line shows immediately instead of blinking out for a second
+@@ -488,7 +515,12 @@
+          own, and an armed pill genuinely does reach the logo: "UNDO?" grows to
+          about 62px from a 32px anchor, which lands on the H of the lockup at
+          320px. -->
+-    <span class="brand" class:pushed={quitArmed || undoArmed}>
++    <span
++      class="brand"
++      class:pushed={quitArmed || undoArmed}
++      bind:this={brandEl}
++      use:brandfly
++    >
+       <Logo />
+       {#if modeChip}<span class="modechip" title={modeTitle} aria-label={modeTitle}>{modeChip}</span>{/if}
+     </span>
+@@ -643,6 +675,48 @@
+     background-origin: border-box;
+     transition: background-size 0.25s ease;
+   }
++  /* Screen entrance: home and game are a hard conditional swap — one frame
++     the centered masthead, the next the HUD — and the cut read as a flash.
++     The incoming screen fades and settles from 8px below over 0.3s: long
++     enough to read as a handoff (a 0.18s opacity-only fade was tried first
++     and still read as a flash — below ~250ms the eye files it as a cut),
++     short enough that a spin tapped immediately still feels instant. CSS
++     animation on purpose: app.css's reduced-motion kill covers *, so
++     reduce-motion readers get the instant swap back. The finale is not in
++     the set — it stages its own reveal. */
++  /* The header's entrance lives on the brand and the ✕ — NOT on .hud
++     itself, which also holds the ? / trophy pair: those are constant chrome,
++     rendered in the same corner on the home screen, and a constant that
++     fades with the header reads as a flash of something that never left.
++     Opacity only, no rise: the brand is the flight's landing pad
++     (lib/brandfly), and an entrance that moves the runway moves the landing
++     spot mid-flight. */
++  /* Inline-block so the boot flight's anchor rect hugs the lockup rather
++     than spanning the centered line. */
++  .bootlogo {
++    display: inline-block;
++  }
++  .hud > .brand,
++  .hud > .quit {
++    animation: hudfade 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards;
++  }
++  @keyframes hudfade {
++    from {
++      opacity: 0;
++    }
++  }
++  .game {
++    animation: screenfade 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards;
++    /* The board settles a beat after the header: one motion, two arrivals,
++       which is what reads as choreography rather than a repaint. */
++    animation-delay: 0.05s;
++  }
++  @keyframes screenfade {
++    from {
++      opacity: 0;
++      transform: translateY(8px);
++    }
++  }
+   .hud {
+     display: flex;
+     justify-content: center;
+--- a/app/src/components/Home.svelte
++++ b/app/src/components/Home.svelte
+@@ -2,6 +2,7 @@
+   import { tick } from "svelte";
+   import type { Bank, Difficulty, GameConfig, StoredFinale } from "../lib/engine.svelte";
+   import { parseSeedCode, recordFromTotal } from "../lib/format";
++  import { brandfly, stashBrandRect } from "../lib/brandfly";
+   import { loadArchive, loadHistory } from "../lib/history";
+   import { BANKS, DIFFICULTIES } from "../lib/modes";
+   import { bestFor } from "../lib/settings";
+@@ -28,6 +29,10 @@
+      * so the component mounts without a replay host (tests, the lab). */
+     onreplay?: (code: string) => Promise<boolean>;
+   } = $props();
++
++  /** The masthead lockup, measured at the moment PLAY flips screens so the
++   * header's lockup can fly from it (lib/brandfly). */
++  let mastLogo = $state<HTMLElement | null>(null);
+ 
+   // Seed once from the saved settings; the rows edit local state until PLAY.
+   // svelte-ignore state_referenced_locally
+@@ -130,6 +135,7 @@
+         badSeed();
+         return;
+       }
++      stashBrandRect(mastLogo);
+       onplay({ difficulty, bank }, seed);
+       return;
+     }
+@@ -213,11 +219,23 @@
+ {/snippet}
+ 
+ <div class="home disp">
++  <!-- Constant chrome, OUTSIDE the entrance fade: the ? / trophy pair render
++       in the same corner on every screen, and a constant that fades with the
++       page reads as a flash of something that never actually left. The maker
++       chip is NOT constant — the game's ✕ takes its corner — so it rides the
++       body's fade. Absolute positioning still answers to .home (the nearest
++       positioned ancestor), so its corner seat is unchanged. -->
+   <CornerButtons home />
++
++  <div class="homebody">
+   <MakerLink />
+-
+   <div class="mast">
+-    <Logo big />
++    <!-- The wrapper is the brand flight's anchor (lib/brandfly): tight around
++         the lockup so the measured rect is the lockup's own, and the action
++         plays the arrival when a quit game hands its header rect back. -->
++    <span class="mastlogo" bind:this={mastLogo} use:brandfly>
++      <Logo big />
++    </span>
+   </div>
+ 
+   <!-- The ladder measures how much baseball you already know, not how hard the
+@@ -281,7 +299,10 @@
+        text: inline it inherited the button's 17px and rendered visibly smaller
+        than the 19px joystick and receipt on the rows around it. -->
+   <div class="under">
+-    <button class="btn hot playbtn" onclick={() => onplay({ difficulty, bank })}
++    <button class="btn hot playbtn" onclick={() => {
++      stashBrandRect(mastLogo);
++      onplay({ difficulty, bank });
++    }}
+       >PLAY <span class="bic">🔥</span></button
+     >
+     <!-- The seed pill sits below PLAY. The compact button swaps for the field
+@@ -386,6 +407,7 @@
+       </div>
+     </button>
+   </div>
++  </div>
+ 
+   {#if seasonsOpen}
+     <!-- Created fresh on every open, which is what makes its read of the log
+@@ -399,6 +421,19 @@
+     position: relative;
+     padding-top: 7vh;
+   }
++  /* The body's 0.3s settle (the corner chrome above stays put — see the
++     markup note): quitting a game swaps screens just as hard as starting
++     one. Opacity only, no rise — the masthead inside is the brand flight's
++     landing pad (lib/brandfly), and an entrance that moves the runway moves
++     the landing spot mid-flight. Killed for reduce-motion by app.css. */
++  .homebody {
++    animation: homefade 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards;
++  }
++  @keyframes homefade {
++    from {
++      opacity: 0;
++    }
++  }
+   /* Wide: the home screen is a menu, not a workspace — it stays a centered
+      card-width column instead of stretching into the wide shell. */
+   @media (min-width: 760px) {
+@@ -410,6 +445,11 @@
+   .mast {
+     text-align: center;
+     margin-bottom: 26px;
++  }
++  /* Inline-block so the flight anchor's rect hugs the lockup instead of
++     spanning the masthead's full centered line. */
++  .mastlogo {
++    display: inline-block;
+   }
+   .rows {
+     display: grid;
+--- a/app/src/lib/brandfly.ts
++++ b/app/src/lib/brandfly.ts
+@@ -0,0 +1,72 @@
++/** Hand-rolled FLIP for the brand lockup's trip between the home masthead
++ * and the in-game header — the one element both screens share, so it is the
++ * thing that can carry continuity across the swap.
++ *
++ * Why not a real shared-element crossfade (two live copies, svelte
++ * crossfade): an out-transition defers the outgoing BRANCH's teardown, and
++ * the home screen and the game screen are if/else siblings in normal flow —
++ * both alive at once means both laid out at once, the game board rendering
++ * below a lingering home screen. So the outgoing side instead stashes its
++ * lockup's rect at the moment of the switch (the DOM is about to go), and
++ * the incoming side plays one flight from that rect to its own.
++ *
++ * WAAPI rather than a CSS class because the from-transform is computed per
++ * flight — and that is also why the reduced-motion gate is by hand:
++ * app.css's global animation kill reaches CSS animations, not
++ * element.animate().
++ *
++ * The stash is consumed exactly once and cleared: a header mounted with no
++ * stored rect (a reload straight into a saved game) simply appears, which
++ * is the correct entrance for a screen nothing traveled to. */
++
++let stash: { rect: DOMRect; duration: number } | null = null;
++
++/** Called by the OUTGOING screen in the same handler that flips screens,
++ * while its lockup is still in the DOM. Null is fine — the flight is
++ * skipped. The duration belongs to the trip, not the lander: the boot→home
++ * glide is a once-per-load arrival and takes it slower than the play/quit
++ * hops. */
++export function stashBrandRect(
++  el: Element | null | undefined,
++  duration = 420,
++): void {
++  stash = el ? { rect: el.getBoundingClientRect(), duration } : null;
++}
++
++/** Svelte action for the INCOMING screen's lockup wrapper. Scale is uniform
++ * off the heights (the two cuts share their aspect: same wordmark, same
++ * mark-beside-text shape), centers matched so the flight reads as the same
++ * object shrinking into the header rather than a corner-pinned zoom. */
++export function brandfly(node: HTMLElement) {
++  const trip = stash;
++  stash = null;
++  if (!trip) return;
++  if (
++    typeof matchMedia !== "undefined" &&
++    matchMedia("(prefers-reduced-motion: reduce)").matches
++  )
++    return;
++  const from = trip.rect;
++  const to = node.getBoundingClientRect();
++  if (to.height === 0) return;
++  const s = from.height / to.height;
++  const dx = from.left + from.width / 2 - (to.left + to.width / 2);
++  const dy = from.top + from.height / 2 - (to.top + to.height / 2);
++  node.animate(
++    [
++      { transform: `translate(${dx}px, ${dy}px) scale(${s})` },
++      { transform: "translate(0px, 0px) scale(1)" },
++    ],
++    // composite "add": the flight rides ON TOP of whatever transform the
++    // element already wears — the header lockup's optical seat is a base
++    // translateY, and an animation that ends at `none` overrode it for the
++    // flight's whole life and then snapped the lockup down 2px on finish.
++    // Additive, the deltas above are exact too: `to` was measured with the
++    // base applied, so adding (from − to) starts the flight on the pixel.
++    {
++      duration: trip.duration,
++      easing: "cubic-bezier(0.22, 1, 0.36, 1)",
++      composite: "add",
++    },
++  );
++}
