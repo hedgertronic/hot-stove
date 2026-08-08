@@ -1995,6 +1995,48 @@ export const BADGES: BadgeDef[] = [
     freq: null,
     how: "Left the dugout to the final spin and hired a losing manager.",
   },
+  /* 🎒's inverse for the dugout: the roster carried the chair. 🫡's exact
+   * mirror — that one asks whether the skipper out-earned every seat, this
+   * one whether every seat out-earned the skipper — and the two are exclusive
+   * by arithmetic, since strict inequalities cannot hold both ways at once.
+   * Deliberately NO losing-record gate (the owner's call): a winning skipper
+   * on a club of stars is still the least valuable man aboard, and that is
+   * the whole observation. It can co-fire with 🗿 when the chair's season is
+   * dead even and every seat is positive; the claims differ (a comparison
+   * against the club vs an exact record) and both stack on `roster`.
+   *
+   * `freq: null` for 🪑's reason: whether the skipper is worth 1 win or 7 is
+   * a fact about which manager the arm chose to hire, so a measured rate
+   * would describe the bots' dugout policy rather than the badge. */
+  {
+    key: "ride",
+    emoji: "🎫",
+    label: "ALONG FOR THE RIDE",
+    name: "Along for the Ride",
+    rarity: "uncommon",
+    axis: "roster",
+    freq: null,
+    how: "Every player on the roster was worth more wins than the skipper.",
+  },
+  /* The exact-record cousin of the dugout pair: not a winner (🫡's chair),
+   * not a liability (🪑's), but a chair worth precisely nothing. An exact
+   * equality like MATCHED THE 2004 RED SOX, and hunt-able the same way: 27
+   * of the 1,188 cards carry a dead-even manager season, so the badge is a
+   * deliberate hire, not an accident. Exclusive with 🫡 and 🪑 by arithmetic
+   * (their gates want the same number strictly positive or negative).
+   *
+   * `freq: null` for the reason above — the bots' EV-driven dugout policy
+   * prices a 0.0-win chair at nothing and never hires one. */
+  {
+    key: "figurehead",
+    emoji: "🗿",
+    label: "THE FIGUREHEAD",
+    name: "The Figurehead",
+    rarity: "rare",
+    axis: "roster",
+    freq: null,
+    how: "Hired a skipper whose own season was dead even, with as many wins as losses.",
+  },
   /* The two ends of the age axis. They are ONE idea pointed in two
    * directions, so they share a tier and render identically — 0.95% and 1.73%
    * straddle the ultra/rare line on raw frequency, and splitting them would
@@ -3011,6 +3053,18 @@ export function earnedBadges(f: BadgeFacts): string[] {
   const managerWins = (f.managerNetWins ?? 0) * MANAGER_PER_NET_WIN;
   if (full && managerWins > 0 && roster.every((p) => managerWins > p.war))
     out.push("fearless");
+  // 🎫 — 🫡's mirror: every seat strictly out-earned the chair. Gated on the
+  // record EXISTING rather than on ?? 0's .500 read: an unknown chair cannot
+  // have been carried, but a genuinely dead-even one can be (and 🗿 stacks).
+  if (
+    full &&
+    f.managerNetWins != null &&
+    roster.every((p) => p.war > managerWins)
+  )
+    out.push("ride");
+  // 🗿 — exactly dead even, the one number 🫡 and 🪑 both refuse. Strict
+  // equality so an absent record (null) reads as unknown, not as .500.
+  if (f.managerNetWins === 0) out.push("figurehead");
   // The dugout left to the last spin, and the chair that was still there when
   // the player got to it. `managerLast` is the recorded moment; the net wins
   // are the skipper's own, never the club's stamp. `?? 0` makes an absent

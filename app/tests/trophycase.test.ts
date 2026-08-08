@@ -81,9 +81,10 @@ describe("badgeCase", () => {
     // 🔂 DÉJÀ VU and 🧭 WENT MY OWN WAY are NOT ironic (both belong in the
     // progress fraction as something to chase), so they ARE counted alongside
     // 🦉 OUTSCOUTED and the rest. That gap between the two numbers is the
-    // assertion.
-    expect(COLLECTIBLE.length).toBe(63);
-    expect(BADGES.length).toBe(81);
+    // assertion. 🎫 ALONG FOR THE RIDE and 🗿 THE FIGUREHEAD (the dugout
+    // round's pair) are both collectible, so they move both sides by two.
+    expect(COLLECTIBLE.length).toBe(65);
+    expect(BADGES.length).toBe(83);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 

@@ -478,6 +478,68 @@ describe("🫡 FEARLESS LEADER", () => {
   });
 });
 
+describe("🎫 ALONG FOR THE RIDE", () => {
+  /** A full club whose WORST season is 2.0 WAR, so the skipper's line is the
+   * only thing under test (the badge reads the floor, not the star). */
+  const club = (war = 2.0) => fullClub({ war });
+  const rode = (netWins: number, over: Partial<BadgeFacts> = {}) =>
+    earnedBadges(f({ roster: club(), managerNetWins: netWins, ...over }));
+
+  it("fires when every seat out-earns the chair — no losing record required", () => {
+    // 5 net wins is a WINNING skipper worth 1.0, under a floor of 2.0.
+    expect(rode(5)).toContain("ride");
+  });
+
+  it("wants strictly more, so a tie goes to the chair", () => {
+    // 10 × 0.2 = 2.0 exactly, matching the worst seat.
+    expect(rode(10)).not.toContain("ride");
+  });
+
+  it("one seat below the chair breaks the claim", () => {
+    const seats = [...fullClub({ war: 5.0 }).slice(0, 7), guy({ war: 0.5 })];
+    expect(
+      earnedBadges(f({ roster: seats, managerNetWins: 5 })),
+    ).not.toContain("ride");
+  });
+
+  it("is 🫡's exact mirror — the two can never co-fire", () => {
+    for (const net of [-40, -10, 0, 10, 25, 40]) {
+      const got = rode(net);
+      expect(
+        got.includes("ride") && got.includes("fearless"),
+        `both fired at net ${net}`,
+      ).toBe(false);
+    }
+  });
+
+  it("needs the whole club, and an unknown chair earns nothing", () => {
+    expect(
+      earnedBadges(f({ roster: [guy({ war: 5.0 })], managerNetWins: 0 })),
+    ).not.toContain("ride");
+    expect(earnedBadges(f({ roster: club() }))).not.toContain("ride");
+  });
+});
+
+describe("🗿 THE FIGUREHEAD", () => {
+  it("fires only on a dead-even chair", () => {
+    expect(earnedBadges(f({ managerNetWins: 0 }))).toContain("figurehead");
+    expect(earnedBadges(f({ managerNetWins: 2 }))).not.toContain("figurehead");
+    expect(earnedBadges(f({ managerNetWins: -2 }))).not.toContain("figurehead");
+  });
+
+  it("an absent record is unknown, never .500", () => {
+    expect(earnedBadges(f({}))).not.toContain("figurehead");
+  });
+
+  it("stacks with 🎫 when the even chair rides a positive club", () => {
+    const got = earnedBadges(
+      f({ roster: fullClub({ war: 2.0 }), managerNetWins: 0 }),
+    );
+    expect(got).toContain("figurehead");
+    expect(got).toContain("ride");
+  });
+});
+
 describe("🚒 THE FIREMAN and 🧤 THE FIELD GENERAL", () => {
   /** Seven $8M men plus one seat under test. */
   const clubWith = (seat: BadgeRosterEntry) => [

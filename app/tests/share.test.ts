@@ -664,9 +664,12 @@ describe("line width budget", () => {
     // code points, +2 to the shipped width. 🏰 THE DYNASTY and 🧱 THE
     // REBUILD open the career axis as stackers — exclusive by arithmetic,
     // not by a chain, so both count toward the ceiling per the rule above —
-    // single code points, +2 more.)
-    expect(MAXIMAL).toHaveLength(63);
-    expect(SHIPPED_MAX_LEN).toBe(80);
+    // single code points, +2 more. 🎫 ALONG FOR THE RIDE and 🗿 THE
+    // FIGUREHEAD stack on the roster axis — exclusive with 🫡/🪑 by
+    // arithmetic, not by a chain, so both count toward the ceiling — single
+    // code points, +2 stackers and +2 to the shipped width.)
+    expect(MAXIMAL).toHaveLength(65);
+    expect(SHIPPED_MAX_LEN).toBe(82);
     // total 104.3 gives the six-character record; the badge line is index 5.
     const s = shareText({ ...BASE, total: 104.3, badges: MAXIMAL });
     expect(codePoints(s.split("\n")[5])).toBe(SHIPPED_MAX_LEN);
@@ -682,8 +685,9 @@ describe("line width budget", () => {
     // nine's pair) moved it by one each; ⚓ moved it by one and 🕳️ by two
     // (a variation selector is a code point the line pays for); ⏳ (TIME
     // CAPSULE) moved it by one more; 📈 🎒 🏰 🧱 (the career round's
-    // four) moved it by four, all single code points.
-    expect(MAX_LEN).toBe(99);
+    // four) moved it by four, all single code points; 🎫 🗿 (the dugout
+    // round's pair) moved it by two more, both single code points.
+    expect(MAX_LEN).toBe(101);
     const s = shareText({
       ...BASE,
       total: 104.3,

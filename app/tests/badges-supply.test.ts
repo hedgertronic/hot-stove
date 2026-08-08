@@ -660,3 +660,15 @@ describe("the two-way guy is still findable", () => {
     expect(new Set(twoWay.map((s) => s.split(" ").slice(0, 2).join(" "))).size).toBe(1);
   });
 });
+
+describe("🗿 THE FIGUREHEAD's supply", () => {
+  it("the set still deals dead-even manager seasons", () => {
+    // The trigger is managerNetWins === 0 exactly, so the badge is earnable
+    // only while some card's skipper finished with as many wins as losses.
+    // 27 in the 1985-2025 set, every one an 81-81 — no shortened season
+    // (1994/95, 2020) happens to land even. A regen that moved this count to
+    // zero would leave a silhouette in the case that no hire can fill.
+    const even = CARDS.filter((c) => c.manager !== null && c.wins === c.losses);
+    expect(even).toHaveLength(27);
+  });
+});
