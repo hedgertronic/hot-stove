@@ -12,6 +12,7 @@
     warTier,
   } from "../lib/format";
   import { BANKS } from "../lib/modes";
+  import { debugLogFromStorage } from "../lib/share";
   import {
     AWARD_POINTS,
     BUDGET_BONUS_MAX,
@@ -32,6 +33,7 @@
   import type { CardPlayer } from "../lib/types";
   import AwardPill from "./AwardPill.svelte";
   import BadgePill from "./BadgePill.svelte";
+  import BugGlyph from "./BugGlyph.svelte";
   import MarketRow from "./MarketRow.svelte";
   import PayrollBox from "./PayrollBox.svelte";
   import PowerupPill from "./PowerupPill.svelte";
@@ -98,7 +100,34 @@
    * SECTION HEADERS are the game's own `.psep` device — the dashed rule with
    * the centered title the board uses for FRONT OFFICE / PLAYERS — rather
    * than a header style private to this sheet. */
-  let { onclose }: { onclose: () => void } = $props();
+  let { onclose, gameLog = null }: { onclose: () => void; gameLog?: string | null } = $props();
+
+  /** Build the GitHub report only from explicit, useful diagnostics: the
+   * current run supplied by the HUD (preferred), the stored run when Help is
+   * opened from home, browser identity, and this page URL. No storage dump or
+   * unrelated state leaves the app. The href is assembled at render time so
+   * a newly committed move is included when the sheet opens. */
+  function reportHref(): string {
+    const code = gameLog ?? debugLogFromStorage();
+    const browser = typeof navigator === "undefined" ? "Unavailable" : navigator.userAgent;
+    const page = typeof location === "undefined" ? "Unavailable" : location.href;
+    const body = [
+      "### What happened?",
+      "",
+      "Tell us what you expected and what happened instead.",
+      "",
+      "### Game code",
+      code ? `\`${code}\`` : "No game code was available.",
+      "",
+      "### Browser",
+      browser,
+      "",
+      "### Page",
+      page,
+    ].join("\n");
+    const params = new URLSearchParams({ title: "Bug: ", body });
+    return `https://github.com/hedgertronic/hot-stove/issues/new?${params}`;
+  }
 
   /* EVERY FIGURE BELOW IS THE REAL ONE, read off data/cards, and every tier is
    * DERIVED from it by the app's own `warTier`. Both halves matter. A caption a
@@ -381,7 +410,18 @@
   </div>
 {/snippet}
 
-<Sheet {onclose} label="How to play" tall title="HOW TO PLAY" confirmLabel="GOT IT">
+{#snippet corner()}
+  <a
+    class="report"
+    href={reportHref()}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Report a bug on GitHub"
+    title="Report a bug"
+  ><BugGlyph /></a>
+{/snippet}
+
+<Sheet {onclose} label="How to play" tall title="HOW TO PLAY" confirmLabel="GOT IT" {corner}>
 <!-- Every block below is a direct child of this one div, and the gaps between
      them are set by the rhythm rule in the style block rather than block by
      block. That is why the PayrollBox and SpecialRows specimens are wrapped:
@@ -499,8 +539,8 @@
     <li><b>💰 Owner</b> (teal): sets your payroll budget.</li>
     <li><b>🏟️ Ballpark</b> (pink): multiplies it, 0.85× to 1.15×.</li>
     <li>
-      <b>🧢 Skipper</b> (white): adds (W−L) × {MANAGER_PER_NET_WIN} to your win total. The
-      chip reads it in WINS.
+      <b>🧢 Skipper</b> (white): adds (W−L) × {MANAGER_PER_NET_WIN} to your win total,
+      short seasons scaled up to a full 162. The chip reads it in WINS.
     </li>
   </ul>
   <p class="cap">
@@ -744,6 +784,34 @@
 </Sheet>
 
 <style>
+  /* The report beetle is the close pill's mirrored shoulder: identical box,
+     tap extension, press, and focus treatment; only the line-art tenant
+     differs. */
+  .report {
+    flex: none;
+    border: 2px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--muted);
+    width: 28px;
+    height: 22px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    position: relative;
+  }
+  .report::after {
+    content: "";
+    position: absolute;
+    inset: -11px -8px;
+  }
+  .report:active { transform: translateY(1.5px); }
+  .report:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
+  }
   /* ---------- the vertical rhythm ----------
      Three values, and every gap on the sheet is one of them:
 
@@ -909,6 +977,12 @@
     border-radius: 11px;
     padding: 6px 10px;
     min-height: 46px;
+  }
+  /* MarketRow's hint deliberately shares the live confirm-pill recipe, whose
+     cursor promises a tap. Here it is explanatory ink inside an inert diagram,
+     so withdraw that promise just as the specimen seats below do. */
+  .prow :global(.confirm.hint) {
+    cursor: default;
   }
   .prow.dead {
     background: var(--gray-bg);

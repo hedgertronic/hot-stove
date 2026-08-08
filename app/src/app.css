@@ -996,6 +996,11 @@ button {
   color: var(--muted);
   padding: 18px 0;
 }
+/* The loading beat wears the notice register (☔ RAIN DELAY, 🥶 COLD STOVE):
+   emoji + caps at 800. The quiet sentence-case notes stay at 700 above. */
+.picker-note.busy {
+  font-weight: 800;
+}
 .picker-list {
   display: grid;
   gap: 6px;
