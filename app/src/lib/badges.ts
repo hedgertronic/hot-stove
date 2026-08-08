@@ -1489,7 +1489,11 @@ export const BADGES: BadgeDef[] = [
     emoji: "📈",
     label: "WOULD'VE WON MONEYBALL",
     name: "Would've Won Moneyball",
-    rarity: "rare",
+    // `ultra`, not `legendary`: the top tier is membership by axis-maximum
+    // (RARITY_ORDER's note), and the goal axis's maximum is 💰. A gold season
+    // on the A's money is a rarity claim — the strongest kind, since the gold
+    // stamp alone is a ~4% event before the spend gate bites.
+    rarity: "ultra",
     axis: "goal",
     banks: ["classic", "blankcheck"],
     freq: null,
