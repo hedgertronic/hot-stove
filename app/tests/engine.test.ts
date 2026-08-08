@@ -915,38 +915,29 @@ describe("Homegrown (the hometown discount)", () => {
 });
 
 describe("visiblePlayers", () => {
-  it("hides below-replacement players", () => {
+  it("lists every qualified player, below-replacement included", () => {
     const good = player({ war: 2.5 });
-    const bad = player({ war: -0.8 });
-    const zero = player({ war: 0 });
+    const bad = player({ id: "badguy01", war: -0.8 });
+    const zero = player({ id: "zeroguy01", war: 0 });
     const g = landedGame(card([good, bad, zero]));
-    expect(g.visiblePlayers.map((p) => p.id)).toEqual([good.id, zero.id]);
+    expect(g.visiblePlayers.map((p) => p.id)).toEqual([
+      good.id,
+      "badguy01",
+      "zeroguy01",
+    ]);
   });
 
-  it("rescues the best player at a position that would vanish entirely", () => {
-    const c1 = player({
-      pos: "C",
-      posG: { c: 90, if: 0, of: 0},
-      war: -0.4 });
-    const c2 = player({
-      pos: "C",
-      posG: { c: 60, if: 0, of: 0},
-      war: -1.9 });
-    const ifPos = player({ war: 4 });
-    const g = landedGame(card([c1, c2, ifPos]));
-    // c1 is the least-bad catcher → kept; c2 stays hidden
-    expect(g.visiblePlayers.map((p) => p.id)).toEqual([c1.id, ifPos.id]);
-  });
-
-  it("cold stove judges by visible players, not the full card", () => {
+  it("a below-replacement body keeps the stove warm", () => {
     // A (war 3, catcher) is already rostered at FLEX; B (war −1, catcher) is
-    // the only body for the open C seat but is hidden → the card is cold.
+    // the only body for the open C seat. He lists — a bad signing is still a
+    // choice — so the card is playable, not cold.
     const a = player({
       id: "vetC",
       pos: "C",
       posG: { c: 90, if: 0, of: 0},
       war: 3 });
     const b = player({
+      id: "badC",
       pos: "C",
       posG: { c: 80, if: 0, of: 0},
       war: -1 });
@@ -963,8 +954,8 @@ describe("visiblePlayers", () => {
     fillSlots(g, [0]);
     g.slots[4] = filler(4, { id: "vetC" });
     g.powerups.tradeDeadline = "spent";
-    expect(g.visiblePlayers.map((p) => p.id)).toEqual(["vetC"]);
-    expect(g.coldStove).toBe(true);
+    expect(g.visiblePlayers.map((p) => p.id)).toEqual(["vetC", "badC"]);
+    expect(g.coldStove).toBe(false);
   });
 });
 

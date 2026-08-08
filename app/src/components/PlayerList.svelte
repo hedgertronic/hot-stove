@@ -31,7 +31,8 @@
 
   // Box Score reads talent-first (WAR desc); Eye Test reads money-first —
   // salary is the one signal that mode deliberately shows, so the list ranks
-  // by it. Below-replacement rows are filtered engine-side (visiblePlayers).
+  // by it. Every qualified player lists, below-replacement included — the
+  // WAR sort seats them at the bottom.
   const sorted = $derived.by(() => {
     const ps = [...game.visiblePlayers];
     if (game.scout)

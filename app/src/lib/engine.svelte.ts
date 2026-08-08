@@ -5,7 +5,7 @@ import { track } from "./analytics";
 import { earnedBadges } from "./badges";
 import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadPlayers, loadSpecials, ownerFor } from "./data";
-import { eligibleTypes, isTwoWay, visiblePlayers } from "./eligibility";
+import { eligibleTypes, isTwoWay } from "./eligibility";
 import { localDateStamp, recordFromTotal, type WarTier } from "./format";
 import { decodeLogBody, encodeLogBody, type CompactAction } from "./logcodec";
 import {
@@ -996,10 +996,14 @@ export class Game {
     return this.openSlotsFor(p).length > 0 ? "open" : "dead";
   }
 
-  /** Card players the list actually shows. The rule is eligibility.ts's — the
-   * dream-team solver reads the same function, and it has to. */
+  /** Card players the list shows: every qualified player, below-replacement
+   * included. The card is a real season and the market says so — a −0.5 row
+   * is a trap pick and 🎒 bait, and hiding it made thin rotations read as a
+   * bug (six cards offered exactly one SP with the old WAR floor). The
+   * dream-team solver reads the same card, so the two stay in agreement the
+   * way they always had to. */
   get visiblePlayers(): CardPlayer[] {
-    return this.card ? visiblePlayers(this.card.players) : [];
+    return this.card?.players ?? [];
   }
 
   /** Whether a listed row is tappable right now — the single gate the UI

@@ -43,9 +43,9 @@
  * 4. THE FRONT OFFICE COSTS CARDS TOO. Classic bank hires an owner and buys a
  *    ballpark, each off its own card; budget = owner payroll × park multiplier.
  *    Fixed banks (Moneyball, Blank Check) skip both — their cap is a constant.
- * 5. THE MARKET IS WHAT THE PLAYER SAW. Only players the card list would have
- *    shown (`visible`, mirroring Game.visiblePlayers) can be signed, at their
- *    listed price.
+ * 5. THE MARKET IS WHAT THE PLAYER SAW. Every qualified player on the card,
+ *    below-replacement included — the list hides no one, so neither does the
+ *    solver — at the listed price.
  * 6. NO PASSING. There is no such thing as a club with an open seat: the game
  *    will not let a season end until every seat is filled (DECISIONS.md item 2),
  *    so a club a seat short is not a worse club, it is not a club. This is the
@@ -117,7 +117,7 @@
  * Deterministic throughout: stable iteration order, strict-improvement
  * updates, fixed λ schedule and a fixed branch order, so two runs of the same
  * seed always print the same club. */
-import { eligibleTypes, visiblePlayers } from "./eligibility";
+import { eligibleTypes } from "./eligibility";
 import {
   AWARD_POINTS,
   BUDGET_BONUS_MAX,
@@ -365,14 +365,11 @@ function clubOf(chosen: Chosen[], budgetM: number, dup: number): Club {
   };
 }
 
-/** The market the player actually saw on this card. It is eligibility.ts's
- * `visiblePlayers`, which `Game.visiblePlayers` also calls — not a mirror of
- * it. A dream club built out of rows the card never listed is not a club anyone
- * could have drafted, and the payroll term makes expensive washouts tempting
- * (they soak up bankroll), so this filter matters more here than it did under a
- * WAR-max objective. That is exactly why it cannot be a second copy: the two
- * were byte-identical and one comment away from drifting. */
-const visible = (card: Card): CardPlayer[] => visiblePlayers(card.players);
+/** The market the player actually saw on this card: every qualified player,
+ * the same unfiltered list `Game.visiblePlayers` shows. A dream club built out
+ * of rows the card never listed is not a club anyone could have drafted, which
+ * is why this and the market must read the same card the same way. */
+const visible = (card: Card): CardPlayer[] => card.players;
 
 /** Every item one card can supply, in stable order: its visible players (each
  * eligible slot type) then its skipper. Nothing is dropped for being weak — a
