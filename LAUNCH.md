@@ -45,7 +45,13 @@ This is the release source of truth. Check an item only after it has been verifi
 - [x] Deploy Hot Stove, then the website link.
 - [x] Smoke-test the production home, one complete game, Help/report, finale, and both reciprocal links.
 - [ ] Refresh the X and Facebook card validators after the final OG image is live.
-- [ ] Request re-indexing in Google Search Console and verify the canonical URL and sitemap entry.
+      (Nothing cached yet — the URL has never been shared on either platform, so the
+      first real share scrapes the current card. Optional: preview it in the Facebook
+      Sharing Debugger before the first post.)
+- [x] Request re-indexing in Google Search Console and verify the canonical URL and sitemap entry.
+      (2026-08-08: domain property verified, sitemap.xml Success with all 4 pages
+      discovered, /games/hot-stove/ already indexed; re-crawl requested after the
+      OG metadata change — "added to a priority crawl queue".)
 - [x] Verify the legacy `/hot-stove/` redirect still resolves to `/games/hot-stove/`.
 
 ## Post-launch, not blocking
