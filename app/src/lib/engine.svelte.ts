@@ -334,12 +334,25 @@ export function beatCeilingDecision(
  * were one claim at two strictnesses, and the owner split them (round
  * twelve). Both sides go through the same round1 press the ledger prints,
  * and strictly greater: a rounding tie is a matched baseline, not a win.
- * A null solve fails safe — no dream club, nothing was beaten. */
+ * A null solve fails safe — no dream club, nothing was beaten.
+ *
+ * THE SOLVENCY GATE: the club's FINAL total must also sit above its own
+ * baseline. The roster claim alone could be farmed — blow past the luxury
+ * tax, stack WAR the solver's budget can't touch, and the baseline beats the
+ * dream club's while the ledger drowns in tax. The gate asks that awards,
+ * rings, the payroll bonus and scout hits cover whatever tax the club ran
+ * up: a badge about out-BUILDING a club shouldn't be earnable by a club
+ * whose season finished underwater. Strictly greater — a ledger that exactly
+ * breaks even against its own baseline hasn't shown it. The description
+ * ("more baseline wins…") stays true; the gate only excludes the degenerate
+ * builds that were never the claim. */
 export function beatDreamDecision(
   playerExpectedWins: number,
+  playerTotal: number,
   best: { totalWar: number; manager?: { netWins: number } | null } | null,
 ): boolean {
   if (best === null) return false;
+  if (playerTotal <= playerExpectedWins) return false;
   return (
     playerExpectedWins >
     round1(
@@ -2433,7 +2446,7 @@ export class Game {
     // `Finale.svelte` renders from or the badge and the screen can disagree.
     // `stamp` is computed above (before and after any beatCeiling scout upgrade).
     // 🧠's fact — see beatDreamDecision beside beatCeilingDecision above.
-    const beatDream = beatDreamDecision(parts.expectedWins, best ?? null);
+    const beatDream = beatDreamDecision(parts.expectedWins, parts.total, best ?? null);
     // 🎣's fact: the same raw solve `beatDream` reads, handed over as a number
     // so the badge can press it through recordFromTotal itself. `undefined`
     // (solve never ran) fails safe — no ceiling, nothing got away.

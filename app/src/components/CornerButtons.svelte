@@ -157,6 +157,13 @@
   $effect(() => () => clearTimeout(undoTimer));
 </script>
 
+<!-- NO gridsnap on the corner pills, by measurement rather than oversight:
+     the owner's own screenshots showed these rings painting symmetric
+     (12/12) at their natural offsets — the split-pixel problem is the award
+     chips' (stacked half-pixel remainders in market rows), not this row's —
+     while snapping here caused visible late micro-jumps and absorbed the
+     armed/pushed transforms into a persistent wrong offset. What made these
+     glyphs read low was the OPTICAL seat, fixed in the svgs' own viewBoxes. -->
 <button
   class="help chipbox"
   class:home
@@ -173,7 +180,15 @@
   aria-label={badgeCue
     ? `Collectibles: ${badgeCount} new badge${badgeCount === 1 ? "" : "s"}`
     : "Collectibles"}
-  ><svg class="tico" viewBox="0 0 14 14" aria-hidden="true"
+  ><!-- viewBox 15.077 in a 14px box = CloseGlyph's whole-pixel seat: ink
+       stays at the tuned 13px scale while the box's air in the pill is a
+       whole pixel on every side (a 13px box sat on 2.5px and Chromium
+       rounded it 0.5px off center). The y origin backs up 0.589 rather than
+       the X's 0.538 because the cup's ink bbox center is 6.95, not 7 — the
+       drawing rides 0.05 units high in its own coordinates. Geometric
+       center on purpose — no optical constants (CloseGlyph carries the
+       reverted-lift history). -->
+  <svg class="tico" viewBox="-0.538 -0.589 15.077 15.077" aria-hidden="true"
     ><path
       d="M4 2h6v3.2a3 3 0 0 1-6 0V2Z M4 2.8H2.3v1.1a2 2 0 0 0 1.9 2 M10 2.8h1.7v1.1a2 2 0 0 1-1.9 2 M7 8.4v2.2 M4.6 11.9h4.8"
     /></svg
@@ -193,7 +208,11 @@
     bind:this={undoEl}
     onclick={tapUndo}
     aria-label={undoArmed ? "Undo last move: tap again to confirm" : "Undo last move"}
-    >{#if undoArmed}<span class="chiplbl">UNDO?</span>{:else}<svg class="tico" viewBox="0 0 14 14" aria-hidden="true"
+    >{#if undoArmed}<span class="chiplbl">UNDO?</span>{:else}<!-- The arrow's
+        ink bbox center is (6.75, 6.75), not (7, 7) — the drawing sits 0.25
+        units up-left in its own coordinates, which painted as ~0.23px at the
+        pill's scale ON TOP of the half-pixel box seat. One origin (0.789 =
+        6.75 − 15.077/2) recenters both at once. --><svg class="tico" viewBox="-0.789 -0.789 15.077 15.077" aria-hidden="true"
         ><path d="M11 11.5V8.5A4 4 0 0 0 7 4.5H2.5 M5.5 2 2.5 4.5l3 2.5" /></svg
       >{/if}</button
   >
@@ -384,8 +403,11 @@
      color emoji dropped into that geometry sits low and reads as a sticker on
      a control. Stroked ink matches the punch mark the home rows already use. */
   .tico {
-    width: 13px;
-    height: 13px;
+    /* 14, not 13: whole-pixel air in the pill's 24×18 content box. The ink
+       inside still paints at the tuned 13px scale — the viewBoxes grew by
+       the same ratio (see the svg markup). */
+    width: 14px;
+    height: 14px;
     fill: none;
     stroke: currentColor;
     stroke-width: 1.3;

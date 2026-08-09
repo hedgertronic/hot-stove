@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Rarity } from "../lib/badges";
+  import { glyphseat } from "../lib/glyphseat";
 
   /** THE ONE CHIP. Every small collectible mark in the game draws through this:
    * a badge on the finale, a badge in the trophy case, a country stamp on
@@ -108,7 +109,7 @@
   {title}
 >{#if fresh && !locked}<span class="chipbox newchip"><span class="chiplbl">NEW</span></span
     >{/if}{#if emoji}<span
-      class="ico">{emoji}</span
+      class="ico" use:glyphseat>{emoji}</span
     >{/if}{#if placeholder}<span class="chiplbl" aria-hidden="true">? ? ?</span>{:else if label}<span
       class="name chiplbl">{label}</span
     >{/if}{#if count !== null}<span class="count chiplbl">×{count}</span>{/if}{#if srLabel}<span
@@ -156,16 +157,20 @@
     background: var(--rarity-fill, var(--gray-bg));
     padding-inline: 12px;
   }
-  /* EVERY glyph — badge emoji and country flag alike — seats DOWN ~0.09em:
-     flex centers its line box, but an emoji's ink hangs from Nunito's
-     baseline, which the font's tall ascent parks above the box's true middle
-     — measured ~1.2px high at 10.5px against the cap-trimmed label (worst on
-     the locked silhouettes, where the glyph is the only ink). One shared rule
-     on purpose: this seat was briefly capsule-only and the stamps' flags rode
-     visibly high — the two shapes are read side by side in one band, so a
-     correction either both get or neither gets. Same class of optical fix as
-     the O-boiler's flame seat. The em unit scales it with the stamp's larger
-     13px flag. line-height 1 so a tall glyph cannot grow the chip. */
+  /* EVERY glyph — badge emoji and country flag alike — is optically seated:
+     flex centers its line box, but where the emoji INK sits inside that box
+     is engine business twice over (which metric table places Nunito's
+     baseline; where the color glyph hangs from it), and the lab's seat probe
+     measured the same chips low on iPhone Safari, high on Mac Safari and
+     centered on Chromium. So the seat is MEASURED, not tuned: use:glyphseat
+     in the markup rasters the glyph once per glyph+size (lib/glyphseat.ts)
+     and centers its ink in this box on whatever device is rendering. The
+     0.09em below is desktop Chrome's measured value, kept as the static
+     fallback for anywhere the measurement can't run (vitest's DOM, an
+     ancient canvas) — those keep the seat the chips always had. One shared
+     rule on purpose: badge and stamp are read side by side in one band, so
+     the correction either both get or neither gets. line-height 1 so a tall
+     glyph cannot grow the chip. */
   .pill .ico {
     line-height: 1;
     transform: translateY(0.09em);

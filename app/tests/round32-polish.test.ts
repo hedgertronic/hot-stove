@@ -75,7 +75,13 @@ describe("the ✕ is drawn, not typed", () => {
   it("CloseGlyph strokes one path in currentColor", () => {
     const glyph = read("components/CloseGlyph.svelte");
     expect(glyph).toContain("stroke: currentColor;");
-    expect(glyph).toContain('viewBox="0 0 14 14"');
+    // 15.077 = 14 × 14/13: a 14px box (whole-pixel air in the pill) whose
+    // ink still paints at the tuned 13px scale, origin backed up so the
+    // ink's bbox center holds the viewBox center. Symmetric origins pin
+    // GEOMETRIC center — a +0.5px optical lift was tried and reverted the
+    // same day (right on one engine, high on the rest); no per-glyph
+    // optical constants may creep back.
+    expect(glyph).toContain('viewBox="-0.538 -0.538 15.077 15.077"');
   });
 
   it("both dismissal pills use it — no literal ✕ glyph is rendered", () => {

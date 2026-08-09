@@ -2,19 +2,13 @@
    The wrappers choose a named size; mark proportions, gaps, font treatment,
    color, and optical seats live only here.
 
-   Two cuts share the recipe: the masthead/OG logotype (the letter-fitted
-   boiler serves as STOVE's O — no separate mark) and the HUD lockup (plain
-   type led by the flame mark, which survives 15px where the O-boiler
-   can't). */
+   Every cut is a logotype with fire inside the word: the masthead/OG puts
+   the letter-fitted boiler in as STOVE's O, and the HUD puts the flame in
+   as HOT's O — the O-boiler doesn't survive 15px, the flame does. */
 .hs-logo {
   --hs-logo-size: 15px;
-  --hs-logo-gap: 5px;
-  --hs-mark-width: 11px;
-  --hs-mark-height: 15px;
-  --hs-mark-lift: -1.25px;
   display: inline-flex;
   align-items: center;
-  gap: var(--hs-logo-gap);
   color: #24221c;
   font-family: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
   font-size: var(--hs-logo-size);
@@ -31,27 +25,82 @@
 
 .hs-logo--game {
   --hs-logo-size: 15px;
-  --hs-logo-gap: 5px;
-  --hs-mark-width: 11px;
-  --hs-mark-height: 15px;
-  --hs-mark-lift: -1.25px;
 }
 
 .hs-logo--og {
   --hs-logo-size: 76px;
 }
 
-.hs-logo__mark {
-  display: block;
-  width: var(--hs-mark-width);
-  height: var(--hs-mark-height);
-  flex: none;
-  transform: translateY(var(--hs-mark-lift));
-}
-
 .hs-logo__wordmark {
   display: block;
   white-space: nowrap;
+}
+
+/* The flame inside the HUD logotype, standing in as HOT's O. The slot is an
+   inline-block exactly cap-height tall (Nunito 800 cap = 0.705em) seated on
+   the baseline like a letter, sized to the flame's ink width; the flame
+   hangs INSIDE it absolutely with explicit dimensions, so no engine's
+   replaced-element baseline rules can move it. The bottom offset does two
+   jobs: -0.031em cancels the SVG's internal air below the stroke so the INK
+   reaches the baseline, and a further -0.015em is overshoot — the measured
+   depth Nunito 800's own round glyphs (O, S) dip below the line, without
+   which a curved bottom reads as floating beside flat letter feet. Flame
+   runs 0.95em: tip well over the cap line, the same fire-above-the-word
+   gesture as the masthead boiler's chimney. */
+.hs-logo__oflame {
+  display: inline-block;
+  position: relative;
+  height: 0.705em;
+  width: 0.62em;
+  vertical-align: 0;
+  /* Asymmetric bearings, because the neighbors differ: H meets the flame at
+     a full-height stem (the flame's widest arc passes it with air), but T
+     meets it at the CROSSBAR, which reaches left exactly where the flame's
+     upper curve is — at 0.02em the two nearly touched. 0.03em is the owner's
+     landing point after sweeping 0.02–0.09 across three rounds: 0.05 read
+     as slightly adrift from the T, 0.035 still a touch loose, 0.07+ a hole. */
+  margin: 0 0.03em 0 0.02em;
+}
+
+/* A REAL letter O rides invisibly in the flame's slot so the lockup still
+   COPIES as "HOTSTOVE" — the masthead's <img alt="O"> joins copied text, but
+   an inline svg contributes nothing to the clipboard, and the word came out
+   "HTSTOVE". Clipped to nothing rather than display:none or visibility:
+   hidden, both of which would drop it from the selection again. The wordmark
+   is role="img" for assistive tech, so this O never double-announces. */
+.hs-logo__ocopy {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hs-logo__oflame svg {
+  position: absolute;
+  left: 50%;
+  /* An <svg> clips to its own viewport by default, and at the HUD's
+     fractional offsets the rightmost anti-aliased column of the stroke fell
+     outside a rounded-down viewport edge — the ring read as shaved flat on
+     the right. The ink fits the viewBox with margin; only the AA spills. */
+  overflow: visible;
+  /* The flame runs 0.9em (0.95 in the first review round, shrunk a notch on
+     the owner's call). Bottom = internal-air term + overshoot + optical
+     drop: 0.9em × 3.25% cancels the SVG's air below the stroke so the INK
+     reaches the baseline, -0.015em is the measured depth Nunito 800's own
+     round glyphs (O, S) dip below the line, and -0.033em (half a px at the
+     HUD's 15px) is the owner's optical drop — a full -1px was tried and
+     reverted as too deep, then geometric-exact read a tad high, so the
+     seat splits the difference on the owner's eye. Width = 0.7531 (the
+     viewBox's 61:81) × the height; the slot above is 0.69 × the height,
+     the ink's own width. */
+  bottom: -0.077em;
+  height: 0.9em;
+  width: 0.678em;
+  transform: translateX(-50%);
 }
 
 /* The O-boiler inside the logotype: chimney rises above the cap line like an

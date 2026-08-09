@@ -6,6 +6,7 @@
  * variant renders inside the expected container hierarchy with the right
  * classes and identity marks are present in their respective variants.
  */
+import fs from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import Logo from "../src/components/Logo.svelte";
@@ -36,14 +37,43 @@ describe("small HUD variant (big=false)", () => {
     close();
   });
 
-  it("shows HOT STOVE text with the leading flame", () => {
+  it("is a logotype: the flame stands in as HOT's O", () => {
     const { target, close } = open(false);
     const logo = target.querySelector(".hs-logo")!;
-    expect(logo.textContent).toContain("HOT");
+    // H[flame]T STOVE — the O of HOT is the flame image, so the text runs
+    // are H, T and STOVE, and the flame's alt keeps the word whole for
+    // screen readers (the O-boiler pattern, at the HUD's own size).
+    expect(logo.textContent).toContain("H");
     expect(logo.textContent).toContain("STOVE");
-    const mark = target.querySelector<HTMLImageElement>(".hs-logo__mark");
-    expect(mark?.getAttribute("src")).toBe("./brand/flame.svg");
-    expect(logo.children[1].classList.contains("hs-logo__wordmark")).toBe(true);
+    // INLINE svg, not an <img> — an SVG image is rasterized to a snapped
+    // bitmap and its bottom arc shaved at fractional offsets; inline it
+    // renders as vectors like the type beside it. The path must stay the
+    // brand asset's own: pinned against public/brand/flame.svg below.
+    const flame = target.querySelector<SVGSVGElement>(".hs-logo__oflame svg");
+    expect(flame?.getAttribute("aria-hidden")).toBe("true");
+    // One utterance for assistive tech: the wordmark is the labeled image,
+    // so the split word (H, flame, T) never reaches a screen reader.
+    const wordmark = target.querySelector(".hs-logo__wordmark");
+    expect(wordmark?.getAttribute("role")).toBe("img");
+    expect(wordmark?.getAttribute("aria-label")).toBe("Hot Stove");
+    // The clipboard's word: a clipped-invisible real O rides in the flame's
+    // slot, so a selection copies as HOTSTOVE — the svg alone contributes
+    // nothing to copied text (the regression this pins was "HTSTOVE").
+    expect(wordmark?.textContent?.replace(/\s/g, "")).toBe("HOTSTOVE");
+    // Plain cwd-relative read: under the jsdom environment import.meta.url
+    // is not a file: URL, and vitest always runs from the app root.
+    const assetPath = /\sd="([^"]+)"/.exec(
+      fs.readFileSync("public/brand/flame.svg", "utf8"),
+    )?.[1];
+    expect(assetPath).toBeTruthy();
+    expect(flame?.querySelector("path")?.getAttribute("d")).toBe(assetPath);
+    // The flame slot lives INSIDE the orange HOT span, between H and T.
+    expect(target.querySelector(".hs-logo__hot .hs-logo__oflame")).not.toBeNull();
+    // One wordmark child, no separate leading mark — same shape as the
+    // masthead logotype.
+    expect(logo.children).toHaveLength(1);
+    expect(logo.children[0].classList.contains("hs-logo__wordmark")).toBe(true);
+    expect(logo.querySelector(".hs-logo__mark")).toBeNull();
     close();
   });
 });

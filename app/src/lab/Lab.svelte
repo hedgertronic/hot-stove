@@ -5,6 +5,7 @@
   import BadgePill from "../components/BadgePill.svelte";
   import BadgeSlot from "../components/BadgeSlot.svelte";
   import BankBox from "../components/BankBox.svelte";
+  import CloseGlyph from "../components/CloseGlyph.svelte";
   import Finale from "../components/Finale.svelte";
   import PlayerList from "../components/PlayerList.svelte";
   import PayrollBox, { FIXED_CAP_CLUB } from "../components/PayrollBox.svelte";
@@ -12,7 +13,9 @@
   import RosterRail from "../components/RosterRail.svelte";
   import PrimePicker from "../components/PrimePicker.svelte";
   import SpecialPrimePicker from "../components/SpecialPrimePicker.svelte";
+  import Pill from "../components/Pill.svelte";
   import SpinBanner from "../components/SpinBanner.svelte";
+  import { measureGlyphSeat, type SeatReading } from "../lib/glyphseat";
   import {
     PILL_LADDER,
     bankGames,
@@ -40,7 +43,7 @@
     specialPrimeGame,
     tdGame,
   } from "./fixtures";
-  import { BADGE_BY_KEY } from "../lib/badges";
+  import { BADGE_BY_KEY, type Rarity } from "../lib/badges";
 
   const market = marketGame();
   const scout = scoutGame();
@@ -98,6 +101,139 @@
   let labEdge = $state<string | null>(null);
 
   const noop = () => {};
+
+  /** GLYPH SEAT PROBE — real Pill specimens whose emoji seat is measured ON
+   * this device (glyphseat.ts carries the method and the why: the CI ink
+   * probe is Chromium-only, and the emoji seat is exactly what varies by
+   * engine). Open ?lab on the device in question and read the numbers. */
+  interface SeatSpec {
+    name: string;
+    emoji: string;
+    label?: string;
+    placeholder?: boolean;
+    locked?: boolean;
+    rarity: Rarity;
+    shape?: "round" | "rect";
+  }
+  const SEAT_SPECS: SeatSpec[] = [
+    { name: "brag · trophy", emoji: "🏆", label: "PERFECT SEASON", rarity: "legendary" },
+    { name: "brag · brain", emoji: "🧠", label: "BEAT THE DREAM TEAM", rarity: "uncommon" },
+    { name: "silhouette", emoji: "🦉", placeholder: true, locked: true, rarity: "legendary" },
+    { name: "stamp · US", emoji: "🇺🇸", shape: "rect", rarity: "common" },
+    { name: "stamp · JP", emoji: "🇯🇵", shape: "rect", rarity: "rare" },
+    { name: "stamp · DO", emoji: "🇩🇴", shape: "rect", rarity: "uncommon" },
+  ];
+  /** |skew| a healthy seat may read on-device: no screenshot quantization in
+   * this method, so the bound is tighter than the CI probe's — one device
+   * pixel of AA on each side of the ink scan. */
+  const SEAT_LIMIT = 2;
+  let seatEl = $state<HTMLElement | null>(null);
+  let seatReadings = $state<(SeatReading | null)[]>([]);
+  let seatMeta = $state("measuring…");
+  $effect(() => {
+    const host = seatEl;
+    if (!host) return;
+    let live = true;
+    // Fonts first (Nunito's strut and the Twemoji flags both move the seat),
+    // then one frame so layout has settled on what the fonts decided.
+    document.fonts.ready.then(() =>
+      requestAnimationFrame(() => {
+        if (!live || !host.isConnected) return;
+        seatReadings = [...host.querySelectorAll<HTMLElement>(".pill")].map((chip) => {
+          const ico = chip.querySelector<HTMLElement>(".ico");
+          return ico ? measureGlyphSeat(chip, ico) : null;
+        });
+        seatMeta = `dpr ${window.devicePixelRatio} · ${navigator.userAgent}`;
+      }),
+    );
+    return () => {
+      live = false;
+    };
+  });
+  const seatLine = (r: SeatReading | null | undefined) =>
+    r
+      ? `air ${r.above.toFixed(1)} / ${r.below.toFixed(1)} · skew ${r.skew >= 0 ? "+" : ""}${r.skew.toFixed(1)}dp`
+      : "no reading";
+  /* Positive skew = more air ABOVE the ink than below it = the glyph SITS
+   * LOW. (The first cut of this line had the two verdicts swapped, which
+   * made the phone's low-riding flags read as "RIDES HIGH".) */
+  const seatVerdict = (r: SeatReading | null | undefined) =>
+    !r ? "" : Math.abs(r.skew) <= SEAT_LIMIT ? "seated" : r.skew > 0 ? "SITS LOW" : "RIDES HIGH";
+
+  /** ICON PILL PROBE — the corner-pill ✕ through both box recipes, measured
+   * ON this device. The glyph is our own svg, so unlike the emoji seat there
+   * is no ink to scan — but every way the recipes can diverge is a LAYOUT
+   * fact, and getBoundingClientRect reads layout at sub-pixel truth:
+   * which @supports branch this engine took, where the box put the svg, and
+   * what phase of the device grid the pill's ring landed on. Open ?lab in
+   * the Safari that looks wrong and read the numbers.
+   *
+   * dy is svg center minus pill center, DEVICE px, positive = glyph sits
+   * LOW in its ring. phase is the border-box top's distance off the device
+   * grid — nonzero phase paints the 2px ring across a split device pixel
+   * (heavier below, glyph READS low even at dy 0). The corner pills are
+   * deliberately NOT snapped (their rings measured symmetric at natural
+   * offsets, and snapping caused visible micro-jumps), so phase reports the
+   * row's natural seat — expect small nonzero values, identical per row. */
+  interface IconReading {
+    dy: number;
+    dx: number;
+    phase: number;
+    pad: string;
+    margin: string;
+  }
+  let iconEl = $state<HTMLElement | null>(null);
+  let iconReadings = $state<IconReading[]>([]);
+  let iconMeta = $state("measuring…");
+  $effect(() => {
+    const host = iconEl;
+    if (!host) return;
+    let live = true;
+    // A LIVE reading, not a one-shot: this page stacks whole galleries
+    // above the probe, and each late settle (fonts, emoji, images) moves
+    // the pills — a single read races all of that. Re-measuring twice a
+    // second keeps the display honest at whatever moment the reader looks.
+    const measure = () => {
+      if (!live || !host.isConnected) return;
+      const dpr = window.devicePixelRatio || 1;
+      iconReadings = [...host.querySelectorAll<HTMLElement>(".iconpill")].map((pill) => {
+          // The glyph box: the svg mark, or — on the text reference row —
+          // the trimmed .chiplbl, whose box IS the cap band the trim seated.
+          const svg = pill.querySelector("svg, .chiplbl")!;
+          const p = pill.getBoundingClientRect();
+          const s = svg.getBoundingClientRect();
+          const cs = getComputedStyle(pill);
+          // Distance OFF the grid, folded: 0.999 is a float artifact of an
+          // on-grid edge (x.6667 × 3), not a full pixel of error — and a
+          // scrolled probe can read a negative top.
+          const ph = (((p.top * dpr) % 1) + 1) % 1;
+          return {
+            dy: (s.top + s.height / 2 - (p.top + p.height / 2)) * dpr,
+            dx: (s.left + s.width / 2 - (p.left + p.width / 2)) * dpr,
+            phase: Math.min(ph, 1 - ph),
+            pad: cs.paddingTop,
+            margin: getComputedStyle(svg).marginTop,
+          };
+      });
+      iconMeta =
+          `text-box ${CSS.supports("text-box", "trim-both cap alphabetic") ? "TRIM" : "FALLBACK"}` +
+          ` · dpr ${dpr} · ${navigator.userAgent}`;
+    };
+    document.fonts.ready.then(() => requestAnimationFrame(measure));
+    const timer = setInterval(measure, 500);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  });
+  const ICON_LIMIT = 0.5; // half a device px of layout offset is invisible
+  const iconLine = (r: IconReading | undefined) =>
+    r
+      ? `dy ${r.dy >= 0 ? "+" : ""}${r.dy.toFixed(2)}dp · dx ${r.dx >= 0 ? "+" : ""}${r.dx.toFixed(2)}dp` +
+        ` · phase ${r.phase.toFixed(2)}dp · pad ${r.pad} · mtop ${r.margin}`
+      : "no reading";
+  const iconVerdict = (r: IconReading | undefined) =>
+    !r ? "" : Math.abs(r.dy) <= ICON_LIMIT ? "seated" : r.dy > 0 ? "SITS LOW" : "RIDES HIGH";
 
   /* Every state PayrollBox renders, as bare props. The in-game bank box is
      scheduled to move onto this component, and these are the states it needs:
@@ -293,6 +429,81 @@
       </div>
     {/each}
   </div>
+
+  <div class="psep">GLYPH SEAT PROBE</div>
+  <div class="cap">
+    Is every emoji optically centered in its chip ON THIS DEVICE? The CI ink
+    probe rasters Chromium only, and a color emoji's seat is exactly what
+    varies by engine — Pill.svelte's shared 0.09em seat was tuned in desktop
+    Chrome. Each specimen below is a real Pill; the numbers are device pixels
+    of air above / below the glyph's measured ink inside the ring. Open
+    ?lab on any phone and read its row: |skew| ≤ {SEAT_LIMIT} is seated.
+  </div>
+  <div class="seatcase" bind:this={seatEl}>
+    {#each SEAT_SPECS as s, i (s.name)}
+      <div class="seatrow">
+        <Pill
+          emoji={s.emoji}
+          label={s.label}
+          placeholder={s.placeholder ?? false}
+          locked={s.locked ?? false}
+          rarity={s.rarity}
+          shape={s.shape ?? "round"}
+          title={s.name}
+        />
+        <span
+          class="seatnum"
+          class:bad={seatReadings[i] != null && Math.abs(seatReadings[i].skew) > SEAT_LIMIT}
+          >{seatLine(seatReadings[i])} {seatVerdict(seatReadings[i])}</span
+        >
+      </div>
+    {/each}
+  </div>
+  <div class="cap seatmeta">{seatMeta}</div>
+
+  <div class="psep">ICON PILL PROBE</div>
+  <div class="cap">
+    The corner ✕ through both box recipes ON THIS DEVICE: HUD is the chipbox
+    the gameplay ✕/?/trophy/undo wear, SHEET is the hand-boxed pill the
+    collectibles and help sheets draw. Same glyph, so the two must read
+    identically — dy is the svg's layout offset from the ring's center
+    (positive = sits low), phase is the ring's top edge off the device grid
+    (nonzero paints the ring across a split pixel and the glyph READS low at
+    dy 0 — the pills sit at the row's natural offset, unsnapped, so a small
+    identical phase on every row is healthy). If the two ✕ pills LOOK
+    different here, the number that differs is the culprit.
+  </div>
+  <div class="seatcase" bind:this={iconEl}>
+    <div class="seatrow">
+      <button class="iconpill iconpill-hud chipbox" aria-label="HUD replica"
+        ><CloseGlyph /></button
+      >
+      <span class="seatnum" class:bad={iconReadings[0] != null && Math.abs(iconReadings[0].dy) > ICON_LIMIT}
+        >HUD · {iconLine(iconReadings[0])} {iconVerdict(iconReadings[0])}</span
+      >
+    </div>
+    <div class="seatrow">
+      <button class="iconpill iconpill-sheet" aria-label="Sheet replica"
+        ><CloseGlyph /></button
+      >
+      <span class="seatnum" class:bad={iconReadings[1] != null && Math.abs(iconReadings[1].dy) > ICON_LIMIT}
+        >SHEET · {iconLine(iconReadings[1])} {iconVerdict(iconReadings[1])}</span
+      >
+    </div>
+    <!-- The reference: the ? is TYPE, and its trimmed ink rides slightly
+         above geometric center while the drawn marks sit exactly ON it (a
+         family-wide 0.5px lift was tried and reverted — right on one
+         engine, high on the rest). Its dy here reads the trimmed label
+         BOX, not ink, so judge this row by eye against the two above
+         rather than by its number. -->
+    <div class="seatrow">
+      <button class="iconpill iconpill-hud chipbox" aria-label="Text reference"
+        ><span class="chiplbl">?</span></button
+      >
+      <span class="seatnum">TEXT ? · {iconLine(iconReadings[2])} (label box, eyeball row)</span>
+    </div>
+  </div>
+  <div class="cap seatmeta">{iconMeta}</div>
 
   <div class="psep">BADGE PILLS · TAP TO EXPLAIN</div>
   <div class="cap">
@@ -518,6 +729,59 @@
   }
   .railcase {
     margin-bottom: 10px;
+  }
+  /* Glyph seat probe: one specimen per line, its reading beside it. */
+  .seatcase {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+  }
+  .seatrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .seatnum {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .seatnum.bad {
+    color: var(--red-8);
+  }
+  /* The UA line wraps however it must — it's a receipt, not typography. */
+  .seatmeta {
+    word-break: break-all;
+  }
+  /* Icon pill replicas: byte-for-byte the box declarations of App.svelte's
+     .quit (HUD, on the chipbox recipe) and Sheet.svelte's .x (hand-boxed) —
+     the whole point is that a divergence between THOSE recipes shows here. */
+  .iconpill {
+    border: 2px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--muted);
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 12px;
+    width: 28px;
+    box-sizing: border-box;
+    cursor: default;
+  }
+  .iconpill-hud {
+    padding-inline: 0;
+    text-align: center;
+    --chip-h: 22px;
+  }
+  .iconpill-sheet {
+    line-height: 1;
+    padding: 0;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   /* PayrollBox carries no outer margin — spacing is the caller's — so the
      gallery supplies its own. */

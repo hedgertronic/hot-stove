@@ -204,8 +204,9 @@ describe("every run of type inside a chip is wrapped in .chiplbl", () => {
     expect(pill).toContain('class="count chiplbl"');
     expect(pill).toContain('<span class="chiplbl" aria-hidden="true">? ? ?</span>');
     // The flag is not type. It carries no cap band, and under the trim branch
-    // the chip's padding is zero, so the box alone centers it.
-    expect(pill).toContain('class="ico">{emoji}</span');
+    // the chip's padding is zero, so the box centers it — and use:glyphseat
+    // measures the ink onto the box's center per device (lib/glyphseat.ts).
+    expect(pill).toContain('class="ico" use:glyphseat>{emoji}</span');
   });
 
   it("AwardPill splits its medal off the word, and wraps both the word and ×N", () => {

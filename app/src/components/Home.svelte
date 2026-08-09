@@ -425,10 +425,10 @@
       <div class="bcol">
         <div class="bcap">GAMES</div>
         <div class="bn" class:empty={best.games === 0}>{best.games}</div>
-        <!-- "OF n TOTAL": the big numeral is mode-scoped and silently re-scopes
-             as rows are punched above; the OF names the split so 3-over-12
-             doesn't read as a contradiction. -->
-        <div class="btotal" class:invis={seasons === 0}>OF {seasons} TOTAL</div>
+        <!-- "n TOTAL": the big numeral is mode-scoped and silently re-scopes
+             as rows are punched above; the small line carries the global
+             count under its own word. -->
+        <div class="btotal" class:invis={seasons === 0}>{seasons} TOTAL</div>
       </div>
     </button>
     <button

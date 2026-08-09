@@ -1,5 +1,6 @@
 <script lang="ts">
   import { awardFamily, awardLabel } from "../lib/awards";
+  import { gridsnap } from "../lib/gridsnap";
 
   /** One award pill, shared by the market rows, the finale squads, and the
    * finale ledger. What a code is CALLED and which hue family it wears are
@@ -17,7 +18,10 @@
   const word = $derived(text.slice(medal.length));
 </script>
 
-<span class="chipbox qb {awardFamily(code)}" class:small
+<!-- gridsnap rides the SMALL cut only: the gameplay rows' stacked half-pixel
+     offsets shave the 1.5px ring's top arc at 3× (the action's own note); the
+     finale's full-size chips already sit clean and stay untouched. -->
+<span class="chipbox qb {awardFamily(code)}" class:small use:gridsnap={small}
   >{#if medal}<span>{medal}</span>{/if}<span class="chiplbl">{word}</span>{#if n > 1}<span
       class="mult chiplbl">×{n}</span
     >{/if}</span
@@ -39,7 +43,10 @@
      width — 1.5px of stroke is a design decision and rounding it to 2 would
      make these pills heavier than the market rows they sit in. The surfaces
      built against these heights — PlayerList's reserved row, the finale's
-     wrapping squad rows — move by a quarter pixel. */
+     wrapping squad rows — move by a quarter pixel.
+     A whole-pixel BOX still needs a whole-pixel OFFSET, and the gameplay rows
+     can't promise one — that half is lib/gridsnap's, riding the small cut in
+     the markup above. */
   .qb {
     --chip-h: 16px;
     font-size: 9px;

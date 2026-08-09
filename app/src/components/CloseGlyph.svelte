@@ -12,15 +12,34 @@
      ? is a 12px text glyph (~8px of ink) and the trophy a 13px drawing, so a
      7.2px X in the trophy's 13px box reads as their twin. (A geometric
      ink-height match was tried in round eight — X to 10 units, ? to 13px —
-     and reverted the same round: the tuned sizes read better.) -->
-<svg viewBox="0 0 14 14" aria-hidden="true"
+     and reverted the same round: the tuned sizes read better.)
+
+     The BOX is 14px while the ink keeps the tuned 13px scale: a 13px svg in
+     the pill's 24×18 content box gets 2.5px of air — a half-pixel seat that
+     Chromium rounds away (the X painted 0.5px high and 0.5px right of true
+     center; WebKit half-honored it, so the two engines also disagreed). At
+     14px the air is whole on every side and both engines measured the ink
+     dead-center. The viewBox grows by the same 14/13 ratio (14 × 14⁄13 =
+     15.077) so one unit still paints at the old 13px scale, and its origin
+     backs up half the growth so the ink's bbox center (7,7) stays at the
+     viewBox center.
+
+     GEOMETRIC CENTER, DELIBERATELY — a +0.5px "optical lift" lived here for
+     part of one day and was reverted the same day: tuned against the
+     cap-trimmed ? on one engine, it read too high on every other
+     engine/surface. The lesson stands as the rule: no per-glyph optical
+     constants. The planned cure for the residual ±0.3px per-engine
+     perception drift is structural (one shared svg drawing ring AND glyph
+     in a single coordinate system, any family-wide optical decision as a
+     single MARK_DY in that one component), not another number here. -->
+<svg viewBox="-0.538 -0.538 15.077 15.077" aria-hidden="true"
   ><path d="M3.4 3.4l7.2 7.2M10.6 3.4l-7.2 7.2" /></svg
 >
 
 <style>
   svg {
-    width: 13px;
-    height: 13px;
+    width: 14px;
+    height: 14px;
     fill: none;
     stroke: currentColor;
     /* Matches the ~1.6px stems Nunito 800 draws at the ?'s 12px, a shade

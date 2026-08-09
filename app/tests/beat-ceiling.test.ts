@@ -109,42 +109,52 @@ describe("the badges read RAW scout hits, never the beatCeiling upgrade", () => 
 });
 
 /** 🧠's own rule since the round-twelve split: BASELINE WINS against the
- * dream club (expected wins from WAR + skipper), never the total — the
- * total is 🦉's, through the stamp press above. MANAGER_PER_NET_WIN is 0.25
- * in scoring.ts, so netWins 40 is worth ten expected wins here. */
+ * dream club (expected wins from WAR + skipper), never the total as the
+ * yardstick — the total-vs-ceiling comparison is 🦉's, through the stamp
+ * press above. The total enters only as the SOLVENCY GATE: the final ledger
+ * must sit above the club's own baseline, or a tax-drowned overspend could
+ * farm the roster claim. */
 describe("beatDreamDecision", () => {
-  it("more baseline wins than the dream club → true", () => {
-    // Player expectedWins 110 vs dream 50 + 55 WAR + 40·0.25 = 115? no —
-    // 50 + 50 WAR = 100, no manager. 110 > 100.
-    expect(beatDreamDecision(110, { totalWar: 50, manager: null })).toBe(true);
+  it("more baseline wins than the dream club, ledger in the black → true", () => {
+    // Player expectedWins 110 vs dream 50 + 50 WAR = 100, no manager.
+    expect(beatDreamDecision(110, 120, { totalWar: 50, manager: null })).toBe(true);
   });
 
   it("the dream skipper's net wins count against the player", () => {
-    // Dream baseline = 50 + 55 + 40·0.25 = 115; player 110 falls short of
-    // the same roster without the skipper's ten.
-    expect(beatDreamDecision(110, { totalWar: 55, manager: { netWins: 40 } })).toBe(false);
-    expect(beatDreamDecision(115.1, { totalWar: 55, manager: { netWins: 40 } })).toBe(true);
+    // The dream baseline folds its skipper in via MANAGER_PER_NET_WIN; the
+    // same roster read without him falls short.
+    expect(beatDreamDecision(110, 120, { totalWar: 55, manager: { netWins: 40 } })).toBe(false);
+    expect(beatDreamDecision(115.1, 125, { totalWar: 55, manager: { netWins: 40 } })).toBe(true);
   });
 
   it("a rounding tie is a matched baseline, not a win", () => {
     // Both sides press through round1: dream 50 + 60 = 110.0 exactly.
-    expect(beatDreamDecision(110, { totalWar: 60 })).toBe(false);
+    expect(beatDreamDecision(110, 120, { totalWar: 60 })).toBe(false);
   });
 
-  it("the comparison ignores totals entirely — awards cannot buy it", () => {
-    // A club can hold MORE total points and still not out-build the dream
-    // roster; the decision reads only expected wins, which the caller passes.
-    // (Sanity of the contract: the function takes no total at all.)
-    expect(beatDreamDecision(99.9, { totalWar: 50 })).toBe(false);
+  it("an underwater ledger cannot buy it — the luxury-tax farm is closed", () => {
+    // The roster claim holds (130 > 100) but the tax ate the ledger: the
+    // final total sits BELOW the baseline, so the badge is refused.
+    expect(beatDreamDecision(130, 95, { totalWar: 50 })).toBe(false);
+  });
+
+  it("a ledger that exactly breaks even against its own baseline is not above it", () => {
+    expect(beatDreamDecision(130, 130, { totalWar: 50 })).toBe(false);
+  });
+
+  it("the gate alone cannot buy it either — awards without the roster stay short", () => {
+    // Total well above baseline, but the baseline itself never beat the
+    // dream club's: still false. The gate is a gate, not a second route.
+    expect(beatDreamDecision(99.9, 140, { totalWar: 50 })).toBe(false);
   });
 
   it("both clamp at 162 the way the ledger does — no phantom wins above the schedule", () => {
     // expectedWins clamps at GAMES, so a 130-WAR dream club still reads 162;
     // a player at the same clamp has not beaten it.
-    expect(beatDreamDecision(162, { totalWar: 130 })).toBe(false);
+    expect(beatDreamDecision(162, 170, { totalWar: 130 })).toBe(false);
   });
 
   it("a null solve fails safe", () => {
-    expect(beatDreamDecision(162, null)).toBe(false);
+    expect(beatDreamDecision(162, 170, null)).toBe(false);
   });
 });

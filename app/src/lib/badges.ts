@@ -1396,7 +1396,13 @@ export const BADGES: BadgeDef[] = [
    * the solver maximizes POINTS under budget, so a WAR-first club out-BUILDS
    * the point-optimal solve far more often than it out-SCORES it — awards,
    * pedigree and the payroll bonus are most of the ceiling's edge. That is
-   * exactly why the split reads: this rung is the roster, 🦉 is the ledger. */
+   * exactly why the split reads: this rung is the roster, 🦉 is the ledger.
+   *
+   * One solvency gate rides the roster claim (beatDreamDecision): the final
+   * total must sit above the club's own baseline, or blowing past the luxury
+   * tax to stack WAR the solver's budget can't touch would farm the badge
+   * with a season that finished underwater. The `how` line stays as written —
+   * the claim is unchanged; the gate only refuses the degenerate build. */
   {
     key: "beatdream",
     emoji: "🧠",
