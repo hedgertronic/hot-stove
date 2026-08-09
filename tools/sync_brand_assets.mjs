@@ -11,6 +11,7 @@ mkdirSync(brandDir, { recursive: true });
 
 for (const [from, to] of [
   ["boiler-b6-flared.svg", resolve(brandDir, "boiler.svg")],
+  ["boiler-o.svg", resolve(brandDir, "o-boiler.svg")],
   ["flame-cut-a.svg", resolve(brandDir, "flame.svg")],
   ["favicon.svg", resolve(publicDir, "favicon.svg")],
 ]) {

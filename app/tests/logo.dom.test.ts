@@ -55,29 +55,24 @@ describe("big masthead variant (big=true)", () => {
     close();
   });
 
-  it("is a single inline-flex element — one line, not multiple blocks", () => {
+  it("is a logotype: one wordmark child, no separate mark", () => {
     const { target, close } = open(true);
     const logo = target.querySelector(".hs-logo--home")!;
-    const wordmark = logo.querySelector(".hs-logo__wordmark")!;
+    expect(logo.children).toHaveLength(1);
+    expect(logo.children[0].classList.contains("hs-logo__wordmark")).toBe(true);
+    expect(logo.querySelector(".hs-logo__mark")).toBeNull();
+    close();
+  });
+
+  it("spells HOTSTOVE with the O-boiler standing in as STOVE's O", () => {
+    const { target, close } = open(true);
+    const wordmark = target.querySelector(".hs-logo--home .hs-logo__wordmark")!;
     expect(wordmark.textContent).toContain("HOT");
-    expect(wordmark.textContent).toContain("STOVE");
-    close();
-  });
-
-  it("contains the leading boiler and wordmark only", () => {
-    const { target, close } = open(true);
-    const logo = target.querySelector(".hs-logo--home")!;
-    expect(logo.children).toHaveLength(2);
-    expect(logo.children[0].classList.contains("hs-logo__mark")).toBe(true);
-    expect(logo.children[1].classList.contains("hs-logo__wordmark")).toBe(true);
-    expect(logo.children[1].querySelector(".hs-logo__hot")).not.toBeNull();
-    close();
-  });
-
-  it("includes the leading boiler without the HUD flame", () => {
-    const { target, close } = open(true);
-    const mark = target.querySelector<HTMLImageElement>(".hs-logo--home .hs-logo__mark");
-    expect(mark?.getAttribute("src")).toBe("./brand/boiler.svg");
+    expect(wordmark.textContent).toContain("ST");
+    expect(wordmark.textContent).toContain("VE");
+    const o = wordmark.querySelector<HTMLImageElement>(".hs-logo__o");
+    expect(o?.getAttribute("src")).toBe("./brand/o-boiler.svg");
+    expect(o?.getAttribute("alt")).toBe("O");
     close();
   });
 
@@ -100,15 +95,16 @@ describe("big masthead variant (big=true)", () => {
 });
 
 describe("OG share-card variant", () => {
-  it("uses the shared OG lockup and boiler mark", () => {
+  it("uses the shared OG lockup with the same logotype", () => {
     const { target, close } = open(false, true);
     const logo = target.querySelector(".hs-logo.hs-logo--og");
     expect(logo).not.toBeNull();
     expect(logo!.classList.contains("hs-logo--game")).toBe(false);
     expect(logo!.classList.contains("hs-logo--home")).toBe(false);
-    expect(logo!.querySelector<HTMLImageElement>(".hs-logo__mark")?.getAttribute("src")).toBe(
-      "./brand/boiler.svg",
-    );
+    expect(logo!.querySelector(".hs-logo__mark")).toBeNull();
+    expect(
+      logo!.querySelector<HTMLImageElement>(".hs-logo__o")?.getAttribute("src"),
+    ).toBe("./brand/o-boiler.svg");
     close();
   });
 });

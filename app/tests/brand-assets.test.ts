@@ -9,6 +9,7 @@ const read = (relative: string) => fs.readFileSync(path.resolve(ROOT, relative),
 describe("shared brand assets", () => {
   it("publishes byte-identical copies of the approved raw marks", () => {
     expect(read("app/public/brand/boiler.svg")).toBe(read("design/logo/boiler-b6-flared.svg"));
+    expect(read("app/public/brand/o-boiler.svg")).toBe(read("design/logo/boiler-o.svg"));
     expect(read("app/public/brand/flame.svg")).toBe(read("design/logo/flame-cut-a.svg"));
     expect(read("app/public/favicon.svg")).toBe(read("design/logo/favicon.svg"));
   });

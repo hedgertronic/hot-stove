@@ -1,6 +1,11 @@
 /* One lockup recipe for the Svelte app, static 404, and rendered share card.
    The wrappers choose a named size; mark proportions, gaps, font treatment,
-   color, and optical lifts live only here. */
+   color, and optical seats live only here.
+
+   Two cuts share the recipe: the masthead/OG logotype (the letter-fitted
+   boiler serves as STOVE's O — no separate mark) and the HUD lockup (plain
+   type led by the flame mark, which survives 15px where the O-boiler
+   can't). */
 .hs-logo {
   --hs-logo-size: 15px;
   --hs-logo-gap: 5px;
@@ -19,16 +24,9 @@
 }
 
 .hs-logo--home {
-  /* Sized up from 34/28x37 (owner call): the masthead is the page's one
-     piece of identity and read undersized beside the mode rows; 44px of
-     boiler also makes the door flame legible at masthead size without
-     touching the master's door/flame geometry. Lift scales with the mark
-     (2px at 37px tall -> 2.4px at 44px). */
+  /* Sized so the logotype matches the old mark-plus-word masthead's overall
+     presence (owner call on the 40px scale). */
   --hs-logo-size: 40px;
-  --hs-logo-gap: 9px;
-  --hs-mark-width: 33px;
-  --hs-mark-height: 44px;
-  --hs-mark-lift: -2.4px;
 }
 
 .hs-logo--game {
@@ -41,10 +39,6 @@
 
 .hs-logo--og {
   --hs-logo-size: 76px;
-  --hs-logo-gap: 18px;
-  --hs-mark-width: 62px;
-  --hs-mark-height: 80px;
-  --hs-mark-lift: -4px;
 }
 
 .hs-logo__mark {
@@ -60,10 +54,21 @@
   white-space: nowrap;
 }
 
-/* HOT wears the heat — the hot word in the hot color, seated beside the
-   mark's own orange flame; STOVE settles into ink so the lockup alternates
-   dark mark, orange word, dark word instead of clumping its two darkest
-   elements on the left. Orange-8 rather than the flame's orange-5 because
-   the word is type: 3.2:1 on the ivory ground and 3.5:1 on cardstock, the
-   only orange in the family that clears 3:1 on both. */
+/* The O-boiler inside the logotype: chimney rises above the cap line like an
+   ascender, legs drop below the baseline like descenders, so the image runs
+   taller than the type and seats slightly low. Em-based to scale with the
+   wordmark. */
+.hs-logo__o {
+  display: inline-block;
+  height: 1.1em;
+  width: auto;
+  vertical-align: -0.1em;
+  margin: 0 -0.012em;
+}
+
+/* HOT wears the heat — the hot word in the hot color; STOVE settles into ink
+   with the fire burning inside its O. Orange-8 rather than the flame body's
+   yellow because the word is type: 3.2:1 on the ivory ground and 3.5:1 on
+   cardstock, the only orange in the family that clears 3:1 on both. It is
+   also the O-boiler flame's own edge color, which ties word to mark. */
 .hs-logo__hot { color: #e8590c; }
