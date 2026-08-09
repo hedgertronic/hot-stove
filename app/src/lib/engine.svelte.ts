@@ -538,7 +538,7 @@ export class Game {
    * A moment rather than a fact about the finished club, for `ownerHiredLast`'s
    * reason exactly: at the finale a full club with a manager in it looks the
    * same whichever order the chairs filled. "Every other seat" is the roster
-   * plus, in From the Ground Up, the owner and the ballpark — the game ends the spin
+   * plus, in Open Market, the owner and the ballpark — the game ends the spin
    * the club completes, so a hire made with everything else filled IS the hire
    * made on the last spin.
    *
@@ -943,7 +943,7 @@ export class Game {
     );
   }
 
-  /** Whether the cap means anything yet: fixed banks always; Owner's Box only
+  /** Whether the cap means anything yet: fixed banks always; Open Market only
    * once an owner is hired. Before that, effectiveBudget falls back to the
    * league-minimum floor (meta.minBudget) — real math, but not the player's
    * cap, so the UI shouldn't present it as one. */

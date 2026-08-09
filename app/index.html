@@ -127,7 +127,12 @@
     </script>
   </head>
   <body>
-    <div id="app">
+    <!-- data-nosnippet: Google renders the JS app and was appending UI chrome
+         to the search snippet ("? HEDGERTRONIC HOTSTOVE BALL…" — the help
+         pill, maker chip, logotype, and a section label, in DOM order).
+         Fencing the whole mount makes the meta description the snippet.
+         Indexing is unaffected; nosnippet only governs quotation. -->
+    <div id="app" data-nosnippet>
       <!-- Static copy inside the mount target: real text for crawlers and
            preview bots that never run JS, and the page's paint until the
            bundle executes (main.ts removes it just before mount). Inline

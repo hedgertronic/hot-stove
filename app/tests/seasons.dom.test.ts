@@ -142,13 +142,13 @@ describe("which rows appear", () => {
     ui.close();
   });
 
-  it("names the bank on every row, and marks Eye Test", () => {
+  it("keeps the defaults silent and marks only the opt-in modes", () => {
     season("g0", { bank: "moneyball", difficulty: "scout" });
     season("g1", { bank: "classic", difficulty: "standard" });
     const ui = open();
-    // From the Ground Up shows its emoji too: a blank in a comparison list would have
-    // to be read as "the default" by someone who knows what the default is.
-    expect(ui.rows()[0].querySelector(".mode")!.textContent).toBe("🏗️");
+    // The HUD chip's rule, extended here: a bare row IS the default combo
+    // (Box Score · Open Market); 🔭 and the bank glyphs mark deviations only.
+    expect(ui.rows()[0].querySelector(".mode")!.textContent).toBe("");
     expect(ui.rows()[1].querySelector(".mode")!.textContent).toBe("🔭 🐘");
     ui.close();
   });
@@ -372,7 +372,8 @@ describe("the record book shelf", () => {
     season("g0", { bank: "classic", difficulty: "standard" });
     const ui = open();
     expect(ui.shelf()).toHaveLength(1);
-    expect(ui.shelf()[0].querySelector(".mode")!.textContent).toBe("🏗️");
+    // Default combo: silent mode zone, per the HUD chip's rule.
+    expect(ui.shelf()[0].querySelector(".mode")!.textContent).toBe("");
     ui.close();
   });
 
@@ -405,7 +406,7 @@ describe("the record book shelf", () => {
     const ui = open();
     const best = ui.shelf()[0];
     expect(best.classList.contains("best")).toBe(true);
-    expect(best.getAttribute("aria-label")).toMatch(/^Best From the Ground Up season\./);
+    expect(best.getAttribute("aria-label")).toMatch(/^Best Open Market season\./);
     best.click();
     expect(ui.onopen).toHaveBeenCalledOnce();
     expect(ui.onopen.mock.calls[0][0].id).toBe("g0");

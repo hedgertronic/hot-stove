@@ -57,7 +57,7 @@
     { key: "scout", label: "EYE TEST" },
   ];
   const BANK_ROW: { key: LensKey; label: string }[] = [
-    { key: "classic", label: "GROUND UP" },
+    { key: "classic", label: "OPEN MARKET" },
     { key: "moneyball", label: "MONEYBALL" },
     { key: "blankcheck", label: "BLANK CHECK" },
   ];
@@ -300,10 +300,6 @@
       </div>
     </div>
     {/if}
-    {#if trophies.tiles.length === 0 && allOn}
-      <p class="caseempty">No badges yet — play a season.</p>
-    {/if}
-
     {#each sections as s (s.rarity)}
       <div class="band">
         <div class="psep">{s.rarity.toUpperCase()}</div>
@@ -489,14 +485,6 @@
     text-decoration: underline;
     text-underline-offset: 2px;
     cursor: pointer;
-  }
-  .caseempty {
-    margin: 0;
-    text-align: center;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--gray-ink);
-    padding: 6px 0 2px;
   }
   /* Bands are headed by the app's own dashed separator (.psep, global in
      app.css — the same rule FRONT OFFICE and BALL KNOWLEDGE use), so the case

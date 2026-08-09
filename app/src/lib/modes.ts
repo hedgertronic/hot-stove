@@ -20,7 +20,7 @@ export interface DifficultyInfo {
 }
 
 export const DIFFICULTIES: Record<Difficulty, DifficultyInfo> = {
-  standard: { emoji: "📊", name: "Box Score", desc: "Stats · salaries · awards" },
+  standard: { emoji: "📊", name: "Box Score", desc: "Stats · awards · salaries" },
   scout: { emoji: "🔭", name: "Eye Test", desc: "No stats · no awards" },
 };
 
@@ -38,13 +38,17 @@ export interface BankInfo {
 }
 
 export const BANKS: Record<Bank, BankInfo> = {
-  /* "From the Ground Up" is the empty-front-office start: no owner, no
-   * stadium, no skipper, and a payroll nobody knows until you hire one — the
-   * name says the premise before the help sheet does. It's the only bank
-   * where those rows exist at all (Game.fixedCap gates them off for the two
-   * fixed-cap banks). Displayed as "Clean House" through v0.x; the key stays
-   * `classic` regardless: saves and the record book index on it. */
-  classic: { emoji: "🏗️", name: "From the Ground Up", cash: "$ · · ·", team: "", cls: "open" },
+  /* "Open Market" completes the trio the other two banks already name —
+   * Moneyball is the small market, Blank Check the big market, and here the
+   * market itself sets the price: no owner, no stadium, no skipper, and a
+   * payroll nobody knows until you hire one. It's the only bank where those
+   * rows exist at all (Game.fixedCap gates them off for the two fixed-cap
+   * banks). 🛒 is the offseason's own verb — shopping the market — and ⚖️,
+   * the closer fit, is spoken for by the BALANCED badge (one emoji, one
+   * meaning, pinned by share.test). Displayed as
+   * "Clean House" through v0.x and "From the Ground Up" through v1.x; the key
+   * stays `classic` regardless: saves and the record book index on it. */
+  classic: { emoji: "🛒", name: "Open Market", cash: "$ · · ·", team: "", cls: "open" },
   moneyball: {
     // 🐘, the A's own elephant — in a baseball game a ⚾ carries no
     // information, and every mode face has to say which mode it is.

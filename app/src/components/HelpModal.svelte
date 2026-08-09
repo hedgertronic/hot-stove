@@ -438,7 +438,7 @@
     <li>Take <b>one</b> thing per spin: sign a player, or make a hire.</li>
     <li>
       Play until the club is finished: {SLOT_TYPES.length} seats plus a manager.
-      From the Ground Up adds an owner and a ballpark.
+      Open Market adds an owner and a ballpark.
     </li>
     <li>Then the season is scored. <b>162 points is a perfect season.</b></li>
   </ul>
@@ -543,13 +543,13 @@
     </li>
   </ul>
   <p class="cap">
-    Each hire costs a spin, the same as a player. Owner and ballpark exist under Clean
-    House only; the skipper is on every card that has one.
+    Each hire costs a spin, the same as a player. Owner and ballpark exist under Open
+    Market only; the skipper is on every card that has one.
   </p>
 
   <div class="psep">YOUR PAYROLL</div>
   <!-- The box as a player first meets it, and the reason it is first: under
-       From the Ground Up nothing is hired yet, so this is the state they look at
+       Open Market nothing is hired yet, so this is the state they look at
        before any of the three below exist. `capKnown` false is what makes the
        payroll $0 rather than the engine's minBudget floor, and `pending` is
        what puts the two TBD names under the ghosts — the same two props the
@@ -590,7 +590,7 @@
        in two sections is a rate that can disagree with itself. -->
   <p class="cap">You can go over. The bar goes orange and the figure says by how much.</p>
   <ul>
-    <li><b>🏗️ From the Ground Up:</b> owner × ballpark sets the payroll, as above.</li>
+    <li><b>🛒 Open Market:</b> owner × ballpark sets the payroll, as above.</li>
     <li><b>🐘 Moneyball:</b> a fixed {BANKS.moneyball.cash}. No hires. The 2002 A's.</li>
     <li><b>💸 Blank Check:</b> a fixed {BANKS.blankcheck.cash}. The 2005 Yankees.</li>
   </ul>

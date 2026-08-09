@@ -185,7 +185,7 @@ export interface BadgeDef {
    * trophy case. Written as the condition they met, not as a rule they should
    * chase — locked badges never reveal it. */
   how: string;
-  /** Measured rate in the reference population (From the Ground Up + all powerups),
+  /** Measured rate in the reference population (Open Market + all powerups),
    * or null where the rung postdates the last study. The number lives beside
    * the definition so it cannot go stale in a comment somewhere else.
    *
@@ -361,7 +361,7 @@ export interface BadgeFacts {
    * already and a club that had a skipper all along never left the dugout
    * empty.
    *
-   * "Every other seat" means the roster plus, in From the Ground Up, the owner and
+   * "Every other seat" means the roster plus, in Open Market, the owner and
    * the ballpark: the game ends the spin the club completes, so a hire made
    * with everything else filled IS the hire made on the final spin.
    *
@@ -439,7 +439,7 @@ export interface BadgeFacts {
    * seats. The engine records the answer at the moment it hires the owner,
    * where the roster is right there to look at.
    *
-   * Only From the Ground Up can set it, and no mode gate is needed for that:
+   * Only Open Market can set it, and no mode gate is needed for that:
    * `hireOwner()` returns immediately when `fixedCap` is true, so Moneyball
    * and Blank Check — which know their payroll from the first spin and have no
    * owner seat at all — never reach the line that records it.
@@ -2216,7 +2216,7 @@ export const BADGES: BadgeDef[] = [
     // rather than claiming something about each man's own year.
     how: "Four players signed for $1.6M or less.",
   },
-  /* Drafting against an unknown payroll — the one nerve play From the Ground Up sets
+  /* Drafting against an unknown payroll — the one nerve play Open Market sets
    * up. The bank does not tell you your cap until you hire an owner, so every
    * signing made before that is a bet, and the box shows the pre-owner spend
    * in caution orange for exactly that reason.
@@ -2740,7 +2740,7 @@ export const BADGES: BadgeDef[] = [
    * reason: an anti-trophy about a result, anonymous while locked because
    * its name is an instruction to go lose twice. The word is the joke — a
    * rebuild is what a front office calls it on purpose. 🧱 bricks, not the
-   * crane: 🏗️ is From the Ground Up's own mode face, and mode emojis stay
+   * crane: 🏗️ was the mode face of Open Market's "From the Ground Up" era, and mode faces stay
    * out of the badge set (share.test's one-emoji-one-meaning rule). */
   {
     key: "rebuild",

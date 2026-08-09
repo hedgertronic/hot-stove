@@ -305,7 +305,7 @@
   /* The fixed-cap banks' pill wears its mode's own pair — the exact fill and
      ring the punched row on the home screen carries (Home .row.on.mb / .bc),
      so the choice made there is the color the payroll wears all game. Only
-     these two: From the Ground Up's payroll is a product of hires, and its result
+     these two: Open Market's payroll is a product of hires, and its result
      chip stays the neutral surface the equation reads on. */
   .chip.eff.mb {
     background: var(--green-wash);

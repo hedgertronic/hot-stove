@@ -95,10 +95,19 @@ describe("the play row", () => {
   it("puts SEED below PLAY, and nothing else in the row", () => {
     const ui = open();
     const cells = ui.cells();
-    expect(cells).toHaveLength(2);
+    // Three children: PLAY, the seed zone, and the permanent seed-error live
+    // region — a status region inserted only when populated is unreliably
+    // announced. The region is still a flex ITEM, so .seedstatus pulls back
+    // .under's 13px gap (margin-top: -13px) to keep the empty reserve truly
+    // layout-neutral; the class is pinned here because the phantom gap
+    // shipped once.
+    expect(cells).toHaveLength(3);
+    expect(cells[2].classList.contains("seedstatus")).toBe(true);
     expect(cells[0].textContent).toContain("PLAY");
     // SEED button is inside the second child (the seed zone)
     expect(cells[1].textContent).toContain("SEED");
+    expect(cells[2].getAttribute("role")).toBe("status");
+    expect(cells[2].textContent).toBe("");
     // SEASONS does not appear here — it lives on the record book cards now.
     expect(ui.under.textContent).not.toContain("SEASONS");
     ui.close();
@@ -122,11 +131,11 @@ describe("the play row", () => {
     ui.close();
   });
 
-  it("keeps two children in the row while the seed field is open, so PLAY holds still", () => {
+  it("keeps the same children in the row while the seed field is open, so PLAY holds still", () => {
     const ui = open();
     ui.seedBtn().click();
     flushSync();
-    expect(ui.cells()).toHaveLength(2);
+    expect(ui.cells()).toHaveLength(3);
     expect(ui.play()).not.toBeNull();
     expect(ui.input()).not.toBeNull();
     ui.close();
@@ -319,7 +328,7 @@ describe("cancelling PLAY A SEED", () => {
     document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     flushSync();
     expect(ui.input()).toBeNull();
-    expect(ui.cells()).toHaveLength(2);
+    expect(ui.cells()).toHaveLength(3);
 
     // A half-typed code never comes back.
     ui.seedBtn().click();

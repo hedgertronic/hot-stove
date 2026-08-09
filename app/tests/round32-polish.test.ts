@@ -221,18 +221,36 @@ describe("review fixes: retired dead code stays dead", () => {
   });
 });
 
-describe("the empty-front-office bank is From the Ground Up", () => {
+describe("the empty-front-office bank is Open Market", () => {
   it("modes.ts names it, and the key stays classic", () => {
     const modes = read("lib/modes.ts");
-    expect(modes).toContain('name: "From the Ground Up"');
-    expect(modes).toMatch(/classic: \{ emoji: "🏗️"/);
+    expect(modes).toContain('name: "Open Market"');
+    expect(modes).toMatch(/classic: \{ emoji: "🛒"/);
   });
 
   it("the help sheet teaches the new name", () => {
     const help = read("components/HelpModal.svelte");
-    expect(help).toContain("From the Ground Up adds an owner and a ballpark.");
-    expect(help).toContain("<b>🏗️ From the Ground Up:</b>");
-    expect(help).not.toContain("Clean House");
+    expect(help).toContain("Open Market adds an owner and a ballpark.");
+    expect(help).toContain("<b>🛒 Open Market:</b>");
+  });
+
+  it("no retired name survives in any component, even across a line wrap", () => {
+    // Whitespace-normalized on purpose: "Clean\n    House" in wrapped prose
+    // slipped past a plain toContain once — the phrase, not the line, is what
+    // must be gone. modes.ts is exempt: its comment records the rename
+    // history by design. Prettier reflows prose, so any component copy can
+    // wrap anywhere.
+    const files = fs
+      .readdirSync(
+        path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src/components"),
+      )
+      .filter((f) => f.endsWith(".svelte"));
+    for (const f of files) {
+      const flat = read(`components/${f}`).replace(/\s+/g, " ");
+      expect(flat, f).not.toContain("Clean House");
+      expect(flat, f).not.toContain("From the Ground Up");
+      expect(flat, f).not.toContain("Owner's Box");
+    }
   });
 });
 

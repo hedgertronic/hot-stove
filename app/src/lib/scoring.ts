@@ -67,8 +67,6 @@ export const SCOUT_HIT_POINTS = 1; // per drafted pick who's in the dream team
 export const LUXURY_TAX_PER_M = 1.0;
 export const BUDGET_BONUS_MAX = 10.0;
 
-/** The season is 162 games; a perfect draft chases 162 points. */
-export const GOAL_POINTS = 162;
 /** 2001 Mariners — the wins record the finale calls out when beaten. */
 export const MARINERS_WINS = 116;
 

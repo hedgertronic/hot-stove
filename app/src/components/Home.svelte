@@ -37,7 +37,7 @@
 
   // The punch list reads straight from the shared mode table: every decision
   // is one full-width row — punch box, emoji, name (plus a team chip on the
-  // fixed-cap banks), and one payroll pill on the right. Owner's Box's pill
+  // fixed-cap banks), and one payroll pill on the right. Open Market's pill
   // is a dashed blank: payroll is unknown until you hire an owner in-game.
   const DIFFS = (Object.keys(DIFFICULTIES) as Difficulty[]).map((key) => ({
     key,
@@ -128,6 +128,10 @@
       const seed = parseSeedCode(typed);
       if (seed === null) {
         badSeed();
+        // Words as well as the shake: reduced-motion kills the animation
+        // globally (app.css), and a live region reaches screen readers where
+        // 450ms of orange text never will.
+        seedErr = "Not a valid seed";
         return;
       }
       onplay({ difficulty, bank }, seed);
@@ -136,13 +140,51 @@
     if (onreplay && (await onreplay(typed))) return;
     badSeed();
     // A long string that failed is a game code that failed, and that is the
-    // case worth naming: nothing about the input says why it was refused.
-    if (bare.length >= 12) seedErr = "This game code can't be replayed on this version";
+    // case worth naming; anything shorter gets the generic refusal — every
+    // failure now answers in words, not shake alone (reduced motion has no
+    // shake at all).
+    seedErr =
+      bare.length >= 12
+        ? "This game code can't be replayed on this version"
+        : "Not a valid seed or game code";
   }
 
+  /** Restartable: a second bad GO mid-shake clears the live timer and drops
+   * the class for a frame so the animation re-fires — with one un-tracked
+   * timeout, rapid retries produced zero visible feedback (the class never
+   * toggled) and the first timer cut the second shake short. */
+  let seedBadTimer: ReturnType<typeof setTimeout> | undefined;
   function badSeed() {
-    seedBad = true;
-    setTimeout(() => (seedBad = false), 450);
+    clearTimeout(seedBadTimer);
+    seedBad = false;
+    requestAnimationFrame(() => (seedBad = true));
+    seedBadTimer = setTimeout(() => (seedBad = false), 470);
+  }
+
+  /** Radio-pattern arrow keys for the two pickers: Up/Left and Down/Right move
+   * the checked row and follow it with focus (roving tabindex — Tab enters a
+   * group at its checked row, arrows walk it). Wraps at the ends, per the
+   * WAI-APG radio group pattern. */
+  async function arrowPick<K extends string>(
+    e: KeyboardEvent,
+    keys: readonly K[],
+    cur: K,
+    set: (k: K) => void,
+  ) {
+    const step =
+      e.key === "ArrowDown" || e.key === "ArrowRight"
+        ? 1
+        : e.key === "ArrowUp" || e.key === "ArrowLeft"
+          ? -1
+          : 0;
+    if (step === 0) return;
+    e.preventDefault();
+    set(keys[(keys.indexOf(cur) + step + keys.length) % keys.length]);
+    await tick();
+    (e.currentTarget as HTMLElement)
+      .closest('[role="radiogroup"]')
+      ?.querySelector<HTMLElement>('[aria-checked="true"]')
+      ?.focus();
   }
 
   /** Resets seed entry state without moving focus — used by the click-outside
@@ -225,14 +267,23 @@
        trusts your memory. The label says so. The internal `difficulty` key,
        the Difficulty type, and the DIFFICULTIES table keep their names —
        saves and data reference them. -->
-  <div class="psep">BALL KNOWLEDGE</div>
-  <div class="rows">
+  <!-- The pickers are RADIO GROUPS, not toggle-button strips: each is a
+       mutually exclusive single-select, and radio semantics are the only ones
+       that tell a screen reader that checking one row unchecks the other.
+       The .psep header is visual-only, so the group carries its own name.
+       Roving tabindex per WAI-APG: Tab lands on the checked row, arrows move
+       the check (arrowPick), click still works everywhere. -->
+  <div class="psep" aria-hidden="true">BALL KNOWLEDGE</div>
+  <div class="rows" role="radiogroup" aria-label="Ball knowledge">
     {#each DIFFS as d (d.key)}
       <button
         class="row"
         class:on={difficulty === d.key}
-        aria-pressed={difficulty === d.key}
+        role="radio"
+        aria-checked={difficulty === d.key}
+        tabindex={difficulty === d.key ? 0 : -1}
         onclick={() => (difficulty = d.key)}
+        onkeydown={(e) => arrowPick(e, DIFFS.map((x) => x.key), difficulty, (k) => (difficulty = k))}
       >
         {@render punchbox(difficulty === d.key)}
         <span class="ric">{d.emoji}</span>
@@ -242,30 +293,37 @@
     {/each}
   </div>
 
-  <div class="psep">PAYROLL</div>
-  <div class="rows">
+  <div class="psep" aria-hidden="true">PAYROLL</div>
+  <div class="rows" role="radiogroup" aria-label="Payroll">
     {#each BANK_CARDS as b (b.key)}
       <button
         class="row"
         class:on={bank === b.key}
         class:mb={b.key === "moneyball"}
         class:bc={b.key === "blankcheck"}
-        aria-pressed={bank === b.key}
+        role="radio"
+        aria-checked={bank === b.key}
+        tabindex={bank === b.key ? 0 : -1}
         onclick={() => (bank = b.key)}
+        onkeydown={(e) => arrowPick(e, BANK_CARDS.map((x) => x.key), bank, (k) => (bank = k))}
       >
         {@render punchbox(bank === b.key)}
         <span class="ric">{b.emoji}</span>
         <span class="rname">{b.name}</span>
         {#if b.team}
-          <!-- Identity rides with the name; the right zone stays payroll-only. -->
-          <span class="chip {b.cls}">{b.team}</span>
+          <!-- Identity rides with the name; the right zone stays payroll-only.
+               `chipbox` + a `.chiplbl` wrapper joins the shared chip recipe:
+               the box pins a whole-pixel height and the engine cap-trims the
+               label where it can (hand constant elsewhere), so the caps seat
+               on center instead of riding the line box's ascent high. -->
+          <span class="chip chipbox {b.cls}"><span class="chiplbl">{b.team}</span></span>
         {/if}
         <span class="rmeta">
           {#if b.key === "classic"}
             <!-- Dashed blank: payroll is unknown until an owner is hired. -->
-            <span class="pill ghost">{b.cash}</span>
+            <span class="pill ghost chipbox"><span class="chiplbl">{b.cash}</span></span>
           {:else}
-            <span class="pill cash">{b.cash}</span>
+            <span class="pill cash chipbox"><span class="chiplbl">{b.cash}</span></span>
           {/if}
         </span>
       </button>
@@ -295,6 +353,7 @@
             class="seedin"
             type="text"
             maxlength="140"
+            aria-label="Seed or game code"
             placeholder="#0KF12OY"
             inputmode="text"
             autocapitalize="none"
@@ -328,10 +387,16 @@
     </div>
     <!-- Under the pill, not inside it: the capsule holds a fixed height so the
          PLAY button above never moves, and this line is a sentence. `polite`
-         so a screen reader hears it after the field it belongs to. -->
-    {#if seedErr}
-      <p class="seederr" role="status" aria-live="polite">{seedErr}</p>
-    {/if}
+         so a screen reader hears it after the field it belongs to.
+         The live REGION is permanent and only its content swaps: a region
+         inserted into the DOM already populated is unreliably announced
+         (VoiceOver especially). Empty div, zero height — the layout still
+         only moves when there is a sentence to show. -->
+    <div class="seedstatus" role="status" aria-live="polite">
+      {#if seedErr}
+        <p class="seederr">{seedErr}</p>
+      {/if}
+    </div>
   </div>
 
   <!-- The record book: two cards side by side, each a door into the past.
@@ -360,7 +425,10 @@
       <div class="bcol">
         <div class="bcap">GAMES</div>
         <div class="bn" class:empty={best.games === 0}>{best.games}</div>
-        <div class="btotal" class:invis={seasons === 0}>{seasons} TOTAL</div>
+        <!-- "OF n TOTAL": the big numeral is mode-scoped and silently re-scopes
+             as rows are punched above; the OF names the split so 3-over-12
+             doesn't read as a contradiction. -->
+        <div class="btotal" class:invis={seasons === 0}>OF {seasons} TOTAL</div>
       </div>
     </button>
     <button
@@ -511,15 +579,19 @@
   }
   /* Team-identity chip riding the name zone (fixed-cap banks only). It hugs
      the name tighter than the row's flex gap so the pair reads as one label. */
+  /* Vertical geometry belongs to the chipbox recipe (app.css): the pinned
+     whole-pixel height replaces the old padding-driven box, and the recipe's
+     cap-band correction is what seats these caps on center — they rode
+     visibly high when this box was padding 2px on an inherited line box. */
   .chip {
+    --chip-h: 21px;
     flex: none;
     margin-left: -2px;
     border-radius: 999px;
     font-size: 8.5px;
     font-weight: 800;
     letter-spacing: 0.04em;
-    padding: 2px 7px;
-    white-space: nowrap;
+    padding-inline: 7px;
   }
   /* These two keep their saturated club fills and their clubs' own type, which
      is the rule stopping at an edge case rather than an oversight: OAK green on
@@ -538,9 +610,14 @@
     background: #0c2340;
     color: #fffdf6;
   }
-  /* An unpunched row's chip goes ghost too: color belongs to the choice. */
+  /* An unpunched row's chip goes ghost too — color belongs to the choice —
+     but with a SOLID faded border, the way the emoji ghosts with grayscale.
+     Dash is reserved for two meanings in this section: the row border's
+     "empty seat, choosable" and the ghost pill's "payroll unknown". Interior
+     content restating the border's dash in the border's own vocabulary was
+     the third, redundant dash — seven dashed boxes on the default screen. */
   .row:not(.on) .chip {
-    border: 2px dashed var(--gray-ink);
+    border: 2px solid var(--gray-ink);
     background: transparent;
     color: var(--muted);
   }
@@ -557,21 +634,24 @@
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--gray-ink);
-  }
-  .row.on .rmeta.caps {
+    /* --muted on every row, picked or not: this copy is what a first-timer
+       reads while COMPARING the unpicked rows, and --gray-ink on the ground
+       is 2.5:1 — well under AA's 4.5:1 for 9px caps. --muted clears 5:1 on
+       both grounds, so the picked-row override this rule used to need is
+       gone with it. */
     color: var(--muted);
   }
+  /* Same recipe as .chip above — no display of its own, so the chipbox's
+     inline-flex (and its centering) is the one that applies. */
   .pill {
-    display: inline-block;
+    --chip-h: 24px;
     border-radius: 999px;
     font-size: 9.5px;
     font-weight: 800;
     letter-spacing: 0.04em;
-    padding: 2.5px 9px;
-    white-space: nowrap;
+    padding-inline: 9px;
   }
-  /* Owner's Box payroll stays dashed even when punched — it isn't known yet. */
+  /* Open Market's payroll stays dashed even when punched — it isn't known yet. */
   .pill.ghost {
     border: 2px dashed var(--gray-ink);
     color: var(--muted);
@@ -582,9 +662,13 @@
     background: var(--card);
     color: var(--ink);
   }
-  /* An unpunched row's pills go ghost too: color belongs to the choice. */
-  .row:not(.on) .pill {
-    border: 2px dashed var(--gray-ink);
+  /* An unpunched row's CASH pill ghosts the same way — solid faded, not
+     dashed. Scoped to .cash on purpose: the ghost pill ($ · · ·) keeps its
+     dash in every state, picked or not, because its dash means "value
+     unknown", not "row unchosen" — a solid $ · · · on an unpicked row would
+     read as a known payroll appearing exactly when the row is abandoned. */
+  .row:not(.on) .pill.cash {
+    border: 2px solid var(--gray-ink);
     background: transparent;
     color: var(--muted);
   }
@@ -605,12 +689,14 @@
       letter-spacing: 0.05em;
     }
     .pill {
+      --chip-h: 21px;
       font-size: 8.5px;
-      padding: 2px 6px;
+      padding-inline: 6px;
     }
     .chip {
+      --chip-h: 18px;
       font-size: 7.5px;
-      padding: 1.5px 5px;
+      padding-inline: 5px;
     }
   }
   /* The primary. All-caps at 17px, so app.css's optical correction is
@@ -693,14 +779,20 @@
   .seedzone:not(.open):active {
     transform: translateY(2px);
   }
-  /* Focus ring: inset outlines on the individual interactive children so the
-     ring appears only for keyboard navigation, not for touch/mouse. An inset
-     outline (outline-offset: -3px) is painted inside the border box and is
-     therefore not clipped by overflow: hidden on the pill container. */
-  /* The one spoken failure — a game code this build cannot replay. Quiet
-     rather than alarming: it is a stale code, not a mistake the player made. */
+  /* The permanent live region is a flex ITEM even while empty, and .under's
+     13px gap counts items rather than content — unpulled, the empty reserve
+     held a phantom 13px that pushed the record book down on every session.
+     The pull-back exactly cancels the gap, and .seederr's own 19px top
+     margin (6px of air + the 13px the gap used to pay) reseats a shown
+     sentence exactly where the conditional <p> used to land. */
+  .seedstatus {
+    margin-top: -13px;
+  }
+  /* The spoken failures — stale game codes and malformed seeds. Quiet
+     rather than alarming: usually a stale code, not a mistake the player
+     made. */
   .seederr {
-    margin: 6px auto 0;
+    margin: 19px auto 0;
     max-width: 260px;
     text-align: center;
     font-size: 11px;
@@ -828,8 +920,8 @@
     padding: 5px 10px;
     cursor: pointer;
   }
-  /* Inset ring — same pattern as .ubtn. border-radius on .seedgo is already
-     set above (11px). */
+  /* Inset ring — same pattern as .ubtn, following .seedgo's own 999px
+     capsule radius. */
   .seedgo:focus-visible {
     outline: 3px solid var(--blue);
     outline-offset: -3px;

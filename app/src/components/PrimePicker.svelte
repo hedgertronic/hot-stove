@@ -129,9 +129,11 @@
            Same string in SpecialPrimePicker — the two loading beats are one
            moment and must never drift apart. -->
       <div class="picker-note busy">🔎 CHECKING THE BACK OF THE CARD…</div>
-    {:else if seasons.length === 0}
-      <div class="picker-note">One-season wonder: no other years to visit.</div>
     {:else}
+      <!-- No empty state: players.json indexes every card player and every
+           entry includes the card's own season, so a loaded list always has
+           at least the grayed `here` row. A one-season wonder shows exactly
+           that — one row, already visited. -->
       <div class="picker-list">
         {#each seasons as sea ((sea.team + sea.year))}
           {@const plabel = posLabel(sea.p)}

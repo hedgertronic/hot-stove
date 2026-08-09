@@ -645,11 +645,13 @@ describe("the trophy case sheet", () => {
     });
   });
 
-  it("says so plainly when nothing is earned yet", () => {
+  it("shows the silhouette bands, and no empty-state sentence, before anything is earned", () => {
+    // The locked pills ARE the empty state: a wall of silhouettes already
+    // says "go earn these" better than a sentence above them did.
     seed();
     const body = modal();
     expect(body).toContain("COLLECTIBLES");
     expect(body).not.toMatch(/\d+ OF \d+/);
-    expect(body).toContain("No badges yet");
+    expect(body).not.toContain("No badges yet");
   });
 });

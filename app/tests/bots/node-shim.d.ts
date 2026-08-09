@@ -8,6 +8,7 @@ declare module "node:fs" {
   const fs: {
     readFileSync(path: string, encoding: string): string;
     writeFileSync(path: string, data: string): void;
+    readdirSync(path: string): string[];
   };
   export default fs;
 }

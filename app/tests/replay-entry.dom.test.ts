@@ -124,11 +124,14 @@ describe("the SEED field takes both kinds of code", () => {
     ui.close();
   });
 
-  it("answers a mistyped seed with the shake and no sentence", async () => {
+  it("answers a mistyped seed with the shake AND a sentence", async () => {
+    // Words as well as motion: reduced-motion users get no shake at all
+    // (app.css kills every animation), and only the sentence reaches a
+    // screen reader.
     const ui = openHome(async () => false);
     await ui.go("!!!!");
     expect(ui.onplay).not.toHaveBeenCalled();
-    expect(ui.err()).toBeNull();
+    expect(ui.err()?.textContent).toContain("Not a valid seed");
     expect(ui.target.querySelector(".seedzone.bad")).not.toBeNull();
     ui.close();
   });

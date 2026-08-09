@@ -124,7 +124,7 @@
         losses: r.losses,
         tier: r.tier,
         modes,
-        bank: BANKS[bank].emoji,
+        bank: bank === "classic" ? "" : BANKS[bank].emoji,
         scout,
         seed,
         date,
@@ -209,10 +209,9 @@
   confirmLabel="CLOSE"
 >
   <div>
-    {#if rows.length === 0}
-      <p class="empty">No seasons yet — play one.</p>
-    {/if}
-
+    <!-- No zero-state sentence: both of Home's doors into this sheet are
+         disabled until a season exists, so an empty open is unreachable and
+         the line was dead weight (removed with TrophyModal's sibling). -->
     {#if shelf.length > 0}
       <!-- The record book, pinned above the log it is drawn from. Keyed by the
            combo, which is unique by construction and stable across a mount.
@@ -239,14 +238,6 @@
 </Sheet>
 
 <style>
-  .empty {
-    margin: 0;
-    text-align: center;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--gray-ink);
-    padding: 6px 0 2px;
-  }
   .rows,
   .shelf {
     display: grid;
@@ -319,12 +310,12 @@
     line-height: 1.05;
     font-variant-numeric: tabular-nums;
   }
-  /* Which modes the season was played under. The bank shows on EVERY row,
-     including From the Ground Up, rather than following the HUD chip's "nothing for
-     the defaults" convention: the HUD describes the one game you are in, and
-     this is a comparison surface where a blank would have to be read as "the
-     default" by someone who already knows what the default is. The ladder keeps
-     the convention — 🔭 marks Eye Test, and Box Score is the absence of it. */
+  /* Which modes the season was played under, on the HUD chip's own
+     convention: DEFAULTS ARE SILENT. 🔭 marks Eye Test and Box Score is the
+     absence of it; 🐘/💸 mark the fixed-cap banks and Open Market is the
+     absence of them. One rule across HUD, share tag, and this sheet — a bare
+     row IS the default combo, and the aria label still speaks the full mode
+     names for anyone the glyphs don't reach. */
   .mode {
     flex: none;
     font-size: 13px;

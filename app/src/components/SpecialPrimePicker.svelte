@@ -127,9 +127,10 @@
   {:else if rows === null}
     <!-- Identical to PrimePicker's loading note, deliberately. -->
     <div class="picker-note busy">🔎 CHECKING THE BACK OF THE CARD…</div>
-  {:else if rows.length === 0}
-    <div class="picker-note">No seasons on file for this manager.</div>
   {:else}
+    <!-- No empty state: specials.json lists every manager's own card season
+         under their name, so a loaded list always has at least the grayed
+         `here` row. A one-season manager shows exactly that. -->
     <div class="picker-list">
       {#each rows as row ((row.team + row.year))}
         {@const key = `${row.team}:${row.year}`}

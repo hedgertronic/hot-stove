@@ -52,7 +52,6 @@
     label,
     tall = false,
     title = null,
-    subtitle = null,
     confirmLabel = null,
     corner = null,
     children,
@@ -64,8 +63,6 @@
     tall?: boolean;
     /** Centered header line. Rendering it here is what brings the ✕ with it. */
     title?: string | null;
-    /** Optional muted line under the title. */
-    subtitle?: string | null;
     /** Word on the full-width bottom button. A picker the player can back out
      * of says CANCEL, a sheet that only tells them things says GOT IT, and
      * CLOSE is the neutral fallback. Null draws no button and leaves the
@@ -161,7 +158,6 @@
         <span class="title" class:solo={corner === null}>{title}</span>
         <button class="x" onclick={onclose} aria-label="Close"><CloseGlyph /></button>
       </div>
-      {#if subtitle !== null}<div class="sub">{subtitle}</div>{/if}
     {/if}
     {#if framed}
       <div class="body">{@render children()}</div>
@@ -261,14 +257,6 @@
     .title {
       text-box: trim-both cap alphabetic;
     }
-  }
-  .sub {
-    flex: none;
-    text-align: center;
-    font-size: 10.5px;
-    font-weight: 700;
-    color: var(--muted);
-    margin-top: 2px;
   }
   /* The corner pill, at the app's one dismissal geometry: fixed 28×22 with no
      horizontal padding, so the footprint holds whatever glyph sits in it. */

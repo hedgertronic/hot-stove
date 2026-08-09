@@ -156,6 +156,20 @@
     background: var(--rarity-fill, var(--gray-bg));
     padding-inline: 12px;
   }
+  /* EVERY glyph — badge emoji and country flag alike — seats DOWN ~0.09em:
+     flex centers its line box, but an emoji's ink hangs from Nunito's
+     baseline, which the font's tall ascent parks above the box's true middle
+     — measured ~1.2px high at 10.5px against the cap-trimmed label (worst on
+     the locked silhouettes, where the glyph is the only ink). One shared rule
+     on purpose: this seat was briefly capsule-only and the stamps' flags rode
+     visibly high — the two shapes are read side by side in one band, so a
+     correction either both get or neither gets. Same class of optical fix as
+     the O-boiler's flame seat. The em unit scales it with the stamp's larger
+     13px flag. line-height 1 so a tall glyph cannot grow the chip. */
+  .pill .ico {
+    line-height: 1;
+    transform: translateY(0.09em);
+  }
   /* ---- THE RECTANGLE: a country ----
      A stamp, not a pill. A country wears a small radius because a country is
      not a badge and the two are read side by side in one band; the shape is
@@ -177,11 +191,10 @@
   }
   /* A flag runs a little larger than the type it sits beside: an emoji set at
      the size of small caps reads as a smudge, and the flag is the only part of
-     a stamp that has to be identifiable at a glance. Its own line-height, so a
-     taller glyph cannot grow the stamp. */
+     a stamp that has to be identifiable at a glance. (Leading and the optical
+     seat come from the shared .ico rule above.) */
   .pill.stamp .ico {
     font-size: 13px;
-    line-height: 1;
   }
   /* When a chip opens with the NEW chip, the chip sits in an even well of paper
      rather than being pushed off the left edge — and "even" here is optical,

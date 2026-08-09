@@ -142,10 +142,12 @@
       if (wbcChampions) pedigreeChips.push({ code: "🥇", n: wbcChampions });
       if (wbcRunnersUp) pedigreeChips.push({ code: "🥈", n: wbcRunnersUp });
     } else {
-      if (rings) pedigreeChips.push({ code: "💍".repeat(rings), n: 1 });
-      if (pennants) pedigreeChips.push({ code: "🚩".repeat(pennants), n: 1 });
-      if (wbcChampions) pedigreeChips.push({ code: "🥇".repeat(wbcChampions), n: 1 });
-      if (wbcRunnersUp) pedigreeChips.push({ code: "🥈".repeat(wbcRunnersUp), n: 1 });
+      // One chip for the whole run: separate chips per honour put .chipline's
+      // 3px flex gap at each honour boundary, so 💍💍ᐧ🥇 spaced wider than
+      // 💍💍 sat together and the medals looked detached from the rings.
+      const run =
+        "💍".repeat(rings) + "🚩".repeat(pennants) + "🥇".repeat(wbcChampions) + "🥈".repeat(wbcRunnersUp);
+      if (run) pedigreeChips.push({ code: run, n: 1 });
     }
     out.push({
       key: "pedigree",

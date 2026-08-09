@@ -87,7 +87,7 @@
   >
   <!-- wrapnudge: when the pills wrap under the name, the ink block is
        re-centered by half the name line's cap overhead (1.4px = half of
-       0.199em at 14px — see lib/wrapnudge.ts for the derivation). -->
+       0.196em at 14px/16px — see lib/wrapnudge.ts for the derivation). -->
   <span class="mid" use:wrapnudge={{ px: 1.4, freeze }}>
     <span class="nameline">
       <span class="pname">{name}</span>
@@ -207,7 +207,12 @@
   .pname {
     font-weight: 800;
     font-size: 14px;
-    line-height: 1.15;
+    /* Whole-pixel line box (not 1.15 = 16.1px): a wrapped pill line below
+       starts where this line ends, and the pills' 1.5px rings only draw
+       crisp when their edges land on the device-pixel grid — at 3x a
+       fractional phase shaves the top arc thin. Same fix as PrimePicker's
+       .yr; the two surfaces wrap the same pills. */
+    line-height: 16px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
