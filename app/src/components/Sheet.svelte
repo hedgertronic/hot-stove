@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { lockScroll } from "../lib/scrolllock";
-  import CloseGlyph from "./CloseGlyph.svelte";
+  import CornerPillArt from "./CornerPillArt.svelte";
 
   /** The modal shell every sheet shares: dimmed backdrop (tap to close),
    * bottom sheet on phones, centered cardstock modal at wide.
@@ -156,7 +156,7 @@
       <div class="head">
         {#if corner}{@render corner()}{/if}
         <span class="title" class:solo={corner === null}>{title}</span>
-        <button class="x" onclick={onclose} aria-label="Close"><CloseGlyph /></button>
+        <button class="x" onclick={onclose} aria-label="Close"><CornerPillArt glyph="close" /></button>
       </div>
     {/if}
     {#if framed}
@@ -262,9 +262,12 @@
      horizontal padding, so the footprint holds whatever glyph sits in it. */
   .x {
     flex: none;
-    border: 2px solid var(--line);
+    /* Transparent, not none: the capsule is DRAWN by CornerPillArt (ring
+       and ✕ in one svg, one rasterizer). The 2px WIDTH stays so the ::after
+       tap extension keeps its geometry. */
+    border: 2px solid transparent;
     border-radius: 999px;
-    background: var(--card);
+    background: transparent;
     color: var(--muted);
     font-family: inherit;
     font-weight: 800;

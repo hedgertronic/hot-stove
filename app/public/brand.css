@@ -88,16 +88,17 @@
      the right. The ink fits the viewBox with margin; only the AA spills. */
   overflow: visible;
   /* The flame runs 0.9em (0.95 in the first review round, shrunk a notch on
-     the owner's call). Bottom = internal-air term + overshoot + optical
-     drop: 0.9em × 3.25% cancels the SVG's air below the stroke so the INK
-     reaches the baseline, -0.015em is the measured depth Nunito 800's own
-     round glyphs (O, S) dip below the line, and -0.033em (half a px at the
-     HUD's 15px) is the owner's optical drop — a full -1px was tried and
-     reverted as too deep, then geometric-exact read a tad high, so the
-     seat splits the difference on the owner's eye. Width = 0.7531 (the
-     viewBox's 61:81) × the height; the slot above is 0.69 × the height,
-     the ink's own width. */
-  bottom: -0.077em;
+     the owner's call). Bottom = internal-air term + overshoot: 0.9em ×
+     3.25% cancels the SVG's air below the stroke so the INK reaches the
+     baseline, and -0.015em is the measured depth Nunito 800's own round
+     glyphs (O, S) dip below the line. That measured sum is -0.044em (a
+     pixel audit put the flame's ink bottom on the exact row a real O's
+     overshoot lands); the final -0.016em is the owner's optical drop,
+     landed by bisection — -0.044 read slightly high twice, -0.077 (-0.5px)
+     read low, so the seat is their midpoint, a quarter px at the HUD's
+     15px. Bounded by two rejected endpoints rather than tuned open-loop,
+     which is what the reverted -1px and -0.5px attempts were. */
+  bottom: -0.06em;
   height: 0.9em;
   width: 0.678em;
   transform: translateX(-50%);
@@ -106,13 +107,28 @@
 /* The O-boiler inside the logotype: chimney rises above the cap line like an
    ascender, legs drop below the baseline like descenders, so the image runs
    taller than the type and seats slightly low. Em-based to scale with the
-   wordmark. */
+   wordmark.
+
+   The art rides HERE as a data URI, not as an <img> fetch, for the same
+   reason nunito.css inlines the font: this stylesheet is render-blocking,
+   so everything in it exists at first paint — an <img src> raced the first
+   frame on a cold or hard-refreshed load and the wordmark painted without
+   its O until the fetch landed. The URI is public/brand/o-boiler.svg
+   comment-stripped and URL-encoded; brand-assets.test.ts pins the two
+   together so the master and this copy cannot drift. Every surface (static
+   boot card, Logo.svelte home/OG cuts, 404) draws the O as an empty
+   <span class="hs-logo__o" role="img" aria-label="O"> — one recipe, one
+   rasterization pipeline, zero network. */
 .hs-logo__o {
   display: inline-block;
   height: 1.1em;
-  width: auto;
+  /* Stated, because a span has no intrinsic ratio to resolve `auto` from:
+     1.1em × the viewBox's 64:88 = 0.8em exactly. */
+  width: 0.8em;
   vertical-align: -0.1em;
   margin: 0 -0.012em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='18 4 64 88'%3E%3Crect x='45' y='7' width='10' height='11' rx='2' fill='%2324221c'/%3E%3Crect x='41' y='15' width='18' height='5.5' rx='2' fill='%2324221c'/%3E%3Crect x='36.4' y='79' width='6.4' height='13' rx='3' transform='rotate(20 39.6 85)' fill='%2324221c'/%3E%3Crect x='57.2' y='79' width='6.4' height='13' rx='3' transform='rotate(-20 60.4 85)' fill='%2324221c'/%3E%3Ccircle cx='50' cy='55' r='30' fill='%2324221c'/%3E%3Cg transform='translate(24.94,32.89) scale(.51)'%3E%3Cpath d='M50 6c7 15 24 21 24 44a24 24 0 0 1-48 0c0-9.4 4.2-16 8.6-21.4-.4 8.8 2.6 13.6 7.6 14.7C38.6 30 43.3 14.8 50 6Z' fill='%23fcc419' stroke='%23e8590c' stroke-width='7.5' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E")
+    center / contain no-repeat;
 }
 
 /* HOT wears the heat — the hot word in the hot color; STOVE settles into ink

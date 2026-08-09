@@ -33,7 +33,7 @@
   import type { CardPlayer } from "../lib/types";
   import AwardPill from "./AwardPill.svelte";
   import BadgePill from "./BadgePill.svelte";
-  import BugGlyph from "./BugGlyph.svelte";
+  import CornerPillArt from "./CornerPillArt.svelte";
   import MarketRow from "./MarketRow.svelte";
   import PayrollBox from "./PayrollBox.svelte";
   import PowerupPill from "./PowerupPill.svelte";
@@ -417,7 +417,7 @@
     rel="noopener noreferrer"
     aria-label="Report a bug on GitHub"
     title="Report a bug"
-  ><BugGlyph /></a>
+  ><CornerPillArt glyph="bug" /></a>
 {/snippet}
 
 <Sheet {onclose} label="How to play" tall title="HOW TO PLAY" confirmLabel="GOT IT" {corner}>
@@ -788,9 +788,12 @@
      differs. */
   .report {
     flex: none;
-    border: 2px solid var(--line);
+    /* Transparent, not none: the capsule is DRAWN by CornerPillArt (ring
+       and beetle in one svg, one rasterizer). The 2px WIDTH stays so the
+       ::after tap extension keeps its geometry. */
+    border: 2px solid transparent;
     border-radius: 999px;
-    background: var(--card);
+    background: transparent;
     color: var(--muted);
     width: 28px;
     height: 22px;

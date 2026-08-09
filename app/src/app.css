@@ -899,23 +899,6 @@ button {
     text-box: trim-both cap alphabetic;
   }
 }
-/* The recipe's 0.047em is a CAP-BAND correction, and a drawn glyph has no cap
-   band: on non-trim engines it pushed the corner pills' line-art marks (✕,
-   trophy, undo arrow) 0.28px below the center the hand-boxed sheet ✕ sat on —
-   a visible "the gameplay X isn't the trophy case X" on older iOS. A negative
-   top margin on the svg cancels the box's padding at the same half gain, so
-   the mark centers geometrically while a text run beside it (the armed QUIT?)
-   keeps its correction. A separate @supports block rather than a line in the
-   one above, because chip-centering.test.ts pins that block byte-for-byte. */
-.chipbox > svg {
-  margin-block: -0.047em 0;
-}
-@supports (text-box: trim-both cap alphabetic) {
-  .chipbox > svg {
-    margin-block: 0;
-  }
-}
-
 /* ---------- the NEW chip ----------
    First-ever earn, on a badge pill and on a passport stamp: a filled ink chip
    with the word in it. A chip rather than a glow or a ring because both of the

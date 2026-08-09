@@ -100,9 +100,13 @@ describe("big masthead variant (big=true)", () => {
     expect(wordmark.textContent).toContain("HOT");
     expect(wordmark.textContent).toContain("ST");
     expect(wordmark.textContent).toContain("VE");
-    const o = wordmark.querySelector<HTMLImageElement>(".hs-logo__o");
-    expect(o?.getAttribute("src")).toBe("./brand/o-boiler.svg");
-    expect(o?.getAttribute("alt")).toBe("O");
+    // An empty span painted by brand.css's data-URI background, never an
+    // <img>: an img's fetch raced first paint on a hard refresh and the
+    // wordmark showed without its O. role/aria-label keep the word whole.
+    const o = wordmark.querySelector<HTMLElement>(".hs-logo__o");
+    expect(o?.tagName).toBe("SPAN");
+    expect(o?.getAttribute("role")).toBe("img");
+    expect(o?.getAttribute("aria-label")).toBe("O");
     close();
   });
 
@@ -132,9 +136,9 @@ describe("OG share-card variant", () => {
     expect(logo!.classList.contains("hs-logo--game")).toBe(false);
     expect(logo!.classList.contains("hs-logo--home")).toBe(false);
     expect(logo!.querySelector(".hs-logo__mark")).toBeNull();
-    expect(
-      logo!.querySelector<HTMLImageElement>(".hs-logo__o")?.getAttribute("src"),
-    ).toBe("./brand/o-boiler.svg");
+    const o = logo!.querySelector<HTMLElement>(".hs-logo__o");
+    expect(o?.tagName).toBe("SPAN");
+    expect(o?.getAttribute("aria-label")).toBe("O");
     close();
   });
 });

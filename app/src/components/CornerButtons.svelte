@@ -7,6 +7,7 @@
     markHelpSeen,
     noteNewBadges,
   } from "../lib/settings";
+  import CornerPillArt from "./CornerPillArt.svelte";
   import HelpModal from "./HelpModal.svelte";
   import TrophyModal from "./TrophyModal.svelte";
 
@@ -170,7 +171,7 @@
   class:cue={helpCue}
   onclick={openHelp}
   aria-label={helpCue ? "How to play: start here" : "How to play"}
-  ><span class="chiplbl">?</span></button
+  ><CornerPillArt glyph="help" /></button
 >
 <button
   class="help trophy chipbox"
@@ -179,20 +180,7 @@
   onclick={openTrophy}
   aria-label={badgeCue
     ? `Collectibles: ${badgeCount} new badge${badgeCount === 1 ? "" : "s"}`
-    : "Collectibles"}
-  ><!-- viewBox 15.077 in a 14px box = CloseGlyph's whole-pixel seat: ink
-       stays at the tuned 13px scale while the box's air in the pill is a
-       whole pixel on every side (a 13px box sat on 2.5px and Chromium
-       rounded it 0.5px off center). The y origin backs up 0.589 rather than
-       the X's 0.538 because the cup's ink bbox center is 6.95, not 7 — the
-       drawing rides 0.05 units high in its own coordinates. Geometric
-       center on purpose — no optical constants (CloseGlyph carries the
-       reverted-lift history). -->
-  <svg class="tico" viewBox="-0.538 -0.589 15.077 15.077" aria-hidden="true"
-    ><path
-      d="M4 2h6v3.2a3 3 0 0 1-6 0V2Z M4 2.8H2.3v1.1a2 2 0 0 0 1.9 2 M10 2.8h1.7v1.1a2 2 0 0 1-1.9 2 M7 8.4v2.2 M4.6 11.9h4.8"
-    /></svg
-  ></button
+    : "Collectibles"}><CornerPillArt glyph="trophy" /></button
 >
 
 <!-- The third pill, drawn only where there is a run to rewind — the home
@@ -208,13 +196,9 @@
     bind:this={undoEl}
     onclick={tapUndo}
     aria-label={undoArmed ? "Undo last move: tap again to confirm" : "Undo last move"}
-    >{#if undoArmed}<span class="chiplbl">UNDO?</span>{:else}<!-- The arrow's
-        ink bbox center is (6.75, 6.75), not (7, 7) — the drawing sits 0.25
-        units up-left in its own coordinates, which painted as ~0.23px at the
-        pill's scale ON TOP of the half-pixel box seat. One origin (0.789 =
-        6.75 − 15.077/2) recenters both at once. --><svg class="tico" viewBox="-0.789 -0.789 15.077 15.077" aria-hidden="true"
-        ><path d="M11 11.5V8.5A4 4 0 0 0 7 4.5H2.5 M5.5 2 2.5 4.5l3 2.5" /></svg
-      >{/if}</button
+    >{#if undoArmed}<span class="chiplbl">UNDO?</span>{:else}<CornerPillArt
+        glyph="undo"
+      />{/if}</button
   >
 {/if}
 
@@ -233,9 +217,15 @@
   .help {
     position: absolute;
     left: 0;
-    border: 2px solid var(--line);
+    /* Transparent, not none: resting, the capsule is DRAWN by CornerPillArt
+       (one svg for ring and glyph, so no engine can seat them apart), and
+       the button's own border/background return only for the armed text
+       state. The 2px WIDTH stays so the box metrics, the cue ::after
+       geometry, and the armed capsule are byte-identical to the old CSS
+       ring. */
+    border: 2px solid transparent;
     border-radius: 999px;
-    background: var(--card);
+    background: transparent;
     color: var(--muted);
     font-family: inherit;
     font-weight: 800;
@@ -399,21 +389,6 @@
     transform: translateX(-27px) scale(0.92);
     z-index: 0;
   }
-  /* Line art rather than an emoji: the ?/✕ pills are 10px text glyphs, and a
-     color emoji dropped into that geometry sits low and reads as a sticker on
-     a control. Stroked ink matches the punch mark the home rows already use. */
-  .tico {
-    /* 14, not 13: whole-pixel air in the pill's 24×18 content box. The ink
-       inside still paints at the tuned 13px scale — the viewBoxes grew by
-       the same ratio (see the svg markup). */
-    width: 14px;
-    height: 14px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.3;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
   .help:focus-visible {
     outline: 3px solid var(--blue);
     outline-offset: 2px;
@@ -433,8 +408,12 @@
      absolutely positioned ::after inset past the border, so a lit pill has
      exactly the geometry of a dark one and the header never reflows. */
   .help.cue {
-    background: var(--yellow);
-    border-color: var(--gold-8);
+    /* The fill and ring live in CornerPillArt's svg now, so the cue's
+       costume change rides the custom-property channel instead of the
+       button's own background/border; the glyph goes to ink through
+       currentColor as ever. */
+    --pill-fill: var(--yellow);
+    --pill-ring: var(--gold-8);
     color: var(--ink);
   }
   .help.cue::after {

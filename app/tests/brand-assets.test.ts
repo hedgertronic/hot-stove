@@ -14,6 +14,26 @@ describe("shared brand assets", () => {
     expect(read("app/public/favicon.svg")).toBe(read("design/logo/favicon.svg"));
   });
 
+  it("carries the O-boiler in brand.css as a data URI matching the master", () => {
+    // The O paints from a data-URI background inside the render-blocking
+    // stylesheet (no <img> fetch to race first paint on a hard refresh), so
+    // the master and the inlined copy must be pinned together or a redraw of
+    // o-boiler.svg would silently leave every lockup painting the old art.
+    // Compared comment-stripped and whitespace-normalized with single quotes:
+    // exactly the transform that produced the URI.
+    const css = read("app/public/brand.css");
+    const uri = css.match(/url\("(data:image\/svg\+xml,[^"]+)"\)/)?.[1];
+    expect(uri).toBeDefined();
+    const inlined = decodeURIComponent(uri!.replace("data:image/svg+xml,", ""));
+    const master = read("app/public/brand/o-boiler.svg")
+      .replace(/<!--[\s\S]*?-->/g, "")
+      .replace(/>\s+</g, "><")
+      .replace(/\s{2,}/g, " ")
+      .replace(/"/g, "'")
+      .trim();
+    expect(inlined).toBe(master);
+  });
+
   it("routes the app, static 404, and OG template through the shared recipe", () => {
     expect(read("app/index.html")).toContain('href="./brand.css"');
     expect(read("app/public/404.html")).toContain("hs-logo hs-logo--home");

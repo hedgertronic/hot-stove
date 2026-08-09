@@ -70,6 +70,16 @@ export function gridsnap(node: HTMLElement, active: boolean) {
   // priced insurance.
   ro.observe(document.body);
   window.addEventListener("resize", apply);
+  // Entrance animations are the stale-maker the RO pair cannot see: market
+  // rows ride in on `.after`'s fadeup (a translateY animation), so the
+  // initial observation measures a TRANSIENT position, and the animation's
+  // end resizes nothing — the wrong snap simply stayed (measured live:
+  // every gameplay pill steady at 0.417 device px off grid at 3×, the
+  // "second-row badges sit low" report). Both events bubble to window, so
+  // one listener pair re-measures at exactly the moments layout settles,
+  // with no polling. apply() is idempotent; extra firings are noise-priced.
+  window.addEventListener("animationend", apply, true);
+  window.addEventListener("transitionend", apply, true);
   // Fonts are the settle that stales MOST snaps, and a font strut shift
   // does not always move the body's total height — so fonts.ready gets its
   // own explicit re-apply (measured: a 0.25px settle above a snapped pill
@@ -90,6 +100,8 @@ export function gridsnap(node: HTMLElement, active: boolean) {
     destroy() {
       ro.disconnect();
       window.removeEventListener("resize", apply);
+      window.removeEventListener("animationend", apply, true);
+      window.removeEventListener("transitionend", apply, true);
       cancelAnimationFrame(raf);
     },
   };

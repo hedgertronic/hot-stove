@@ -5,7 +5,7 @@
   import BadgePill from "../components/BadgePill.svelte";
   import BadgeSlot from "../components/BadgeSlot.svelte";
   import BankBox from "../components/BankBox.svelte";
-  import CloseGlyph from "../components/CloseGlyph.svelte";
+  import CornerPillArt from "../components/CornerPillArt.svelte";
   import Finale from "../components/Finale.svelte";
   import PlayerList from "../components/PlayerList.svelte";
   import PayrollBox, { FIXED_CAP_CLUB } from "../components/PayrollBox.svelte";
@@ -160,21 +160,20 @@
   const seatVerdict = (r: SeatReading | null | undefined) =>
     !r ? "" : Math.abs(r.skew) <= SEAT_LIMIT ? "seated" : r.skew > 0 ? "SITS LOW" : "RIDES HIGH";
 
-  /** ICON PILL PROBE — the corner-pill ✕ through both box recipes, measured
-   * ON this device. The glyph is our own svg, so unlike the emoji seat there
-   * is no ink to scan — but every way the recipes can diverge is a LAYOUT
-   * fact, and getBoundingClientRect reads layout at sub-pixel truth:
-   * which @supports branch this engine took, where the box put the svg, and
-   * what phase of the device grid the pill's ring landed on. Open ?lab in
-   * the Safari that looks wrong and read the numbers.
+  /** ICON PILL PROBE — the corner pill through both box recipes, measured
+   * ON this device. Since the CornerPillArt refactor the ring AND the glyph
+   * are one svg pinned over the button's border box, so they cannot diverge
+   * — what this probe now guards is the PINNING: dy/dx read the art svg's
+   * layout offset from the pill's own center, and any nonzero value means a
+   * host recipe (a chipbox padding, a stray margin rule) has displaced the
+   * whole art. getBoundingClientRect reads layout at sub-pixel truth.
    *
-   * dy is svg center minus pill center, DEVICE px, positive = glyph sits
-   * LOW in its ring. phase is the border-box top's distance off the device
-   * grid — nonzero phase paints the 2px ring across a split device pixel
-   * (heavier below, glyph READS low even at dy 0). The corner pills are
-   * deliberately NOT snapped (their rings measured symmetric at natural
-   * offsets, and snapping caused visible micro-jumps), so phase reports the
-   * row's natural seat — expect small nonzero values, identical per row. */
+   * dy is art center minus pill center, DEVICE px, positive = art sits LOW
+   * on its button. phase is the border-box top's distance off the device
+   * grid — a nonzero phase antialiases ring and glyph TOGETHER now (the
+   * one-svg point), so a small identical phase on every row is healthy.
+   * The corner pills are deliberately NOT snapped (snapping caused visible
+   * micro-jumps), so phase reports the row's natural seat. */
   interface IconReading {
     dy: number;
     dx: number;
@@ -463,20 +462,19 @@
 
   <div class="psep">ICON PILL PROBE</div>
   <div class="cap">
-    The corner ✕ through both box recipes ON THIS DEVICE: HUD is the chipbox
-    the gameplay ✕/?/trophy/undo wear, SHEET is the hand-boxed pill the
-    collectibles and help sheets draw. Same glyph, so the two must read
-    identically — dy is the svg's layout offset from the ring's center
-    (positive = sits low), phase is the ring's top edge off the device grid
-    (nonzero paints the ring across a split pixel and the glyph READS low at
-    dy 0 — the pills sit at the row's natural offset, unsnapped, so a small
-    identical phase on every row is healthy). If the two ✕ pills LOOK
-    different here, the number that differs is the culprit.
+    The corner pill through both box recipes ON THIS DEVICE: HUD is the
+    chipbox the gameplay ✕/?/trophy/undo wear, SHEET is the hand-boxed pill
+    the collectibles and help sheets draw. Ring and glyph are ONE svg now
+    (CornerPillArt), so they cannot seat apart — dy/dx read the whole art's
+    layout offset from the pill's center, and any nonzero value means a host
+    recipe has displaced it. Phase is the ring's top edge off the device
+    grid; the pills sit at the row's natural offset, unsnapped, so a small
+    identical phase on every row is healthy.
   </div>
   <div class="seatcase" bind:this={iconEl}>
     <div class="seatrow">
       <button class="iconpill iconpill-hud chipbox" aria-label="HUD replica"
-        ><CloseGlyph /></button
+        ><CornerPillArt glyph="close" /></button
       >
       <span class="seatnum" class:bad={iconReadings[0] != null && Math.abs(iconReadings[0].dy) > ICON_LIMIT}
         >HUD · {iconLine(iconReadings[0])} {iconVerdict(iconReadings[0])}</span
@@ -484,23 +482,20 @@
     </div>
     <div class="seatrow">
       <button class="iconpill iconpill-sheet" aria-label="Sheet replica"
-        ><CloseGlyph /></button
+        ><CornerPillArt glyph="close" /></button
       >
       <span class="seatnum" class:bad={iconReadings[1] != null && Math.abs(iconReadings[1].dy) > ICON_LIMIT}
         >SHEET · {iconLine(iconReadings[1])} {iconVerdict(iconReadings[1])}</span
       >
     </div>
-    <!-- The reference: the ? is TYPE, and its trimmed ink rides slightly
-         above geometric center while the drawn marks sit exactly ON it (a
-         family-wide 0.5px lift was tried and reverted — right on one
-         engine, high on the rest). Its dy here reads the trimmed label
-         BOX, not ink, so judge this row by eye against the two above
-         rather than by its number. -->
+    <!-- The ? is line art now too — the one former FONT glyph in the family.
+         Eyeball row: judge that the drawn hook-and-dot twins the ✕ beside
+         it (both marks sit on the compact register's 8.0px ground). -->
     <div class="seatrow">
-      <button class="iconpill iconpill-hud chipbox" aria-label="Text reference"
-        ><span class="chiplbl">?</span></button
+      <button class="iconpill iconpill-hud chipbox" aria-label="Drawn ? reference"
+        ><CornerPillArt glyph="help" /></button
       >
-      <span class="seatnum">TEXT ? · {iconLine(iconReadings[2])} (label box, eyeball row)</span>
+      <span class="seatnum">DRAWN ? · {iconLine(iconReadings[2])} (eyeball row)</span>
     </div>
   </div>
   <div class="cap seatmeta">{iconMeta}</div>
@@ -757,11 +752,18 @@
   }
   /* Icon pill replicas: byte-for-byte the box declarations of App.svelte's
      .quit (HUD, on the chipbox recipe) and Sheet.svelte's .x (hand-boxed) —
-     the whole point is that a divergence between THOSE recipes shows here. */
+     the whole point is that a divergence between THOSE recipes shows here.
+     Transparent capsule + position:relative for CornerPillArt's reason and
+     anchor, same as every production host. */
   .iconpill {
-    border: 2px solid var(--line);
+    position: relative;
+    /* flex none for the production hosts' reason (.x/.fbtn/.report): the
+       art is out of flow, so the button's min-content is 0 and the row's
+       long readout text would squeeze it below 28px. */
+    flex: none;
+    border: 2px solid transparent;
     border-radius: 999px;
-    background: var(--card);
+    background: transparent;
     color: var(--muted);
     font-family: inherit;
     font-weight: 800;

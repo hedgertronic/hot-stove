@@ -12,7 +12,7 @@
   } from "../lib/settings";
   import { balancewrap } from "../lib/balancewrap";
   import BadgePill from "./BadgePill.svelte";
-  import FilterGlyph from "./FilterGlyph.svelte";
+  import CornerPillArt from "./CornerPillArt.svelte";
   import BadgeSlot from "./BadgeSlot.svelte";
   import PillSlot from "./PillSlot.svelte";
   import Sheet from "./Sheet.svelte";
@@ -263,7 +263,7 @@
     aria-expanded={filtersOpen}
     aria-label="Filter collectibles by mode"
     onclick={() => (filtersOpen = !filtersOpen)}
-  ><FilterGlyph /></button>
+  ><CornerPillArt glyph="filter" /></button>
 {/snippet}
 
 <Sheet {onclose} label="Collectibles" tall title="COLLECTIBLES" confirmLabel="CLOSE" {corner}>
@@ -381,9 +381,12 @@
      from the shell: the shell reserves the seat, the tenant dresses itself. */
   .fbtn {
     flex: none;
-    border: 2px solid var(--line);
+    /* Transparent, not none: the capsule is DRAWN by CornerPillArt (ring
+       and funnel in one svg, one rasterizer). The 2px WIDTH stays so the
+       ::after tap extension keeps its geometry. */
+    border: 2px solid transparent;
     border-radius: 999px;
-    background: var(--card);
+    background: transparent;
     color: var(--muted);
     font-family: inherit;
     padding: 0;
@@ -408,9 +411,11 @@
     outline: 3px solid var(--blue);
     outline-offset: 2px;
   }
-  /* A live lens outlives a closed board — the pill keeps saying so. */
+  /* A live lens outlives a closed board — the pill keeps saying so. The
+     ring lives in CornerPillArt's svg, so the state rides the custom
+     property; the funnel goes to ink through currentColor as ever. */
   .fbtn.lens {
-    border-color: var(--ink);
+    --pill-ring: var(--ink);
     color: var(--ink);
   }
   /* The lens board: quieter and smaller than the powerup register — furniture

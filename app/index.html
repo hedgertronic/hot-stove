@@ -40,12 +40,11 @@
     <link rel="preload" as="fetch" crossorigin href="./data/meta.json" />
     <link rel="preload" as="fetch" crossorigin href="./data/owners.json" />
     <link rel="preload" as="fetch" crossorigin href="./data/colors.json" />
-    <!-- The lockup marks, warmed the same way. Their <img> requests can't
-         start until the app mounts, so on a cold load the wordmark can paint
-         a frame before its mark and the masthead reads as text snapping
-         sideways when the O-boiler pops in. Both files are ~1KB. -->
-    <link rel="preload" as="image" href="./brand/o-boiler.svg" />
-    <link rel="preload" as="image" href="./brand/flame.svg" />
+    <!-- No image preloads for the lockup: neither mark is a fetch anymore.
+         The O-boiler rides brand.css as a data URI (an <img src> raced first
+         paint on a hard refresh and the wordmark showed without its O) and
+         the HUD flame is an inline path in Logo.svelte — preloading either
+         file would be a warmed request nothing consumes. -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Hot Stove" />
@@ -146,24 +145,31 @@
            meta description and the JSON-LD above. Vertically anchored near
            the app's own boot line (App.svelte .boot) so the handoff doesn't
            jump. -->
-      <!-- The HOME masthead, hand-inlined: Logo.svelte's logotype (HOT in
-           heat orange, ST_VE in ink, the letter-fitted O-boiler standing in
-           as STOVE's O). Every value is the component's own — brand.css
-           .hs-logo--home: 40px/800, 0.01em tracking; .hs-logo__o: 1.1em tall,
-           -0.1em seat, -0.012em side margins; so the swap to App.svelte's
-           real <Logo big/> card is pixel-still. A brand.css resize MUST land
-           here too or the boot handoff jumps sizes — it shipped at 34px
-           against a 40px home lockup once. Hexes are app.css tokens inlined
-           (--ink/--orange-8); change them together. The font stack is
-           --disp minus the flag face:
-           nunito.css in <head> is paint-blocking and carries the font as a
-           data URI, so this card paints in the game's own Nunito on the
-           very first frame — never a system stand-in that jumps. line-height:
-           1 on both cards, stated rather than inherited — the UA default and
-           app.css would otherwise disagree. -->
+      <!-- The HOME masthead, drawn by the ONE lockup recipe: brand.css's
+           .hs-logo classes (linked render-blocking in <head>, so its rules
+           AND the O-boiler — a data URI inside .hs-logo__o — exist before
+           this card's first paint), the exact markup App.svelte's
+           <Logo big/> and the static 404 render. Element-for-element
+           identical to the mounted lockup ON PURPOSE — a hand-inlined
+           replica of it once drew the boiler as an inline <svg>, and even
+           with every value matched the two rendering pipelines seat
+           differently (an SVG image is rasterized to a size-snapped bitmap;
+           an inline svg renders as in-page vectors — Logo.svelte's flame
+           comment, in reverse), so the O shifted a hair at the static→app
+           swap on every reload. An <img src> stood here briefly and raced
+           first paint on a hard refresh — the O lives in the stylesheet now
+           so no fetch can lose that race. The flex wrapper is App.svelte's
+           .bootmast seat (a flex item rides no text strut — see that rule's
+           comment); the h1 keeps the crawlable heading, and the O span's
+           aria-label keeps its text HOTSTOVE. line-height 1 on the card,
+           stated rather than inherited — the UA default and app.css would
+           otherwise disagree. The card's own font stack is --disp minus the
+           flag face, for the warming line below (the lockup carries its
+           own): nunito.css in <head> is paint-blocking and carries the font
+           as a data URI, so this card paints in the game's own Nunito on
+           the very first frame — never a system stand-in that jumps. -->
       <div id="static-boot" style="max-width: 480px; margin: 0 auto; padding: 38vh 24px 0; text-align: center; font-family: 'Nunito', ui-rounded, 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif; line-height: 1; color: #24221c">
-        <h1 style="margin: 0; font-size: 40px; font-weight: 800; letter-spacing: 0.01em; white-space: nowrap"><span style="color: #e8590c">HOT</span>ST<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 4 64 88" role="img" aria-label="O" style="display: inline-block; height: 1.1em; width: auto; vertical-align: -0.1em; margin: 0 -0.012em"><!-- Letter-fitted O-boiler — mirrors Logo.svelte; canonical source:
-       design/logo/boiler-o.svg. --><rect x="45" y="7" width="10" height="11" rx="2" fill="#24221c"/><rect x="41" y="15" width="18" height="5.5" rx="2" fill="#24221c"/><rect x="36.4" y="79" width="6.4" height="13" rx="3" transform="rotate(20 39.6 85)" fill="#24221c"/><rect x="57.2" y="79" width="6.4" height="13" rx="3" transform="rotate(-20 60.4 85)" fill="#24221c"/><circle cx="50" cy="55" r="30" fill="#24221c"/><g transform="translate(24.94,32.89) scale(.51)"><path d="M50 6c7 15 24 21 24 44a24 24 0 0 1-48 0c0-9.4 4.2-16 8.6-21.4-.4 8.8 2.6 13.6 7.6 14.7C38.6 30 43.3 14.8 50 6Z" fill="#fcc419" stroke="#e8590c" stroke-width="7.5" stroke-linejoin="round"/></g></svg>VE</h1>
+        <div style="display: flex; justify-content: center"><h1 class="hs-logo hs-logo--home" style="margin: 0"><span class="hs-logo__wordmark"><span class="hs-logo__hot">HOT</span>ST<span class="hs-logo__o" role="img" aria-label="O"></span>VE</span></h1></div>
         <!-- .bootline's twin (16px/700 muted, 22px above): the app card's
              warming line lands in this exact seat, so a slow load reads as
              one card gaining a meter rather than two cards trading places. -->

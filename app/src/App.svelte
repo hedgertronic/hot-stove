@@ -1,6 +1,6 @@
 <script lang="ts">
   import BankBox from "./components/BankBox.svelte";
-  import CloseGlyph from "./components/CloseGlyph.svelte";
+  import CornerPillArt from "./components/CornerPillArt.svelte";
   import CornerButtons from "./components/CornerButtons.svelte";
   import Finale from "./components/Finale.svelte";
   import Home from "./components/Home.svelte";
@@ -432,9 +432,10 @@
   <div class="boot disp">Couldn't load the league. {bootError}</div>
 {:else if !booted || !colors}
   <!-- The same title card index.html paints before the bundle arrives — the
-       HOME masthead (the real <Logo big/> here; a hand-inlined replica of it
-       in index.html #static-boot, values matched span for span) at the same
-       38vh anchor, so the static→app handoff is pixel-still. The loading
+       HOME masthead (<Logo big/> here; index.html #static-boot renders the
+       SAME brand.css classes and the same o-boiler <img>, not a replica —
+       matched values still left the two pipelines seating the O apart) at
+       the same 38vh anchor, so the static→app handoff is pixel-still. The loading
        line and meter live in .bootload, which fades in on a CSS delay: a
        warm-cache boot swaps to the game before the delay expires, so a fast
        load is one steady title card with no meter flash, and only a
@@ -448,12 +449,14 @@
          same clock the static line's CSS delay effectively started on. -->
     <div class="bootload" class:now={typeof performance !== "undefined" && performance.now() > 400}>
       <div class="bootline">Warming up the stove…</div>
-      <!-- The fill is a background on the track itself, not a child div: a
-           clipped child leaves an antialiased card-colored crescent between
-           its rounded end and the rim (the seam between the clip edge and the
-           border's inner edge), which flickered white as the width animated.
-           A background paints out to the BORDER box, under the opaque rim, so
-           there is no seam to show — the rim itself covers the joint. -->
+      <!-- The payroll meter's exact anatomy in the stove's own orange
+           (PayrollBox .pmeter/.pfill transposed a hue): rung-8 ring,
+           cardstock track, rung-5 wash whose flat CUT EDGE is the quantity,
+           rung-6 drifting hatch on top. The fill is a flat-edged child
+           clipped by the track — the crescent seam an earlier clipped child
+           flickered came from its ROUNDED end meeting the rim; a flat edge
+           has no crescent to leave, which is how the payroll bar has always
+           drawn it. -->
       <div
         class="bootmeter"
         role="progressbar"
@@ -461,8 +464,14 @@
         aria-valuemin="0"
         aria-valuemax={BOOT_STEPS}
         aria-valuenow={bootDone}
-        style="--boot-pct: {(bootDone / BOOT_STEPS) * 100}%"
-      ></div>
+      >
+        <span
+          class="bootfill"
+          class:bzero={bootDone <= 0}
+          class:bfull={bootDone >= BOOT_STEPS}
+          style:width="{(bootDone / BOOT_STEPS) * 100}%"
+        ></span>
+      </div>
     </div>
   </div>
 {:else if screen === "home" || !game}
@@ -505,7 +514,7 @@
           ? "Back to the home screen"
           : "Quit this game"}
     >
-      {#if quitArmed}<span class="chiplbl">QUIT?</span>{:else}<CloseGlyph />{/if}
+      {#if quitArmed}<span class="chiplbl">QUIT?</span>{:else}<CornerPillArt glyph="close" />{/if}
     </button>
   </header>
 
@@ -581,14 +590,13 @@
     line-height: 1;
     font-weight: 700;
   }
-  /* The masthead line: <Logo big> here, its hand-inlined twin in the static
-     card. The wrapper exists because Logo is inline-flex and the h1 twin
-     needs a matching block seat to center in. A FLEX seat, specifically: as
-     inline content the lockup rode the wrapper's 16px text strut on its
-     baseline, which hung 2px of strut descent under it — the one seat the
-     static h1 (line-height 1, no strut) doesn't have, so the static→app
-     handoff dropped the masthead 2px. A flex item rides no strut, and the
-     two cards measure y-identical. */
+  /* The masthead line: <Logo big> here; the static card wraps its lockup in
+     an inline twin of this rule (index.html #static-boot). A FLEX seat,
+     specifically: as inline content the lockup rode the wrapper's 16px text
+     strut on its baseline, which hung 2px of strut descent under it, and
+     the static→app handoff dropped the masthead 2px. A flex item rides no
+     strut — both cards seat the lockup this same way, so they measure
+     y-identical. */
   .bootmast {
     display: flex;
     justify-content: center;
@@ -622,41 +630,96 @@
   .bootline {
     margin-top: 22px;
   }
-  /* The meter: a small cardstock capsule under the line, filling with the
-     stove's own heat orange as the five boot steps land (BOOT_STEPS above).
-     The transition smooths step jumps into a pour; on a warm cache it fills
-     in one hop, which reads as the fast load it is. Height and border are
-     whole pixels for the chip-recipe reason. */
+  /* The boot meter is the payroll meter in the stove's orange: the same
+     track (rung-8 ring, cardstock interior, 17px, 2.5px) and the same fill
+     (rung-5 wash, rung-8 cut edge, rung-6 drifting hatch) that PayrollBox
+     .pmeter/.pfill draws in green — one meter language across the game, with
+     hue carrying the register (green: money; orange: heat). The five boot
+     steps land as width jumps the 0.25s transition smooths into a pour, and
+     the hatch drifts at the payroll bar's shared 10.9px/s, so even a stalled
+     step shows a live bar rather than a frozen one. */
   .bootmeter {
     width: 180px;
-    height: 12px;
+    height: 17px;
     margin: 12px auto 0;
-    border: 2px solid var(--line);
+    border: 2.5px solid var(--orange-8);
     border-radius: 999px;
-    /* Two layers, both painted to the border box (background-clip's default):
-       the orange pour sized by --boot-pct over the cardstock track. Painting
-       under the rim is the whole fix — the earlier overflow-clipped child div
-       left an antialiased crescent of track color between its rounded end and
-       the rim's inner edge, a white outline that flickered as it animated.
-       background-size is animatable, so the pour keeps its 0.25s ease; a
-       square right edge mid-pour is the liquid reading, not a bug. */
-    background:
-      linear-gradient(var(--orange-8), var(--orange-8)) 0 0 / var(--boot-pct, 0%) 100%
-        no-repeat,
-      var(--card);
-    /* Stated because only clip defaults to border-box — origin defaults to
-       padding-box, which would seat the pour at the rim's INNER edge and
-       quietly break the paints-under-the-rim account above. */
-    background-origin: border-box;
-    transition: background-size 0.25s ease;
+    background: var(--card);
+    overflow: hidden;
+    /* The hatch animates transform on ::before, which promotes it to its own
+       compositing layer; this track owns the rounded clip up front so the
+       corners keep clipping across that boundary (PayrollBox documents the
+       full LayerTree account on .pmeter). */
+    will-change: transform;
+  }
+  /* The payroll fill's anatomy, hue-swapped: the wash is free to be a wash
+     because the CUT EDGE is the signal — a 2.5px orange-8 line whose position
+     says how much of the boot has landed. Flat, never rounded: the edge IS
+     the reading, and a flat edge leaves no crescent seam against the track's
+     rounded clip. */
+  .bootfill {
+    display: block;
+    height: 100%;
+    background: var(--orange-5);
+    border-right: 2.5px solid var(--orange-8);
+    position: relative;
+    overflow: hidden;
+    transition: width 0.25s ease;
+  }
+  /* At zero steps the cut edge alone would paint a 2.5px sliver of progress
+     that hasn't happened — the payroll bar's .pzero rule, same reason. */
+  .bootfill.bzero {
+    border-right: 0;
+    background: transparent;
+  }
+  /* And at ALL steps the edge has no position left to signal — it would only
+     overflow into the track's rounded corners and clip to a nub against the
+     ring (the payroll bar's over state drops its edge on the same reasoning). */
+  .bootfill.bfull {
+    border-right: 0;
+  }
+  /* The green bar's hatch geometry verbatim (PayrollBox derives it): stripes
+     one rung over the wash, on a pseudo-element one 33.941px period wider
+     than the bar, translated by exactly that period so the loop is seamless
+     and no painted edge ever crosses the visible bar. app.css's reduce-motion
+     rule stops it along with every other animation. */
+  .bootfill::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: calc(100% + 33.941px);
+    background: repeating-linear-gradient(-45deg, transparent 0 12px, var(--orange-6) 12px 24px);
+    animation: bootdrift 3.12s linear infinite;
+  }
+  @keyframes bootdrift {
+    from {
+      transform: translateX(-33.941px);
+    }
+    to {
+      transform: translateX(0);
+    }
   }
   .hud {
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 8px;
-    margin-bottom: 10px;
     position: relative;
+    /* The row's content is 15px tall but its pills are 22px controls whose
+       cue ring reaches 4px further and whose focus ring 5px — all of it
+       hanging OUTSIDE a 15px paint box. Safari transiently clips
+       absolutely-positioned children to a composited ancestor's bounds
+       (the owner watched the pill bottoms flash whole and then clip), so
+       the box is grown to CONTAIN everything it paints: 10px of block
+       padding covers pill overhang (3.5px) + cue ring (4px) + slack, and
+       the negative top margin puts the border box back where the 15px row
+       sat, so neither the content nor the pills' static positions move.
+       The old 10px bottom margin lives inside the padding now — following
+       flow is unchanged. #app's own padding-top blocks margin collapse. */
+    padding-block: 10px;
+    margin-block: -10px 0;
   }
   /* The ✕ is the twin of the ?/trophy pair CornerButtons draws in the other
      corner: same box, a fixed width (no horizontal padding, text centered) so
@@ -664,9 +727,13 @@
   .quit {
     position: absolute;
     right: 0;
-    border: 2px solid var(--line);
+    /* Transparent, not none: resting, the capsule is DRAWN by CornerPillArt
+       (ring and ✕ in one svg, one rasterizer), and the button's own
+       border/background return only for the armed "QUIT?". The 2px WIDTH
+       stays so box metrics and the armed capsule are unchanged. */
+    border: 2px solid transparent;
     border-radius: 999px;
-    background: var(--card);
+    background: transparent;
     color: var(--muted);
     font-family: inherit;
     font-weight: 800;

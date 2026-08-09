@@ -71,26 +71,53 @@ describe("the header mode chip wears the corner-pill uniform", () => {
   });
 });
 
-describe("the ✕ is drawn, not typed", () => {
-  it("CloseGlyph strokes one path in currentColor", () => {
-    const glyph = read("components/CloseGlyph.svelte");
-    expect(glyph).toContain("stroke: currentColor;");
-    // 15.077 = 14 × 14/13: a 14px box (whole-pixel air in the pill) whose
-    // ink still paints at the tuned 13px scale, origin backed up so the
-    // ink's bbox center holds the viewBox center. Symmetric origins pin
-    // GEOMETRIC center — a +0.5px optical lift was tried and reverted the
-    // same day (right on one engine, high on the rest); no per-glyph
-    // optical constants may creep back.
-    expect(glyph).toContain('viewBox="-0.538 -0.538 15.077 15.077"');
+describe("the corner pill is ONE svg — ring and glyph share a rasterizer", () => {
+  it("CornerPillArt draws capsule, ring and mark in a single scene", () => {
+    const art = read("components/CornerPillArt.svelte");
+    // Ring centerline 1..27/1..21 with a 2-unit stroke paints 0..28/0..22 —
+    // byte-identical coverage to the 2px CSS border it replaced, so any
+    // fractional screen offset antialiases ring and ink TOGETHER. This is
+    // the structural cure for the round-32 seat drift: the CSS-border ring,
+    // svg marks and font ? were three rasterizers no shared constant could
+    // reconcile.
+    // The viewBox overshoots the 28×22 ink by 2 units per side: real
+    // Safari rounds an svg's raster bounds at fractional offsets and
+    // shaves flush ink (the ring's bottom stroke cut to a flat chord on
+    // the owner's machine), so no ink may touch the viewport edge.
+    expect(art).toContain('viewBox="-2 -2 32 26"');
+    expect(art).toContain('<rect class="capsule" x="1" y="1" width="26" height="20" rx="10" />');
+    // The ✕ keeps its tuned equal-ink viewBox verbatim inside a nested
+    // viewport (SVG's own exact mapping — no CSS layout rounding).
+    expect(art).toContain('viewBox="-0.538 -0.538 15.077 15.077"');
+    expect(art).toContain("stroke: currentColor;");
+  });
+
+  it("any family-wide optical seat is MARK_DY, once, and it rests at zero", () => {
+    // A +0.5px per-glyph optical lift was tried and reverted the same day
+    // (right on one engine, high on the rest). The doctrine: geometric
+    // center, and if the whole family ever needs a nudge it happens in this
+    // ONE constant — never per-glyph, never per-engine.
+    expect(read("components/CornerPillArt.svelte")).toContain("const MARK_DY = 0;");
   });
 
   it("both dismissal pills use it — no literal ✕ glyph is rendered", () => {
     // U+2715 is not in bundled Nunito; as text, every engine substituted its
     // own fallback face and the mark differed between Chrome and Safari.
-    expect(read("App.svelte")).toContain("<CloseGlyph />");
-    expect(read("components/Sheet.svelte")).toContain("<CloseGlyph />");
+    expect(read("App.svelte")).toContain('<CornerPillArt glyph="close" />');
+    expect(read("components/Sheet.svelte")).toContain('<CornerPillArt glyph="close" />');
     expect(read("App.svelte")).not.toMatch(/\{[^{}]*"✕"[^{}]*\}/);
     expect(read("components/Sheet.svelte")).not.toContain(">✕<");
+  });
+
+  it("the ? joined the line-art family — no font glyph rests in a corner pill", () => {
+    // The ? was the one FONT glyph among five drawn marks — consistently
+    // "right" only because text-box cap trim rode the engine's font-metric
+    // machinery while its siblings rode CSS layout. Resting corner pills
+    // hold no text now; the chiplbl words that remain are the ARMED states
+    // (QUIT?/UNDO?), which restore the CSS capsule and are never compared
+    // seat-to-seat with a neighbour.
+    expect(read("components/CornerButtons.svelte")).toContain('<CornerPillArt glyph="help" />');
+    expect(read("components/CornerButtons.svelte")).not.toContain('<span class="chiplbl">?</span>');
   });
 });
 

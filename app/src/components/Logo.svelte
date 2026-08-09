@@ -15,12 +15,17 @@
   class:hs-logo--og={og}
 >
   {#if big || og}
+    <!-- The O is an empty span painted by brand.css's data-URI background
+         (see .hs-logo__o there): no fetch to race first paint, and every
+         surface — this cut, the static boot card, the 404 — draws it by the
+         one recipe. role/aria-label keep the word whole for screen readers,
+         as the old <img alt="O"> did. -->
     <span class="hs-logo__wordmark"
-      ><span class="hs-logo__hot">HOT</span>ST<img
+      ><span class="hs-logo__hot">HOT</span>ST<span
         class="hs-logo__o"
-        src="./brand/o-boiler.svg"
-        alt="O"
-      />VE</span
+        role="img"
+        aria-label="O"
+      ></span>VE</span
     >
   {:else}
     <!-- INLINE svg, not an <img>: engines rasterize an SVG image to a

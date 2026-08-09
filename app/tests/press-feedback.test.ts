@@ -31,7 +31,9 @@ describe("CornerButtons.svelte — press feedback", () => {
     // we slice from the opening selector and search within a fixed window.
     const start = src.indexOf(".help {");
     expect(start, ".help { selector must exist").toBeGreaterThan(-1);
-    const window = src.slice(start, start + 1200);
+    // 2000, not 1200: the block's leading comments grew when the capsule
+    // moved into CornerPillArt; the declaration under test is unchanged.
+    const window = src.slice(start, start + 2000);
     const m = window.match(/transition:\s*transform\s+([\d.]+s)/);
     expect(m, ".help must have a transition: transform declaration").not.toBeNull();
     const dur = parseFloat(m![1]);
