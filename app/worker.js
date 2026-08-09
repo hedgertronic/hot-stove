@@ -13,7 +13,15 @@ const PREFIX = "/games/hot-stove";
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === PREFIX || url.pathname.startsWith(`${PREFIX}/`)) {
+    // The bare prefix must redirect to the slash form, not rewrite: the app's
+    // asset URLs are all relative (vite base "./"), so a document served at
+    // /games/hot-stove resolves them against /games/ and every icon/preload
+    // 404s (Safari then shows the domain's cached favicon).
+    if (url.pathname === PREFIX) {
+      url.pathname = `${PREFIX}/`;
+      return Response.redirect(url, 301);
+    }
+    if (url.pathname.startsWith(`${PREFIX}/`)) {
       url.pathname = url.pathname.slice(PREFIX.length) || "/";
       const response = await env.ASSETS.fetch(new Request(url, request));
       if (response.status !== 404) return response;
