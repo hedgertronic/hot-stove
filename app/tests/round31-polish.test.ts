@@ -27,9 +27,15 @@ describe("the HUD ✕ presses like its corner twins", () => {
     expect(app).not.toMatch(/\n  \.quit:active \{/);
   });
 
-  it("the undo pill splits its taps the same way", () => {
+  it("the undo pill never dips — on either tap", () => {
+    // Round 34 revision of the round-31 split: the confirming tap's dip
+    // composited with UNDO?'s width collapse (62 → 28) and glyph swap and
+    // read as a glitch (owner report, 2026-08-09). QUIT? keeps its dip above
+    // because it does not animate width; the undo pill holds still for both
+    // taps.
     const corner = read("components/CornerButtons.svelte");
-    expect(corner).toContain(".undo:not(.armed):active {\n    transform: none;");
+    expect(corner).toContain(".undo:active {\n    transform: none;");
+    expect(corner).not.toContain(".undo:not(.armed):active");
   });
 
   it("the finale ✕ knows it has no confirm step", () => {

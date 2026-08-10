@@ -4,6 +4,7 @@
   import CornerButtons from "./components/CornerButtons.svelte";
   import Finale from "./components/Finale.svelte";
   import Home from "./components/Home.svelte";
+  import Instructs from "./components/Instructs.svelte";
   import Logo from "./components/Logo.svelte";
   import PlayerList from "./components/PlayerList.svelte";
   import PowerupRow from "./components/PowerupRow.svelte";
@@ -26,7 +27,14 @@
   } from "./lib/engine.svelte";
   import { BANKS, DIFFICULTIES } from "./lib/modes";
   import { replayShortcode } from "./lib/share";
-  import { loadSettings, recordQuit, saveSettings } from "./lib/settings";
+  import {
+    firstEverPlay,
+    loadCues,
+    loadSettings,
+    markTourSeen,
+    recordQuit,
+    saveSettings,
+  } from "./lib/settings";
   import type { Colors, GameIndex, Meta, Owners } from "./lib/types";
 
   let screen = $state<"home" | "game">("home");
@@ -39,6 +47,40 @@
 
   let confirmKey = $state<string | null>(null);
   let yearPickerOpen = $state(false);
+  /** The landed board's height, held as .game's min-height while the reel
+   * spins. The .game CSS floor keeps the document at least a viewport tall;
+   * this hold keeps it at FULL height across the market's unmount, so a
+   * deep-scrolled sign never has its scroll position clamped — the smooth
+   * phase-flip glide gets the whole distance to itself. Measured post-land
+   * and tracked by a ResizeObserver (the SHOW MORE expander changes a landed
+   * board's height after the land). Cleared by never being applied outside
+   * the spin: at land the new market is in and scroll already sits at 0, so
+   * the height change lands below the fold. */
+  let gameEl = $state<HTMLDivElement | undefined>();
+  let holdH = $state(0);
+  $effect(() => {
+    if (game?.phase === "landed" && gameEl) holdH = gameEl.offsetHeight;
+  });
+  $effect(() => {
+    const el = gameEl;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (game?.phase === "landed") holdH = el.offsetHeight;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+  /* INSTRUCTS runs once, for a player who has never finished a game, the
+   * first time a board is actually in front of them. `?instructs` in the URL
+   * forces it regardless of the store, for eyeballing the tour on demand. */
+  let instructsOpen = $state(
+    new URLSearchParams(window.location.search).has("instructs") ||
+      (!loadCues().tourSeen && firstEverPlay()),
+  );
+  /* `?jitter` arms the on-device movement recorder (lib/jitterprobe) — the
+   * dynamic import keeps the diagnostic out of every ordinary load. */
+  if (new URLSearchParams(window.location.search).has("jitter"))
+    import("./lib/jitterprobe").then((m) => m.startJitterProbe());
   let teamPickerOpen = $state(false);
   let quitArmed = $state(false);
   let quitTimer: ReturnType<typeof setTimeout> | undefined;
@@ -354,9 +396,24 @@
 
   // Each new card (and the finale) presents from the top — after a deep scroll
   // through a player list, the next spin must not start mid-page.
+  //
+  // SMOOTH, not instant. Every sign fires this scroll, and an instant snap
+  // from a scrolled market lands in the same frames as the market→reel swap
+  // (page height collapses) and, on iOS, the toolbar re-expanding — two
+  // corrections in opposite directions that read as the HUD "jumping up and
+  // then down" on every move (owner report, 2026-08-10; the undo pill is the
+  // one stable landmark, so the jump reads as that button glitching). One
+  // continuous glide replaces all of it. Reduced-motion readers get the
+  // instant jump on purpose — app.css kills animation for them, and a JS
+  // glide would be the one motion left. matchMedia is feature-checked for
+  // jsdom, where instant is also the honest choice.
   $effect(() => {
     const phase = game?.phase;
-    if (phase === "spinning" || phase === "finale") window.scrollTo({ top: 0 });
+    const glide =
+      typeof matchMedia === "function" &&
+      !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (phase === "spinning" || phase === "finale")
+      window.scrollTo({ top: 0, behavior: glide ? "smooth" : "auto" });
     // The engine sets `phase = "finale"` once, inside finishGame, so this is
     // the one moment a season ends. A finale reopened from storage is excluded:
     // it is the same season being looked at again, not a second result.
@@ -490,6 +547,7 @@
         : null}
       pushed={quitArmed}
       onconfirm={(armed) => (undoArmed = armed)}
+      oninstructs={() => (instructsOpen = true)}
     />
     <!-- The HUD lockup and its chip travel as one flex item so a live confirm can
          step the whole brand back with a single rule. Two items dimmed
@@ -534,7 +592,11 @@
          Wide (≥760px): the club (rail + bank) holds a sticky left column while
          the spin banner + powerups sit atop the market (specials + players)
          on the right — the reel introduces the card the market sells. -->
-    <div class="game">
+    <div
+      class="game"
+      bind:this={gameEl}
+      style:min-height={game.phase !== "landed" && holdH > 0 ? `${holdH}px` : null}
+    >
       <div class="gleft">
         <RosterRail {game} />
         <BankBox {game} />
@@ -561,6 +623,14 @@
         {/if}
       </div>
     </div>
+    {#if instructsOpen && game.phase === "landed" && game.card && !game.coldStove}
+      <Instructs
+        onclose={() => {
+          instructsOpen = false;
+          markTourSeen();
+        }}
+      />
+    {/if}
   {/if}
 
   {#if yearPickerOpen}
@@ -845,6 +915,24 @@
     padding: 2px 8px;
     font-size: 11px;
     line-height: 1.4;
+  }
+  /* THE PAGE NEVER SHRINKS UNDER THE VIEWER. Every spin unmounts the market,
+     and without a floor the document collapsed to exactly the viewport for
+     the reel's duration — measured: 1220px → 740px on a 740px phone. That
+     collapse was the whole undo-button saga (four owner reports): it clamps
+     any scroll position to 0 in a single frame (so the smooth phase-flip
+     glide never got to run), and on iOS it flips the page between scrollable
+     and unscrollable on EVERY roll, which is the browser chrome's cue to
+     re-expand — the land regrows the page, the chrome re-collapses, and the
+     whole viewport (with the HUD's pills in it) rises and settles once per
+     spin. A viewport-height floor keeps the document scrollable through the
+     swap: the glide animates, the clamp never fires, the chrome holds still.
+     dvh so the floor tracks the real visible height around iOS toolbars;
+     the vh line is the fallback for engines without it. The reel simply
+     shows ground below itself for the second it spins. */
+  .game {
+    min-height: 100vh;
+    min-height: 100dvh;
   }
   /* Wide: two-column game board. The left column is the persistent club
      (roster + bank) and sticks while the right column — spin banner over the

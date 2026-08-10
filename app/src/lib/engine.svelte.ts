@@ -2529,6 +2529,11 @@ export class Game {
       managerYear: this.manager?.year ?? null,
       managerName: this.manager?.name ?? null,
       rings: this.pedigree.rings,
+      // 💐's three fact fields, from the same getter as the rings so the
+      // badge and the finale's pedigree line agree by construction.
+      pennants: this.pedigree.pennants,
+      wbcChampions: this.pedigree.wbcChampions,
+      wbcRunnersUp: this.pedigree.wbcRunnersUp,
       awardPoints: parts.awardPoints,
       managerMoty: this.manager?.moty === true,
       owner: this.owner,

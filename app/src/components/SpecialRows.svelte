@@ -178,16 +178,21 @@
 {/if}
 <div class="special disp">
   {#each rows as row (row.key)}
+    <!-- One question at a time, the market rows' own rule (PlayerList
+         `dimmed`): while a rail picker is open, the front office is a
+         bystander — a tile cannot answer WHAT SLOT? or WHO GOES?, so no
+         tile may stay orange or take a tap while one is up. -->
+    {@const pickPending = game != null && (game.slotPick !== null || game.releasePick !== null)}
     {@const taken = game != null && game.specialTaken(row.key)}
     <!-- A taken manager tile is only a real 🔁 target when the CARD has a
          skipper to trade in — tdTapSpecial refuses the swap otherwise, and a
          TRADE IN confirm on a tile the engine will no-op is a lie. -->
     {@const swappable =
-      taken && tdArmed && !hgArmed && canAct &&
+      taken && tdArmed && !hgArmed && canAct && !pickPending &&
       (row.key !== "manager" || game?.card?.manager != null) &&
       !(row.key !== "manager" && game?.primeArmed === true)}
     {@const primeable =
-      !taken && row.key === "manager" && game?.primeArmed === true && !tdArmed && !hgArmed && canAct}
+      !taken && row.key === "manager" && game?.primeArmed === true && !tdArmed && !hgArmed && canAct && !pickPending}
     <!-- ⭐ browses managers only. While Prime is armed, an unhired owner or
          stadium has no move at all, so it wears the same gray the taken rows
          wear — availability is binary, and the affordance must match. A TAKEN
@@ -204,11 +209,11 @@
     {@const primeBlocked = !taken && row.key !== "manager" && game?.primeArmed === true}
     {@const tdBlocked = tdArmed && canAct && !swappable}
     {@const hgBlocked = hgArmed && canAct}
-    {@const sSignConfirm = confirmKey === `s:${row.key}` && !taken && !primeBlocked}
+    {@const sSignConfirm = confirmKey === `s:${row.key}` && !taken && !primeBlocked && !pickPending}
     {@const sSwapConfirm = confirmKey === `w:${row.key}` && swappable}
     <div
       class="srow {row.cls}"
-      class:taken={(taken && !swappable) || primeBlocked || tdBlocked || hgBlocked}
+      class:taken={(taken && !swappable) || primeBlocked || tdBlocked || hgBlocked || pickPending}
       class:swap={swappable}
       class:prime={primeable}
       inert={specimen != null}
@@ -216,7 +221,7 @@
       <button
         type="button"
         class="srow-btn"
-        disabled={primeBlocked || tdBlocked || hgBlocked}
+        disabled={primeBlocked || tdBlocked || hgBlocked || pickPending}
         inert={specimen != null}
         onclick={(e) => tap(row, e)}
       >

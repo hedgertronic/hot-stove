@@ -83,11 +83,16 @@ export interface CueState {
   pendingBadges: string[];
   /** The help sheet has been opened at least once, ever. */
   helpSeen: boolean;
+  /** The INSTRUCTS spotlight tour ran to its end or was skipped. Absent in
+   * records written before the field existed, which reads as false — safe,
+   * because the tour also gates on firstEverPlay(), so a veteran's store
+   * never shows it either way. */
+  tourSeen: boolean;
 }
 
 /** Fresh, unlit, and what every unreadable store resolves to. */
 function noCues(): CueState {
-  return { pendingBadges: [], helpSeen: false };
+  return { pendingBadges: [], helpSeen: false, tourSeen: false };
 }
 
 /** The cue record, or an unlit one.
@@ -111,6 +116,7 @@ export function loadCues(): CueState {
         ? s.pendingBadges.filter((k: unknown) => typeof k === "string")
         : [],
       helpSeen: s.helpSeen === true,
+      tourSeen: s.tourSeen === true,
     };
   } catch {
     return noCues();
@@ -168,6 +174,11 @@ export function takeOpenedBadgeCue(): string[] {
 /** The help sheet has been opened — the ? goes dark and stays dark. */
 export function markHelpSeen(): CueState {
   return saveCues({ ...loadCues(), helpSeen: true });
+}
+
+/** INSTRUCTS finished or was skipped — either way it never runs again. */
+export function markTourSeen(): CueState {
+  return saveCues({ ...loadCues(), tourSeen: true });
 }
 
 /** Nobody has ever FINISHED a game here. Mid-first-game counts as first-ever

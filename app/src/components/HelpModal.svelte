@@ -100,7 +100,17 @@
    * SECTION HEADERS are the game's own `.psep` device — the dashed rule with
    * the centered title the board uses for FRONT OFFICE / PLAYERS — rather
    * than a header style private to this sheet. */
-  let { onclose, gameLog = null }: { onclose: () => void; gameLog?: string | null } = $props();
+  let {
+    onclose,
+    gameLog = null,
+    oninstructs = null,
+  }: {
+    onclose: () => void;
+    gameLog?: string | null;
+    /** Re-runs the INSTRUCTS tour. Null wherever the tour has no board to
+     * point at (home screen, finale, cold stove), and the button hides. */
+    oninstructs?: (() => void) | null;
+  } = $props();
 
   /** Build the GitHub report only from explicit, useful diagnostics: the
    * current run supplied by the HUD (preferred), the stored run when Help is
@@ -428,6 +438,14 @@
      not one. A `{@render}` introduces no wrapper of its own, so the rows the
      snippet above draws are direct children like everything else. -->
 <div class="help">
+  <!-- The tour's re-run lives here, above every section: a reader who wants
+       the walkthrough instead of the manual should not have to scroll past
+       the manual to find it. -->
+  {#if oninstructs}
+    <button type="button" class="tourbtn chipbox" onclick={oninstructs}
+      ><span class="chiplbl">▶ REPLAY INSTRUCTS</span></button
+    >
+  {/if}
   <!-- OVERVIEW, not HOW TO PLAY: the sheet's own title already says that, and
        a first heading repeating it was a rule spent on nothing — but a bare
        list opening the sheet left the intro as the one unlabeled stretch on a
@@ -835,6 +853,36 @@
      one. The seat and pill groups need no wrapper of their own: `.rail`,
      `.picks`, `.pups` and `.pgrid` are this file's elements already, and they
      exist to arrange the child components inside them. */
+  /* The tour re-run, in the trophy case's fchip clothes (owner call: the
+     .btn size read heavy above the manual) — same 22px chip, 1.5px line,
+     9px caps — but ink on cardstock rather than the lens chips' dimmed
+     gray: this one is an action, not a filter state. */
+  .tourbtn {
+    --chip-h: 22px;
+    border: 1.5px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--ink);
+    padding-inline: 10px;
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: transform 0.08s;
+    /* Centered as its own block: the chipbox recipe leaves the button
+       inline-flex, which margin auto cannot center. */
+    display: flex;
+    width: fit-content;
+    margin-inline: auto;
+  }
+  .tourbtn:active {
+    transform: translateY(1.5px);
+  }
+  .tourbtn:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
+  }
   .help > * + * {
     margin-top: 8px;
   }

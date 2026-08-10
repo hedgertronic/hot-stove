@@ -1,15 +1,19 @@
 <script lang="ts">
-  // No props; the script gives Svelte a typed module declaration for importers.
+  // The camera ships inside the JS bundle as a data URI (?inline) — a plain
+  // <img src> refetches on every Home remount and can paint a frame late
+  // (the "logo missing then flashes back" report; same doctrine as the
+  // brand.css O-boiler). src/assets/hedgertronic.png is the site's own
+  // favicon, copied verbatim.
+  import camUri from "../assets/hedgertronic.png?inline";
 </script>
 
-<!-- The maker's mark, worn as a corner chip: the hedgertronic camera (the
-     site's own favicon, copied verbatim — public/hedgertronic.png) beside the
-     name, in the corner-button register so it reads as chrome rather than
+<!-- The maker's mark, worn as a corner chip: the hedgertronic camera beside
+     the name, in the corner-button register so it reads as chrome rather than
      content. Upper RIGHT because the home screen's upper left belongs to the
      ? / trophy pair and the right is free there — this component is
      home-only; in-game that corner holds the quit ✕. -->
 <a class="maker chipbox" href="https://hedgertronic.com/" aria-label="Visit hedgertronic.com">
-  <img class="cam" src="./hedgertronic.png" alt="" aria-hidden="true" />
+  <img class="cam" src={camUri} alt="" aria-hidden="true" />
   <span class="chiplbl">HEDGERTRONIC</span>
 </a>
 

@@ -467,6 +467,9 @@ function forgeFinale(opts: {
       managerYear: g.manager.year,
       managerName: g.manager.name,
       rings,
+      // The WBC counts are omitted on purpose: lab clubs carry no WBC seats,
+      // so absent-read-as-zero is the truth here, not a gap.
+      pennants,
       awardPoints: parts.awardPoints,
       managerMoty: g.manager.moty === true,
       owner: g.owner,

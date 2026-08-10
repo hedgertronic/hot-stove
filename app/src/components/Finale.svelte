@@ -270,7 +270,13 @@
   // mid-page. The document is the scroller (see the .brail note below), so
   // window scroll is the whole reset. No reactive reads — runs once on mount.
   $effect(() => {
-    window.scrollTo(0, 0);
+    // Smooth for App's reason (its phase-flip effect): the two scrolls fire
+    // around the same DOM swap, and an instant snap here would override the
+    // glide the flip just started. Same reduced-motion carve-out.
+    const glide =
+      typeof matchMedia === "function" &&
+      !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: glide ? "smooth" : "auto" });
   });
 
   $effect(() => {

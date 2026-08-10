@@ -394,6 +394,19 @@ export interface BadgeFacts {
   repeatedUndo?: boolean;
   /** `Game.pedigree.rings`. */
   rings: number;
+  /** `Game.pedigree.pennants`. Optional and fail-safe: a fact set assembled
+   * before the field existed — a lab fixture, a restored save — reads as zero
+   * near-misses, and 💐 cannot fire on an unknown. */
+  pennants?: number;
+  /** `Game.pedigree.wbcChampions`. Optional for the `pennants` reason and it
+   * fails the same way: absent reads as no golds, which is the direction that
+   * WITHHOLDS 💐 — the badge's no-golds gate wants a known zero, and an
+   * unknown zero passing that gate is the fail-safe reading only because the
+   * pennant count is absent from the same old fact sets. */
+  wbcChampions?: number;
+  /** `Game.pedigree.wbcRunnersUp`. Optional for the `pennants` reason: absent
+   * reads as zero silvers and earns nothing. */
+  wbcRunnersUp?: number;
   /** `ScoreParts.awardPoints` — includes the manager's MotY points. */
   awardPoints: number;
   managerMoty: boolean;
@@ -505,6 +518,13 @@ const DREAM_SEATS = 9;
  * spend ≤ 60%, 🕶️ wants spend > 60%, so they can never co-fire and say
  * opposite things about the same payroll. */
 const RING_BEARERS = 4;
+/** Near-misses — pennants plus WBC silvers — before 💐 reads as a pattern.
+ * The badge is a 9-seat club (eight players and the chair), so three is a
+ * third of the club coming up one short; two is a coincidence a .500 roster
+ * can stumble into, and asking for four would push a joke badge toward 💍's
+ * difficulty when its whole point is that these men did NOT win. Tunable —
+ * the number is a taste call, not a measured rung. */
+const BRIDESMAID = 3;
 const COOPERSTOWN_PTS = 30;
 /** Hall of Famers on one club, counting the skipper's chair. Measured over
  * 6,000 bot seasons: three is 21.67%, four is 6.10%, five is 1.03%.
@@ -917,6 +937,49 @@ export const GAMBLERS: ReadonlySet<string> = new Set([
 ]);
 const ROSE_TEAM = "CIN";
 const ROSE_YEARS = [1985, 1986, 1987, 1988, 1989];
+
+/** The consensus true submariners of the 1985–2025 card window — the men who
+ * released the ball from below the hip, knuckles an inch off the mound dirt.
+ *
+ * The line the list draws is submarine, not sidearm, and it is drawn on
+ * purpose: the low-slot sidearmers a broadcast calls "submariners" on a loose
+ * day — Pat Neshek, Joe Smith, Steve Cishek, Mike Myers, Peter Moylan, Tim
+ * Hill — are deliberately excluded, and hold a club of their own below
+ * (🐍 SIDEWINDERS). Sidearm is a slot; submarine is a
+ * different delivery, and diluting the club to "threw kind of low" would make
+ * the badge a count of funky relievers rather than a sighting of a genuinely
+ * rare animal. Every id here is the consensus reading of the delivery, not a
+ * measured release height — the dataset carries no arm-angle field, so the
+ * list is curated the way 💊 and 🎲 are, and badges-supply pins that each man
+ * is still on a card. */
+export const SUBMARINERS: ReadonlySet<string> = new Set([
+  "tekulke01", // Kent Tekulve — PHI/PIT/CIN, 1985–89
+  "quiseda01", // Dan Quisenberry — KCR/STL, 1985–89
+  "bradfch01", // Chad Bradford — CHW/OAK/BOS/NYM/BAL/TBR, 1998–2008
+  "zieglbr01", // Brad Ziegler — OAK/ARI/BOS/MIA, 2008–18
+  "kimby01", // Byung-Hyun Kim — ARI/BOS/COL/FLA, 1999–2007
+  "rogerty01", // Tyler Rogers — SFG/NYM, 2020–25
+  "meredcl01", // Cla Meredith — SDP/BAL, 2006–09
+  "cimbead01", // Adam Cimber — CLE/SDP/MIA/TOR/LAA, 2018–24
+  "odayda01", // Darren O'Day — LAA/NYM/TEX/BAL/ATL, 2008–22
+]);
+
+/** The low-slot sidearmers the submarine club's comment turns away — the men a
+ * broadcast calls "submariners" on a loose day. Splitting them out keeps both
+ * lists honest: 🤿 stays a sighting of a genuinely rare animal, and the
+ * likeliest bad edit to it — a well-meaning addition of one of these names —
+ * has somewhere correct to go instead. Curated the way SUBMARINERS is, on the
+ * consensus reading of the delivery rather than a measured release height (the
+ * dataset carries no arm-angle field), and badges-supply pins that each man is
+ * still on a card and that the two clubs never share a member. */
+export const SIDEWINDERS: ReadonlySet<string> = new Set([
+  "neshepa01", // Pat Neshek — MIN/SDP/OAK/STL/HOU/COL/PHI, 2006–18
+  "smithjo05", // Joe Smith — NYM/CLE/LAA/CHC/TOR/HOU/SEA/MIN, 2007–22
+  "cishest01", // Steve Cishek — FLA/MIA/STL/SEA/TBR/CHC/CHW/LAA/WSN, 2011–22
+  "myersmi01", // Mike Myers — DET/MIL/COL/ARI/BOS/SEA/NYY/CHW, 1996–2007
+  "moylape01", // Peter Moylan — ATL/KCR, 2007–18
+  "hillti01", // Tim Hill — KCR/SDP/CHW/NYY, 2018–25
+]);
 
 /** The record book, as this game knows it. Every entry is the best mark in the
  * 1985–2025 window the cards cover — deliberately NOT the all-time record,
@@ -1405,9 +1468,16 @@ export const BADGES: BadgeDef[] = [
    * the claim is unchanged; the gate only refuses the degenerate build. */
   {
     key: "beatdream",
-    emoji: "🧠",
-    label: "BEAT THE DREAM TEAM",
-    name: "Beat the Dream Team",
+    // 📝 with the round-34 rename: the claim lives on paper now, and 🧠
+    // belonged to the old out-thinking framing. Same single code point, so
+    // the share line's width ledger is untouched.
+    emoji: "📝",
+    // "Better on paper", not "beat the dream team": the claim is about
+    // BASELINE wins — talent on paper — not the final ledger, and the old
+    // label collided with 🌠 THE DREAM TEAM, which is a scout-agreement
+    // claim. The key stays: it is storage, not copy.
+    label: "BETTER ON PAPER",
+    name: "Better on Paper",
     rarity: "uncommon",
     axis: "goal",
     freq: 11.2,
@@ -1869,6 +1939,28 @@ export const BADGES: BadgeDef[] = [
     freq: 1.48,
     how: "Four or more players wearing a World Series ring.",
   },
+  /* 💍's shadow: a club built out of the men who got to the last day and lost.
+   * The gates are as much of the badge as the count — three near-misses with a
+   * ring anywhere on the roster is just a decorated club, so a single ring or
+   * a single WBC gold takes the badge away, and pennants and WBC silvers pool
+   * into one count because "lost the final" is one experience wearing two
+   * uniforms. NOT secret, unlike the family badges beside it: the pennant and
+   * medal glyphs are printed on the market rows and the finale, so this is a
+   * club a player can actually assemble on purpose — a named locked slot is a
+   * direction the UI backs up, which is exactly the chaseable case the secret
+   * doctrine leaves named. */
+  {
+    key: "bridesmaid",
+    emoji: "💐",
+    label: "ALWAYS THE BRIDESMAID",
+    name: "Always the Bridesmaid",
+    rarity: "rare",
+    axis: "roster",
+    // Unmeasured: the fact fields are new and no bot study has run over them.
+    // Run one before writing a number here.
+    freq: null,
+    how: "3 or more pennants or WBC silvers, no rings, no golds.",
+  },
   {
     key: "brothers",
     emoji: "👬",
@@ -1901,6 +1993,42 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     freq: null,
     how: "Signed three brothers from one family.",
+  },
+  {
+    // `secret` for 🌎 WORLD TOUR's reason: nothing in the app shows a
+    // pitcher's arm angle. Not the market rows, not the roster rail, not the
+    // finale — the fact is invisible until the badge is already collected, so
+    // a named locked slot would advertise a target the UI gives no way to
+    // hunt. The club itself is SUBMARINERS, curated above.
+    key: "submarine",
+    secret: true,
+    emoji: "🤿",
+    label: "FROM DOWN UNDER",
+    name: "From Down Under",
+    rarity: "rare",
+    axis: "roster",
+    // Unmeasured: the list is new and no bot study has run over it. Run one
+    // before writing a number here.
+    freq: null,
+    how: "Signed a submarine pitcher.",
+  },
+  {
+    // `secret` for 🤿's reason, which is 🌎 WORLD TOUR's: nothing in the app
+    // shows a pitcher's arm angle. Not the market rows, not the roster rail,
+    // not the finale — the fact is invisible until the badge is already
+    // collected, so a named locked slot would advertise a target the UI gives
+    // no way to hunt. The club itself is SIDEWINDERS, curated above.
+    key: "sidewinder",
+    secret: true,
+    emoji: "🐍",
+    label: "SIDEWINDERS",
+    name: "Sidewinders",
+    rarity: "rare",
+    axis: "roster",
+    // Unmeasured: the list is new and no bot study has run over it. Run one
+    // before writing a number here.
+    freq: null,
+    how: "Signed a sidearm pitcher.",
   },
   {
     key: "playermanager",
@@ -3049,6 +3177,21 @@ export function earnedBadges(f: BadgeFacts): string[] {
   )
     out.push("worldtour");
   if (f.rings >= RING_BEARERS) out.push("rings");
+  // 💐 — the near-miss count against both hard gates. The optional fields
+  // read through `?? 0`, and the fail-safe direction is on the count side: a
+  // fact set with no pennant fields at all — a save from before they existed
+  // — adds nothing to the near-miss sum and earns nothing. On the GATE side
+  // `?? 0` reads absent as "no golds", which is the honest reading of the one
+  // caller that omits it: the lab's fixtures carry no WBC seats, so their
+  // absent count IS zero rather than unknown. Stacks beside 💍 by arithmetic
+  // — the rings-zero gate makes the pair exclusive in the world, so no
+  // resolver is needed.
+  if (
+    f.rings === 0 &&
+    (f.wbcChampions ?? 0) === 0 &&
+    (f.pennants ?? 0) + (f.wbcRunnersUp ?? 0) >= BRIDESMAID
+  )
+    out.push("bridesmaid");
   if (f.managerMoty && f.baselineWins > SKIPPER_WINS) out.push("skipper");
   // The dugout against the field. `managerNetWins` is the skipper's own
   // (W − L); MANAGER_PER_NET_WIN turns it into the WINS term the ledger prints
@@ -3207,6 +3350,10 @@ export function earnedBadges(f: BadgeFacts): string[] {
     out.push("strike");
   if (roster.some((p) => REPLACEMENTS.has(p.id))) out.push("crossed");
   if (roster.some((p) => SUSPENDED.has(p.id))) out.push("suspended");
+  if (roster.some((p) => SUBMARINERS.has(p.id))) out.push("submarine");
+  // Both stack on the roster axis and the two lists are disjoint, so a club
+  // holding one of each legitimately earns both — no resolver needed.
+  if (roster.some((p) => SIDEWINDERS.has(p.id))) out.push("sidewinder");
   // Rose's five Reds seasons in the dugout are the half of 🎲 that makes it
   // reachable at all — two of the four men have four draftable player-seasons
   // between them. The window is a bare team-and-year pair with his name only

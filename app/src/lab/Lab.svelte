@@ -117,7 +117,7 @@
   }
   const SEAT_SPECS: SeatSpec[] = [
     { name: "brag · trophy", emoji: "🏆", label: "PERFECT SEASON", rarity: "legendary" },
-    { name: "brag · brain", emoji: "🧠", label: "BEAT THE DREAM TEAM", rarity: "uncommon" },
+    { name: "brag · paper", emoji: "📝", label: "BETTER ON PAPER", rarity: "uncommon" },
     { name: "silhouette", emoji: "🦉", placeholder: true, locked: true, rarity: "legendary" },
     { name: "stamp · US", emoji: "🇺🇸", shape: "rect", rarity: "common" },
     { name: "stamp · JP", emoji: "🇯🇵", shape: "rect", rarity: "rare" },

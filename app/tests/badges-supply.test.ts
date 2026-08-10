@@ -23,6 +23,8 @@ import {
   MATCHED,
   MINIMUM_M,
   MINIMUM_SEATS,
+  SIDEWINDERS,
+  SUBMARINERS,
   SUSPENDED,
   WORST_WINS,
 } from "../src/lib/badges";
@@ -392,6 +394,66 @@ describe("the curated people are still on the cards", () => {
     // pin is here so a regen dropping either one is visible.
     expect(where("claseem01").length).toBeGreaterThan(0);
     expect(where("ortizlu03").length).toBeGreaterThan(0);
+  });
+
+  /** 🤿 names living people off hard-coded ids the same way 💊 and 🎲 do, and
+   * it breaks the same silent way: an id that stops resolving leaves one
+   * submariner unreachable with no symptom. The membership is pinned exactly —
+   * not just "all present" — because the list's edge is editorial (submarine,
+   * not sidearm) and a well-meaning addition of a low-slot sidearmer is the
+   * likeliest future change; it should fail here and be made on purpose. */
+  it("can still deal every submariner at least one card", () => {
+    expect([...SUBMARINERS].sort()).toEqual([
+      "bradfch01",
+      "cimbead01",
+      "kimby01",
+      "meredcl01",
+      "odayda01",
+      "quiseda01",
+      "rogerty01",
+      "tekulke01",
+      "zieglbr01",
+    ]);
+    const missing = [...SUBMARINERS].filter((id) => seasonsOf(id).length === 0);
+    expect(missing).toEqual([]);
+    // Two spot checks that the ids resolve to the right MEN, not merely to
+    // cards — the accusation-shaped risk 💊 pins with its collision pairs.
+    const nameOf = (id: string) =>
+      new Set(
+        CARDS.flatMap((c) =>
+          c.players.filter((p) => p.id === id).map((p) => p.name),
+        ),
+      );
+    expect([...nameOf("tekulke01")]).toEqual(["Kent Tekulve"]);
+    expect([...nameOf("rogerty01")]).toEqual(["Tyler Rogers"]);
+  });
+
+  /** 🐍 carries 🤿's risks — hard-coded ids of living people, an editorial
+   * edge — plus one of its own: the two lists split one loose broadcast word
+   * into two clubs, so a man drifting onto both would quietly hand one roster
+   * two badges for one delivery. The membership is pinned exactly, and the
+   * disjointness is asserted rather than trusted. */
+  it("can still deal every sidewinder at least one card, none of them a submariner", () => {
+    expect([...SIDEWINDERS].sort()).toEqual([
+      "cishest01",
+      "hillti01",
+      "moylape01",
+      "myersmi01",
+      "neshepa01",
+      "smithjo05",
+    ]);
+    const missing = [...SIDEWINDERS].filter((id) => seasonsOf(id).length === 0);
+    expect(missing).toEqual([]);
+    // The editorial line the two lists draw: a man is one or the other.
+    expect([...SIDEWINDERS].filter((id) => SUBMARINERS.has(id))).toEqual([]);
+    // A spot check that the id resolves to the right MAN, not merely to cards.
+    const nameOf = (id: string) =>
+      new Set(
+        CARDS.flatMap((c) =>
+          c.players.filter((p) => p.id === id).map((p) => p.name),
+        ),
+      );
+    expect([...nameOf("neshepa01")]).toEqual(["Pat Neshek"]);
   });
 
   /** The 🎲 trigger's manager half is a bare team-and-year window with Rose's

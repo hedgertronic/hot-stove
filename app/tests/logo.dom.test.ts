@@ -62,11 +62,15 @@ describe("small HUD variant (big=false)", () => {
     expect(wordmark?.textContent?.replace(/\s/g, "")).toBe("HOTSTOVE");
     // Plain cwd-relative read: under the jsdom environment import.meta.url
     // is not a file: URL, and vitest always runs from the app root.
-    const assetPath = /\sd="([^"]+)"/.exec(
-      fs.readFileSync("public/brand/flame.svg", "utf8"),
-    )?.[1];
-    expect(assetPath).toBeTruthy();
-    expect(flame?.querySelector("path")?.getAttribute("d")).toBe(assetPath);
+    // BOTH paths — the yellow master curve and the orange band (the flame is
+    // two fills, not a stroked path; see the masters' own comment).
+    const assetPaths = [
+      ...fs.readFileSync("public/brand/flame.svg", "utf8").matchAll(/\sd="([^"]+)"/g),
+    ].map((m) => m[1]);
+    expect(assetPaths).toHaveLength(2);
+    expect(
+      [...flame!.querySelectorAll("path")].map((p) => p.getAttribute("d")),
+    ).toEqual(assetPaths);
     // The flame slot lives INSIDE the orange HOT span, between H and T.
     expect(target.querySelector(".hs-logo__hot .hs-logo__oflame")).not.toBeNull();
     // One wordmark child, no separate leading mark — same shape as the

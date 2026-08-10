@@ -24,8 +24,14 @@
   // powerup is armed or disarmed. armVersion bumps in each toggle; the effect
   // runs once on mount (no-op: confirmKey is already null) and then on each
   // subsequent bump, so powerup taps clear any open sign/trade pill.
+  // A pending rail pick clears it for the same reason: only the ⭐ handoff
+  // bumps armVersion, so a SIGN pill raised before an ambiguous sign or a 🔁
+  // release opened its picker would otherwise sit live on another row while
+  // the rail asks its question.
   $effect(() => {
     void game.armVersion;
+    void game.slotPick;
+    void game.releasePick;
     setConfirm(null);
   });
 
@@ -71,6 +77,15 @@
       game.cancelPick();
       return;
     }
+    // While ANOTHER row's picker is open, every other row is a bystander: the
+    // board has asked one question and the only live answers are the rail
+    // seats and the asking row's own cancel. Without this gate a tap here
+    // silently abandoned the pending pick (⭐ rerouted it to a new career
+    // sheet, a plain row raised a SIGN pill under it) — and the rows kept
+    // their armed orange while WHAT SLOT? was up, which read as more open
+    // questions than the board was asking (owner report, 2026-08-10). The
+    // markup's `dimmed` reads the same condition, so look and tap agree.
+    if (game.slotPick !== null || game.releasePick !== null) return;
     // ⭐ PRIMETIME IS ASKED FIRST, AND WITH ITS OWN GATE. Browsing a career is
     // not a market action: `primeBrowsable` asks only "is there a career here
     // to look at" — armed, landed, a choice left, and a man the club does not
@@ -119,6 +134,13 @@
 
 <div class="plist disp">
   {#each visible as p (p.id)}
+    <!-- One question at a time: while a rail picker is open for some OTHER
+         row, this row steps back — no armed orange, dead optics, and tap()
+         refuses it above. The asking row itself keeps its costume. -->
+    {@const dimmed =
+      (game.slotPick !== null || game.releasePick !== null) &&
+      game.slotPick !== p.id &&
+      game.releasePick !== p.id}
     {@const playable = game.rowPlayable(p)}
     {@const open = game.playerState(p) === "open"}
     {@const swappable = playable && game.tdCandidate(p)}
@@ -144,16 +166,16 @@
     {@const tradeConfirm = confirmKey === `t:${p.id}` && swappable && !primeable}
     <div
       class="prow"
-      class:dead={!playable && !primeable}
+      class:dead={(!playable && !primeable) || dimmed}
       class:mine={game.isRostered(p)}
-      class:swap={swappable && !primeable}
-      class:prime={primeable}
-      class:hg={discounted && playable && !swappable && !primeable}
+      class:swap={swappable && !primeable && !dimmed}
+      class:prime={primeable && !dimmed}
+      class:hg={discounted && playable && !swappable && !primeable && !dimmed}
     >
       <button
         type="button"
         class="prow-btn"
-        aria-disabled={(!playable && !primeable) ? "true" : undefined}
+        aria-disabled={(!playable && !primeable) || dimmed ? "true" : undefined}
         onclick={(e) => tap(p, e)}
       >
         <!-- The row's whole content is MarketRow — the presentational lift the
@@ -170,10 +192,10 @@
           priceTier={discounted ? "cheap" : costTier(price)}
           war={game.showWar ? p.war : null}
           hint={game.slotPick === p.id ? "slot" : game.releasePick === p.id ? "trade" : null}
-          washed={swappable || primeable || (discounted && playable)}
+          washed={(swappable || primeable || (discounted && playable)) && !dimmed}
           rightHidden={signConfirm || tradeConfirm}
           freeze={signConfirm || tradeConfirm || game.slotPick === p.id || game.releasePick === p.id}
-          dead={!playable && !primeable}
+          dead={(!playable && !primeable) || dimmed}
         />
       </button>
       {#if signConfirm}

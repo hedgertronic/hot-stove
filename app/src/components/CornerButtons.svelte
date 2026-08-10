@@ -44,12 +44,17 @@
     game = null,
     pushed = false,
     onconfirm,
+    oninstructs = null,
   }: {
     home?: boolean;
     newBadges?: string[] | null;
     game?: Game | null;
     pushed?: boolean;
     onconfirm?: (armed: boolean) => void;
+    /** Restarts the INSTRUCTS tour (App owns the flag). Passed through to the
+     * help sheet only while a landed card gives the tour a board to point at
+     * — the same gate App's own render puts on the tour. */
+    oninstructs?: (() => void) | null;
   } = $props();
 
   let cues = $state(loadCues());
@@ -203,7 +208,20 @@
 {/if}
 
 {#if helpOpen}
-  <HelpModal onclose={() => (helpOpen = false)} gameLog={game?.debugLog() ?? null} />
+  <HelpModal
+    onclose={() => (helpOpen = false)}
+    gameLog={game?.debugLog() ?? null}
+    oninstructs={oninstructs != null &&
+    game != null &&
+    game.phase === "landed" &&
+    game.card != null &&
+    !game.coldStove
+      ? () => {
+          helpOpen = false;
+          oninstructs?.();
+        }
+      : null}
+  />
 {/if}
 
 {#if trophyOpen}
@@ -251,13 +269,15 @@
   .help:active {
     transform: translate(-1px, -1px);
   }
-  /* The undo pill dips on the tap that ACTS, not the tap that asks — arming
-     already answers with the costume change (arrow → UNDO? in confirm
-     orange), so the resting pill holds still and only the armed confirm
-     dips. The quit ✕ splits its taps the same way (App.svelte .quit). The ?
-     and the trophy have no confirm step: their one tap is the act and keeps
-     the dip above. */
-  .undo:not(.armed):active {
+  /* The undo pill never dips — on EITHER tap. The arming tap already
+     answers with the costume change (arrow → UNDO? in confirm orange), and
+     the confirming tap can't afford the dip the quit ✕ keeps: UNDO? is the
+     one confirm that also animates width (62 → 28) on release, and press
+     lift + width collapse + glyph swap composite into a pill that hops up
+     and settles back — read as a glitch, not feedback (owner report,
+     2026-08-09). The ? and the trophy have no confirm step: their one tap
+     is the act and keeps the dip above. */
+  .undo:active {
     transform: none;
   }
   /* The HUD is a centered flex row and hands the pills their vertical position;
@@ -302,21 +322,33 @@
   .undo {
     left: auto;
     right: 32px;
-    /* Only the pill being confirmed is above its neighbour, whichever of the
-       two it is. Without this the ✕ decides it by document order — App.svelte
-       renders it after this component — and a ghosted ✕ would sit on top of the
-       "UNDO?" it is stepping back from. */
-    z-index: 1;
-    /* Width transitions alongside opacity and transform so arming and lapsing
-       read as one motion rather than a snap. QUIT? in App.svelte does NOT
-       transition width (only opacity/transform), so UNDO? animates slightly
-       more — that is the right tradeoff: the pill grows leftward into the
-       wordmark, and an animated expand reads gentler than a snap. app.css kills
-       every transition for reduced-motion readers, who get the same end states
-       instantly. */
+    /* NO resting z-index, deliberately: a positioned element with a z-index
+       is a stacking context, and at rest this pill must not be one. Safari's
+       compositor hoists such an element onto its own layer while neighbours
+       animate — and the reel landing animates plenty (the banner thunk, the
+       market's entrance) — then drops it when they finish; each hop
+       re-rasterizes the svg face at fresh device-pixel rounding on the HUD's
+       half-pixel seat, and the owner watched the pill rise and settle at
+       every landing while the ✕ beside it held still (this pill was the
+       row's ONE resting stacking context). Stack order needs no help here
+       anyway: the confirm states carry their own z-index (`.undo.armed` and
+       `.quit.armed` are 2, `.help.pushed` is 0), and the resting pills never
+       overlap — an armed word grows across the BRAND, which is in-flow and
+       paints under any positioned pill by default. */
+    /* Width transitions alongside transform so arming and lapsing read as one
+       motion rather than a snap. QUIT? in App.svelte does NOT transition width
+       (only opacity/transform), so UNDO? animates slightly more — that is the
+       right tradeoff: the pill grows leftward into the wordmark, and an
+       animated expand reads gentler than a snap.
+
+       Opacity is NOT in this list — and `.undo:disabled` below never touches
+       the property at all: the disabled dim rides the svg's color channels,
+       so the pill's element opacity is a CONSTANT 1 through every sign,
+       rewind and land, exactly like its twins'. The full reasoning sits on
+       the disabled rule. app.css kills every transition for reduced-motion
+       readers, who get the same end states instantly. */
     transition:
       width 0.12s ease,
-      opacity 0.12s ease,
       transform 0.12s ease;
   }
   /* Armed, the pill carries a word ("UNDO?") in the ✕'s confirm colors — one
@@ -360,19 +392,42 @@
   /* Nothing to take back: the pill stays in the corner and goes flat, rather
      than disappearing. It sits directly inboard of ✕, and a control that comes
      and goes there walks the quit target 32px sideways between taps — the same
-     trade Home.svelte's LAST GAME button makes,
-     and the same flat language (one opacity on the whole control, no hue
-     change) at the same 0.65 — a second dimming number for the same idea would
-     read as two different states.
-     What 0.65 buys here, measured against --card: the border goes to 3.21:1
-     and the stroked arrow to 2.70:1. The border clears the 3:1 a graphical
-     object owes and the arrow does not, which is what makes the pill legible
-     as a control before its glyph is legible as an arrow — and the arrow's
+     trade Home.svelte's LAST GAME button makes.
+
+     The dim is the family's 65% flat fade, but it is MIXED, not composited:
+     each channel is pre-blended 65% over the --ground the pill sits on,
+     which renders the same pixels as `opacity: 0.65` — alpha compositing is
+     linear, so the identity holds through every anti-aliased edge — while
+     the element's own opacity stays a constant 1.
+
+     Why that constant is the entire point: element opacity below 1 makes
+     WebKit paint the pill through an offscreen group buffer, and Safari
+     rounds an svg buffer's bounds to device pixels per paint pass (the
+     flat-chord bug in CornerPillArt's viewBox comment is this same
+     rounding). At the HUD's half-pixel seat, flipping `opacity` in and out
+     of that path re-seated the drawn ink by a fraction of a pixel — the
+     owner watched this pill jitter at reel landings on an iPhone while the
+     ?/✕ held still, across five reports and three layout fixes that
+     measured NOTHING moving: the on-device probe (?jitter) logged zero
+     rect/scroll/visualViewport events through a visible jitter, Chrome
+     never showed it, and it began the day the pill faces became svgs. This
+     pill is the only one whose paint state changes mid-game (the disabled
+     flip), so it was the only one Safari ever re-rasterized. Dimming
+     through the svg's color channels repaints in place with no buffer to
+     re-round — element opacity is banned on this pill's resting states.
+
+     The rendered values are unchanged, so the contrast arithmetic the old
+     rule carried still holds: against --card the ring sits at 3.21:1 and
+     the stroked arrow at 2.70:1. The ring clears the 3:1 a graphical object
+     owes and the arrow does not, which is what makes the pill legible as a
+     control before its glyph is legible as an arrow — and the arrow's
      shortfall is covered rather than argued away, since WCAG 1.4.11 exempts
-     components that are inactive. Dimming further would trade the border's
+     components that are inactive. Dimming further would trade the ring's
      margin for nothing. */
   .undo:disabled {
-    opacity: 0.65;
+    --pill-fill: color-mix(in srgb, var(--card) 65%, var(--ground));
+    --pill-ring: color-mix(in srgb, var(--line) 65%, var(--ground));
+    color: color-mix(in srgb, var(--muted) 65%, var(--ground));
     cursor: default;
   }
   .help.pushed {

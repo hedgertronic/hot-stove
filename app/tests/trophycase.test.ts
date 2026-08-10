@@ -83,8 +83,11 @@ describe("badgeCase", () => {
     // 🦉 OUTSCOUTED and the rest. That gap between the two numbers is the
     // assertion. 🎫 ALONG FOR THE RIDE and 🗿 THE FIGUREHEAD (the dugout
     // round's pair) are both collectible, so they move both sides by two.
-    expect(COLLECTIBLE.length).toBe(65);
-    expect(BADGES.length).toBe(83);
+    // 🤿 FROM DOWN UNDER and 💐 ALWAYS THE BRIDESMAID are both collectible
+    // (🤿 is secret, which hides a name, not a slot), so they move both
+    // sides by two more.
+    expect(COLLECTIBLE.length).toBe(68);
+    expect(BADGES.length).toBe(86);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 

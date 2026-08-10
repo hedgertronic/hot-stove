@@ -876,6 +876,48 @@ describe("roster shape", () => {
     expect(earnedBadges(f({ rings: 3 }))).not.toContain("rings");
   });
 
+  /** 💐 pools two kinds of near-miss behind two hard gates, and every fact
+   * field it reads is optional — so the fail-safe direction is half the badge.
+   * BASE carries none of the three fields at all, which is exactly the shape
+   * of a save written before they existed. */
+  describe("the bridesmaid", () => {
+    it("earns nothing when the pedigree fields are absent", () => {
+      // BASE has rings: 0 and no pennant or WBC fields — the pre-field save.
+      expect(earnedBadges(f())).not.toContain("bridesmaid");
+    });
+
+    it("takes three pennants with clean gates, and refuses two", () => {
+      expect(earnedBadges(f({ pennants: 3 }))).toContain("bridesmaid");
+      expect(earnedBadges(f({ pennants: 2 }))).not.toContain("bridesmaid");
+    });
+
+    it("pools pennants and WBC silvers into one near-miss count", () => {
+      expect(
+        earnedBadges(f({ pennants: 2, wbcRunnersUp: 1 })),
+      ).toContain("bridesmaid");
+      expect(
+        earnedBadges(f({ pennants: 1, wbcRunnersUp: 1 })),
+      ).not.toContain("bridesmaid");
+    });
+
+    it("is taken away by a single ring or a single gold", () => {
+      expect(
+        earnedBadges(f({ pennants: 3, rings: 1 })),
+      ).not.toContain("bridesmaid");
+      expect(
+        earnedBadges(f({ pennants: 3, wbcChampions: 1 })),
+      ).not.toContain("bridesmaid");
+    });
+
+    it("stacks beside 💍 only in the world, never on one club", () => {
+      // Four rings AND three pennants is a decorated club, not a bridesmaid —
+      // the rings gate is what keeps the pair exclusive without a resolver.
+      const got = earnedBadges(f({ rings: 4, pennants: 3 }));
+      expect(got).toContain("rings");
+      expect(got).not.toContain("bridesmaid");
+    });
+  });
+
   /** The key `cooperstown` still means thirty award points, which is what
    * everyone holding it actually earned; only the name and glyph moved off it.
    * The Hall of Fame badge that took the name has its own key, so no earned
@@ -1532,6 +1574,65 @@ describe("the era badges", () => {
 
     it("spares a club with nobody on the list", () => {
       expect(earnedBadges(f({ roster: club(8) }))).not.toContain("suspended");
+    });
+  });
+
+  /** 🤿 is keyed to the person the way 💊 is: the delivery is a fact the man
+   * carries into every uniform, so any card season of a listed id fires it.
+   * badges-supply holds the other half — that every id still resolves to a
+   * card, and that the sidearm decoys stay off the list. */
+  describe("the submariners", () => {
+    it("fires on a listed pitcher in any uniform, in any year", () => {
+      expect(
+        earnedBadges(f({ roster: [player({ id: "rogerty01", pos: "RP" })] })),
+      ).toContain("submarine");
+    });
+
+    it("fires once for a club carrying several of them", () => {
+      const got = earnedBadges(
+        f({
+          roster: [
+            player({ id: "tekulke01", pos: "RP" }),
+            player({ id: "quiseda01", pos: "RP" }),
+          ],
+        }),
+      );
+      expect(got.filter((k) => k === "submarine")).toHaveLength(1);
+    });
+
+    it("spares a club with nobody on the list", () => {
+      // The fail-safe direction: eight over-the-top arms earn nothing.
+      expect(earnedBadges(f({ roster: club(8) }))).not.toContain("submarine");
+    });
+  });
+
+  /** 🐍 is 🤿's sidearm sibling and reads the same way — keyed to the person,
+   * so any card season of a listed id fires it. badges-supply holds the other
+   * half: every id still resolves to a card, and the two clubs never share a
+   * member, which is what lets both fire on one roster without a resolver. */
+  describe("the sidewinders", () => {
+    it("fires on a listed pitcher in any uniform, in any year", () => {
+      expect(
+        earnedBadges(f({ roster: [player({ id: "neshepa01", pos: "RP" })] })),
+      ).toContain("sidewinder");
+    });
+
+    it("stacks with 🤿 when the club holds one of each", () => {
+      const got = earnedBadges(
+        f({
+          roster: [
+            player({ id: "neshepa01", pos: "RP" }),
+            player({ id: "tekulke01", pos: "RP" }),
+          ],
+        }),
+      );
+      expect(got).toContain("sidewinder");
+      expect(got).toContain("submarine");
+    });
+
+    it("spares a club with nobody on the list", () => {
+      // The fail-safe direction: eight over-the-top arms earn nothing.
+      expect(earnedBadges(f({ roster: club(8) }))).not.toContain("sidewinder");
     });
   });
 

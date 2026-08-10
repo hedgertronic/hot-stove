@@ -42,10 +42,15 @@ export function wrapnudge(
   node: HTMLElement,
   opts: number | { px: number; freeze?: boolean },
 ) {
-  // Fractional width, rounded UP. offsetWidth rounds down, and clamping a
-  // 200.4px column to 200px re-wrapped one-line rows under the confirm — the
-  // clamp exists to stop reflow, so it must never be narrower than the truth.
-  const measure = () => Math.ceil(node.getBoundingClientRect().width);
+  // Fractional width, rounded UP — but only to the next 1/8px. offsetWidth
+  // rounds down, and clamping a 200.4px column to 200px re-wrapped one-line
+  // rows under the confirm — the clamp must never be narrower than the truth.
+  // It also must not be a whole pixel WIDER: Math.ceil handed a frozen column
+  // up to 1px of growth headroom, and a wrapped row sitting within 1px of its
+  // break point unwrapped under the confirm anyway (the owner's Betts row).
+  // An eighth of a pixel keeps the "never narrower" guarantee with headroom
+  // an order of magnitude below any real wrap threshold.
+  const measure = () => Math.ceil(node.getBoundingClientRect().width * 8) / 8;
   let freeWidth = measure();
   let frozen = false;
   const apply = (o: number | { px: number; freeze?: boolean }) => {
@@ -86,11 +91,43 @@ export function wrapnudge(
     apply(opts);
   });
   ro.observe(node);
+  // The observer only fires when THIS box changes, and the stored width can
+  // go stale without it: a reflow elsewhere can change the column's available
+  // room while its own border box holds still, and the next freeze clamps to
+  // a number from another layout. The tap that triggers every freeze begins
+  // with a pointerdown, which fires BEFORE any state flips or DOM swaps — so
+  // a capture-phase re-measure there guarantees the frozen width is the width
+  // of the layout actually under the finger. One getBoundingClientRect per
+  // pointerdown, only while unfrozen.
+  const prefreeze = () => {
+    if (!frozen) freeWidth = measure();
+  };
+  window.addEventListener("pointerdown", prefreeze, true);
+  // Settle re-apply, gridsnap's own doctrine: the wrap verdict and the nudge
+  // are measured from a layout that entrance animations and late font swaps
+  // can still be moving. Nothing here re-measures freeWidth (a transition can
+  // end mid-freeze); it only re-runs the wrapped/nudge decision.
+  // `dead` guards the one settle path destroy can't unhook: a fonts.ready
+  // callback booked before destruction would otherwise retain the detached
+  // node and re-apply onto it when the fonts land.
+  let dead = false;
+  const settle = () => {
+    if (!dead) apply(opts);
+  };
+  window.addEventListener("animationend", settle, true);
+  window.addEventListener("transitionend", settle, true);
+  document.fonts?.ready?.then(settle).catch(() => {});
   return {
     update(next: number | { px: number; freeze?: boolean }) {
       opts = next;
       apply(next);
     },
-    destroy: () => ro.disconnect(),
+    destroy: () => {
+      dead = true;
+      ro.disconnect();
+      window.removeEventListener("pointerdown", prefreeze, true);
+      window.removeEventListener("animationend", settle, true);
+      window.removeEventListener("transitionend", settle, true);
+    },
   };
 }

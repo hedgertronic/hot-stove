@@ -493,7 +493,14 @@
     gap: 9px;
     min-height: 48px;
     padding: 6px 12px 6px 10px;
-    border: 2.5px dashed var(--ink);
+    /* --line, not ink, since round 34: geometrically the dashed and solid
+       rows are the same 2.5px box, but ink dashes (15.6:1 against ground)
+       beside --line solid rows (7.5:1) read as a heavier, larger tile — the
+       owner measured the "dashed looks bigger" illusion here. One border
+       color for both states leaves the DASH itself as the whole open/punched
+       channel, which is the design system's own doctrine (app.css: "the
+       DASH is the state channel"). */
+    border: 2.5px dashed var(--line);
     border-radius: 11px;
     background: transparent;
     color: var(--muted);
@@ -510,9 +517,8 @@
     outline-offset: 2px;
   }
   /* Punched: the dash closes and the tile becomes plain filled cardstock, so
-     the line becomes the structural one. The UNpunched border stays ink — it is
-     dashed, which is the armed/choosable channel, and that is the one place ink
-     still belongs. */
+     the line becomes the structural one. Same --line both sides — only the
+     dash and the fill change (see the .row border note). */
   .row.on {
     border-style: solid;
     border-color: var(--line);

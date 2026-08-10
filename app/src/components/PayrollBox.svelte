@@ -200,14 +200,20 @@
     </div>
     {#if bank === "classic" && (math || pending)}
       <div class="hires">
-        <span class="hire" class:tbd={!ownerName}>💰 {ownerName ?? "no owner yet"}</span>
+        <span class="hire" class:tbd={!ownerName}
+          ><span class="ph">💰</span><span class="hlbl">{ownerName ?? "no owner yet"}</span></span
+        >
         <span class="hsep">·</span>
-        <span class="hire" class:tbd={!parkName}>🏟️ {parkName ?? "no stadium yet"}</span>
+        <span class="hire" class:tbd={!parkName}
+          ><span class="ph">🏟️</span><span class="hlbl">{parkName ?? "no stadium yet"}</span></span
+        >
       </div>
     {:else if ownerName}
       <!-- Fixed-cap modes hire nobody; the same line carries the real owner whose
            club sets the cap, so the box keeps one height across every mode. -->
-      <div class="hires"><span class="hire solo">💰 {ownerName}</span></div>
+      <div class="hires">
+        <span class="hire solo"><span class="ph">💰</span><span class="hlbl">{ownerName}</span></span>
+      </div>
     {/if}
     {@render meter()}
     <div class="paylbl">
@@ -334,18 +340,34 @@
     color: var(--muted);
   }
   .hire {
+    display: inline-flex;
+    align-items: center;
+    max-width: 46%;
+  }
+  /* The glyph is its own flex item — the same .ph split the math chips make
+     above (:263) and .srow .ic makes next door: inside the text run the emoji
+     face's taller ink box drags the 10.5px line box, and the words ride low
+     against the glyph. line-height 1 caps the glyph's box; the 3px seam is
+     stated as geometry, not a space character. */
+  .hire > .ph {
+    line-height: 1;
+    margin-inline-end: 3px;
+  }
+  .hire > .hlbl {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 46%;
   }
   /* A lone owner line (fixed-cap modes) owns the whole row. */
   .hire.solo {
     max-width: 100%;
   }
+  /* Empty state in the app's own empty vocabulary: gray-ink, roman, a step
+     lighter than a filled name. NOT italic — this was the only italic prose
+     in the app; everywhere else "empty" is a dash, a glyph, or gray-ink
+     codes, and a second typographic voice for one line was noise. */
   .hire.tbd {
     color: var(--gray-ink);
-    font-style: italic;
     font-weight: 600;
   }
   .hsep {
