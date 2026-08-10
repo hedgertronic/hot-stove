@@ -24,6 +24,7 @@ const {
   clearBadgeCue,
   firstEverPlay,
   loadCues,
+  markFinaleTourSeen,
   markHelpSeen,
   markTourSeen,
   noteNewBadges } = await import("../src/lib/settings");
@@ -56,7 +57,7 @@ beforeEach(() => store.clear());
 
 describe("loadCues", () => {
   it("reads unlit with no record at all", () => {
-    expect(loadCues()).toEqual({ pendingBadges: [], helpSeen: false, tourSeen: false });
+    expect(loadCues()).toEqual({ pendingBadges: [], helpSeen: false, tourSeen: false, finaleTourSeen: false });
   });
 
   it("never lights a trophy for badges earned before the key existed", () => {
@@ -68,7 +69,7 @@ describe("loadCues", () => {
 
   it("reads unlit from a corrupt value", () => {
     store.set(CUES_KEY, "{not json");
-    expect(loadCues()).toEqual({ pendingBadges: [], helpSeen: false, tourSeen: false });
+    expect(loadCues()).toEqual({ pendingBadges: [], helpSeen: false, tourSeen: false, finaleTourSeen: false });
   });
 
   it("reads unlit from an unrecognized version", () => {
@@ -78,7 +79,7 @@ describe("loadCues", () => {
       CUES_KEY,
       JSON.stringify({ v: 99, pendingBadges: ["dime"], helpSeen: true }),
     );
-    expect(loadCues()).toEqual({ pendingBadges: [], helpSeen: false, tourSeen: false });
+    expect(loadCues()).toEqual({ pendingBadges: [], helpSeen: false, tourSeen: false, finaleTourSeen: false });
   });
 
   it("drops non-string keys and a non-array pending list", () => {
@@ -86,7 +87,7 @@ describe("loadCues", () => {
       CUES_KEY,
       JSON.stringify({ v: 1, pendingBadges: ["dime", 7, null], helpSeen: 1 }),
     );
-    expect(loadCues()).toEqual({ pendingBadges: ["dime"], helpSeen: false, tourSeen: false });
+    expect(loadCues()).toEqual({ pendingBadges: ["dime"], helpSeen: false, tourSeen: false, finaleTourSeen: false });
     store.set(CUES_KEY, JSON.stringify({ v: 1, pendingBadges: "dime" }));
     expect(loadCues().pendingBadges).toEqual([]);
   });
@@ -165,7 +166,7 @@ describe("markTourSeen", () => {
     noteNewBadges(["dime"]);
     markHelpSeen();
     markTourSeen();
-    expect(loadCues()).toEqual({ pendingBadges: ["dime"], helpSeen: true, tourSeen: true });
+    expect(loadCues()).toEqual({ pendingBadges: ["dime"], helpSeen: true, tourSeen: true, finaleTourSeen: false });
   });
 
   it("reads unseen from a record written before the field existed", () => {
@@ -173,6 +174,27 @@ describe("markTourSeen", () => {
     // false rather than throw or, worse, true.
     localStorage.setItem("hotstove.cues", JSON.stringify({ v: 1, pendingBadges: [], helpSeen: true }));
     expect(loadCues().tourSeen).toBe(false);
+    expect(loadCues().finaleTourSeen).toBe(false);
+  });
+});
+
+describe("markFinaleTourSeen", () => {
+  it("stays seen across a reload and never re-arms", () => {
+    expect(markFinaleTourSeen().finaleTourSeen).toBe(true);
+    expect(loadCues().finaleTourSeen).toBe(true);
+  });
+
+  it("leaves the other cues alone", () => {
+    noteNewBadges(["dime"]);
+    markHelpSeen();
+    markTourSeen();
+    markFinaleTourSeen();
+    expect(loadCues()).toEqual({
+      pendingBadges: ["dime"],
+      helpSeen: true,
+      tourSeen: true,
+      finaleTourSeen: true,
+    });
   });
 });
 

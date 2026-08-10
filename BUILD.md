@@ -1,5 +1,11 @@
 # Hot Stove — Frontend Build Plan
 
+> **Historical document.** The plan the app was built *from*, kept for the
+> record; the shipped app has evolved past it (a season now ends when every
+> seat is filled — 8 players plus skipper, plus the Open Market front office —
+> and six powerups ship, not four). Where this file and the app disagree, the
+> app and **DECISIONS.md** are the authority.
+
 Implementation handoff. SPEC.md says *what the game is*; this says *how to build it*.
 Visual reference: `design/cardstock-v2.html` (authoritative for look, motion, and states).
 

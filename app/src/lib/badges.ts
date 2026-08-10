@@ -2021,8 +2021,8 @@ export const BADGES: BadgeDef[] = [
     key: "sidewinder",
     secret: true,
     emoji: "🐍",
-    label: "SIDEWINDERS",
-    name: "Sidewinders",
+    label: "SIDEWINDER",
+    name: "Sidewinder",
     rarity: "rare",
     axis: "roster",
     // Unmeasured: the list is new and no bot study has run over it. Run one

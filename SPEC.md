@@ -1,5 +1,14 @@
 # Hot Stove — Game Spec (v1)
 
+> **Historical document.** This is the design spec the game was built *from*,
+> kept for the record; the shipped rules have evolved past it. The largest
+> drifts: a season ends only when **every seat** is filled (8 players plus the
+> skipper — and on the Open Market bank, the owner and stadium too), Eye Test
+> ships **without** traditional stat lines (it hides WAR and awards, shows
+> salary, and reveals the rest at the finale), and **six** powerups ship
+> (✌️ Double Play and 🏠 Homegrown joined after this spec). Where this file
+> and the app disagree, the app and **DECISIONS.md** are the authority.
+
 A daily-style baseball drafting game. Spin for random team-seasons, sign players at
 their real salaries, and manage a bankroll you set by hiring an owner — then watch
 your team's season play out. Score as many points as possible. Bargain hunting is

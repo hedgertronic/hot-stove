@@ -9,7 +9,11 @@
  * each powerup's marginal contribution in context.
  *
  * Run:      npx vitest run tests/bots/powerup-bots.test.ts
- * Tunables: BOT_GAMES=<n> (default 400), BOT_ABLATIONS=0 to skip ablations.
+ * Tunables: BOT_GAMES=<n> (default 400), BOT_ABLATIONS=1 to add the six
+ * ablation bots (research report only — no assertion reads them, the same
+ * opt-in rule the study*.test.ts files live under; without them the run is
+ * 1,200 games instead of 3,600, which is what keeps `npm test` affordable
+ * now that every finale prices the dream solver's wider shortlists).
  * Games are seeded; the same seed list is shared across bots for pairing
  * (the engine's RNG walk advances only inside spin(), so paired games see
  * the same card sequence until their spin counts diverge). */
@@ -26,7 +30,7 @@ import {
 } from "./harness";
 
 const N = Number(process.env.BOT_GAMES ?? 400);
-const ABLATIONS = process.env.BOT_ABLATIONS !== "0";
+const ABLATIONS = process.env.BOT_ABLATIONS === "1";
 const GOAL = 162;
 
 const seeds = Array.from({ length: N }, (_, i) => (123456789 + i * 2654435761) >>> 0);
@@ -60,7 +64,12 @@ function summarize(name: string, rs: GameResult[]): string {
 describe("powerup bot study", () => {
   it(
     `plays ${N} seeded games per bot through the real engine`,
-    { timeout: 600_000 },
+    // 3 bots × 400 finales runs the dream solver 1,200 times at ~0.4s each
+    // (bestroster's λ grid + oracle-tuned shortlists) ≈ 550s measured on an
+    // M-series laptop, suite otherwise idle; BOT_ABLATIONS=1 triples the
+    // games. The margin is for CI's slower runners, for this file sharing
+    // cores with the rest of the suite, and for opt-in ablation runs.
+    { timeout: 1_800_000 },
     async () => {
       const d = loadData();
       const bots: BotConfig[] = [

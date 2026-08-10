@@ -711,6 +711,72 @@ describe("bestRoster front office", () => {
     expect(best.spend!).toBeLessThanOrEqual(best.budget!);
     expect(best.total).toBe(best.underBudgetTotal);
   });
+
+  it("keeps a rich owner in the race when his winner is mid-priced", () => {
+    // The regression PROBE_LAMBDAS' negative rungs close (seed 3801105927 in
+    // the wild, a $164M owner among $57M ones): the rich cap's winning club
+    // spends UP TOWARD it, and neither endpoint probe ever builds that club —
+    // λ = 0 buys every star on the board and drowns the rich pair in luxury
+    // tax, λ = −1 buys the $1M fillers and forfeits the bonus. Ranked on the
+    // endpoints alone, every cheap pair outranks the rich pair (the bonus
+    // −10 + 20·spend/budget punishes a thrifty club HARDER under a big cap),
+    // the shortlist fills with cheap offices, and the sweep that would find
+    // the real club never runs.
+    //
+    // The pool is that shape in miniature: one $210M owner card, five stars
+    // priced so their SUM blows any cap while a two-or-three-star club sits
+    // just under the rich one, and $1M six-win fillers for every seat. The
+    // fillers run three cards deep per scarce seat ON PURPOSE — with one
+    // filler card per seat, an office pair that consumed a filler card forced
+    // a star into its thrifty club through repair's refill, and those
+    // star-boosted cheap pairs outranked everything, masking the very pruning
+    // this test pins. Verified to fail on an endpoint-only revert (owner
+    // comes out $40M, ceiling 100 vs 133.5).
+    const mkCard = (players: CardPlayer[], i: number, over: Partial<Card> = {}): Card =>
+      card(players, {
+        team: `L${i}`, franchise: `L${i}`, name: `Lambda ${i}`, year: 1980 + i,
+        wins: 81, losses: 81, manager: null,
+        budget: 40, stadiumMult: 1,
+        ...over,
+      });
+    const starKinds: Partial<CardPlayer>[] = [
+      { pos: "C", posG: C },
+      { pos: "SS", posG: IF },
+      { pos: "2B", posG: IF },
+      { pos: "SP", posG: NONE },
+      { pos: "SP", posG: NONE },
+    ];
+    const fillKinds: Partial<CardPlayer>[] = [
+      { pos: "C", posG: C },
+      { pos: "C", posG: C },
+      { pos: "SS", posG: IF },
+      { pos: "SS", posG: IF },
+      { pos: "2B", posG: IF },
+      { pos: "CF", posG: OF },
+      { pos: "CF", posG: OF },
+      { pos: "DH", posG: NONE }, // bat with no fielding line: FLEX only
+      { pos: "SP", posG: NONE },
+      { pos: "SP", posG: NONE },
+      { pos: "SP", posG: NONE },
+      { pos: "RP", posG: NONE },
+      { pos: "RP", posG: NONE },
+    ];
+    const rich = mkCard([], 0, { budget: 210 });
+    const pool = [
+      rich,
+      ...starKinds.map((k, i) =>
+        mkCard([player({ ...k, war: 12, cost: [50, 60, 70, 80, 90][i] })], 1 + i),
+      ),
+      ...fillKinds.map((k, i) => mkCard([player({ ...k, war: 6, cost: 1 })], 6 + i)),
+    ];
+    const best = bestRoster(pool);
+    const poor = bestRoster(pool.filter((c) => c !== rich));
+    expect(best.owner!.budget).toBe(210);
+    // A mid-priced club — stars seated, not the all-filler thrift club…
+    expect(best.spend!).toBeGreaterThan(100);
+    // …and the rich pool's ceiling genuinely clears the poor pool's.
+    expect(best.total!).toBeGreaterThan(poor.total!);
+  });
 });
 
 describe("bestRoster off-reel seasons (⭐ Prime Time)", () => {

@@ -88,11 +88,17 @@ export interface CueState {
    * because the tour also gates on firstEverPlay(), so a veteran's store
    * never shows it either way. */
   tourSeen: boolean;
+  /** The finale's own INSTRUCTS tour (scorecard, squads, share row) ran or
+   * was skipped. Absent reads false, which re-arms it once for a veteran —
+   * accepted on purpose: unlike the board tour there is no firstEverPlay()
+   * gate that fits (every veteran has finished games), and one extra showing
+   * of a skippable tour beats never teaching the screen at all. */
+  finaleTourSeen: boolean;
 }
 
 /** Fresh, unlit, and what every unreadable store resolves to. */
 function noCues(): CueState {
-  return { pendingBadges: [], helpSeen: false, tourSeen: false };
+  return { pendingBadges: [], helpSeen: false, tourSeen: false, finaleTourSeen: false };
 }
 
 /** The cue record, or an unlit one.
@@ -117,6 +123,7 @@ export function loadCues(): CueState {
         : [],
       helpSeen: s.helpSeen === true,
       tourSeen: s.tourSeen === true,
+      finaleTourSeen: s.finaleTourSeen === true,
     };
   } catch {
     return noCues();
@@ -179,6 +186,11 @@ export function markHelpSeen(): CueState {
 /** INSTRUCTS finished or was skipped — either way it never runs again. */
 export function markTourSeen(): CueState {
   return saveCues({ ...loadCues(), tourSeen: true });
+}
+
+/** The finale's INSTRUCTS finished or was skipped — never runs again. */
+export function markFinaleTourSeen(): CueState {
+  return saveCues({ ...loadCues(), finaleTourSeen: true });
 }
 
 /** Nobody has ever FINISHED a game here. Mid-first-game counts as first-ever

@@ -45,6 +45,7 @@
     pushed = false,
     onconfirm,
     oninstructs = null,
+    onfinaleinstructs = null,
   }: {
     home?: boolean;
     newBadges?: string[] | null;
@@ -55,6 +56,10 @@
      * help sheet only while a landed card gives the tour a board to point at
      * — the same gate App's own render puts on the tour. */
     oninstructs?: (() => void) | null;
+    /** Restarts the FINALE's tour. Same button, same label — the help sheet
+     * routes to whichever tour the current screen can actually replay, and
+     * during the finale that is this one. */
+    onfinaleinstructs?: (() => void) | null;
   } = $props();
 
   let cues = $state(loadCues());
@@ -220,7 +225,12 @@
           helpOpen = false;
           oninstructs?.();
         }
-      : null}
+      : onfinaleinstructs != null && game != null && game.phase === "finale"
+        ? () => {
+            helpOpen = false;
+            onfinaleinstructs?.();
+          }
+        : null}
   />
 {/if}
 

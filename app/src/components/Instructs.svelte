@@ -1,6 +1,6 @@
 <script lang="ts">
   /* INSTRUCTS — the first-run spotlight tour, named for the instructional
-   * league: four stops, each one dims the whole board except the piece being
+   * league: five stops, each one dims the whole board except the piece being
    * explained and seats a small cardstock callout beside it.
    *
    * No modal and no screenshots: the spotlight is a fixed "window" div moved
@@ -9,54 +9,81 @@
    * above everything and swallows every pointer, which is also what keeps the
    * board inert while the tour holds it.
    *
-   * No highlight ring (owner call, 2026-08-10 — an earlier draft wore the
-   * blue focus ring): the wash contrast IS the highlight, the window GLIDES
-   * between stops (top/left/size transition below), and the revealed section
-   * announces itself with one small pop (.spotlit) instead of an outline.
-   * Orange stays out of it either way: orange dash means "tap me now", and a
-   * tour stop means "look here". */
+   * No highlight ring and no arrival pop (owner calls, 2026-08-10 — earlier
+   * drafts wore the blue focus ring, then a .spotlit scale pulse): the wash
+   * contrast IS the highlight and the window GLIDING between stops
+   * (top/left/size transition below) is what says "now look here" — the
+   * revealed section itself holds perfectly still.
+   * Orange stays off the SPOTLIGHT: orange means "tap me now" and a tour
+   * stop means "look here" — so the wash and window are ink-neutral, and the
+   * only orange in the tour is the PLAY BALL pill, which is exactly the tap
+   * being asked for. */
   import { onMount } from "svelte";
   import { lockScroll } from "../lib/scrolllock";
+  import CornerPillArt from "./CornerPillArt.svelte";
 
   interface Stop {
     /** Resolved against the live board; a stop whose selector finds nothing
      * is dropped rather than spotlighting an empty rect. */
     selector: string;
+    /** Extra existence gate: the stop is also dropped when THIS selector
+     * finds nothing. For sections whose wrapper always renders but can be
+     * empty — the front office div exists tile-less in the fixed-cap banks
+     * when the card has no skipper, and spotlighting a zero-height wrapper
+     * teaches nothing. An element check, not a rect check, so jsdom (all
+     * rects zero) keeps mounting the tour in the App suites. */
+    requires?: string;
     title: string;
     copy: string;
-    /** Stop 1's seats, drawn as a row of dashed mini-chips — the rail's own
-     * "open seat" vocabulary carries the list a sentence slogged through. */
-    seats?: string[];
-    /** Stop 4's roster of power-ups: one glyph-led line each, rendered as a
+    /** The last stop's roster of power-ups: one glyph-led line each, rendered as a
      * tight list under the copy rather than crammed into a paragraph. */
     list?: { glyph: string; name: string; text: string }[];
   }
 
-  /* Copy rules: short sentences, plain words, no clauses that make the
-   * player hold state. What each stop teaches (owner spec, 2026-08-10):
-   * 1 the seats to fill, 2 owner + stadium + the price-is-right budget rule,
-   * 3 what a signing scores and costs, 4 one line per power-up. */
-  const STOPS: Stop[] = [
+  let { onclose, fixedCap = false }: { onclose: () => void; fixedCap?: boolean } = $props();
+
+  /* Copy is the owner's verbatim (2026-08-10). What each stop teaches:
+   * 1 the seats to fill, 2 the price-is-right payroll rule + the tax,
+   * 3 the front office's three hires, 4 what a signing scores and costs,
+   * 5 one line per power-up. Stop 2 speaks per bank: Moneyball and Blank
+   * Check hand the payroll out (no owner, no stadium), so telling their
+   * first-time player to hire either would be teaching UI that does not
+   * exist — the same reason stop 3's `requires` drops it there. Built as a
+   * call at mount (not a module const): stop 2's copy reads the prop, and
+   * the tour mounts once per game, after the bank is known. */
+  const stopsFor = (fixed: boolean): Stop[] => [
     {
       selector: ".railwrap",
       title: "YOUR SQUAD",
-      copy: "Fill every seat. Dashed seats are still open.",
-      seats: ["MGR", "C", "IF", "IF", "OF", "UTIL", "SP", "SP", "RP"],
+      copy: "Build a team of 8 players and a manager. Dashed seats are still open.",
     },
     {
       selector: ".bankwrap",
       title: "YOUR PAYROLL",
-      copy: "Sign an owner and a stadium too. Together they set your budget. Spend as close to it as you can without going over.",
+      copy: fixed
+        ? "This bank fixes your payroll. Spend as close to it as you can without going over. Every million over costs you a point."
+        : "Your owner and stadium set your payroll. Spend as close to it as you can without going over. Every million over costs you a point.",
+    },
+    {
+      selector: ".special",
+      /* :not(.skip): the manager tile alone (a fixed-cap bank's whole front
+       * office — SpecialRows gates the owner and stadium off) must NOT admit
+       * this stop, whose copy tells the player to hire an owner and buy a
+       * stadium. An owner/stadium tile exists only on the classic bank, so
+       * the stop drops itself exactly where its copy would lie. */
+      requires: ".special .srow:not(.skip)",
+      title: "THE FRONT OFFICE",
+      copy: "Hire an owner, buy a stadium, and hire a manager. Stadiums with more fans stretch your payroll, and managers with better records add more wins.",
     },
     {
       selector: ".plist",
       title: "SIGNING A PLAYER",
-      copy: "Tap a player, then tap SIGN. A signing adds his WAR plus points for awards and rings. His salary counts against your payroll.",
+      copy: "Sign players at the value of their contract. Higher WAR players contribute more points, as do awards and rings.",
     },
     {
       selector: ".pprow",
       title: "POWER-UPS",
-      copy: "Each one works once per game.",
+      copy: "Get creative with your power-ups, which you can use once each per game.",
       list: [
         { glyph: "🎟️", name: "SEASON TICKET", text: "same club, any year." },
         { glyph: "🚚", name: "RELOCATE", text: "same year, any club." },
@@ -68,14 +95,41 @@
     },
   ];
 
-  let { onclose }: { onclose: () => void } = $props();
-
   let stops = $state<Stop[]>([]);
   let i = $state(0);
   let box = $state<{ top: number; left: number; width: number; height: number } | null>(null);
   let below = $state(true);
+  /** The card's one positioning axis, in pixels. Both sides of the window
+   * resolve to a `top` value (above = window top minus the card's own
+   * height), so a hop that flips sides interpolates like any other — the
+   * old top/bottom anchor pair could only CUT across the flip, which is
+   * exactly the stop 3 → 4 jump (short front office, tall market list). */
+  let ctop = $state(0);
   let calloutEl = $state<HTMLElement | undefined>();
   let nextBtn = $state<HTMLButtonElement | undefined>();
+
+  /* The card's height changes when the keyed body swaps (stop 5's power-up
+   * roster is twice the others) and when its copy rewraps; the above-side
+   * seat depends on that height, so the observer re-seats it through the
+   * same top transition. Guarded: jsdom has no ResizeObserver. */
+  const ro =
+    typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => measure(false)) : null;
+  $effect(() => {
+    if (!calloutEl || !ro) return;
+    ro.observe(calloutEl);
+    return () => ro.disconnect();
+  });
+
+  /* Focus enters the dialog the moment its forward button exists (and
+   * follows it when the last stop swaps the arrow for the verb pill):
+   * trapTab only cycles buttons INSIDE the callout, so until focus is in
+   * here, Tab still walked the dimmed board and Enter could press a control
+   * behind the modal (Sol review, 2026-08-10 — the settle's focus arrived
+   * up to 600ms late). preventScroll everywhere: a focus-induced scroll
+   * would fight the glide. */
+  $effect(() => {
+    nextBtn?.focus({ preventScroll: true });
+  });
 
   let release: (() => void) | null = null;
 
@@ -83,14 +137,38 @@
     return stops[i] ? document.querySelector(stops[i].selector) : null;
   }
 
-  function measure() {
+  /* placement=false moves only the window and its anchors: the en-route
+   * remeasures (the capture-phase scroll listener, firing every frame of the
+   * glide) must keep the box tracking the traveling section WITHOUT
+   * re-deciding which side the card sits on. `below` flips between `top: Xpx`
+   * and `top: auto`, which cannot interpolate — a hop that re-decided it
+   * per-frame cut the card across the window mid-glide (once, sometimes
+   * twice) and read as a stutter. go() decides placement once per hop from
+   * the section's SETTLED position, and the settle's full measure confirms
+   * it from the real rect. */
+  function measure(placement = true) {
     const el = target();
     if (!el) return;
     const r = el.getBoundingClientRect();
     /* 6px of air so the ring never sits on the section's own border. */
     box = { top: r.top - 6, left: r.left - 6, width: r.width + 12, height: r.height + 12 };
-    /* The callout goes under the window when there is room for it, else over. */
-    below = window.innerHeight - (r.bottom + 6) >= 150;
+    const h = Math.max(calloutEl?.offsetHeight ?? 0, 150);
+    /* The callout goes under the window when the MEASURED card fits there
+     * with air, else over. Measured, not a constant: a fixed 150 called
+     * "below" for the tall POWER-UPS card with room it didn't have, and the
+     * clamp then dragged it up over the spotlight — permanently, since every
+     * settled remeasure re-made the same call (Sol review, 2026-08-10). */
+    if (placement) below = window.innerHeight - (r.bottom + 6) >= h + 24;
+    /* The seat, recomputed on EVERY measure so the glide, the side flip, and
+     * the card's own height changes all travel the one top transition.
+     * Clamped 8px inside the viewport: a section taller than the screen
+     * (stop 4's market list, centered) would otherwise push the above seat
+     * off the top edge. The ceiling applies FIRST and the 8px floor wins:
+     * min-last inverts the interval on a viewport shorter than the card and
+     * shoves the header — and its only ✕ — off the top; pinning the top
+     * keeps the card closable and lets the footer overflow instead. */
+    const want = below ? box.top + box.height + 12 : box.top - h - 12;
+    ctop = Math.max(Math.min(want, window.innerHeight - h - 8), 8);
   }
 
   /* The pending settle, cancellable: `settleTimer` + the scrollend listener
@@ -103,23 +181,14 @@
    * for good. */
   let settleTimer: ReturnType<typeof setTimeout> | undefined;
   let dead = false;
-  /** The section currently wearing the .spotlit pop — held so the next hop
-   * can take it off before the class lands somewhere else. */
-  let spotEl: Element | null = null;
 
   function onScrollEnd() {
     clearTimeout(settleTimer);
     window.removeEventListener("scrollend", onScrollEnd);
     if (dead) return;
     measure();
-    /* The pop rides the SETTLED position: re-adding the class restarts the
-     * animation on the stop's own section. Paint-only (scale), removed on
-     * the next hop. */
-    spotEl?.classList.remove("spotlit");
-    spotEl = target();
-    spotEl?.classList.add("spotlit");
     release = lockScroll();
-    nextBtn?.focus();
+    nextBtn?.focus({ preventScroll: true });
   }
 
   function go(n: number) {
@@ -136,12 +205,22 @@
      * capture-phase scroll listener keeps it honest en route). */
     release?.();
     release = null;
-    spotEl?.classList.remove("spotlit");
     const glide =
       typeof matchMedia === "function" &&
       !matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView?.({ block: "center", behavior: glide ? "smooth" : "auto" });
-    measure();
+    /* Placement, decided ONCE per hop from where the section will END UP:
+     * block "center" seats its middle on the viewport's, so the landed
+     * bottom is (viewport + height) / 2 regardless of where the rect sits
+     * right now. Deciding from the current rect put the card on the wrong
+     * side for most of the glide and flipped it mid-travel. A clamped
+     * scroll (section pinned at a document edge) lands elsewhere; the
+     * settle's full measure corrects that case, once, after the glide. */
+    const r = el.getBoundingClientRect();
+    const h = Math.max(calloutEl?.offsetHeight ?? 0, 150);
+    below = window.innerHeight - ((window.innerHeight + r.height) / 2 + 6) >= h + 24;
+    measure(false);
+    nextBtn?.focus({ preventScroll: true });
     clearTimeout(settleTimer);
     window.removeEventListener("scrollend", onScrollEnd);
     window.addEventListener("scrollend", onScrollEnd, { once: true });
@@ -175,23 +254,27 @@
    * cycle — Svelte kills it with effect_update_depth_exceeded. Mount runs
    * untracked, once, which is also the only cadence setup wants. */
   onMount(() => {
-    stops = STOPS.filter((s) => document.querySelector(s.selector));
+    stops = stopsFor(fixedCap).filter(
+      (s) => document.querySelector(s.selector) && (!s.requires || document.querySelector(s.requires)),
+    );
     if (stops.length === 0) {
       onclose();
       return;
     }
     go(0);
-    const remeasure = () => measure();
-    window.addEventListener("resize", remeasure);
-    window.addEventListener("scroll", remeasure, true);
+    /* Resize re-decides placement (the room genuinely changed); scroll only
+     * tracks — the page is scroll-locked between hops, so scroll events are
+     * the glide itself, and the glide must not flip the card. */
+    const onResize = () => measure();
+    const onScroll = () => measure(false);
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onScroll, true);
     return () => {
       dead = true;
       clearTimeout(settleTimer);
       window.removeEventListener("scrollend", onScrollEnd);
-      spotEl?.classList.remove("spotlit");
-      spotEl = null;
-      window.removeEventListener("resize", remeasure);
-      window.removeEventListener("scroll", remeasure, true);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll, true);
       release?.();
       release = null;
     };
@@ -215,9 +298,7 @@
 
   <div
     class="callout disp"
-    class:below
-    style:--anchor-top="{box.top}px"
-    style:--anchor-bottom="{box.top + box.height}px"
+    style:top="{ctop}px"
     role="dialog"
     aria-modal="true"
     aria-label="Instructs: how to play"
@@ -225,7 +306,12 @@
   >
     <div class="callhead">
       <span class="eyebrow">INSTRUCTS</span>
-      <button class="skip" onclick={finish}>SKIP</button>
+      <!-- The HUD's own ✕ pill (owner call, 2026-08-10 — earlier drafts wore
+           a SKIP word here, then a » arrow below): leaving the tour is the
+           same verb as leaving any sheet, so it wears the same capsule. -->
+      <button class="x" onclick={finish} aria-label="Close the tour"
+        ><CornerPillArt glyph="close" /></button
+      >
     </div>
     <!-- Keyed on the stop, so each hop swaps the body with one small rise —
          the same fadeup grammar App's .after sections enter with. The head
@@ -234,13 +320,6 @@
       <div class="callbody">
         <div class="calltitle">{stops[i].title}</div>
         <p class="cap">{stops[i].copy}</p>
-        {#if stops[i].seats}
-          <div class="seatrow" aria-hidden="true">
-            {#each stops[i].seats as s, k (k)}
-              <span class="seat">{s}</span>
-            {/each}
-          </div>
-        {/if}
         {#if stops[i].list}
           <ul class="pplist">
             {#each stops[i].list as pp (pp.name)}
@@ -265,13 +344,38 @@
           ></button>
         {/each}
       </div>
-      <button
-        class="next"
-        class:final={i === stops.length - 1}
-        bind:this={nextBtn}
-        onclick={() => (i < stops.length - 1 ? go(i + 1) : finish())}
-        >{i === stops.length - 1 ? "PLAY BALL" : "NEXT"}</button
-      >
+      <!-- Prev/next as a tight pair (owner calls, 2026-08-10): the shared
+           confirm pill's 24px capsule (the `confirm` markup class joins
+           app.css's recipe) carrying the pick-a-slot hint's arrow glyph
+           family, pointed left and right, with the same per-engine em seat
+           MarketRow documents. QUIET cardstock, not the hint's orange, and
+           not the confirm's ink: orange is the pending-question voice and
+           ink is the commit voice (SIGN, HIRE), and a page-turn is neither.
+           The last stop commits, so its forward is the PLAY BALL pill — an
+           arrow can advance, only a verb should finish — in the confirm
+           recipe's own ink. -->
+      <div class="navs">
+        <button class="confirm nav" aria-label="Back" disabled={i === 0} onclick={() => go(i - 1)}
+          ><svg class="aro" viewBox="0 0 14 14" aria-hidden="true"
+            ><path d="M12 7H2.6M6.2 3.4 2.6 7l3.6 3.6" /></svg
+          ></button
+        >
+        {#if i < stops.length - 1}
+          <button
+            class="confirm nav"
+            aria-label="Next"
+            bind:this={nextBtn}
+            onclick={() => go(i + 1)}
+            ><svg class="aro" viewBox="0 0 14 14" aria-hidden="true"
+              ><path d="M2 7h9.4M7.8 3.4 11.4 7l-3.6 3.6" /></svg
+            ></button
+          >
+        {:else}
+          <button class="confirm playball" bind:this={nextBtn} onclick={finish}
+            ><span class="chiplbl">PLAY BALL</span></button
+          >
+        {/if}
+      </div>
     </div>
   </div>
 {/if}
@@ -301,23 +405,6 @@
       width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
       height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  /* The revealed section's one pop — App's .after entrance spring, spent on
-     scale instead of travel so the board underneath never reflows. Global:
-     the class lands on board sections this component does not own. */
-  :global(.spotlit) {
-    animation: spotpop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  @keyframes spotpop {
-    from {
-      transform: scale(0.985);
-    }
-    50% {
-      transform: scale(1.008);
-    }
-    to {
-      transform: scale(1);
-    }
-  }
   .callout {
     position: fixed;
     left: 50%;
@@ -331,18 +418,11 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    top: calc(var(--anchor-bottom) + 12px);
-    /* Rides the window's glide: the anchor vars move and the card follows on
-       the same curve. A hop that flips the card between below and above the
-       window swaps top for bottom, which cannot interpolate — that hop cuts,
-       and the keyed body's rise covers it. */
-    transition:
-      top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-      bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .callout:not(.below) {
-    top: auto;
-    bottom: calc(100vh - var(--anchor-top) + 12px);
+    /* top is COMPUTED (measure's ctop): one axis for both sides of the
+       window, so every hop rides this one transition on the window's own
+       curve — including the side flip the old top/bottom anchor pair could
+       only cut across. */
+    transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .callhead {
     display: flex;
@@ -355,25 +435,119 @@
     letter-spacing: 0.14em;
     color: var(--gold-8);
   }
-  .skip {
-    border: 0;
-    background: none;
-    font-family: inherit;
-    font-size: 9.5px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    color: var(--gray-ink);
+  /* Sheet's .title doctrine, owed to both runs of caps on this card: the
+   * eyebrow shares its row with the ✕ pill and the title sits over the copy,
+   * and line-box-centered caps ride ~0.3–0.9px high (highest on WebKit)
+   * beside anything the box actually centers. Trimmed, the caps seat on
+   * their cap band; engines without the trim keep the line box, as all bare
+   * caps do. */
+  @supports (text-box: trim-both cap alphabetic) {
+    .eyebrow,
+    .calltitle {
+      text-box: trim-both cap alphabetic;
+    }
+  }
+  /* The header's ✕: Sheet's exact host — transparent 2px border (the
+   * capsule is DRAWN by CornerPillArt, ring and mark in one svg), 28×22 box,
+   * and the invisible tap extension that lands both axes on 44. */
+  .x {
+    flex: none;
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    padding: 0;
+    width: 28px;
+    height: 22px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    /* The 44px tap floor, grown outward so the resting label stays quiet. */
-    padding: 8px;
-    margin: -8px;
+    position: relative;
+  }
+  .x::after {
+    content: "";
+    position: absolute;
+    inset: -11px -8px;
+  }
+  .x:active {
+    transform: translateY(1.5px);
+  }
+  /* The pair rides tighter than the footer's own 10px gap — two halves of
+   * one pager, not two separate offers. */
+  .navs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  /* Prev/next: deltas over the shared confirm recipe (app.css sets the 24px
+   * capsule, type and cursor) — quiet cardstock with an arrow instead of
+   * words. padding-block zeroed: the recipe's 0.047em cap-seat correction is
+   * for capital LETTERS, and an arrow glyph centered by flex + the em seat
+   * below doesn't want it. Same tap-floor idea as the ✕'s extension. */
+  .nav {
+    flex: none;
+    background: var(--card);
+    border-color: var(--line);
+    color: var(--ink);
+    padding-block: 0;
+    padding-inline: 8px;
+    transition: transform 0.08s;
+  }
+  .nav::after {
+    content: "";
+    position: absolute;
+    inset: -10px -3px;
+  }
+  .nav:active:not(:disabled) {
+    transform: translateY(1.5px);
+  }
+  /* The dead back arrow at stop 1: the market's own non-candidate gray —
+   * availability is binary, and the affordance must match. */
+  .nav:disabled {
+    border-color: var(--gray-ink);
+    color: var(--gray-ink);
+    cursor: default;
+    opacity: 0.55;
+  }
+  /* A DRAWN arrow, not a font glyph — the CornerPillArt doctrine: font
+   * arrows seat differently per engine (MarketRow carries two per-engine em
+   * corrections for its ↑/←), and a 14px vector centered by flex has nothing
+   * for the engines to disagree about. Line-art voice matches the ✕ above:
+   * currentColor stroke, 1.6 weight, round caps. */
+  .aro {
+    display: block;
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  /* PLAY BALL in the armed orange (owner call, 2026-08-10): the tour's last
+   * tap is the one being asked for, and orange is the "tap me now" voice. */
+  .playball {
+    flex: none;
+    background: var(--orange-2);
+    border-color: var(--orange-8);
+    color: var(--ink);
+    letter-spacing: 0.08em;
+    transition: transform 0.08s;
+  }
+  .playball:active {
+    transform: translateY(1.5px);
   }
   /* The keyed body: each hop's content rises in on App's own .after spring.
      Chrome (head, dots, NEXT) sits outside and never re-enters. */
   .callbody {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    /* Tighter than the card's 8px chrome gap: the title binds to its copy,
+       so each stop reads as one unit under the kicker rather than three
+       evenly spaced lines. */
+    gap: 6px;
     animation: bodyup 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
   @keyframes bodyup {
@@ -387,22 +561,10 @@
     font-weight: 900;
     letter-spacing: 0.12em;
   }
-  /* Stop 1's seats, in the rail's own open-seat costume: dashed gray
-     mini-chips, one per seat, duplicates and all — the row IS the count. */
-  .seatrow {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  .seat {
-    border: 1.5px dashed var(--gray-ink);
-    border-radius: 6px;
-    color: var(--gray-ink);
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    padding: 3px 6px;
-  }
+  /* Default greedy wrap, deliberately: `text-wrap: pretty` was tried here
+     (2026-08-10) and Chrome's whole-paragraph optimizer traded line length
+     for rag — words moved down and the card read as wasting its right
+     third. On a 330px measure, full lines beat a tidy rag. */
   .cap {
     font-size: 12px;
     line-height: 1.5;
@@ -432,6 +594,16 @@
     background: transparent;
     padding: 0;
     cursor: pointer;
+    position: relative;
+  }
+  /* The footer's other controls all buy the 44px tap floor with an invisible
+     extension; an 11px dot owes one too. Full height vertically, but only
+     3px sideways — half the 7px gap — so neighboring dots' targets never
+     overlap and a thumb between two dots hits neither. */
+  .dot::after {
+    content: "";
+    position: absolute;
+    inset: -14px -3px;
   }
   .dot.done {
     border: 2px solid var(--ink);
@@ -441,7 +613,7 @@
     border: 2px solid var(--orange-8);
     background: var(--orange-2);
   }
-  /* Stop 4's power-up roster: one line each, the glyph in a fixed gutter so
+  /* The last stop's power-up roster: one line each, the glyph in a fixed gutter so
      the six names rag on a common left edge. */
   .pplist {
     margin: 0;
@@ -465,35 +637,14 @@
     display: inline-block;
     width: 20px;
   }
-  .next {
-    border: 2px solid var(--line);
-    border-radius: 999px;
-    background: var(--card);
-    color: var(--ink);
-    font-family: inherit;
-    font-size: 10.5px;
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    padding: 8px 16px;
-    cursor: pointer;
-    transition: transform 0.08s;
-  }
-  .next:active {
-    transform: translateY(1.5px);
-  }
-  /* The last stop commits, so it wears the confirm's ink. */
-  .next.final {
-    background: var(--ink);
-    border-color: var(--ink);
-    color: var(--card);
-  }
-  .skip:focus-visible,
-  .dot:focus-visible,
-  .next:focus-visible {
+  .x:focus-visible,
+  .nav:focus-visible,
+  .dot:focus-visible {
     outline: 3px solid var(--blue);
     outline-offset: 2px;
   }
-  .next.final:focus-visible {
-    outline-offset: 3px;
+  .playball:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
   }
 </style>

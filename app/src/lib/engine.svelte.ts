@@ -325,7 +325,7 @@ export function beatCeilingDecision(
   };
 }
 
-/** 🧠 BEAT THE DREAM TEAM's rule: BASELINE WINS, yours against the dream
+/** 📝 BETTER ON PAPER's rule: BASELINE WINS, yours against the dream
  * club's — the roster talent comparison, not the whole ledger. "Beat the
  * dream team" is a claim about out-BUILDING a club: more expected wins from
  * WAR and the skipper than the best club your own cards could field. The
@@ -2445,7 +2445,7 @@ export class Game {
     // whether it held — so this has to be built from the same call
     // `Finale.svelte` renders from or the badge and the screen can disagree.
     // `stamp` is computed above (before and after any beatCeiling scout upgrade).
-    // 🧠's fact — see beatDreamDecision beside beatCeilingDecision above.
+    // 📝's fact — see beatDreamDecision beside beatCeilingDecision above.
     const beatDream = beatDreamDecision(parts.expectedWins, parts.total, best ?? null);
     // 🎣's fact: the same raw solve `beatDream` reads, handed over as a number
     // so the badge can press it through recordFromTotal itself. `undefined`
@@ -2558,7 +2558,7 @@ export class Game {
     // Double Play taking two picks off one card, or the reel landing on one card
     // twice), and printing "your best was worse than what you did" would be a
     // bug on screen either way.
-    // `solvedTotal` is the raw solve read above for 🧠; the ceiling is that
+    // `solvedTotal` is the raw solve read above for 📝; the ceiling is that
     // clamped up to the played club.
     const bestPossibleTotal =
       best === null || solvedTotal === null

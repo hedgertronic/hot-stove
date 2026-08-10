@@ -77,6 +77,9 @@
     new URLSearchParams(window.location.search).has("instructs") ||
       (!loadCues().tourSeen && firstEverPlay()),
   );
+  /** Bumped by the help sheet's REPLAY INSTRUCTS while the finale is up;
+   * Finale opens its own tour on each bump, seen-cue or not. */
+  let finaleTourPing = $state(0);
   /* `?jitter` arms the on-device movement recorder (lib/jitterprobe) — the
    * dynamic import keeps the diagnostic out of every ordinary load. */
   if (new URLSearchParams(window.location.search).has("jitter"))
@@ -548,6 +551,7 @@
       pushed={quitArmed}
       onconfirm={(armed) => (undoArmed = armed)}
       oninstructs={() => (instructsOpen = true)}
+      onfinaleinstructs={() => (finaleTourPing += 1)}
     />
     <!-- The HUD lockup and its chip travel as one flex item so a live confirm can
          step the whole brand back with a single rule. Two items dimmed
@@ -584,6 +588,7 @@
       {game}
       resolved={restoredFinale}
       replay={replaying}
+      tourPing={finaleTourPing}
       onreplay={newGame}
       onmodes={replaying ? exitReplay : goHome}
     />
@@ -625,6 +630,7 @@
     </div>
     {#if instructsOpen && game.phase === "landed" && game.card && !game.coldStove}
       <Instructs
+        fixedCap={game.fixedCap}
         onclose={() => {
           instructsOpen = false;
           markTourSeen();

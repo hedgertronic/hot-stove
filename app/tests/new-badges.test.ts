@@ -16,7 +16,7 @@
  * BadgePill directly.
  *
  * The file also holds the trigger pins for the badges added after the round-19
- * table settled — 2️⃣ 🎆 🌠 🧠 🎮 🪑 🙈. Those forge facts the way
+ * table settled — 2️⃣ 🎆 🌠 📝 🎮 🪑 🙈. Those forge facts the way
  * badges.test.ts does rather than seeding history, because a trigger is a pure
  * function of the fact set; the two helpers below are that file's, imported in
  * spirit and kept side by side here so the whole of a new badge (definition,
@@ -305,7 +305,7 @@ describe("🌠 THE DREAM TEAM", () => {
   });
 });
 
-describe("🧠 BEAT THE DREAM TEAM", () => {
+describe("📝 BETTER ON PAPER", () => {
   it("fires when the engine says the club outscored the solve", () => {
     expect(earnedBadges(f({ beatDream: true }))).toContain("beatdream");
   });

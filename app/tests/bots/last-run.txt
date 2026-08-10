@@ -1,30 +1,16 @@
 
 === Powerup bot study: 400 games/bot, classic bank, standard ===
 bot                  mean    med    p90    max    WAR   spend/bank  bust  bonus   tax  spins  >=162
-baseline            111.5  112.0  127.4  144.1   37.9  106.4/115.7   11%    7.4   0.7   11.0     0%
-powerups            135.4  135.9  148.7  166.5   49.0  125.9/150.0    4%    6.7   0.2   10.7     1%
-overspend           133.9  134.7  147.2  166.3   48.7  127.4/150.6   10%    6.2   0.5   10.7     1%
-no-seasonTicket     127.9  128.3  142.5  157.7   46.1  124.2/144.2    9%    6.7   0.5   10.9     0%
-no-relocate         128.6  129.1  142.6  155.0   46.0  116.8/133.8    8%    6.9   0.6   10.9     0%
-no-doublePlay       135.3  135.0  150.3  162.8   48.9  128.9/153.1    5%    6.8   0.3   11.7     0%
-no-tradeDeadline    132.5  132.8  146.7  166.5   47.4  120.9/140.2    7%    6.8   0.4   10.0     1%
-no-prime            129.8  130.2  144.0  158.0   47.0  122.3/149.9    4%    6.3   0.2   10.8     0%
-no-hometown         135.4  135.2  148.6  167.7   48.5  132.2/149.2    7%    7.3   0.4   10.8     1%
+baseline            111.4  111.4  127.0  145.7   37.9  106.4/115.7   11%    7.4   0.7   11.0     0%
+powerups            135.3  135.9  148.3  166.5   49.0  125.9/150.0    4%    6.7   0.2   10.7     1%
+overspend           133.8  134.6  146.7  166.3   48.7  127.4/150.6   10%    6.2   0.5   10.7     1%
 
-paired (same seeds) powerups vs baseline: mean 23.9 pts, improved 98%, hurt 2%
+paired (same seeds) powerups vs baseline: mean 23.8 pts, improved 98%, hurt 2%
 
 powerup usage (powerups bot) and paired delta when used:
-  seasonTicket   used  98% | mean paired delta when used  24.0 (when unused 20.4)
-  relocate       used  99% | mean paired delta when used  24.0 (when unused 17.8)
-  doublePlay     used  96% | mean paired delta when used  24.0 (when unused 22.2)
-  tradeDeadline  used  70% | mean paired delta when used  23.7 (when unused 24.3)
-  prime          used 100% | mean paired delta when used  23.9
-  hometown       used  88% | mean paired delta when used  23.5 (when unused 26.8)
-
-ablations (powerups minus one — marginal contribution):
-  without seasonTicket   mean  127.9  (powerup worth   7.5 pts)
-  without relocate       mean  128.6  (powerup worth   6.8 pts)
-  without doublePlay     mean  135.3  (powerup worth   0.2 pts)
-  without tradeDeadline  mean  132.5  (powerup worth   2.9 pts)
-  without prime          mean  129.8  (powerup worth   5.6 pts)
-  without hometown       mean  135.4  (powerup worth   0.0 pts)
+  seasonTicket   used  98% | mean paired delta when used  23.9 (when unused 20.3)
+  relocate       used  99% | mean paired delta when used  23.9 (when unused 17.3)
+  doublePlay     used  96% | mean paired delta when used  23.9 (when unused 22.0)
+  tradeDeadline  used  70% | mean paired delta when used  23.6 (when unused 24.4)
+  prime          used 100% | mean paired delta when used  23.8
+  hometown       used  88% | mean paired delta when used  23.5 (when unused 26.3)

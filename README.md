@@ -35,21 +35,19 @@ The build is byte-stable. Raw data is snapshotted under `build/raw/` — delete 
 
 ## Deployment
 
-Every push to `main` runs tests, then build, then deploys to GitHub Pages via `.github/workflows/deploy.yml`. A failing test blocks the deploy. Pushes that touch only `*.md` or `design/` files skip the workflow.
+Every push to `main` runs tests, the real-browser ink-alignment probe, then build, then deploys to Cloudflare Workers via `.github/workflows/deploy.yml` (`wrangler deploy` on `app/wrangler.jsonc` + `app/worker.js`). A failing test blocks the deploy. Pushes that touch only `*.md` or `design/` files skip the workflow.
 
-The canonical Cloudflare Workers deploy lives at `hedgertronic.com/games/hot-stove/` (`app/wrangler.jsonc` + `app/worker.js`; deploy with `wrangler deploy` from `app/`). The `hot-stove.josh-6d6.workers.dev` origin remains available as a direct Worker preview.
+The deployed game lives at `hedgertronic.com/games/hot-stove/`; the `hot-stove.josh-6d6.workers.dev` origin remains available as a direct Worker preview. To deploy by hand, run `wrangler deploy` from `app/`.
 
 The social-card image (`app/public/og-image.png`) is committed, not built in CI; regenerate it after a branding change with `uv run --with playwright python tools/generate_og_image.py`.
 
 ## Docs
 
 - **LAUNCH.md** — authoritative launch checklist and release verification.
-- **SPEC.md** — game rules: loop, spin economy, powerups, scoring, modes.
-- **BUILD.md** — implementation plan: stack, design tokens, data contract, state machine, components.
-- **DECISIONS.md** — every rule SPEC left undefined, with rationale.
+- **DECISIONS.md** — the evolved rules: every call SPEC left undefined or the build revised, with rationale. Where docs disagree, this file and the shipped app are the authority.
+- **SPEC.md** — the original game-rules spec (historical; see its header note for what has drifted).
+- **BUILD.md** — the original implementation plan (historical; same caveat).
 - **DEVLOG.md** — running notes.
-
-When SPEC, BUILD, and the mock disagree: SPEC wins on rules, the mock wins on look and feel, BUILD wins on architecture.
 
 ## Data & attribution
 

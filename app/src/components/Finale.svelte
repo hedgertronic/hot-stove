@@ -13,10 +13,11 @@
     WBC_RUNNERUP_ID,
   } from "../lib/scoring";
   import { shareText as shareResult } from "../lib/share";
-  import { countryDef, passport, type PassportItem } from "../lib/settings";
+  import { countryDef, loadCues, markFinaleTourSeen, passport, type PassportItem } from "../lib/settings";
   import AwardPill from "./AwardPill.svelte";
   import BadgeSlot from "./BadgeSlot.svelte";
   import Passport from "./Passport.svelte";
+  import FinaleInstructs from "./FinaleInstructs.svelte";
   import PayrollBox, { FIXED_CAP_CLUB } from "./PayrollBox.svelte";
 
   let {
@@ -25,6 +26,7 @@
     onmodes,
     resolved = false,
     replay = false,
+    tourPing = 0,
   }: {
     game: Game;
     onreplay: () => void;
@@ -43,6 +45,10 @@
      * to one way back. Everything that reads or shares the season stays: it is
      * a finale, and the whole point of the code was to be looked at. */
     replay?: boolean;
+    /** Bumped by the help sheet's REPLAY INSTRUCTS: each bump opens the
+     * finale tour on demand, PAST the finaleTourSeen cue — an explicit
+     * request outranks "already seen". The cue itself is never cleared. */
+    tourPing?: number;
   } = $props();
 
   const fin = $derived(game.finale!);
@@ -178,6 +184,32 @@
       });
     }
     return out;
+  });
+
+  /* THE FINALE'S OWN INSTRUCTS, first finale only. Held until passShown —
+   * the reveal's last beat — so the tour never dims a ledger mid-deal, plus
+   * one settled beat so the passport stamps finish thunking in. The cue is
+   * read at mount-decision time (not module load): a second finale in the
+   * same session must see the first one's mark. */
+  let finaleTour = $state(false);
+  $effect(() => {
+    if (!passShown || finaleTour || loadCues().finaleTourSeen) return;
+    const t = setTimeout(() => (finaleTour = true), reduced || resolved ? 0 : 900);
+    return () => clearTimeout(t);
+  });
+  /* The replay request: the help sheet's button bumps tourPing and the tour
+   * opens immediately, seen-cue or not. Tracked against the value seen at
+   * MOUNT, not against zero: the App-level counter outlives this component,
+   * so a later finale (next season, a reopened archive) mounts with the old
+   * bumps still in it — and a stale ping must not open a tour nobody asked
+   * for, or dim a ledger that is still dealing (Sol review, 2026-08-10). */
+  // svelte-ignore state_referenced_locally -- the mount-time value IS the point
+  let seenPing = tourPing;
+  $effect(() => {
+    if (tourPing > seenPing) {
+      seenPing = tourPing;
+      finaleTour = true;
+    }
   });
 
   let shownRows = $state(0);
@@ -684,8 +716,10 @@
            chips (💍/⭐, centered by their pinned chipbox) already sit on.
            Untrimmed, the type rode Nunito's 0.0235em cap-high line-box seat
            (~0.3–0.4px at these sizes) and read as the emojis hanging low
-           beside it. `.why` stays untrimmed: it can carry the 🕸️ cobweb,
-           which has no cap band for the trim to measure. -->
+           beside it. `.why` wears the trim too when it carries type (the
+           baseline formula visibly floated above the trimmed label without
+           it) and stays bare only for the 🕸️ cobweb, which has no cap band
+           for the trim to measure. -->
       <span class="lbl chiplbl">{row.lbl}</span>
       {#if row.chips}
         <span class="chipline">
@@ -720,7 +754,7 @@
         </div>
       {/if}
       {#if row.why}
-        <span class="why">{row.why}</span>
+        <span class="why" class:chiplbl={row.why !== "🕸️"}>{row.why}</span>
       {/if}
       <!-- The base row shows the animated wins count-up as its amount; every
            other row's amount is the precomputed string. -->
@@ -1035,6 +1069,15 @@
 </div>
 </div>
 
+{#if finaleTour}
+  <FinaleInstructs
+    onclose={() => {
+      finaleTour = false;
+      markFinaleTourSeen();
+    }}
+  />
+{/if}
+
 <style>
   /* THE ONE GAP BETWEEN THE PAYOFF STACK AND THE EXITS.
      The record, the badges and the passport are one ceremony; MODES / RUN IT
@@ -1151,6 +1194,16 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    /* This is the row's one overflow-clipping element, and the cap trim pulls
+       the content box's bottom up to the alphabetic baseline — which put the
+       clip edge THROUGH the descenders and the round glyphs' baseline
+       overshoot (shaved-flat 0s, owner screenshot 2026-08-10). overflow
+       clips at the PADDING box, so symmetric padding pushes the clip edge
+       clear on both sides and the negative margins hand the space back;
+       symmetric, so flex centering is untouched. 0.35em covers Nunito's
+       ~0.29em descent with margin. */
+    padding-block: 0.35em;
+    margin-block: -0.35em;
   }
   /* Trophy case row: the same award pills the player rows wear, wrapping only
      if a stacked roster collects many distinct awards. */

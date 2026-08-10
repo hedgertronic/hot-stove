@@ -103,9 +103,10 @@
  * bound closes that gap on the winner.
  *
  * Three passes, because ~180 front offices × a full sweep is too slow for a
- * finale on a phone: pass 1 ranks every (owner, ballpark) pair on the two
- * budget-INDEPENDENT probes (λ = 0 and λ = −1, one DP shared by both orderings
- * of a card pair, since only the cap differs); pass 2 runs the full sweep and
+ * finale on a phone: pass 1 ranks every (owner, ballpark) pair on a fixed
+ * budget-INDEPENDENT λ grid (one set of DP solves shared by both orderings of
+ * a card pair, since only the cap differs; PROBE_LAMBDAS below says why the
+ * grid is mostly negative); pass 2 runs the full sweep and
  * the bisection on the best few; pass 3 tries the Double Play card on the best
  * few of those. Passes 2 and 3 are shortlist heuristics — they can only raise
  * the answer, and every club they consider is legal and scored exactly, so the
@@ -273,13 +274,24 @@ const MGR_STRIDE = STRIDE[MGR_TYPE]; // 144
 const MAX_NODES = 2000;
 
 /** (owner, ballpark) pairs that get the full λ bisection after the cheap
- * two-λ pass ranks them. Every pair is still solved and scored exactly at
- * λ = 20/budget and λ = −1; this only bounds the extra refinement. */
-const REFINE_PAIRS = 8;
-/** Front offices that also get the ✌️ Double Play pass. The doubled card is
- * worth a few points, so a pair it could lift past the leader is already near
- * the top of the pass-1 ranking. */
-const DOUBLE_PAIRS = 2;
+ * grid pass ranks them. Every pair is still solved and scored exactly at
+ * every PROBE_LAMBDAS rung; this only bounds the extra refinement.
+ *
+ * Both shortlist sizes were set against an ORACLE (per-pair fixed-budget
+ * solves over pool-minus-office, 60 seeded 12-card shipped pools,
+ * 2026-08-10): unbounded refine+double closes every gap, so all residual
+ * ceiling error is shortlist coverage. At 24/32 the residual is 10/60 pools
+ * short of the oracle, mean 0.9 and max 1.9 points — the honesty bar for
+ * OUTSCOUTED, whose false-positive window is exactly this gap. The old 8/2
+ * cut measured mean 1.8, max 5.7 on the same pools. Cost: the finale solve
+ * runs ~0.35s in node (~1s phone), overlapped by the finale's own staged
+ * reveal, and pass 3 is the bulk of it (DOUBLE_PAIRS × pool-size sweeps). */
+const REFINE_PAIRS = 24;
+/** Front offices that also get the ✌️ Double Play pass, taken from the
+ * POST-refine ranking (the resort below) — the doubled card's winner is
+ * often a pair the plain solve ranks twenty deep, which is why this list
+ * runs past the refine list's own knee (oracle numbers above). */
+const DOUBLE_PAIRS = 32;
 /** λ bisection steps between "spend everything" and "spend nothing" when the
  * under-cap solve overshoots the cap. Each step is one more DP over ~12 cards;
  * 6 lands within ~1.5% of the crossing. */
@@ -868,7 +880,18 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
   // pool may supply two items. Modeled by handing the DP a second copy of that
   // card: the one-season-per-human rule then falls out of the machinery that
   // already exists, since the two copies carry the same B-R ids.
-  const doubled = (x: number): Dp => new Dp([...items, items[x]]);
+  // Memoized per card: pass 3 asks for the same doubled DP once per PAIR on
+  // its shortlist, and a Dp carries ~30 preallocated per-card state arrays —
+  // rebuilding one per (pair, card) was pure allocator churn.
+  const dupDps = new Map<number, Dp>();
+  const doubled = (x: number): Dp => {
+    let d = dupDps.get(x);
+    if (d === undefined) {
+      d = new Dp([...items, items[x]]);
+      dupDps.set(x, d);
+    }
+    return d;
+  };
 
   // Candidate front offices. Under a fixed bank there is none and the budget is
   // a constant; otherwise every ordered (owner card, ballpark card) pair is a
@@ -915,11 +938,30 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
   // ever written from inside `note`, and control-flow analysis at the return
   // still holds it to its `null` initializer.
   const underTotal = (): number | null => (underBudget === null ? null : underBudget.total);
-  // Pass 1 ranks the front offices on the two probes that do not depend on the
-  // budget at all — the plain best-players club (λ = 0) and the thriftiest one
-  // (λ = −1). Both come out of the same DP for the two orderings of a card
-  // pair, since only the cap differs between "A owns, B's park" and the
-  // reverse, so one solve serves two candidates.
+  // Pass 1 ranks the front offices on a fixed λ grid, every probe shared by
+  // the two orderings of a card pair through one cached DP (only the cap
+  // differs between "A owns, B's park" and the reverse) and every club scored
+  // EXACTLY under each ordering's own budget. The endpoints alone — the plain
+  // best-players club (λ = 0) and the thriftiest one (λ = −1) — are not a
+  // ranking: a rich owner's winner lives BETWEEN them, spending up toward his
+  // cap, and at the endpoints he only ever shows as the λ = 0 club taxed for
+  // buying the whole shop or the λ = −1 club that forfeits the bonus, so he
+  // loses the shortlist to a $57M owner whose cheap club maxes its little cap
+  // and the sweep that would find his real club never runs. The rungs between
+  // the endpoints are a geometric net over the NEGATIVE slopes, because that
+  // is where the mid-priced frontier lives: at any λ > 0 the DP rewards every
+  // extra dollar and re-buys the whole shop, so a "spend $160M of a $170M
+  // cap" club only falls out of λ ∈ (−1, 0) — the same region pass 2's
+  // bisection walks — and the net brackets any pair's crossing slope within a
+  // factor of two. No positive rungs: λ > 0 only ever re-buys the shop with a
+  // bonus-flavored tiebreak, and the one regime that needs it — a cheap pool
+  // under a rich cap, worth ≤ the 10-point bonus — is pass 2's exact
+  // λ = 20/budget probe, which every shortlisted pair still gets. Measured on
+  // a real season (seed 3801105927, a $164M owner among $57M ones): the
+  // ceiling read 124.9 from the endpoints alone and 150.1 with the rungs — a
+  // 25-point hole in the yardstick the finale prints, hiding that the season
+  // had genuinely beaten the ceiling.
+  const PROBE_LAMBDAS = [0, -LUXURY_TAX_PER_M, -0.5, -0.25, -0.12, -0.06];
   const seenSkip = new Map<string, { clubs: Chosen[][]; manager: boolean }>();
   for (const pair of pairs) {
     const key = pair.skip.length === 2 ? `${Math.min(...pair.skip)}|${Math.max(...pair.skip)}` : "-";
@@ -934,11 +976,27 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
         forceManager = false;
         plain = dp.solve(0, pair.skip, null, forceManager);
       }
-      const thrifty = dp.solve(-LUXURY_TAX_PER_M, pair.skip, null, forceManager);
-      const clubs = [plain, thrifty]
-        .filter((c): c is Chosen[] => c !== null)
-        .map((c) => repair(c, dp.items, 0));
-      probe = { clubs, manager: forceManager };
+      const clubs = [
+        plain,
+        ...PROBE_LAMBDAS.slice(1).map((l) => dp.solve(l, pair.skip, null, forceManager)),
+      ]
+        .map((c, k) => (c === null ? null : repair(c, dp.items, PROBE_LAMBDAS[k])))
+        .filter((c): c is Chosen[] => c !== null);
+      // Neighboring rungs often return the SAME club (a lumpy frontier holds
+      // one club across a wide λ span); dedup here so each unique club is
+      // exact-scored once per ordering, not once per rung.
+      const sig = (c: Chosen[]): string =>
+        c.map((x) => `${x.card}:${x.item.type}:${x.item.playerId ?? "m"}`).join("|");
+      const seen = new Set<string>();
+      probe = {
+        clubs: clubs.filter((c) => {
+          const s = sig(c);
+          if (seen.has(s)) return false;
+          seen.add(s);
+          return true;
+        }),
+        manager: forceManager,
+      };
       seenSkip.set(key, probe);
     }
     if (probe.clubs.length === 0) continue;
@@ -968,10 +1026,18 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
     if (better(refined.best, s.best)) s.best = refined.best;
     note(refined.bestUnder);
   }
-  // Pass 3 — one card doubled, on the front offices pass 2 left on top. The
-  // doubled card may be the owner's or the ballpark's: spending both of a
-  // Double Play's picks on one spin's card is exactly what the powerup allows.
-  for (const { s } of order.slice(0, DOUBLE_PAIRS)) {
+  // Pass 3 — one card doubled, on the front offices pass 2 left on top:
+  // RE-SORTED on the refined totals, because refinement reshuffles the top
+  // (a pair whose winner needed the bisection can climb ten places), and the
+  // doubled card is worth enough that handing this pass the PRE-refine order
+  // measurably leaked ceiling (the oracle harness caught it). The doubled
+  // card may be the owner's or the ballpark's: spending both of a Double
+  // Play's picks on one spin's card is exactly what the powerup allows.
+  const orderRefined = [...order].sort(
+    (a, b) =>
+      b.s.best.seats - a.s.best.seats || b.s.best.total - a.s.best.total || a.i - b.i,
+  );
+  for (const { s } of orderRefined.slice(0, DOUBLE_PAIRS)) {
     for (let x = 0; x < pool.length; x++) {
       // Never the off-reel card: ⭐ Prime Time buys one named season, and
       // doubling it would invent a second pick nobody was ever offered.
