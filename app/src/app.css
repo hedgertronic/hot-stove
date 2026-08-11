@@ -389,6 +389,19 @@
   --orange-8: #fd7e14;
   --teal-2: #1c4534;
   --pink-2: #552a34;
+  /* The meter rungs. Day meters are a QUIET fill under a loud cut edge —
+     fill ~2:1 against the track (green 1.97, gold 1.58, orange 2.20), stripe
+     one visible step above it (~1.2:1), and the -8 ring carrying the signal.
+     The day -5/-6 hexes on the night card invert that anatomy (green fill
+     8.19:1 vs its own ring's 5.98) — the wash outshines the edge. These are
+     the night -8 lines mixed into --card at the ratio that lands each fill
+     back on its day register: green 40/50%, gold 33/43%, orange 42/52%. */
+  --green-5: #2a5a2e;
+  --green-6: #2c6833;
+  --gold-5: #594213;
+  --gold-6: #6a4d12;
+  --orange-5: #7e4717;
+  --orange-6: #945016;
   /* The warm gray pair, at night weight. */
   --gray-bg: #2b2721;
   --gray-ink: #6f695c;
@@ -407,6 +420,30 @@
   --scrim: rgba(8, 6, 4, 0.62);
   --gold-ink: #24221c;
   color-scheme: dark;
+}
+
+/* ---------- prefers-contrast: more ----------
+   The one OS accessibility preference the tokens don't already satisfy.
+   Everything else is handled where it belongs: reduced motion by the global
+   animation kill below, color scheme by the theme attribute, zoom by never
+   blocking it. What remains is the game's deliberately faint register —
+   --gray-ink, the "empty seat" voice, tuned to ~2.8:1 (day) / 3:1 (night)
+   BECAUSE faintness is what it means. A player who asks the OS for more
+   contrast is saying that trade reads wrong to them, so the empty voice
+   moves up to --muted (5.6:1 / 6.1:1) — still a step under filled ink, so
+   empty-vs-filled survives, just louder. The 32% disabled-tile fade rises to
+   the 55% floor .pp.off already establishes for "present but not on offer".
+   Both selectors are listed because the dark block's higher specificity
+   would otherwise hold its own --gray-ink over a bare :root override;
+   var(--muted) then resolves per theme on its own. */
+@media (prefers-contrast: more) {
+  :root,
+  :root[data-theme="dark"] {
+    --gray-ink: var(--muted);
+  }
+  .pickopt:disabled {
+    opacity: 0.55;
+  }
 }
 
 * {

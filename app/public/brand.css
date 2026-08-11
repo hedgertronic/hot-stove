@@ -86,14 +86,16 @@
      the right. The ink fits the viewBox with margin; only the AA spills. */
   overflow: visible;
   /* The viewBox is cropped to the INK (Logo.svelte states the bbox), so the
-     box bottom IS the flame's ink bottom and one term seats it: -0.015em,
-     the measured depth Nunito 800's own round glyphs (O, S) dip below the
-     baseline — flame bottom sits on the exact row the O's overshoot lands
+     box bottom IS the flame's ink bottom and one term seats it. Nunito 800's
+     round glyphs (O, S) overshoot the baseline by a measured 0.015em; the
+     seat runs 0.002em past that so subpixel rounding can only ever land the
+     flame's bottom ON or BELOW the O's overshoot row, never above it — a
+     flame that floats reads wrong, a flame half a device pixel deep does not
      (owner call 2026-08-11, replacing an earlier optical drop that was
      tuned against a viewBox carrying 3.4% air below the stroke). The
      dimensions are the same ink size the 0.9em uncropped box painted:
      75.5/81 × 0.9em tall, 55.49/61 × 0.678em wide. */
-  bottom: -0.015em;
+  bottom: -0.017em;
   height: 0.839em;
   width: 0.6167em;
   transform: translateX(-50%);

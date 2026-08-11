@@ -217,6 +217,13 @@
   .pp.spent:active {
     transform: none;
   }
+  /* Under the OS's more-contrast ask, a spent pill rises to the 55% floor
+     .pp.off sets — app.css's prefers-contrast block states the rationale. */
+  @media (prefers-contrast: more) {
+    .pp.spent {
+      opacity: 0.55;
+    }
+  }
   .pp.off {
     opacity: 0.55;
     cursor: default;
