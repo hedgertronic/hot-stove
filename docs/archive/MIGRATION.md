@@ -2,7 +2,8 @@
 
 The migration is live at `https://hedgertronic.com/games/hot-stove/` behind
 Cloudflare Workers. This file records the completed flip and the two external
-follow-ups still outstanding. Current release work belongs in `LAUNCH.md`.
+follow-ups still outstanding. Historical, like everything in this folder;
+release work today is CI on push to main (see the repo README).
 
 ## In the hedgertronic.github.io repo, NOW (no migration needed)
 

@@ -1,4 +1,4 @@
-/** Mode selection persists across visits (BUILD.md: localStorage
+/** Mode selection persists across visits (docs/archive/BUILD.md: localStorage
  * `hotstove.settings`), as do the two corner-button attention cues
  * (`hotstove.cues`). */
 import {

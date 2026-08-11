@@ -30,12 +30,18 @@ describe("the tour speaks per bank", () => {
     expect(src).toContain("Hire an owner, buy a stadium, and hire a manager.");
   });
 
+  it("stop 3 cites the skipper's record only where Eye Test shows one", () => {
+    expect(src).toContain("Managers add wins, and their records are hidden in this mode.");
+    expect(src).toContain("managers add wins. Their records are hidden in this mode.");
+  });
+
   it("stop 3's existence gate matches its copy: skipper row when fixed, owner/stadium row when classic", () => {
     expect(src).toContain('fixed ? ".special .srow.skip" : ".special .srow:not(.skip)"');
   });
 
   it("stop 4 branches on Eye Test: the hidden signals score, and the copy says so", () => {
-    expect(src).toContain("score points but are hidden in this mode.");
+    // Rings are NOT on the hidden list: the banner pedigree shows in every mode.
+    expect(src).toContain("WAR and awards are hidden in this mode.");
     expect(src).toContain("Higher WAR players contribute more points, as do awards and rings.");
   });
 

@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     # Docs and design mocks never reach dist/ — skip the run for them.
-    paths-ignore: ["**.md", "design/**"]
+    paths-ignore: ["**.md", "design/**", "docs/**"]
   workflow_dispatch:
 
 permissions:

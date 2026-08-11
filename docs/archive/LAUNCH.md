@@ -1,6 +1,6 @@
 # Hot Stove launch checklist
 
-This is the release source of truth. Check an item only after it has been verified on the current production candidate. Historical notes live in `DEVLOG.md`; migration details live in `MIGRATION.md`.
+**Historical.** This was the launch-era release checklist, completed for the 2026-08 launch and archived; the deploy gate today is CI (`npm run test:full` + the ink probe) on every push to main. Migration details live in `MIGRATION.md` beside this file.
 
 ## Brand and share assets
 

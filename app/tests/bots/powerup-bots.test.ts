@@ -8,12 +8,16 @@
  * Optional ablations (BOT_ABLATIONS=1): powerups minus one, per powerup —
  * each powerup's marginal contribution in context.
  *
- * Run:      npx vitest run tests/bots/powerup-bots.test.ts
+ * Run:      BOT_HARNESS=1 npx vitest run tests/bots/powerup-bots.test.ts
+ *            (or `npm run test:full`). Without the flag, vite.config
+ *            excludes this file and vitest exits green having run NOTHING
+ *            — `npm test` is the fast suite and never plays the bots.
  * Tunables: BOT_GAMES=<n> (default 400), BOT_ABLATIONS=1 to add the six
  * ablation bots (research report only — no assertion reads them, the same
  * opt-in rule the study*.test.ts files live under; without them the run is
- * 1,200 games instead of 3,600, which is what keeps `npm test` affordable
- * now that every finale prices the dream solver's wider shortlists).
+ * 1,200 games instead of 3,600, which is what keeps `npm run test:full`
+ * affordable now that every finale prices the dream solver's wider
+ * shortlists).
  * Games are seeded; the same seed list is shared across bots for pairing
  * (the engine's RNG walk advances only inside spin(), so paired games see
  * the same card sequence until their spin counts diverge). */

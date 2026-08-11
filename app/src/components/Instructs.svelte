@@ -55,10 +55,10 @@
    * not exist — there the front-office stop teaches the manager alone
    * (owner call, 2026-08-11; it used to drop wholesale, and a fixed-cap
    * first-timer finished the tour never hearing the manager existed).
-   * Stop 4 speaks per difficulty the same way: Eye Test hides WAR and
-   * awards on the card, so the Box Score copy would cite numbers the
-   * player cannot see; the Eye Test line teaches that they score unseen.
-   * Built as a call at mount (not a module const): three
+   * Stops 3 and 4 speak per difficulty the same way: Eye Test hides WAR,
+   * awards, and the skipper's record, so the Box Score copy would cite
+   * numbers the player cannot see; the Eye Test lines teach that they
+   * score unseen. Built as a call at mount (not a module const): three
    * stops' copy reads the props, and the tour mounts once per game, after
    * the bank and difficulty are known. */
   const stopsFor = (fixed: boolean, eye: boolean): Stop[] => [
@@ -84,15 +84,26 @@
        * dropped only when the landed card carries no skipper at all. */
       requires: fixed ? ".special .srow.skip" : ".special .srow:not(.skip)",
       title: "THE FRONT OFFICE",
+      /* Eye Test empties the skipper's record and win value (SpecialRows
+       * withholds both), so the "better records" clause only speaks where
+       * the record shows. Fans and the payroll multiplier show in every
+       * mode, so the stadium clause never branches. */
       copy: fixed
-        ? "Hire a manager. Managers with better records add more wins."
-        : "Hire an owner, buy a stadium, and hire a manager. Stadiums with more fans stretch your payroll, and managers with better records add more wins.",
+        ? eye
+          ? "Hire a manager. Managers add wins, and their records are hidden in this mode."
+          : "Hire a manager. Managers with better records add more wins."
+        : eye
+          ? "Hire an owner, buy a stadium, and hire a manager. Stadiums with more fans stretch your payroll, and managers add wins. Their records are hidden in this mode."
+          : "Hire an owner, buy a stadium, and hire a manager. Stadiums with more fans stretch your payroll, and managers with better records add more wins.",
     },
     {
       selector: ".plist",
       title: "SIGNING A PLAYER",
+      /* Rings stay off the hidden list: the banner's 💍/🚩 pedigree shows
+       * in every mode (SpinBanner), so calling rings hidden would be false
+       * on the player's own screen. */
       copy: eye
-        ? "Sign players at the value of their contract. WAR, awards, and rings score points but are hidden in this mode."
+        ? "Sign players at the value of their contract. WAR, awards, and rings score points. WAR and awards are hidden in this mode."
         : "Sign players at the value of their contract. Higher WAR players contribute more points, as do awards and rings.",
     },
     {

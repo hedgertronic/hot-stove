@@ -1,4 +1,4 @@
-/** Game state machine. Implements SPEC.md's rules, DECISIONS.md's gap fills.
+/** Game state machine. Implements the spec's rules (docs/archive/SPEC.md), DECISIONS.md's gap fills.
  * All gameplay randomness flows through `this.rng` (one mulberry32 stream per
  * seed). The displayed record is deterministic (rounded expected wins). */
 import { track } from "./analytics";

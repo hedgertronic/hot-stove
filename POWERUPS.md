@@ -5,13 +5,14 @@ worth burning it. Numbers from the bot harness (`app/tests/bots/harness.ts`,
 budget-aware greedy core) playing the real engine on paired seeds — same card
 sequence with and without the powerup, so every delta is causal, not luck.
 Headline numbers: 600 games/bot, classic bank, 2026-08-08. A 400-game run
-reproduces every number within ±0.6 — and `app/tests/bots/last-run.txt`
-holds whichever run happened most recently, since every `npm test` rewrites
-it at the 400-game default.
+reproduces every number within ±0.6. `npm run test:full` replays the
+harness at the 400-game default and writes its report to
+`app/tests/bots/last-run.txt` (untracked); the committed snapshot lives at
+`docs/research/bot-studies/powerup-bots.txt`.
 
 Rerun anytime:
 
-    cd app && BOT_GAMES=600 npx vitest run tests/bots/powerup-bots.test.ts
+    cd app && BOT_HARNESS=1 BOT_GAMES=600 npx vitest run tests/bots/powerup-bots.test.ts
 
 ## Marginal value per powerup
 
@@ -53,7 +54,7 @@ future disaster card, and a use spends that insurance.
 
 Same paired-seed ablations, judged on the perfect-season rate (total ≥ 161.5,
 the stamp's 162–0 line) instead of the mean. 5,000 games/bot
-(`app/tests/bots/last-run-study22.txt`); perfects are ~0.5% events, so treat
+(`docs/research/bot-studies/study22-perfection-powerups.txt`); perfects are ~0.5% events, so treat
 single digits as directional.
 
 | Kit                | Perfects (of 5,000) | Paired flips vs full kit (lost/found) |
@@ -88,7 +89,7 @@ The +3.0 bar was tuned for MEAN score, and the natural objection is that a
 player who only doubles up on genuine twin jackpots — a manager AND a player
 both well over par — should beat the ablation. Study 23 sweeps the bar with
 the full kit on the same 5,000 paired seeds
-(`app/tests/bots/last-run-study23.txt`); the bot's candidate values are
+(`docs/research/bot-studies/study23-dp-bar.txt`); the bot's candidate values are
 already par-adjusted (each pick's net is measured over its seat's par, the
 manager's over manager EV), so "both above par by X" is exactly what the bar
 means.
