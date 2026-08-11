@@ -3,9 +3,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-/* Round 31's visual contracts, pinned at the source — same register as
- * round30-polish: jsdom computes no layout, so each pin states the invariant
- * the CSS carries. */
+/* Interaction-state contracts — press dips, the armed orange voice, picker
+ * cancels, the intersection rule — pinned at the source, same register as
+ * css-pins-surfaces: jsdom computes no layout, so each pin states the
+ * invariant the CSS carries. */
 
 const read = (f: string) =>
   fs.readFileSync(

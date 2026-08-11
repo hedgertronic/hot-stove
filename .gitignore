@@ -4,6 +4,10 @@ build/raw/
 *.pyc
 DEVLOG.md
 data-backup-pre-trim.tar.gz
+
+# Bot-study console dumps, rewritten on every BOT_STUDIES run; the durable
+# reports live in docs/research/bot-studies/.
+app/tests/bots/last-run*.txt
 .wrangler/
 
 # Local approval render; `--final` writes the committed share asset instead.

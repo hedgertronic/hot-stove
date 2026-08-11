@@ -1,6 +1,6 @@
-/** Regression suite for the round-3 design items.
+/** Markup contracts for the market rows, manager tile, and roster seats.
  *
- * Items covered here are testable via SSR string inspection (no mounting):
+ * Everything here is testable via SSR string inspection (no mounting):
  *   1. Manager tile: white card surface; wins chip is the only color carrier.
  *   2. Column order: WAR chip is the rightmost element in a player market row.
  *   3. WBC medal order: medal glyph follows award chips, mirroring the Finale.
@@ -39,9 +39,9 @@ function ssr(component: Component<any>, props: Record<string, unknown>): string 
   return render(component, { props }).body;
 }
 
-// ── item 1: manager tile is white (no red identity tint) ─────────────────────
+// ── manager tile is white (no red identity tint) ─────────────────────
 
-describe("item 1 — manager tile: wins chip is the color carrier", () => {
+describe("manager tile: wins chip is the color carrier", () => {
   function specialBody(config: GameConfig = CLASSIC): string {
     const game = forgeGame(config, (g) => {
       g.card = mkCard(); // SEA 2001 default: 116–46 Lou Piniella (elite wins)
@@ -88,9 +88,9 @@ describe("item 1 — manager tile: wins chip is the color carrier", () => {
   });
 });
 
-// ── item 6: stadium row uses orange, not sky/blue ────────────────────────────
+// ── stadium row uses orange, not sky/blue ────────────────────────────
 
-describe("item 6 — stadium row: orange identity hue, not sky/blue", () => {
+describe("stadium row: orange identity hue, not sky/blue", () => {
   function specialBody(): string {
     const game = forgeGame(CLASSIC, (g) => {
       g.card = mkCard();
@@ -117,9 +117,9 @@ describe("item 6 — stadium row: orange identity hue, not sky/blue", () => {
   });
 });
 
-// ── item 2: WAR chip is the rightmost element in a player market row ──────────
+// ── WAR chip is the rightmost element in a player market row ──────────
 
-describe("item 2 — column order: salary inboard, WAR chip far right", () => {
+describe("column order: salary inboard, WAR chip far right", () => {
   function playerBody(game: Game): string {
     return ssr(PlayerList, { game, confirmKey: null, setConfirm: () => {} });
   }
@@ -160,9 +160,9 @@ describe("item 2 — column order: salary inboard, WAR chip far right", () => {
   });
 });
 
-// ── item 3: WBC medal appears after award chips ───────────────────────────────
+// ── WBC medal appears after award chips ───────────────────────────────
 
-describe("item 3 — WBC medal order: award chips → WBC medal", () => {
+describe("WBC medal order: award chips → WBC medal", () => {
   it("the WBC glyph renders after .badges when the player has both", () => {
     const game = forgeGame(CLASSIC, (g) => {
       g.card = mkCard({
@@ -221,9 +221,9 @@ describe("item 3 — WBC medal order: award chips → WBC medal", () => {
   });
 });
 
-// ── item 4: mobile seat structure ─────────────────────────────────────────────
+// ── mobile seat structure ─────────────────────────────────────────────
 
-describe("item 4 — mobile seat: season line stays in DOM, CSS hides it", () => {
+describe("mobile seat: season line stays in DOM, CSS hides it", () => {
   it("a filled player cell has an <i> element in the rendered markup", () => {
     // The season line is `display: none` on phone via CSS, not removed from
     // the DOM — the markup keeps the <i> so the 760px media query can restore
@@ -259,9 +259,9 @@ describe("item 4 — mobile seat: season line stays in DOM, CSS hides it", () =>
   });
 });
 
-// ── item 5: manager tile three-row structure ──────────────────────────────────
+// ── manager tile three-row structure ──────────────────────────────────
 
-describe("item 5 — manager tile: upright three-row layout, no rotation", () => {
+describe("manager tile: upright three-row layout, no rotation", () => {
   const mgrProps = {
     chair: "mgr" as const,
     label: "MGR",
@@ -323,9 +323,9 @@ describe("item 5 — manager tile: upright three-row layout, no rotation", () =>
   });
 });
 
-// ── item 7: TeamPicker column count tracks the widest division ────────────────
+// ── TeamPicker column count tracks the widest division ────────────────
 
-describe("item 7 — relocate picker: column count from widest division", () => {
+describe("relocate picker: column count from widest division", () => {
   const colors = { franchises: {} };
 
   it("renders 5 columns for a standard 5-team-division season (2001)", () => {

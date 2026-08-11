@@ -25,7 +25,7 @@
    *
    * Each mark rides in a nested <svg> (equal-ink 15.077 boxes, per-glyph
    * recentering origins — see the round-32 history in
-   * tests/round32-polish.test.ts). Nested viewports are mapped by SVG's own
+   * tests/css-pins-chrome.test.ts). Nested viewports are mapped by SVG's own
    * exact arithmetic, not CSS layout, so the whole-pixel-seat gymnastics
    * those origins performed against flex rounding now simply preserve the
    * tuned ink scale.
@@ -45,7 +45,7 @@
    * one. If the whole set ever needs to ride a hair high or low, it happens
    * here, once, for every pill on every engine — never as a per-glyph or
    * per-engine constant (that road was walked and reverted; the doctrine is
-   * pinned in round32-polish.test.ts). */
+   * pinned in css-pins-chrome.test.ts). */
   const MARK_DY = 0;
 </script>
 

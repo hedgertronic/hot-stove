@@ -18,7 +18,8 @@ A baseball roster-drafting game. Each spin deals a random real team-season (1985
 cd app
 npm ci            # install (lockfile-exact; ignore-scripts enforced by .npmrc)
 npm run dev       # dev server at localhost:5173
-npm test          # vitest — scoring parity, engine, mode, and best-roster suites
+npm test          # fast suite (~25s) — scoring parity, engine, modes, UI contracts
+npm run test:full # + the bot harness regression (~10 min); this is what gates a deploy
 npm run check     # svelte-check type pass
 npm run build     # production bundle → dist/
 ```
@@ -43,10 +44,10 @@ The social-card image (`app/public/og-image.png`) is committed, not built in CI;
 
 ## Docs
 
-- **LAUNCH.md** — authoritative launch checklist and release verification.
-- **DECISIONS.md** — the evolved rules: every call SPEC left undefined or the build revised, with rationale. Where docs disagree, this file and the shipped app are the authority.
-- **SPEC.md** — the original game-rules spec (historical; see its header note for what has drifted).
-- **BUILD.md** — the original implementation plan (historical; same caveat).
+- **DECISIONS.md** — the evolved rules: every call the original spec left undefined or the build revised, with rationale. Where docs disagree, this file and the shipped app are the authority.
+- **BADGES.md**, **POWERUPS.md** — living reference for the badge table and the six powerups.
+- **docs/archive/** — the original spec (`SPEC.md`), implementation plan (`BUILD.md`), launch checklist (`LAUNCH.md`), and migration log (`MIGRATION.md`). Historical; each carries its own header note.
+- **docs/research/** — bot-study reports from the balance harness (see its README for how to regenerate).
 - **DEVLOG.md** — running working notes; local only, deliberately untracked.
 
 ## Data & attribution

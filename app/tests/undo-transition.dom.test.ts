@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-/** DOM contract tests for round-3 design items that require mounting.
+/** UNDO? pill width-transition contract, tested against a mounted component.
  *
- * Item 6 — UNDO? pill width transition contract.
  *   The pill's armed state MUST be controlled by the CSS class `.undo.armed`,
  *   not by an inline `style` attribute. `width: auto` cannot be CSS-transitioned;
  *   `width: 62px` in a class CAN be. The test asserts the class contract that
@@ -96,9 +95,9 @@ function open(game: Game | null, pushed = false) {
 beforeEach(() => localStorage.clear());
 afterEach(() => document.body.replaceChildren());
 
-// ── item 6: UNDO? pill — CSS transition contract ──────────────────────────────
+// ── UNDO? pill — CSS transition contract ──────────────────────────────
 
-describe("item 6 — UNDO? pill transition contract", () => {
+describe("UNDO? pill transition contract", () => {
   it("the pill rests with no inline style attribute (width is CSS-only)", () => {
     // An inline `style` on the button would take specificity precedence over
     // any CSS class rule, including `.undo.armed { width: 62px }`. No inline

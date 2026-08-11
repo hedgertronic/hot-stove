@@ -3,9 +3,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-/* Round 30's visual contracts, pinned at the source. jsdom computes no layout
- * and resolves no cascade, so each pin states the invariant the CSS carries —
- * which token pair, which order, which tier — rather than a rendered pixel. */
+/* Surface-dress contracts — which token pair each surface wears (front
+ * office hues, manager gray, help-sheet chips, seed capsule, powerup
+ * lattice tiers, relocate grid) — pinned at the source. jsdom computes no
+ * layout and resolves no cascade, so each pin states the invariant the CSS
+ * carries — which token pair, which order, which tier — rather than a
+ * rendered pixel. */
 
 const read = (f: string) =>
   fs.readFileSync(

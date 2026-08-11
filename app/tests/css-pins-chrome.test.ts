@@ -1,7 +1,9 @@
-/** Round 32 — source-text pins for the release-polish pass.
+/** Chrome and accessibility contracts — chip cap-centering, the one-svg
+ * corner pill, sheet modality, accessible names — pinned at the source.
  *
- * Same idiom as rounds 30/31: anchored substring/regex pins on the shipped
- * source, so a refactor that silently drops a decision fails loud and cheap.
+ * Same idiom as the other css-pins files: anchored substring/regex pins on
+ * the shipped source, so a refactor that silently drops a decision fails
+ * loud and cheap.
  */
 import fs from "node:fs";
 import path from "node:path";
