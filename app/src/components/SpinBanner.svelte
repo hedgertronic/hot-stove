@@ -190,9 +190,12 @@
            inline style outranks every sheet rule, and the night theme needs
            to re-derive this color (see .tname below). -->
       <div class="tname" bind:this={tmEl} style:--accent={cardView.color}>{cardView.tm}</div>
-      <!-- Team pedigree shows in every mode: it's franchise history, not a stat
-           leak, and 💍/🚩 players score in Eye Test too. -->
-      {#if game.phase === "landed" && game.card}
+      <!-- Team pedigree rides the same gate as every other hardware glyph
+           (owner call, 2026-08-11): Eye Test hides 💍/🚩 here exactly as the
+           market rows, career sheet, and relocate/season-ticket pickers do,
+           so the banner can't out a card the rest of the board keeps quiet.
+           The finale reveals all pedigree in every mode. -->
+      {#if game.phase === "landed" && game.card && game.showAwards}
         {#if game.card.ws}<span class="pedigree" title="Won the World Series">💍</span>
         {:else if game.card.pen}<span class="pedigree" title="Won the pennant">🚩</span>{/if}
       {/if}

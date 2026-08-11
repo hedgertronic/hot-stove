@@ -40,8 +40,7 @@ describe("the tour speaks per bank", () => {
   });
 
   it("stop 4 branches on Eye Test: the hidden signals score, and the copy says so", () => {
-    // Rings are NOT on the hidden list: the banner pedigree shows in every mode.
-    expect(src).toContain("WAR and awards are hidden in this mode.");
+    expect(src).toContain("WAR, awards, and rings score points but are hidden in this mode.");
     expect(src).toContain("Higher WAR players contribute more points, as do awards and rings.");
   });
 

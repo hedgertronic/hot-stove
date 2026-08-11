@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   BLANK_CHECK_BUDGET_M,
@@ -101,6 +104,17 @@ describe("difficulty visibility gating", () => {
     const g = landedGame(card([]), { difficulty: "scout", bank: "classic" });
     expect([g.showWar, g.showCost, g.showAwards]).toEqual([false, true, false]);
     expect(g.scout).toBe(true);
+  });
+
+  it("the spin banner's team pedigree rides the showAwards gate", () => {
+    // Every hardware glyph in the game hides behind showAwards on Eye Test
+    // (market badges, career sheet, both pickers). The banner's 💍/🚩 is the
+    // one that historically didn't; this pin holds it on the same gate.
+    const src = fs.readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src/components/SpinBanner.svelte"),
+      "utf8",
+    );
+    expect(src).toContain('game.phase === "landed" && game.card && game.showAwards');
   });
 });
 

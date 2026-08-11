@@ -99,11 +99,8 @@
     {
       selector: ".plist",
       title: "SIGNING A PLAYER",
-      /* Rings stay off the hidden list: the banner's 💍/🚩 pedigree shows
-       * in every mode (SpinBanner), so calling rings hidden would be false
-       * on the player's own screen. */
       copy: eye
-        ? "Sign players at the value of their contract. WAR, awards, and rings score points. WAR and awards are hidden in this mode."
+        ? "Sign players at the value of their contract. WAR, awards, and rings score points but are hidden in this mode."
         : "Sign players at the value of their contract. Higher WAR players contribute more points, as do awards and rings.",
     },
     {
