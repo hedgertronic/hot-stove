@@ -40,7 +40,11 @@
     list?: { glyph: string; name: string; text: string }[];
   }
 
-  let { onclose, fixedCap = false }: { onclose: () => void; fixedCap?: boolean } = $props();
+  let {
+    onclose,
+    fixedCap = false,
+    eyeTest = false,
+  }: { onclose: () => void; fixedCap?: boolean; eyeTest?: boolean } = $props();
 
   /* Copy is the owner's verbatim (2026-08-10). What each stop teaches:
    * 1 the seats to fill, 2 the price-is-right payroll rule + the tax,
@@ -51,9 +55,13 @@
    * not exist — there the front-office stop teaches the manager alone
    * (owner call, 2026-08-11; it used to drop wholesale, and a fixed-cap
    * first-timer finished the tour never hearing the manager existed).
-   * Built as a call at mount (not a module const): two stops' copy reads
-   * the prop, and the tour mounts once per game, after the bank is known. */
-  const stopsFor = (fixed: boolean): Stop[] => [
+   * Stop 4 speaks per difficulty the same way: Eye Test hides WAR and
+   * awards on the card, so the Box Score copy would cite numbers the
+   * player cannot see; the Eye Test line teaches that they score unseen.
+   * Built as a call at mount (not a module const): three
+   * stops' copy reads the props, and the tour mounts once per game, after
+   * the bank and difficulty are known. */
+  const stopsFor = (fixed: boolean, eye: boolean): Stop[] => [
     {
       selector: ".railwrap",
       title: "YOUR SQUAD",
@@ -83,7 +91,9 @@
     {
       selector: ".plist",
       title: "SIGNING A PLAYER",
-      copy: "Sign players at the value of their contract. Higher WAR players contribute more points, as do awards and rings.",
+      copy: eye
+        ? "Sign players at the value of their contract. WAR, awards, and rings score points but are hidden in this mode."
+        : "Sign players at the value of their contract. Higher WAR players contribute more points, as do awards and rings.",
     },
     {
       selector: ".pprow",
@@ -285,7 +295,7 @@
    * cycle — Svelte kills it with effect_update_depth_exceeded. Mount runs
    * untracked, once, which is also the only cadence setup wants. */
   onMount(() => {
-    stops = stopsFor(fixedCap).filter(
+    stops = stopsFor(fixedCap, eyeTest).filter(
       (s) => document.querySelector(s.selector) && (!s.requires || document.querySelector(s.requires)),
     );
     if (stops.length === 0) {

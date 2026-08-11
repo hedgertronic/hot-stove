@@ -639,6 +639,7 @@
     {#if instructsOpen && game.phase === "landed" && game.card && !game.coldStove}
       <Instructs
         fixedCap={game.fixedCap}
+        eyeTest={!game.showWar}
         onclose={() => {
           instructsOpen = false;
           markTourSeen();

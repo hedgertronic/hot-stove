@@ -2,11 +2,12 @@
  *
  * The tour mounts once per first game and reads the live DOM, so its stop
  * table can't be exercised by SSR-string renders (nothing paints until
- * onMount measures the board). What CAN regress silently is the per-bank
+ * onMount measures the board). What CAN regress silently is the per-mode
  * branching: stop 2's payroll copy and stop 3's front-office copy + gate
- * both read the `fixedCap` prop, and a refactor that flattens either branch
- * re-teaches UI the fixed-cap banks don't render (owner/stadium tiles) or
- * silences the one it does (the manager). Same anchored-substring idiom as
+ * read the `fixedCap` prop, and stop 4's signing copy reads `eyeTest`. A
+ * refactor that flattens a branch re-teaches UI the fixed-cap banks don't
+ * render (owner/stadium tiles), silences the one it does (the manager), or
+ * cites numbers Eye Test hides. Same anchored-substring idiom as
  * the css-pins files: the pin states the decision, not a rendered pixel. */
 import fs from "node:fs";
 import path from "node:path";
@@ -31,6 +32,11 @@ describe("the tour speaks per bank", () => {
 
   it("stop 3's existence gate matches its copy: skipper row when fixed, owner/stadium row when classic", () => {
     expect(src).toContain('fixed ? ".special .srow.skip" : ".special .srow:not(.skip)"');
+  });
+
+  it("stop 4 branches on Eye Test: the hidden signals score, and the copy says so", () => {
+    expect(src).toContain("score points but are hidden in this mode.");
+    expect(src).toContain("Higher WAR players contribute more points, as do awards and rings.");
   });
 
   it("a stop whose selector or gate finds nothing is dropped, and an empty tour closes itself", () => {
