@@ -138,9 +138,23 @@
     // left to say.
     cancelReel();
     reelTimers.push(setTimeout(() => void land(), total));
+    // The flicker never repeats a franchise or a year back-to-back (owner
+    // call, 2026-08-11): a truly uniform pick pairs adjacent ticks on the
+    // same club about once every 30 pairs, which across ~12 pairs per reel
+    // put a visible same-club stutter on a third of all reels — real
+    // randomness reading as a glitch. Rerolled in the throwaway stream only;
+    // the landed card comes from the game stream and keeps its honest odds.
+    // Seeded from the card on screen, so the first tick can't echo it either.
+    // The retry cap is theater insurance: pool-sized streaks can't happen.
+    let prevYear = game.card?.year;
+    let prevFranchise = game.card?.franchise;
     const step = () => {
       if (game.phase !== "spinning" || !current()) return;
-      const e = cosmetic.pick(pool);
+      let e = cosmetic.pick(pool);
+      for (let tries = 0; (e.year === prevYear || e.franchise === prevFranchise) && tries < 12; tries++)
+        e = cosmetic.pick(pool);
+      prevYear = e.year;
+      prevFranchise = e.franchise;
       display = { yr: String(e.year), tm: e.name, color: accentFor(colors, e.franchise) };
       pulse(delay, "full");
       delay *= 1.16;

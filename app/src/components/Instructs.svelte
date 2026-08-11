@@ -44,13 +44,15 @@
 
   /* Copy is the owner's verbatim (2026-08-10). What each stop teaches:
    * 1 the seats to fill, 2 the price-is-right payroll rule + the tax,
-   * 3 the front office's three hires, 4 what a signing scores and costs,
-   * 5 one line per power-up. Stop 2 speaks per bank: Moneyball and Blank
-   * Check hand the payroll out (no owner, no stadium), so telling their
-   * first-time player to hire either would be teaching UI that does not
-   * exist — the same reason stop 3's `requires` drops it there. Built as a
-   * call at mount (not a module const): stop 2's copy reads the prop, and
-   * the tour mounts once per game, after the bank is known. */
+   * 3 the front office's hires, 4 what a signing scores and costs,
+   * 5 one line per power-up. Stops 2 and 3 speak per bank: Moneyball and
+   * Blank Check hand the payroll out (no owner, no stadium), so telling
+   * their first-time player to hire either would be teaching UI that does
+   * not exist — there the front-office stop teaches the manager alone
+   * (owner call, 2026-08-11; it used to drop wholesale, and a fixed-cap
+   * first-timer finished the tour never hearing the manager existed).
+   * Built as a call at mount (not a module const): two stops' copy reads
+   * the prop, and the tour mounts once per game, after the bank is known. */
   const stopsFor = (fixed: boolean): Stop[] => [
     {
       selector: ".railwrap",
@@ -66,14 +68,17 @@
     },
     {
       selector: ".special",
-      /* :not(.skip): the manager tile alone (a fixed-cap bank's whole front
-       * office — SpecialRows gates the owner and stadium off) must NOT admit
-       * this stop, whose copy tells the player to hire an owner and buy a
-       * stadium. An owner/stadium tile exists only on the classic bank, so
-       * the stop drops itself exactly where its copy would lie. */
-      requires: ".special .srow:not(.skip)",
+      /* The gate matches the copy: on the classic bank the stop needs an
+       * owner or stadium tile (`:not(.skip)`) because its copy sells all
+       * three hires; on a fixed-cap bank the front office is the manager
+       * tile alone (SpecialRows gates the owner and stadium off), so the
+       * copy shrinks to the manager and the gate to the skipper row —
+       * dropped only when the landed card carries no skipper at all. */
+      requires: fixed ? ".special .srow.skip" : ".special .srow:not(.skip)",
       title: "THE FRONT OFFICE",
-      copy: "Hire an owner, buy a stadium, and hire a manager. Stadiums with more fans stretch your payroll, and managers with better records add more wins.",
+      copy: fixed
+        ? "Hire a manager. Managers with better records add more wins."
+        : "Hire an owner, buy a stadium, and hire a manager. Stadiums with more fans stretch your payroll, and managers with better records add more wins.",
     },
     {
       selector: ".plist",
