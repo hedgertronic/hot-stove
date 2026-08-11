@@ -8,7 +8,7 @@
     noteNewBadges,
   } from "../lib/settings";
   import { track } from "../lib/analytics";
-  import { resolveTheme, toggleTheme } from "../lib/theme";
+  import { showingTheme, toggleTheme } from "../lib/theme";
   import CornerPillArt from "./CornerPillArt.svelte";
   import HelpModal from "./HelpModal.svelte";
   import TrophyModal from "./TrophyModal.svelte";
@@ -165,10 +165,27 @@
 
   /** The day/night pill. Local state mirrors the document attribute (both
    * are written by toggleTheme) so the face and the aria-label follow the
-   * tap without a re-render of anything else. Seeded from resolveTheme so a
+   * tap without a re-render of anything else. Seeded from showingTheme so a
    * remount — home↔game, or a second CornerButtons pair — always shows the
    * face the page is actually wearing. */
-  let theme = $state(resolveTheme());
+  let theme = $state(showingTheme());
+
+  /** The attribute has a writer this component can't hear: watchSystemTheme
+   * restamps it when the OS flips at sunset and no choice is stored. A pill
+   * still holding its mount-time snapshot would then advertise the wrong
+   * destination — and the next tap would do the opposite of its label. The
+   * observer makes the ATTRIBUTE the single source of truth: every writer
+   * (toggle, OS watcher, boot script) lands here and the face follows. */
+  $effect(() => {
+    const sync = () => (theme = showingTheme());
+    const mo = new MutationObserver(sync);
+    mo.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    sync();
+    return () => mo.disconnect();
+  });
 
   // stopPropagation for the pair's reason above.
   function tapTheme(e: MouseEvent) {

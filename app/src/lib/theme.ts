@@ -59,10 +59,26 @@ export function applyTheme(t: Theme): void {
     ?.setAttribute("content", GROUND[t]);
 }
 
+/** What the document is actually showing — the attribute, not a recompute.
+ * The two can differ from resolveTheme()'s answer when storage is denied
+ * (nothing persisted the last flip) or right after the OS watcher fired, and
+ * the toggle's promise is "flip whatever is SHOWING", so this is the value
+ * it must read. Falls back through resolveTheme when there is no stamped
+ * document to ask: a bare jsdom the boot script never touched, or no
+ * document at all (the node-env tests server-render Home, which mounts the
+ * toggle — the same absent-global tolerance stored()/resolveTheme carry). */
+export function showingTheme(): Theme {
+  if (typeof document !== "undefined") {
+    const t = document.documentElement.dataset.theme;
+    if (t === "dark" || t === "light") return t;
+  }
+  return resolveTheme();
+}
+
 /** Flip whatever is showing, persist the result as an explicit choice, and
  * return it (the toggle's aria-label reads the return). */
 export function toggleTheme(): Theme {
-  const next: Theme = resolveTheme() === "dark" ? "light" : "dark";
+  const next: Theme = showingTheme() === "dark" ? "light" : "dark";
   try {
     localStorage.setItem(THEME_KEY, next);
   } catch {

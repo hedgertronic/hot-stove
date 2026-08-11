@@ -10,18 +10,22 @@
          whose page painted day ground for 300ms would watch it flash on
          every load. Sets the attribute every dark rule keys off, plus the
          theme-color meta (the hexes are app.css's two --ground values —
-         change together, here and in theme.ts). try/catch: storage access
-         can throw (private windows with storage disabled), and a page that
-         cannot read a preference should paint the OS default, not die. -->
+         change together, here and in theme.ts). The try guards ONLY the
+         storage read: access can throw (private windows with storage
+         disabled), and a page that cannot read a preference must still fall
+         through to matchMedia and paint the OS default — a try around the
+         whole script would skip that fallback and leave a dark-OS player
+         flashing the light card. -->
     <script>
+      var hst = null;
       try {
-        var hst = localStorage.getItem("hotstove.theme");
-        if (hst !== "dark" && hst !== "light")
-          hst = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-        document.documentElement.dataset.theme = hst;
-        if (hst === "dark")
-          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#171410");
+        hst = localStorage.getItem("hotstove.theme");
       } catch (e) {}
+      if (hst !== "dark" && hst !== "light")
+        hst = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = hst;
+      if (hst === "dark")
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", "#171410");
     </script>
     <!-- The canvas color before the stylesheet lands: without it the page
          flashes UA white until app.css's --ground applies. Same hex as

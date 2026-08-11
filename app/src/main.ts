@@ -11,7 +11,12 @@ import { applyTheme, resolveTheme, watchSystemTheme } from "./lib/theme";
 // (the inline script sets only the attribute), and from here on the OS
 // setting is followed live while no explicit choice is stored.
 applyTheme(resolveTheme());
-watchSystemTheme();
+// …except on the dev-only OG route (App.svelte gates it the same way): the
+// share card is a LIGHT artifact (OgPreview pins the attribute), and a live
+// OS watcher could restamp it dark mid-capture on a machine with no stored
+// choice. The route renders one frozen frame; it has no use for a live follow.
+if (!(import.meta.env.DEV && new URLSearchParams(location.search).has("og-preview")))
+  watchSystemTheme();
 
 // Windows ships no country-flag glyphs: Chrome and Edge there draw a
 // regional-indicator pair (🇺🇸) as two letter glyphs out of Segoe UI Emoji, so

@@ -34,6 +34,18 @@ describe("shared brand assets", () => {
     expect(inlined).toBe(master);
   });
 
+  it("carries the NIGHT O-boiler as the day URI with ink fills at cream", () => {
+    // The dark lockup's O is the same art with the five #24221c fills swapped
+    // to the night ink #ede8da — one substitution, no geometry of its own to
+    // drift. Pinned as exactly that derivation so a boiler redraw that updates
+    // the day URI but forgets the night one fails here instead of shipping a
+    // stale dark mark.
+    const css = read("app/public/brand.css");
+    const uris = [...css.matchAll(/url\("(data:image\/svg\+xml,[^"]+)"\)/g)].map((m) => m[1]);
+    expect(uris).toHaveLength(2);
+    expect(uris[1]).toBe(uris[0].replaceAll("%2324221c", "%23ede8da"));
+  });
+
   it("routes the app, static 404, and OG template through the shared recipe", () => {
     expect(read("app/index.html")).toContain('href="./brand.css"');
     expect(read("app/public/404.html")).toContain("hs-logo hs-logo--home");
