@@ -322,7 +322,7 @@ describe("the help sheet is a diagram, not a control surface", () => {
 
 describe("the help sheet's scoring copy", () => {
   it("prices each ring-chasing emoji off its own scoring constant", () => {
-    // 🌐 → 🥇, 🎌 → 🥈: WBC markers switched to medal emojis this round.
+    // WBC gold wears 🥇 and silver 🥈, the tournament's own medal glyphs.
     // Keep the row-scoped regex — 🥇 also appears on AwardPill MVP pills, so
     // a page-wide toContain("🥇") would be satisfied by the trophy-case copy.
     const RINGS: [string, number][] = [
@@ -474,7 +474,6 @@ describe("the help sheet's scoring copy", () => {
   });
 
   it("shows the HOW TO PLAY heading and position badges for each seat type", () => {
-    // Section renamed from THE LOOP.
     expect(BODY).toContain('>HOW TO PLAY<');
     // The slot-badges div holds one chip per slot plus MGR.
     // Svelte appends a scoping hash to class names in SSR output, so match
@@ -505,11 +504,11 @@ describe("the help sheet's scoring copy", () => {
     const styleBlock = src.match(/<style>([\s\S]*?)<\/style>/);
     expect(styleBlock, "no <style> block found").not.toBeNull();
     const style = styleBlock![1];
-    // .cap must now carry 12px — the merge from 11px into the prose register.
+    // .cap carries 12px — the sheet's prose register.
     expect(style).toMatch(/\.cap\s*\{[^}]*font-size:\s*12px/);
-    // .cap must NOT still carry 11px (would mean the edit was not applied).
+    // And never an 11px override.
     expect(style).not.toMatch(/\.cap\s*\{[^}]*font-size:\s*11px/);
-    // The credits read in the body's own register now — the 11px muted
+    // The credits read in the body's own register — the 11px muted
     // override read as broken styling under its own full-size heading, so the
     // rule is gone entirely and the list inherits li's 12px ink.
     expect(style).not.toMatch(/\.src\s+li\s*\{/);

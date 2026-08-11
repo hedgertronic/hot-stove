@@ -113,7 +113,7 @@ describe("SpecialPrimePicker manager career rows", () => {
     expect(html).toContain("93–69");
     // The chip reads "4.8 WINS" — the value bare (a positive drops its plus;
     // the unit says the scale), the unit in the same small register the player
-    // chips give WAR. Not "+4.8 W", the spelling this replaced.
+    // chips give WAR. Never "+4.8 W" — no leading plus, no abbreviated unit.
     expect(html).toContain("4.8");
     expect(html).toContain("WINS");
     expect(html).not.toContain("+4.8");

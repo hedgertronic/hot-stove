@@ -73,7 +73,7 @@ function open(onopen = vi.fn()) {
     // markup, and an unscoped query would count the best seasons twice.
     rows: () => [...target.querySelectorAll(".rows .row")] as HTMLButtonElement[],
     shelf: () => [...target.querySelectorAll(".shelf .row")] as HTMLButtonElement[],
-    // Section labels now use the app's global .psep device (dashed rule).
+    // Section labels are the app's global .psep device (dashed rule).
     caps: () => [...target.querySelectorAll(".psep")].map((c) => c.textContent?.trim()),
     subtitle: () => target.querySelector(".sub")?.textContent ?? "",
     close: () => {

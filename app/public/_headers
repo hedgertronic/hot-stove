@@ -1,7 +1,5 @@
-# Cloudflare Workers static-assets headers (Pages-style syntax). GH Pages
-# ignores this file — its headers are fixed (max-age=600, gzip only) — so it
-# costs nothing there and takes effect on the workers.dev deploy now and on
-# the hedgertronic.com zone route after the nameserver move.
+# Cloudflare Workers static-assets headers (Pages-style syntax), served on
+# both the hedgertronic.com zone route and the workers.dev preview origin.
 
 # Baseline hardening, everywhere. No CSP on purpose for now: the GA snippet
 # is an inline script plus a Google-hosted loader, and a policy tight enough

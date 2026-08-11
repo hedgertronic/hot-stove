@@ -1468,9 +1468,10 @@ export const BADGES: BadgeDef[] = [
    * the claim is unchanged; the gate only refuses the degenerate build. */
   {
     key: "beatdream",
-    // 📝 with the round-34 rename: the claim lives on paper now, and 🧠
-    // belonged to the old out-thinking framing. Same single code point, so
-    // the share line's width ledger is untouched.
+    // 📝, not 🧠: the claim lives on paper — the ceiling is the solver's
+    // written line — where 🧠 read as out-thinking a machine that computed
+    // its answer. Same single code point either way, so the share line's
+    // width ledger is untouched.
     emoji: "📝",
     // "Better on paper", not "beat the dream team": the claim is about
     // BASELINE wins — talent on paper — not the final ledger, and the old
@@ -1875,8 +1876,7 @@ export const BADGES: BadgeDef[] = [
     name: "Hardware Store",
     rarity: "rare",
     axis: "roster",
-    // Unchanged: same trigger, same threshold, same measured rate. Only the
-    // name and the glyph moved.
+    // 2.05% measured on the 30-award-point trigger below.
     freq: 2.05,
     how: "Collected 30 or more award points across the club.",
   },
@@ -1956,7 +1956,7 @@ export const BADGES: BadgeDef[] = [
     name: "Always the Bridesmaid",
     rarity: "rare",
     axis: "roster",
-    // Unmeasured: the fact fields are new and no bot study has run over them.
+    // Unmeasured: no bot study covers the pennant/WBC-medal fact fields.
     // Run one before writing a number here.
     freq: null,
     how: "3 or more pennants or WBC silvers, no rings, no golds.",
@@ -2007,7 +2007,7 @@ export const BADGES: BadgeDef[] = [
     name: "From Down Under",
     rarity: "rare",
     axis: "roster",
-    // Unmeasured: the list is new and no bot study has run over it. Run one
+    // Unmeasured: no bot study covers this curated pitcher list. Run one
     // before writing a number here.
     freq: null,
     how: "Signed a submarine pitcher.",
@@ -2025,7 +2025,7 @@ export const BADGES: BadgeDef[] = [
     name: "Sidewinder",
     rarity: "rare",
     axis: "roster",
-    // Unmeasured: the list is new and no bot study has run over it. Run one
+    // Unmeasured: no bot study covers this curated pitcher list. Run one
     // before writing a number here.
     freq: null,
     how: "Signed a sidearm pitcher.",
@@ -2255,8 +2255,8 @@ export const BADGES: BadgeDef[] = [
     name: "The Fireman",
     rarity: "ultra",
     axis: "roster",
-    // 1.07% over 4,000 reference seasons, and the least settled number added
-    // this round: the binomial SE at that rate and that n is 0.16pp, and the
+    // 1.07% over 4,000 reference seasons, and the least settled number in
+    // the table: the binomial SE at that rate and that n is 0.16pp, and the
     // ultra/rare band line sits at 1.5. The two context arms disagree with it
     // by far more than the SE does — 2.40% with no powerups, 1.45%
     // overspending — because the arm decides how much the top of a payroll
@@ -3443,7 +3443,7 @@ export interface Brag {
  *
  * Keys that resolve to no definition are dropped, which covers a finale
  * restored from a save written before a badge was retired — 2️⃣ RE2PECT and
- * 🎆 THE WALK-OFF are both in that state as of this round. */
+ * 🎆 THE WALK-OFF are retired keys in exactly that state. */
 export function bragRow(
   keys: string[],
   newKeys: string[],

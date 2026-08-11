@@ -27,12 +27,9 @@ share of their own year's slot-8; the divergence lives entirely in the cheap
 end. A per-year floor would fix it and would also delete a real piece of era
 knowledge, which is a design question rather than a data one.
 
-**19. The parity fixtures can no longer be regenerated.** `scoring.test.ts`'s
-header points at a generator "in the repo history" and there is none in
-`git log`. The Classic's fixtures were regenerated from a script that lived in
-a scratch directory and is gone. The fixtures exist to prove the TypeScript
-port still matches `pipeline/scoring.py`, and that guarantee is now only as
-good as the last hand-run. The generator belongs in `pipeline/`.
+**19. ~~The parity fixtures can no longer be regenerated.~~ Resolved:**
+`pipeline/gen_fixtures.py` regenerates the Python→TypeScript scoring
+fixtures byte-stably (round 24, "the fixtures come back").
 
 **20. Nothing proves the engine passes the Classic's counts.** `scoring.ts`
 has exact-delta tests and the four engine edits are in place, but no test

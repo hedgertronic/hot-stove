@@ -1,9 +1,9 @@
 # Hot Stove logo assets
 
 - `boiler-b6-flared.svg` — the primary logo: B6 full potbelly (pipe, arched door, hinge, flared legs), anchor flame in the door.
-- `flame-cut-a.svg` — anchor flame, ink `#24221c` outline. Light contexts and PNG favicon master.
-- `flame-cut-b.svg` — anchor flame, cardstock-white `#fffdf6` outline. Dark contexts.
-- `favicon.svg` — adaptive favicon: Cut A stroke by default, flips to Cut B under `prefers-color-scheme: dark`.
+- `flame-cut-a.svg` — anchor flame, ink `#24221c` outline. The published flame mark and PNG favicon master.
+- `flame-cut-b.svg` — anchor flame, cardstock-white `#fffdf6` outline. Unused: kept as a master for any future dark-context surface.
+- `favicon.svg` — the browser favicon, static on purpose: the yellow-5 body carries dark tab bars and the orange-8 edge carries light ones, so no `prefers-color-scheme` adaptation is needed.
 
 These files are the raw masters. `npm run brand:sync` in `app/` publishes the
 approved boiler and flame to `app/public/brand/`, and refreshes the adaptive

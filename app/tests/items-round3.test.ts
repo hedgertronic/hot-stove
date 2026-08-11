@@ -285,8 +285,8 @@ describe("item 5 — manager tile: upright three-row layout, no rotation", () =>
   });
 
   it("the markup has no writing-mode attribute (not rotated)", () => {
-    // Previously `style="writing-mode: sideways-lr"` or similar would appear.
-    // The chair is now upright at all widths; no inline writing-mode needed.
+    // The chair is upright at all widths — no inline writing-mode. A rotated
+    // chair would surface as `style="writing-mode: sideways-lr"` or similar.
     const body = ssr(RailSeat, mgrProps);
     expect(body).not.toContain("writing-mode");
   });

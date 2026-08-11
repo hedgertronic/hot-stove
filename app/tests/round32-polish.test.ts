@@ -342,7 +342,7 @@ describe("CSS consolidation: shared bases live in app.css", () => {
       const src = read(f);
       expect(src, `${f} uses picker-note in markup`).toContain('class="picker-note"');
       expect(src, `${f} uses picker-list in markup`).toContain('class="picker-list"');
-      // Local .note/.list blocks are gone — the global provides the declarations.
+      // The global provides the declarations — no local .note/.list blocks.
       expect(src, `${f} does not re-declare .note {`).not.toContain("\n  .note {");
       expect(src, `${f} does not re-declare .list {`).not.toContain("\n  .list {");
     }

@@ -114,9 +114,9 @@
     import("./lab/Lab.svelte").then((m) => (LabComp = m.default));
   }
   /* `?jitter` arms the on-device movement recorder (lib/jitterprobe). DEV
-   * guard since round 38: the round-37 compositor root cause is found and
-   * fixed, so the diagnostic no longer earns its CDN chunk — the guard
-   * tree-shakes it out of the production bundle the way the lab's goes. To
+   * guarded: the compositor wobble it was built to measure is root-caused
+   * and fixed, so the diagnostic doesn't earn a production CDN chunk — the
+   * guard tree-shakes it out of the bundle the way the lab's goes. To
    * measure a live-site wobble again, lift the guard for one deploy. */
   if (devParams?.has("jitter"))
     import("./lib/jitterprobe").then((m) => m.startJitterProbe());

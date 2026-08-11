@@ -1983,6 +1983,10 @@ immediately if per-game finales are stored, at ~5.4 KB each.
 
 ### SCOUT_HIT_POINTS is 0.5
 
+> **Superseded.** The 2026-08 release polish returned `SCOUT_HIT_POINTS` to
+> 1 — `app/src/lib/scoring.ts` and `pipeline/scoring.py` carry the shipped
+> value and its rationale. The entry below records the 0.5 experiment.
+
 Round 24 left this open and named the reason it could finally be closed: the
 change is one constant in two files plus a regeneration, and the regeneration
 diff is the whole blast radius. That is exactly what it turned out to be. Of the
@@ -2110,6 +2114,14 @@ before `consumeChoice`, mirroring `signPlayer`'s existing order.
 
 ### WBC Ring Values Halved
 
+> **Superseded.** The 2026-08 release polish set Classic medals at parity
+> with October hardware: gold scores `RING_POINTS` (3), silver scores
+> `PENNANT_POINTS` (1) — `app/src/lib/scoring.ts` carries the shipped values
+> and the owner's "a world title is a world title" rationale. The
+> discriminant split below (IDs 2/1 stored on the card, point constants
+> separate) still stands, and `Finale.svelte` compares against the ID
+> constants. The entry below records the 1.5/0.5 experiment.
+
 World Baseball Classic gold medals drop from 2 → 1.5 and silvers from 1 → 0.5.
 A Classic is now worth half a World Series at both rungs (WS ring 3 / pennant
 1). Only five Classics land inside the 1985–2025 card window, and their rarity
@@ -2122,10 +2134,9 @@ October hardware.
 (silver) as card-data values — unchanged. New constants `WBC_CHAMPION_ID = 2`
 and `WBC_RUNNERUP_ID = 1` in `scoring.ts` serve as filter discriminants;
 `WBC_CHAMPION_POINTS = 1.5` and `WBC_RUNNERUP_POINTS = 0.5` are the scoring
-weights. Comparison code must use the ID constants, not the point constants.
-`Finale.svelte` (not owned by this agent) uses the point constants as
-discriminants — those four comparisons need to be updated to the ID constants
-by the Finale agent.
+weights. Comparison code must use the ID constants, not the point constants;
+`Finale.svelte`'s medal comparisons read `WBC_CHAMPION_ID` /
+`WBC_RUNNERUP_ID`.
 
 ### Per-Season Refinement of the Homegrown + Prime Time Rule (addendum to round 28)
 

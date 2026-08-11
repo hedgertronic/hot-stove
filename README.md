@@ -9,7 +9,7 @@ A baseball roster-drafting game. Each spin deals a random real team-season (1985
 - **`app/`** — the game: Svelte 5 + Vite + TypeScript. Static site, no backend; state in localStorage.
 - **`data/`** — 1,188 team-season cards plus index, players, specials, and meta files. Everything the game reads at runtime.
 - **`pipeline/`** — `fetch.py` (raw data acquisition with local snapshots), `transform.py` (aggregates WAR + salary + awards into game-ready structures), `build.py` (emits all `data/` files). `scoring.py` is the scoring source of truth, ported 1:1 to the frontend. `playtest.py` is the balance harness — rerun after any economy change.
-- **`design/cardstock-v2.html`** — visual and interaction reference; open in a browser for live demos.
+- **`design/`** — design artifacts. `cardstock-v2.html` is the original visual/interaction mock the app was built from (historical — it predates two of the six powerups); the live reference is the app's own component gallery at `localhost:5173/?lab`.
 - **`pyproject.toml`** — pipeline dependencies (`fungo`); managed with `uv`.
 
 ## Development
@@ -47,7 +47,7 @@ The social-card image (`app/public/og-image.png`) is committed, not built in CI;
 - **DECISIONS.md** — the evolved rules: every call SPEC left undefined or the build revised, with rationale. Where docs disagree, this file and the shipped app are the authority.
 - **SPEC.md** — the original game-rules spec (historical; see its header note for what has drifted).
 - **BUILD.md** — the original implementation plan (historical; same caveat).
-- **DEVLOG.md** — running notes.
+- **DEVLOG.md** — running working notes; local only, deliberately untracked.
 
 ## Data & attribution
 

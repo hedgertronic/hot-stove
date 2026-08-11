@@ -16,7 +16,7 @@ const read = (f: string) =>
 describe("the front office wears teal / orange, on both of its surfaces", () => {
   // The FRONT OFFICE tile and the payroll formula's chip are the same object
   // at two sizes, and they have drifted apart twice (green vs blue, then
-  // orange vs blue). One test now holds each pair on both surfaces.
+  // orange vs blue). One test holds each pair on both surfaces.
   const rows = read("components/SpecialRows.svelte");
   const box = read("components/PayrollBox.svelte");
 
@@ -138,7 +138,7 @@ describe("the relocate grid holds ring clubs to one line", () => {
 
   // The private 9px medal this suite once pinned existed for 7-column
   // divisional grids; splitDivision retired those (max 4 columns), so the
-  // relocate sheet now reads app.css's shared `.pickopt .pedi` — the SEASON
+  // relocate sheet reads app.css's shared `.pickopt .pedi` — the SEASON
   // TICKET sheet's exact size and margin (owner call, round 13). No raise:
   // the medal is a bare flex item the tile's chipbox centers.
   it("the medal is the shared rule — no private size in either picker", () => {

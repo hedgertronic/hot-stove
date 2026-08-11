@@ -211,7 +211,7 @@
   <div>
     <!-- No zero-state sentence: both of Home's doors into this sheet are
          disabled until a season exists, so an empty open is unreachable and
-         the line was dead weight (removed with TrophyModal's sibling). -->
+         a line written for it could never show. -->
     {#if shelf.length > 0}
       <!-- The record book, pinned above the log it is drawn from. Keyed by the
            combo, which is unique by construction and stable across a mount.
@@ -323,8 +323,8 @@
     letter-spacing: 0.02em;
   }
   /* The seed in the quiet mono voice the finale's GAME #XXXX chip uses — this
-     is where a code gets copied from. Far-left anchor: `margin-left: auto` has
-     moved to `.rec` so the record is what jumps to the right edge. */
+     is where a code gets copied from. Far-left anchor: `.rec` owns the row's
+     `margin-left: auto`, so the record is what jumps to the right edge. */
   .seed {
     flex: none;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

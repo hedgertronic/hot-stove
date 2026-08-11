@@ -202,7 +202,7 @@ describe("the GAMES card", () => {
     appendHistory({ date: "2026-08-04", badges: ["packedin"] }); // a quit counts for nothing
     const ui = open();
     expect(ui.gamesCard().querySelector(".btotal")!.textContent).toContain("3 TOTAL");
-    // The "ALL MODES" footer is gone.
+    // The games card carries no "ALL MODES" footer.
     expect(ui.gamesCard().textContent).not.toContain("ALL MODES");
     ui.close();
   });
