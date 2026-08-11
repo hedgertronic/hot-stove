@@ -51,13 +51,16 @@
   height: 0.705em;
   width: 0.62em;
   vertical-align: 0;
-  /* Asymmetric bearings, because the neighbors differ: H meets the flame at
-     a full-height stem (the flame's widest arc passes it with air), but T
-     meets it at the CROSSBAR, which reaches left exactly where the flame's
-     upper curve is — at 0.02em the two nearly touched. 0.03em is the owner's
-     landing point after sweeping 0.02–0.09 across three rounds: 0.05 read
-     as slightly adrift from the T, 0.035 still a touch loose, 0.07+ a hole. */
-  margin: 0 0.03em 0 0.02em;
+  /* Asymmetric bearings, matched to how Nunito itself sets an O here: the
+     font kerns O·T by -0.042em so a real O tucks tight under the T's
+     crossbar while holding full air off the H's stem (measured ink gaps
+     0.131em / 0.014em). The earlier 0.02/0.03 pair had that lean BACKWARD —
+     the flame sat 0.03em H-ward of a real O's ink placement, and the owner
+     read exactly that (2026-08-11): "too far towards the H". These bearings
+     land the ink gaps at 0.117em / 0.024em — as O-like as the flame allows,
+     keeping a step more crossbar clearance than the O's own 0.014em because
+     the flame's upper curve rises exactly where the crossbar reaches. */
+  margin: 0 0.015em 0 0.035em;
 }
 
 /* A REAL letter O rides invisibly in the flame's slot so the lockup still
@@ -85,17 +88,19 @@
      outside a rounded-down viewport edge — the ring read as shaved flat on
      the right. The ink fits the viewBox with margin; only the AA spills. */
   overflow: visible;
-  /* The viewBox is cropped to the INK (Logo.svelte states the bbox), so the
-     box bottom IS the flame's ink bottom and one term seats it. Nunito 800's
-     round glyphs (O, S) overshoot the baseline by a measured 0.015em; the
-     seat runs 0.002em past that so subpixel rounding can only ever land the
-     flame's bottom ON or BELOW the O's overshoot row, never above it — a
-     flame that floats reads wrong, a flame half a device pixel deep does not
-     (owner call 2026-08-11, replacing an earlier optical drop that was
-     tuned against a viewBox carrying 3.4% air below the stroke). The
-     dimensions are the same ink size the 0.9em uncropped box painted:
+  /* The viewBox is cropped to the INK (Logo.svelte states the bbox; getBBox
+     confirms zero air below — viewBox bottom 77.75 IS the ink bottom), so
+     one term seats it. Nunito 800's round glyphs (O, S) overshoot the
+     baseline by a measured 0.015em, but matching that depth still read
+     slightly HIGH (owner, 2026-08-11): the flame's bowl is 11% narrower
+     than the O's (0.617 vs 0.697em ink), so its bottom curve puts less ink
+     near the baseline row — the same reason type designers overshoot tighter
+     curves more. The seat runs 0.007em past the O's overshoot instead, deep
+     enough to read seated beside flat letter feet, and rounding can only
+     ever land the bottom ON or BELOW the O's overshoot row, never above.
+     The dimensions are the same ink size the 0.9em uncropped box painted:
      75.5/81 × 0.9em tall, 55.49/61 × 0.678em wide. */
-  bottom: -0.017em;
+  bottom: -0.022em;
   height: 0.839em;
   width: 0.6167em;
   transform: translateX(-50%);
