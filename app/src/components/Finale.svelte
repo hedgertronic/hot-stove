@@ -1446,6 +1446,12 @@
     background: color-mix(in srgb, var(--green-wash) 30%, var(--card));
     border-color: var(--green);
   }
+  /* The ledger rows' night border dim, on the same reasoning: a 2.5px -8
+     rung reads as a neon glow on the night card where the day card wears
+     it as moderate punch. Same 65% landing. */
+  :global([data-theme="dark"]) .squad.dream .qrow.signed {
+    border-color: color-mix(in srgb, var(--green) 65%, var(--card));
+  }
   .squad.dream {
     /* Held until the fifth beat; see below. */
     opacity: 0;
