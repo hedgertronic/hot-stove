@@ -91,16 +91,15 @@
   /* The viewBox is cropped to the INK (Logo.svelte states the bbox; getBBox
      confirms zero air below — viewBox bottom 77.75 IS the ink bottom), so
      one term seats it. Nunito 800's round glyphs (O, S) overshoot the
-     baseline by a measured 0.015em, but matching that depth still read
-     slightly HIGH (owner, 2026-08-11): the flame's bowl is 11% narrower
-     than the O's (0.617 vs 0.697em ink), so its bottom curve puts less ink
-     near the baseline row — the same reason type designers overshoot tighter
-     curves more. The seat runs 0.007em past the O's overshoot instead, deep
-     enough to read seated beside flat letter feet, and rounding can only
-     ever land the bottom ON or BELOW the O's overshoot row, never above.
-     The dimensions are the same ink size the 0.9em uncropped box painted:
-     75.5/81 × 0.9em tall, 55.49/61 × 0.678em wide. */
-  bottom: -0.022em;
+     baseline by a measured 0.015em; the seat runs 0.002em past that so
+     subpixel rounding can only ever land the flame's bottom ON or BELOW
+     the O's overshoot row, never above it. Level with the O is the owner's
+     landing (2026-08-11, at phone size on the real HUD): a deeper 0.022em
+     seat was tried the same day for the extra-overshoot-on-tight-curves
+     argument and read low beside the letters. The dimensions are the same
+     ink size the 0.9em uncropped box painted: 75.5/81 × 0.9em tall,
+     55.49/61 × 0.678em wide. */
+  bottom: -0.017em;
   height: 0.839em;
   width: 0.6167em;
   transform: translateX(-50%);
