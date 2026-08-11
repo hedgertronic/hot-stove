@@ -1180,6 +1180,16 @@
     opacity: 0;
     transform: translateY(10px) scale(0.97);
   }
+  /* The night wash runs at 12%, not the day's 25% (owner call, 2026-08-11):
+     the day tint DARKENS the rows a step below the parchment, but the night
+     -2 washes are lighter than the night ground, so the same 25% lightens
+     the rows into a glow — equal srgb steps read far stronger at the dark
+     end (rows measured 1.08-1.15:1 vs ground against the day rows'
+     1.00-1.06). 12% lands the tint back at the day register: just
+     perceptible, with the --fline border carrying the tier. */
+  :global([data-theme="dark"]) .lrow {
+    background: color-mix(in srgb, var(--fore, var(--ground)) 12%, color-mix(in srgb, var(--ground) 55%, var(--card)));
+  }
   .lrow.show {
     opacity: 1;
     transform: none;
