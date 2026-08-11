@@ -172,7 +172,10 @@
       <span class="yr chipbox" bind:this={yrEl} style:--accent={cardView.color}><span class="chiplbl">{cardView.yr}</span></span>
     </div>
     <div class="bline team">
-      <div class="tname" bind:this={tmEl} style:color={cardView.color}>{cardView.tm}</div>
+      <!-- The accent arrives as a custom property, not an inline `color`: an
+           inline style outranks every sheet rule, and the night theme needs
+           to re-derive this color (see .tname below). -->
+      <div class="tname" bind:this={tmEl} style:--accent={cardView.color}>{cardView.tm}</div>
       <!-- Team pedigree shows in every mode: it's franchise history, not a stat
            leak, and 💍/🚩 players score in Eye Test too. -->
       {#if game.phase === "landed" && game.card}
@@ -306,6 +309,16 @@
     font-size: 24px;
     font-weight: 800;
     line-height: 1.15;
+    color: var(--accent, var(--ink));
+  }
+  /* The franchise accents are tuned to ~4.5:1 against ivory — i.e. they are
+     all DARK, and on the night ground the near-black clubs (CHW, PIT, NYY)
+     land under 2.5:1 as 24px type. Lifted toward --ink rather than --line:
+     ink is lighter, so 35% of it buys the 3:1 large-text floor (worst club
+     3.43:1, computed) while keeping more of the club's own hue than the
+     ring's 72/28 line mix would. */
+  :global([data-theme="dark"]) .tname:not(.idle) {
+    color: color-mix(in srgb, var(--accent) 65%, var(--ink));
   }
   .tname.idle {
     color: var(--gray-ink);

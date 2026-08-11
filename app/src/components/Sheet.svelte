@@ -189,6 +189,14 @@
     max-height: calc(88svh - env(safe-area-inset-top));
     max-height: calc(88dvh - env(safe-area-inset-top));
     overflow-y: auto;
+    /* Sheets scroll in ONE axis. Stated, because `overflow-y: auto` alone
+       computes overflow-x to auto as well, and any invisible box reaching
+       past the padding edge — PillSlot's 3px tap rings on a pill that wraps
+       flush to the row's right edge — earns the whole sheet a horizontal
+       pan on touch. Hidden rather than clip so the axis still exists for
+       layout but no gesture can move it; an edge pill's tap ring loses at
+       most its 3px overhang. */
+    overflow-x: hidden;
     /* Contain rubber-band scroll within the sheet on iOS Safari 16+, so touch
        momentum does not propagate to the page behind the backdrop. On iOS
        Safari ≤15 the body `overflow: hidden` lock is still imperfect; a
@@ -216,6 +224,9 @@
        the sheet would grow past its ceiling instead of scrolling. */
     min-height: 0;
     overflow-y: auto;
+    /* Same one-axis rule as the unframed sheet above: without it the trophy
+       case's edge-flush tap rings gave the body a 3px horizontal pan. */
+    overflow-x: hidden;
     margin-top: 12px;
     /* This box is the clip edge, and a chip pressed on its bottom row dips
        1.5px (.pickopt:active) — flush content would have its border shaved

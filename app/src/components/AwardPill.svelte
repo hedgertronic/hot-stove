@@ -66,6 +66,15 @@
     background: var(--yellow);
     border-color: var(--gold-8);
   }
+  /* MVP is the one award whose day fill (--yellow) stays bright at night —
+     the token holds the cue-capsule seat and doesn't move — so the chip needs
+     the same re-cut the ULTRA rarity got: deep gold wash, the bright yellow
+     promoted to the ring. Keeps MVP the loudest gold (AS sits on the dim
+     --amber) without cream-on-yellow type. */
+  :global([data-theme="dark"]) .qb.mvp {
+    background: #63490d;
+    border-color: var(--yellow);
+  }
   .qb.cy {
     background: var(--sky);
     border-color: var(--blue-8);

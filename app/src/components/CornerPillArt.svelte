@@ -122,17 +122,19 @@
       ><path d="M10.7 11.83V8.4A3.71 3.71 0 0 0 6.98 4.69H2.81 M5.59 2.37 2.81 4.69l2.78 2.32" /></svg
     >
   {:else if glyph === "moon"}
-    <!-- The theme pill's day face: a crescent, authored with its ink center
-         ON the 15.077 box's center (the sun below is symmetric and centered
-         by construction; the crescent was translated onto the same seat), so
-         the origin needs no recentering. Paints ~10px — the pictorial
+    <!-- The theme pill's day face: a crescent. Its ink bbox center is
+         (7.81, 7.30) — the outer arc's circle sits at (7.82, 7.29), up-left
+         of the path's nominal frame — so the viewBox origin shifts by that
+         center's offset from 15.077/2, the same recentering idiom the undo
+         and filter marks use. The sun below is symmetric about the box
+         center by construction and needs none. Paints ~10px — the pictorial
          ground it shares with the trophy and the undo arrow. -->
     <svg
       x="7"
       y={4 + MARK_DY}
       width="14"
       height="14"
-      viewBox="0 0 15.077 15.077"
+      viewBox="0.271 -0.238 15.077 15.077"
       overflow="visible"
       stroke-width="1.3"
       ><path

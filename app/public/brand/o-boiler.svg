@@ -4,17 +4,19 @@
        circular belly (matching Nunito 800's round O counter), compact
        chimney as the ascender, short legs as descenders. No leg seams: at
        word sizes the gap can't read and would just erode the feet. The
-       flame is the same yellow-5/orange-8 pair as every other cut, seated
-       by the shared centroid rule ((50.31, 44.93) → belly center (50, 55)
-       at scale .51 → translate(24.34, 32.09)), then nudged +0.6 right
-       and +0.8 down: the tail curls up-left and drags the perceived center
-       with it. -->
+       flame is the same yellow-5/orange-8 pair as every other cut. Seat:
+       horizontally the ink is bbox-centered on the belly — both flame paths
+       center at x=50 in flame space, so translate x = 50 − .51×50 = 24.5
+       (owner call 2026-08-11; an earlier +0.6 tail-curl nudge read as
+       off-center at word sizes). Vertically the shared centroid rule
+       (centroid y 44.93 → belly center y 55 at scale .51 → 32.09) plus a
+       +0.8 optical drop. -->
   <rect x="45" y="7" width="10" height="11" rx="2" fill="#24221c"/>
   <rect x="41" y="15" width="18" height="5.5" rx="2" fill="#24221c"/>
   <rect x="36.4" y="79" width="6.4" height="13" rx="3" transform="rotate(20 39.6 85)" fill="#24221c"/>
   <rect x="57.2" y="79" width="6.4" height="13" rx="3" transform="rotate(-20 60.4 85)" fill="#24221c"/>
   <circle cx="50" cy="55" r="30" fill="#24221c"/>
-  <g transform="translate(24.94,32.89) scale(.51)">
+  <g transform="translate(24.5,32.89) scale(.51)">
     <!-- The orange is the old 7.5 stroke's own outline as explicit filled
            geometry, its inner edge pulled 0.25 INTO the yellow so the two can
            never seam: CoreGraphics-family rasterizers dropped hairline slivers
