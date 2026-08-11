@@ -34,7 +34,9 @@ jobs:
       # binary arrives as a platform optional dep, so no scripts are needed.
       - run: npm ci
         working-directory: app
-      - run: npm test
+      # test:full is everything but the opt-in bot studies; `npm test` is the
+      # fast local subset and must never be what gates a deploy.
+      - run: npm run test:full
         working-directory: app
       # The ink probe: real-browser typography gate. Renders the chip and
       # button recipes in Chromium and fails the deploy when any label's cap

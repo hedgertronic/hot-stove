@@ -24,13 +24,18 @@ export default defineConfig({
           name: "node",
           environment: "node",
           include: ["tests/**/*.test.ts"],
-          // The bot STUDY files replay thousands of games (~90s) — research
-          // artifacts, not regressions. Opt in with BOT_STUDIES=1; the main
-          // powerup-bots.test.ts harness regression always runs.
+          // The bot files replay full games through the real engine and
+          // dominate the wall clock, so both ride opt-in env flags. The
+          // STUDY files (research artifacts, not regressions) need
+          // BOT_STUDIES=1; the powerup-bots.test.ts harness regression
+          // (400 games/bot, ~10 min — all but ~25s of the whole suite)
+          // needs BOT_HARNESS=1. `npm test` sets neither and stays fast;
+          // `npm run test:full` is what gates a deploy.
           exclude: [
             ...configDefaults.exclude,
             "tests/**/*.dom.test.ts",
             ...(process.env.BOT_STUDIES ? [] : ["tests/bots/study*.test.ts"]),
+            ...(process.env.BOT_HARNESS ? [] : ["tests/bots/powerup-bots.test.ts"]),
           ],
         },
       },

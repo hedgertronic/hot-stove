@@ -12,6 +12,8 @@
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
+    "test:full": "BOT_HARNESS=1 vitest run",
+    "test:studies": "BOT_HARNESS=1 BOT_STUDIES=1 vitest run tests/bots",
     "test:ink": "node tests/probe/ink-centering.mjs"
   },
   "devDependencies": {
