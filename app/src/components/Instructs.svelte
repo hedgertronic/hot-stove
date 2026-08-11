@@ -137,6 +137,24 @@
     return stops[i] ? document.querySelector(stops[i].selector) : null;
   }
 
+  /* The spotlight hugs the target's CONTENT box, not its border box. The
+   * stops' sections carry padding as inter-section spacing, never as card
+   * interior (.railwrap pads 6px over / 4px under its rows, .plist pads 10px
+   * under its last row), and a border-box ring wears that spacing as extra
+   * air on one axis — stop 1 read visibly taller-than-wide against the
+   * uniform 6px ring every other stop got. Computed here rather than
+   * constants in the stop table, so a component's spacing change can't
+   * strand a stale correction. */
+  function contentRect(el: Element): DOMRect {
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    const pt = parseFloat(cs.paddingTop) || 0;
+    const pr = parseFloat(cs.paddingRight) || 0;
+    const pb = parseFloat(cs.paddingBottom) || 0;
+    const pl = parseFloat(cs.paddingLeft) || 0;
+    return new DOMRect(r.left + pl, r.top + pt, r.width - pl - pr, r.height - pt - pb);
+  }
+
   /* placement=false moves only the window and its anchors: the en-route
    * remeasures (the capture-phase scroll listener, firing every frame of the
    * glide) must keep the box tracking the traveling section WITHOUT
@@ -149,7 +167,7 @@
   function measure(placement = true) {
     const el = target();
     if (!el) return;
-    const r = el.getBoundingClientRect();
+    const r = contentRect(el);
     /* 6px of air so the ring never sits on the section's own border. */
     box = { top: r.top - 6, left: r.left - 6, width: r.width + 12, height: r.height + 12 };
     const h = Math.max(calloutEl?.offsetHeight ?? 0, 150);
@@ -216,9 +234,17 @@
      * side for most of the glide and flipped it mid-travel. A clamped
      * scroll (section pinned at a document edge) lands elsewhere; the
      * settle's full measure corrects that case, once, after the glide. */
-    const r = el.getBoundingClientRect();
+    const rb = el.getBoundingClientRect();
+    /* block "center" seats the BORDER box's middle on the viewport's, but
+       the box the card seats against is the CONTENT box, whose bottom lands
+       short of the border's by the target's bottom padding — predicting
+       from the border box alone called "above" for rooms the settled
+       content-box measure then called "below" (.plist pads 10px), which is
+       the delayed side flip this prediction exists to prevent. */
+    const landedBottom =
+      (window.innerHeight + rb.height) / 2 - (rb.bottom - contentRect(el).bottom);
     const h = Math.max(calloutEl?.offsetHeight ?? 0, 150);
-    below = window.innerHeight - ((window.innerHeight + r.height) / 2 + 6) >= h + 24;
+    below = window.innerHeight - (landedBottom + 6) >= h + 24;
     measure(false);
     nextBtn?.focus({ preventScroll: true });
     clearTimeout(settleTimer);
@@ -455,7 +481,8 @@
     border: 2px solid transparent;
     border-radius: 999px;
     background: transparent;
-    color: var(--muted);
+    /* Ink mark, gray ring — CornerButtons' resting pill documents the call. */
+    color: var(--ink);
     padding: 0;
     width: 28px;
     height: 22px;
@@ -538,6 +565,13 @@
   }
   .playball:active {
     transform: translateY(1.5px);
+  }
+  /* The tracking, given back — letter-spacing adds its 0.08em after EVERY
+     glyph including the last, so the label's box ran one step past the final
+     L and the centered word seated left of the pill's middle (the .warchip
+     .unit recipe in app.css documents the leak with measurements). */
+  .playball .chiplbl {
+    margin-inline-end: -0.08em;
   }
   /* The keyed body: each hop's content rises in on App's own .after spring.
      Chrome (head, dots, NEXT) sits outside and never re-enters. */

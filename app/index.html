@@ -57,11 +57,14 @@
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <meta
       name="description"
-      content="A baseball drafting game. Spin for real team-seasons, sign players at their real salaries, and chase 162 wins."
+      content="A free baseball drafting game. Spin for real team-seasons, sign players at their real salaries, and chase a perfect 162–0."
     />
     <!-- Social cards. og:image is an ABSOLUTE URL on purpose: scrapers cache
          the image against the canonical share target, and a relative path
-         breaks when the card is drawn off-site.
+         breaks when the card is drawn off-site. Scrapers key their image
+         cache on the URL string itself, so the ?v= param is the only lever
+         that refreshes an already-shared card — bump it in all three image
+         refs whenever og-image.png's art changes.
          og:url and the canonical name the game's home at /games/hot-stove/;
          the legacy /hot-stove/ path 301s here (Cloudflare redirect rule), so
          pre-migration shares keep resolving and share counts stay merged. -->
@@ -71,9 +74,9 @@
     <meta property="og:title" content="Hot Stove" />
     <meta
       property="og:description"
-      content="A baseball drafting game. Spin for real team-seasons, sign players at their real salaries, and chase 162 wins."
+      content="A free baseball drafting game. Spin for real team-seasons, sign players at their real salaries, and chase a perfect 162–0."
     />
-    <meta property="og:image" content="https://hedgertronic.com/games/hot-stove/og-image.png" />
+    <meta property="og:image" content="https://hedgertronic.com/games/hot-stove/og-image.png?v=2" />
     <!-- Width/height let Facebook draw the card on the FIRST share, before its
          scrape completes — on a launch, the first share is the one that spreads.
          The stated size is the PNG's actual pixels (a 3x render of the
@@ -87,9 +90,9 @@
     <meta name="twitter:title" content="Hot Stove" />
     <meta
       name="twitter:description"
-      content="A baseball drafting game. Spin for real team-seasons, sign players at their real salaries, and chase 162 wins."
+      content="A free baseball drafting game. Spin for real team-seasons, sign players at their real salaries, and chase a perfect 162–0."
     />
-    <meta name="twitter:image" content="https://hedgertronic.com/games/hot-stove/og-image.png" />
+    <meta name="twitter:image" content="https://hedgertronic.com/games/hot-stove/og-image.png?v=2" />
     <meta name="twitter:image:alt" content="Hot Stove — a baseball roster-drafting game" />
     <!-- The short name, owner's call: the keyworded tab title read as SEO
          furniture. The query words ("baseball", "drafting game") ride in the
@@ -102,8 +105,8 @@
         "@type": "VideoGame",
         "name": "Hot Stove",
         "url": "https://hedgertronic.com/games/hot-stove/",
-        "image": "https://hedgertronic.com/games/hot-stove/og-image.png",
-        "description": "A free browser baseball roster-drafting game. Each spin deals a random real team-season from 1985 to 2025 — sign a player at his real salary, or hire that year's manager, owner, or stadium. Fill eight roster slots, stay under payroll, and chase 116 wins.",
+        "image": "https://hedgertronic.com/games/hot-stove/og-image.png?v=2",
+        "description": "A free browser baseball roster-drafting game. Each spin deals a random real team-season from 1985 to 2025. Sign a player at his real salary, or hire that year's manager, owner, or stadium. Fill nine seats, stay under payroll, and chase a perfect 162–0 season.",
         "genre": "Sports strategy",
         "playMode": "SinglePlayer",
         "gamePlatform": "Web browser",
@@ -122,7 +125,13 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-35RY8Y6Q5V');
+      // Mirror of lib/analytics.ts guard (2): `config` fires the automatic
+      // page_view, and localhost dev sessions must not count as production
+      // traffic. Same accepted gap as track()'s: a LAN phone test
+      // (192.168.x via the Vite host flag) still fires. Custom events
+      // already suppress themselves in track().
+      var h = location.hostname;
+      if (h !== 'localhost' && h !== '127.0.0.1' && h !== '') gtag('config', 'G-35RY8Y6Q5V');
     </script>
   </head>
   <body>

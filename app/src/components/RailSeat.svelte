@@ -226,6 +226,10 @@
     display: block;
     font-size: 9px;
     letter-spacing: 0.07em;
+    /* The tracking, given back as start padding — centered label, and the
+       trailing step seated it a half-step left (app.css's .warchip .unit
+       documents the leak; .mgr b below re-states it). */
+    padding-inline-start: 0.07em;
     color: var(--muted-2);
   }
   /* The name line only — .chips is also a span in the seat, and it lays out
@@ -326,6 +330,7 @@
     display: block;
     font-size: 9px;
     letter-spacing: 0.07em;
+    padding-inline-start: 0.07em;
     color: var(--muted-2);
   }
   .mgr span {
@@ -436,6 +441,9 @@
       flex: none;
       font-size: 9.5px;
       text-align: left;
+      /* Left-aligned here, so the centered layout's tracking give-back
+         above would read as a rightward shove — stood down. */
+      padding-inline-start: 0;
     }
     .cell span:not(.chips),
     .mgr span {

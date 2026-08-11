@@ -101,6 +101,20 @@
     return stops[i] ? document.querySelector(stops[i].selector) : null;
   }
 
+  /* Content box, not border box — the board tour documents why (a target's
+   * padding is spacing, and a border-box ring wears it as lopsided air).
+   * The finale's targets are padding-free today; the trim keeps the twins
+   * identical so a padded section added later starts out correct. */
+  function contentRect(el: Element): DOMRect {
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    const pt = parseFloat(cs.paddingTop) || 0;
+    const pr = parseFloat(cs.paddingRight) || 0;
+    const pb = parseFloat(cs.paddingBottom) || 0;
+    const pl = parseFloat(cs.paddingLeft) || 0;
+    return new DOMRect(r.left + pl, r.top + pt, r.width - pl - pr, r.height - pt - pb);
+  }
+
   /* placement=false: en-route remeasures move the window and the card's
    * seat but never re-decide `below` — the board tour documents the
    * mid-glide flip this prevents. go() decides the side once per hop from
@@ -108,10 +122,10 @@
   function measure(placement = true) {
     const el = target();
     if (!el) return;
-    let r = el.getBoundingClientRect();
+    let r = contentRect(el);
     const ext = stops[i].extend ? document.querySelector(stops[i].extend!) : null;
     if (ext) {
-      const e = ext.getBoundingClientRect();
+      const e = contentRect(ext);
       const top = Math.min(r.top, e.top);
       const left = Math.min(r.left, e.left);
       r = new DOMRect(
@@ -165,9 +179,15 @@
      * scrollIntoView centers only `el` — so the SHARING stop predicts from
      * .fin-actions alone and the settle's full measure corrects if the
      * union changes the answer. */
-    const r = el.getBoundingClientRect();
+    const rb = el.getBoundingClientRect();
+    /* Content-box bottom at the landed position — the board tour documents
+       why the border box alone mispredicts by the target's bottom padding
+       (a no-op today on the finale's padding-free targets; twins stay
+       twins). */
+    const landedBottom =
+      (window.innerHeight + rb.height) / 2 - (rb.bottom - contentRect(el).bottom);
     const h = Math.max(calloutEl?.offsetHeight ?? 0, 150);
-    below = window.innerHeight - ((window.innerHeight + r.height) / 2 + 6) >= h + 24;
+    below = window.innerHeight - (landedBottom + 6) >= h + 24;
     measure(false);
     nextBtn?.focus({ preventScroll: true });
     clearTimeout(settleTimer);
@@ -347,7 +367,8 @@
     border: 2px solid transparent;
     border-radius: 999px;
     background: transparent;
-    color: var(--muted);
+    /* Ink mark, gray ring — CornerButtons' resting pill documents the call. */
+    color: var(--ink);
     padding: 0;
     width: 28px;
     height: 22px;
@@ -414,6 +435,12 @@
   }
   .bow:active {
     transform: translateY(1.5px);
+  }
+  /* The tracking, given back — one step of the 0.08em rides after the final
+     W, seating the centered label left of the pill's middle (the board
+     tour's PLAY BALL and app.css's .warchip .unit document the leak). */
+  .bow .chiplbl {
+    margin-inline-end: -0.08em;
   }
   .callbody {
     display: flex;

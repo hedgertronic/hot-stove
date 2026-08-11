@@ -427,6 +427,14 @@ button {
 .bic {
   font-size: 19px;
   line-height: 1;
+  /* Tracking zeroed: the buttons' letter-spacing inherits into this span as
+     a computed length, and a single emoji is one grapheme cluster — tracking
+     spaces NOTHING inside it and only appends a phantom step after it, which
+     seated every centered label+glyph pair a half-step left (the .warchip
+     .unit rule documents the leak). Zeroing at the glyph is exact at every
+     button font size, where an em give-back here would resolve against this
+     span's own 19px instead of the button's. */
+  letter-spacing: 0;
 }
 @media (max-width: 359px) {
   .bic {
@@ -455,6 +463,12 @@ button {
   padding: 7px 8px;
   font-size: 13px;
   letter-spacing: 0.04em;
+}
+/* The label's trailing tracking step sits between its ink and the flex gap,
+   reading as a 5.5px gap against the 5px spec — given back (the .warchip
+   .unit rule documents the leak; .bic zeroes its own side at the glyph). */
+.btnrow .btn .chiplbl {
+  margin-inline-end: -0.04em;
 }
 
 /* ---------- the picker grid ----------
@@ -918,6 +932,10 @@ button {
   letter-spacing: 0.1em;
   padding-inline: 5px;
 }
+/* The tracking, given back — the .warchip .unit rule above documents the leak. */
+.newchip .chiplbl {
+  margin-inline-end: -0.1em;
+}
 
 /* ---------- the shared confirm pill ----------
    One committed-action pill recipe used by the player market (PlayerList) and
@@ -950,6 +968,11 @@ button {
      tap extension (the earlier sibling's ::after would otherwise cover it —
      see the row tap surface below). */
   position: relative;
+}
+/* The tracking, given back — the .warchip .unit rule above documents the
+   leak. Nested tour arrows carry no .chiplbl and are untouched. */
+.confirm .chiplbl {
+  margin-inline-end: -0.04em;
 }
 /* Ink fill on dark background — browser default focus ring may not read.
    Inset blue ring matches the .btn:focus-visible and seedgo recipes. */

@@ -170,6 +170,17 @@
     fill: var(--pill-fill, var(--card));
     stroke: var(--pill-ring, var(--line));
     stroke-width: 2;
+    /* The hosts' dim states (undo's disabled, both pushed ghosts) ride the
+       --pill-fill/--pill-ring channels so element opacity stays a constant
+       1 (the .undo:disabled doctrine). fill/stroke transitioning at the
+       hosts' own 0.12s is what lets those channel flips FADE — a paint-only
+       animation that repaints in place, never a compositor layer. The cue's
+       gold arrival shares the fade; at 0.12s it reads as the same flat
+       state change. app.css kills every transition for reduced-motion
+       readers. */
+    transition:
+      fill 0.12s ease,
+      stroke 0.12s ease;
   }
   .art svg {
     fill: none;

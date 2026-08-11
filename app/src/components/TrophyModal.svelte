@@ -387,7 +387,8 @@
     border: 2px solid transparent;
     border-radius: 999px;
     background: transparent;
-    color: var(--muted);
+    /* Ink mark, gray ring — CornerButtons' resting pill documents the call. */
+    color: var(--ink);
     font-family: inherit;
     padding: 0;
     width: 28px;

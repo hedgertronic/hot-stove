@@ -151,6 +151,11 @@
       // One chip for the whole run: separate chips per honour put .chipline's
       // 3px flex gap at each honour boundary, so 💍💍ᐧ🥇 spaced wider than
       // 💍💍 sat together and the medals looked detached from the rings.
+      // The medals sit a touch airier than the rings — that is Apple's own
+      // glyph cell (measured 2026-08-10: medals carry ~0.17em of drawn-in
+      // side air where rings and pennants carry ~0.03em), and the run keeps
+      // the font's spacing the way every other emoji in the app does
+      // (owner call, same day: no kerning against the platform face).
       const run =
         "💍".repeat(rings) + "🚩".repeat(pennants) + "🥇".repeat(wbcChampions) + "🥈".repeat(wbcRunnersUp);
       if (run) pedigreeChips.push({ code: run, n: 1 });
@@ -1306,6 +1311,9 @@
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.1em;
+    /* The tracking, given back — flex-centered, so the trailing step seated
+       the ink a half-step left (app.css's .warchip .unit documents the leak). */
+    margin-inline-end: -0.1em;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
@@ -1374,6 +1382,10 @@
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.14em;
+    /* The tracking, given back as start padding: a centered run's trailing
+       step seats the ink a half-step left, and padding-left of one step
+       shifts it back (app.css's .warchip .unit documents the leak). */
+    padding-left: calc(8px + 0.14em);
     color: var(--muted);
     /* Wide enough for the longest label the chip can show ("GAME @0KF12OY")
        so the copy feedback can't jiggle the chip. */
@@ -1637,6 +1649,8 @@
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.1em;
+    /* The tracking, given back — flex-centered like .tpts above. */
+    margin-inline-end: -0.1em;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }

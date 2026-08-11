@@ -133,6 +133,9 @@
       "",
       "### Page",
       page,
+      "",
+      "### Version",
+      __APP_VERSION__,
     ].join("\n");
     const params = new URLSearchParams({ title: "Bug: ", body });
     return `https://github.com/hedgertronic/hot-stove/issues/new?${params}`;
@@ -812,7 +815,8 @@
     border: 2px solid transparent;
     border-radius: 999px;
     background: transparent;
-    color: var(--muted);
+    /* Ink mark, gray ring — CornerButtons' resting pill documents the call. */
+    color: var(--ink);
     width: 28px;
     height: 22px;
     box-sizing: border-box;

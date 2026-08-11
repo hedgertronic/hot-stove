@@ -1817,7 +1817,12 @@ export class Game {
    * this costs a function call in tests and in the harness. */
   private spendPowerup(key: PowerupKey): void {
     this.powerups[key] = "spent";
-    track("powerup_used", { key });
+    /* Not on an inert game: the replay driver reaches this method through
+     * the real action path (T/R/P/V/Q tokens, Double Play's consume), and a
+     * viewer walking a friend's shared code is not a player using a
+     * powerup — the analytics would count the friend's season again, once
+     * per viewer. */
+    if (!this.inert) track("powerup_used", { key });
   }
 
   private disarmToggles(): void {
@@ -3274,7 +3279,12 @@ export class Game {
         game.phase = "preSpin";
       }
       return game;
-    } catch {
+    } catch (e) {
+      /* A save that cannot restore is discarded and the player boots to a
+       * fresh home screen — the right UX, but this catch destroys player
+       * state, so unlike the app's other silent storage catches it leaves a
+       * trace for the bug report that may follow. */
+      console.warn("hot stove: discarding unrestorable save:", e);
       return null;
     }
   }

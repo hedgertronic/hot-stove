@@ -47,23 +47,38 @@ export function encodeLogBody(actions: CompactAction[]): string {
   return s;
 }
 
-/** Decode a compact body string to CompactAction[]. Returns [] on corrupt input. */
+/** Decode a compact body string to CompactAction[]. Returns [] on corrupt
+ * input — including a body CUT OFF mid-token: `body[i++]` past the end is
+ * undefined and `parseInt(undefined, 36)` is NaN, which would flow into the
+ * decoded output (NaN params in a bug report's decode) and worse, back OUT
+ * through a re-encode — `NaN.toString(36)` is the literal string "NaN", a
+ * silently garbled game code. Corrupt is corrupt; every exit is []. */
 export function decodeLogBody(body: string): CompactAction[] {
   const actions: CompactAction[] = [];
+  /* Strict base-36: parseInt accepts a valid PREFIX ("1!" reads as 1), so a
+   * garbled code could decode to a confident wrong action. Every char must
+   * be a digit. */
+  const b36 = (s: string): number => (/^[0-9a-z]+$/.test(s) ? parseInt(s, 36) : NaN);
   let i = 0;
   while (i < body.length) {
     const verb = body[i++];
     if (verb === "S" || verb === "W") {
-      const pi = parseInt(body[i++], 36);
-      const si = parseInt(body[i++], 36);
+      if (i + 2 > body.length) return [];
+      const pi = b36(body[i++]);
+      const si = b36(body[i++]);
+      if (!Number.isInteger(pi) || !Number.isInteger(si)) return [];
       actions.push({ verb, pi, si });
     } else if (verb === "P" || verb === "V") {
-      const ci = parseInt(body.slice(i, i + 2), 36); i += 2;
-      const pi = parseInt(body[i++], 36);
-      const si = parseInt(body[i++], 36);
+      if (i + 4 > body.length) return [];
+      const ci = b36(body.slice(i, i + 2)); i += 2;
+      const pi = b36(body[i++]);
+      const si = b36(body[i++]);
+      if (!Number.isInteger(ci) || !Number.isInteger(pi) || !Number.isInteger(si)) return [];
       actions.push({ verb, ci, pi, si });
     } else if (verb === "Q" || verb === "T" || verb === "R") {
-      const ci = parseInt(body.slice(i, i + 2), 36); i += 2;
+      if (i + 2 > body.length) return [];
+      const ci = b36(body.slice(i, i + 2)); i += 2;
+      if (!Number.isInteger(ci)) return [];
       actions.push({ verb, ci });
     } else if (
       verb === "O" || verb === "A" || verb === "M" ||

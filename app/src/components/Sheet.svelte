@@ -244,9 +244,16 @@
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.08em;
+    /* The tracking, given back as start padding — a centered run's trailing
+       step seats the ink a half-step left (app.css's .warchip .unit
+       documents the leak). Orthogonal to the corner arithmetic above, which
+       balances the BOX; this centers the ink inside it. */
+    padding-inline-start: 0.08em;
   }
   .title.solo {
-    padding-left: 34px;
+    /* The corner balance PLUS the give-back — a bare 34px would override
+       the start padding above and un-center the solo titles' ink. */
+    padding-left: calc(34px + 0.08em);
   }
   /* The title's caps seat on their cap band where the engine can trim —
      line-box-centered they rode ~0.3–0.9px high (highest on WebKit), which
@@ -268,7 +275,8 @@
     border: 2px solid transparent;
     border-radius: 999px;
     background: transparent;
-    color: var(--muted);
+    /* Ink mark, gray ring — CornerButtons' resting pill documents the call. */
+    color: var(--ink);
     font-family: inherit;
     font-weight: 800;
     font-size: 12px;

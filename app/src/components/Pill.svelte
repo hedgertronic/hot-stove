@@ -157,6 +157,14 @@
     background: var(--rarity-fill, var(--gray-bg));
     padding-inline: 12px;
   }
+  /* The tracking, given back — every part's trailing 0.06em step inflated
+     the structural 5px gaps, and the last part's seated the centered run a
+     half-step left (app.css's .warchip .unit documents the leak). DIRECT
+     children only: the nested NEW chip's label carries its own give-back at
+     its own 0.1em track in app.css, and this rule must not out-cascade it. */
+  .pill > .chiplbl {
+    margin-inline-end: -0.06em;
+  }
   /* EVERY glyph — badge emoji and country flag alike — is optically seated:
      flex centers its line box, but where the emoji INK sits inside that box
      is engine business twice over (which metric table places Nunito's
@@ -174,6 +182,9 @@
   .pill .ico {
     line-height: 1;
     transform: translateY(0.09em);
+    /* Tracking zeroed at the glyph, the .bic rule's reason: an emoji is one
+       grapheme cluster, and the inherited step only padded the gap after it. */
+    letter-spacing: 0;
   }
   /* ---- THE RECTANGLE: a country ----
      A stamp, not a pill. A country wears a small radius because a country is

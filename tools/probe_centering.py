@@ -9,9 +9,12 @@ those assumptions have now been wrong twice on engines nobody's Mac runs
 (Windows Blink most recently). This probe replaces the argument with a
 number: it renders specimen chips against the BUILT stylesheet, takes one
 viewport screenshot per engine at 3x device scale, crops each specimen by
-its DOM rect, finds the ink's bounding rows, and reports the offset between
-the ink's vertical center and the box's — in CSS pixels, positive meaning
-the ink sits LOW.
+its DOM rect, finds the ink's bounding rows AND columns, and reports the
+offset between the ink's center and the box's on both axes — in CSS pixels,
+positive meaning the ink sits LOW (v) or RIGHT (h). The horizontal ruler is
+the tracking-leak instrument: an un-given-back centered label reads h at
+about −track/2 (see tests/centering-doctrine.test.ts for the enforced
+manifest of every tracked label's repair).
 
 WHAT IT RENDERS. Specimens using the app's global recipes (warchip, chipbox,
 confirm) verbatim, plus inline replicas of the few component-scoped chips
@@ -86,6 +89,18 @@ SPECIMENS: list[dict] = [
      "html": '<span class="warchip sm mid">2.1<span class="unit">WAR</span></span>'},
     {"id": "confirm-pill", "border": 2, "shoulder": 12,
      "html": '<button class="confirm"><span class="chiplbl">SIGN FOR $23.5M</span></button>'},
+    # The action row's label+glyph pair (finale exits, Home's PLAY shape):
+    # real .btnrow/.btn/.chiplbl/.bic from the built CSS — the horizontal
+    # reading rules the give-back pair (label margin + .bic's zeroed track).
+    {"id": "btnrow-btn", "border": 2, "shoulder": 12,
+     "html": ('<div class="btnrow" style="width:130px">'
+              '<button class="btn"><span class="chiplbl">BACK</span> '
+              '<span class="bic">↩️</span></button></div>')},
+    # The NEW chip, verbatim recipe — ink fill, card-colored caps, 0.1em
+    # track with its give-back. Both axes matter: the founding horizontal
+    # asymmetry class, in its smallest, boldest instance.
+    {"id": "newchip", "border": 0, "shoulder": 5,
+     "html": '<span class="chipbox newchip"><span class="chiplbl">NEW</span></span>'},
     # The picker tiles (SEASON TICKET years, relocate club codes) — real
     # .pickopt class from the built CSS: 42px chipbox, chiplbl label, and on
     # the team tile the pedigree medal as a bare flex item.
@@ -227,8 +242,20 @@ SPECIMENS: list[dict] = [
 
 
 def ink_offset(img: Image.Image, rect: dict, border_css: float,
-               shoulder_css: float = 0) -> tuple[float, float]:
-    """(vertical offset of ink center vs box center, box height) in CSS px.
+               shoulder_css: float = 0) -> tuple[float, float, float]:
+    """(vertical offset, horizontal offset, box height) — ink center vs box
+    center on BOTH axes, in CSS px.
+
+    The horizontal reading is the tracking-leak ruler (app.css `.warchip
+    .unit`; tests/centering-doctrine.test.ts): letter-spacing appends a step
+    after the last glyph, so an un-given-back centered label reads here as a
+    NEGATIVE horizontal offset of half a step (ink left of center). The
+    hunt mirrors the vertical one with the axes swapped: columns are scanned
+    inside the border, rows confined past the corner shoulders — the arcs
+    would otherwise pin the bounding columns symmetrically and blind the
+    ruler, exactly as they would the rows. Emoji specimens report the
+    platform face's own side bearings here (Apple's medals carry ~0.17em per
+    side, measured 2026-08-10) — a per-OS fact to read, not a regression.
 
     `img` is ONE viewport screenshot and `rect` the specimen's
     getBoundingClientRect — the bitmap is never clipped per element, because
@@ -267,18 +294,57 @@ def ink_offset(img: Image.Image, rect: dict, border_css: float,
         for x in range(x0, x1, 2):
             counts[px[x, y]] = counts.get(px[x, y], 0) + 1
     bgc = max(counts, key=counts.get)  # type: ignore[arg-type]
+
+    def is_ink(x: int, y: int) -> bool:
+        r, g, b = px[x, y]
+        return abs(r - bgc[0]) + abs(g - bgc[1]) + abs(b - bgc[2]) > 90
+
     rows = []
     for y in range(y0, y1):
         for x in range(x0, x1):
-            r, g, b = px[x, y]
-            if abs(r - bgc[0]) + abs(g - bgc[1]) + abs(b - bgc[2]) > 90:
+            if is_ink(x, y):
                 rows.append(y)
                 break
-    if not rows:
-        return float("nan"), rect["height"]
+    # The horizontal hunt cannot reuse the row hunt's rectangular insets: on
+    # a capsule (shoulder = height/2) the arcs span the full height and a
+    # shoulder-inset row band is EMPTY. Instead the ring is masked
+    # geometrically — a pixel is scannable iff it sits inside the rounded
+    # rect shrunk by the border plus the antialiasing skirt, which is the
+    # exact region the ring's ink cannot reach at any corner radius. Full
+    # glyph coverage (no narrow-band approximation to under-read a T's
+    # extremes), ring excluded by construction.
+    r_dev = shoulder_css * SCALE
+    bins = border_css * SCALE + 3
+    xL, xR = rect["x"] * SCALE, (rect["x"] + rect["width"]) * SCALE
+    yT, yB = rect["y"] * SCALE, (rect["y"] + rect["height"]) * SCALE
+    lim2 = max(r_dev - bins, 0) ** 2
+
+    def interior(x: int, y: int) -> bool:
+        dx = min(x - xL, xR - x)
+        dy = min(y - yT, yB - y)
+        if dx < bins or dy < bins:
+            return False
+        if dx < r_dev and dy < r_dev:
+            return (r_dev - dx) ** 2 + (r_dev - dy) ** 2 <= lim2
+        return True
+
+    cols = []
+    for x in range(round(xL + bins), round(xR - bins)):
+        for y in range(round(yT + bins), round(yB - bins)):
+            if interior(x, y) and is_ink(x, y):
+                cols.append(x)
+                break
+    if not rows or not cols:
+        return float("nan"), float("nan"), rect["height"]
     ink_center = (rows[0] + rows[-1] + 1) / 2
     box_center = (rect["y"] + rect["height"] / 2) * SCALE
-    return (ink_center - box_center) / SCALE, rect["height"]
+    ink_center_x = (cols[0] + cols[-1] + 1) / 2
+    box_center_x = (rect["x"] + rect["width"] / 2) * SCALE
+    return (
+        (ink_center - box_center) / SCALE,
+        (ink_center_x - box_center_x) / SCALE,
+        rect["height"],
+    )
 
 
 def serve(directory: Path) -> tuple[socketserver.TCPServer, int]:
@@ -335,7 +401,7 @@ def main() -> None:
         "  return document.fonts.ready.then(() => undefined);"
         "}"
     )
-    results: dict[str, dict[str, tuple[float, float]]] = {}
+    results: dict[str, dict[str, tuple[float, float, float]]] = {}
     with sync_playwright() as pw:
         for name in args.browsers.split(","):
             browser = getattr(pw, name.strip()).launch()
@@ -358,22 +424,26 @@ def main() -> None:
             )
             img = Image.open(io.BytesIO(page.screenshot())).convert("RGB")
             for s in SPECIMENS:
-                off, height = ink_offset(img, rects[s["id"]], s["border"],
-                                         s.get("shoulder", 0))
-                results.setdefault(s["id"], {})[name.strip()] = (off, height)
+                voff, hoff, height = ink_offset(img, rects[s["id"]], s["border"],
+                                                s.get("shoulder", 0))
+                results.setdefault(s["id"], {})[name.strip()] = (voff, hoff, height)
             browser.close()
     srv.shutdown()
 
     engines = sorted({e for v in results.values() for e in v})
-    print(f"\nink offset vs box center, CSS px (+ = ink LOW) · box height")
-    print(f"{'specimen':<19}" + "".join(f"{e:>26}" for e in engines))
+    print("\nink center vs box center, CSS px "
+          "(v: + = ink LOW · h: + = ink RIGHT) · box height")
+    print(f"{'specimen':<19}" + "".join(f"{e:>34}" for e in engines))
     for sid, per in results.items():
         row = f"{sid:<19}"
         for e in engines:
-            off, height = per.get(e, (float('nan'), float('nan')))
-            row += f"{off:>+13.2f}px  h={height:<7.1f}"
+            voff, hoff, height = per.get(e, (float('nan'),) * 3)
+            row += f"  v{voff:>+6.2f} h{hoff:>+6.2f}px  ht={height:<7.1f}"
         print(row)
     print("\n|offset| <= 0.15px reads as centered (sub-device-pixel at 3x).")
+    print("h on EMOJI specimens reads the platform face's side bearings — "
+          "per-OS fact, not a regression. h on an un-given-back tracked label "
+          "reads about −track/2 (the leak the doctrine test enforces against).")
 
 
 if __name__ == "__main__":

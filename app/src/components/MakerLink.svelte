@@ -38,12 +38,19 @@
     border: 2px solid var(--line);
     border-radius: 999px;
     background: var(--card);
-    color: var(--muted);
+    /* Ink label, gray ring — CornerButtons' resting pill documents the call. */
+    color: var(--ink);
     font-size: 9px;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-decoration: none;
     transition: transform 0.08s;
+  }
+  /* The tracking, given back — the label is the chip's LAST flex item, so
+     its trailing step padded the right inset 0.72px past the left's
+     (app.css's .warchip .unit documents the leak). */
+  .maker .chiplbl {
+    margin-inline-end: -0.08em;
   }
   .cam {
     width: 13px;

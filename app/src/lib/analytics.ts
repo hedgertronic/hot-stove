@@ -35,11 +35,11 @@
  *       same LAN via the Vite host flag).
  *
  *   (3) The URL does not carry `?lab`. That query param activates the
- *       dev-only component gallery (App.svelte uses
- *       `new URLSearchParams(location.search).has("lab")` for the same
- *       detection). Analytics have no business running inside a UI test
- *       harness. The check mirrors App.svelte's detection rather than
- *       inventing a second signal for the same concept.
+ *       dev-only component gallery (App.svelte gates it behind
+ *       import.meta.env.DEV, so a production `?lab` just renders the game).
+ *       Analytics have no business running inside a UI test harness, and
+ *       keeping the production guard means a dev-built LAN session testing
+ *       the lab on a phone stays untracked too.
  */
 
 /** Minimal gtag shape. Declared inline so there is no dependency on
@@ -76,7 +76,7 @@ export function track(
     return; // inaccessible location → treat as suppressed
   }
 
-  // Guard (3): ?lab gallery route (dev-only component showcase, App.svelte:50).
+  // Guard (3): ?lab gallery route (DEV-gated component showcase in App.svelte).
   try {
     if (new URLSearchParams(location.search).has("lab")) return;
   } catch {

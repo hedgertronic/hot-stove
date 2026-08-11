@@ -1,7 +1,7 @@
 {
   "name": "hot-stove",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "brand:sync": "node ../tools/sync_brand_assets.mjs",

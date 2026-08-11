@@ -80,10 +80,6 @@
   /** Bumped by the help sheet's REPLAY INSTRUCTS while the finale is up;
    * Finale opens its own tour on each bump, seen-cue or not. */
   let finaleTourPing = $state(0);
-  /* `?jitter` arms the on-device movement recorder (lib/jitterprobe) — the
-   * dynamic import keeps the diagnostic out of every ordinary load. */
-  if (new URLSearchParams(window.location.search).has("jitter"))
-    import("./lib/jitterprobe").then((m) => m.startJitterProbe());
   let teamPickerOpen = $state(false);
   let quitArmed = $state(false);
   let quitTimer: ReturnType<typeof setTimeout> | undefined;
@@ -117,6 +113,13 @@
   } else if (devParams?.has("lab")) {
     import("./lab/Lab.svelte").then((m) => (LabComp = m.default));
   }
+  /* `?jitter` arms the on-device movement recorder (lib/jitterprobe). DEV
+   * guard since round 38: the round-37 compositor root cause is found and
+   * fixed, so the diagnostic no longer earns its CDN chunk — the guard
+   * tree-shakes it out of the production bundle the way the lab's goes. To
+   * measure a live-site wobble again, lift the guard for one deploy. */
+  if (devParams?.has("jitter"))
+    import("./lib/jitterprobe").then((m) => m.startJitterProbe());
 
   /** The boot meter's numerator: the five discrete steps between mount and a
    * playable screen — four data files plus the save restore. Steps rather
@@ -193,6 +196,11 @@
         }
         booted = true;
       } catch (e) {
+        /* The card shows String(e) — honest but stackless. The full error
+         * goes to the console too: boot failure is the one place a real
+         * stack matters for a bug report, and this line is the app's only
+         * console output. */
+        console.error("hot stove boot failed:", e);
         bootError = String(e);
       }
     })();
@@ -810,7 +818,8 @@
     border: 2px solid transparent;
     border-radius: 999px;
     background: transparent;
-    color: var(--muted);
+    /* Ink mark, gray ring — CornerButtons' resting pill documents the call. */
+    color: var(--ink);
     font-family: inherit;
     font-weight: 800;
     /* 12px, not 10: the trophy is a 13px drawing, and a 10px glyph beside it
@@ -831,8 +840,14 @@
     box-sizing: border-box;
     /* The same press dip its three corner twins carry (CornerButtons .help)
        — the ✕ was the one pill in the row that did not move under a tap.
+       color at the pushed ghost's 0.12s: the dim rides the color channels
+       (see `.quit.pushed`), and the mark's stroke follows the host's color
+       per frame — a paint-only fade, no compositor layer. The capsule's
+       fill/stroke carry their own matching transition in CornerPillArt.
        app.css kills the transition for reduced-motion readers. */
-    transition: transform 0.08s;
+    transition:
+      transform 0.08s,
+      color 0.12s ease;
   }
   /* The dip belongs to the tap that ACTS, not the tap that asks: arming
      already answers with the pill's whole costume change (✕ → QUIT? in
@@ -867,26 +882,42 @@
     width: 56px;
     z-index: 2;
   }
+  /* The tracking, given back — one 0.04em step rides after the final ?,
+     seating the centered word a half-step left (app.css's .warchip .unit
+     documents the leak). */
+  .quit.armed .chiplbl {
+    margin-inline-end: -0.04em;
+  }
   /* Beside a live confirm — the undo pill's, since this is the ✕ and the
-     wordmark. The mirror of `.help.pushed` in CornerButtons, same numbers and
+     wordmark. The mirror of `.help.pushed` in CornerButtons, same 22% and the
      same reasoning: ghosted so the header keeps its shape and nothing reflows
-     under the thumb, still tappable, and the confirm sits above it. */
-  .quit.pushed,
+     under the thumb, still tappable, and the confirm sits above it (armed
+     pills carry z-index 2; this pill carries none, per the resting-z ban on
+     `.undo`).
+
+     The ghost rides the svg's COLOR channels, never element opacity, a
+     transform, or a z-index — the `.undo:disabled` doctrine in
+     CornerButtons: any of the three hoists this svg-faced pill onto its own
+     compositor layer for the push and drops it at the lapse, and each drop
+     re-rasterizes the face at fresh device-pixel rounding on its half-pixel
+     seat. The owner watched the ✕ hop exactly once per UNDO? lapse. The
+     old scale(0.92) is gone with them: a 0.92 shrink on a 22% ghost read as
+     part of the fade, and no geometry change is what keeps the layer cold. */
+  .quit.pushed {
+    --pill-fill: color-mix(in srgb, var(--card) 22%, var(--ground));
+    --pill-ring: color-mix(in srgb, var(--line) 22%, var(--ground));
+    color: color-mix(in srgb, var(--ink) 22%, var(--ground));
+  }
+  /* The wordmark keeps the classic opacity/transform ghost. Its face is an
+     svg too, but it is an in-flow flex item at many times the pills' size —
+     a sub-pixel re-seat that reads as a hop on a 28px glyph disappears into
+     a 100px+ lockup, and no movement has ever been reported on it. The
+     translateY holds the optical seat under the push (transforms replace,
+     not compose). */
   .brand.pushed {
     opacity: 0.22;
-    transform: scale(0.92);
-  }
-  /* Keep the optical seat under the push: transforms replace, not compose. */
-  .brand.pushed {
     transform: translateY(1.8px) scale(0.92);
   }
-  /* Only the ✕ takes the z-index: it is the one that shares a corner with the
-     confirm. The wordmark is a static flex item and is painted under the
-     absolutely positioned pills already. */
-  .quit.pushed {
-    z-index: 0;
-  }
-  .quit,
   .brand {
     transition:
       opacity 0.12s ease,

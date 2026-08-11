@@ -327,7 +327,9 @@
     letter-spacing: 0.04em;
     color: var(--ink);
     margin: 6px 0 12px;
-    padding-inline: 11px;
+    /* Start pad grown by one tracking step — the give-back for the centered
+       bare-text label (app.css's .warchip .unit documents the leak). */
+    padding-inline: calc(11px + 0.04em) 11px;
     cursor: pointer;
     background: var(--card);
     border: 2px solid var(--line);

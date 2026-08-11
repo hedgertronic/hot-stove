@@ -254,7 +254,13 @@
     border: 2px solid transparent;
     border-radius: 999px;
     background: transparent;
-    color: var(--muted);
+    /* Ink mark on the gray ring (owner call, 2026-08-10): the mark is the
+       pill's content and the ring its furniture, so the mark carries the
+       darkest ink — muted left the glyph LIGHTER than its own --line ring.
+       The tour's nav arrows always sat ink-on-gray; this joins the family
+       to them. The cue/lens states' own `color: ink` lines are now
+       restatements; their emphasis rides the fill and ring channels. */
+    color: var(--ink);
     font-family: inherit;
     font-weight: 800;
     /* 12px, not 10: the trophy is a 13px drawing, and a 10px ? beside it read
@@ -342,14 +348,18 @@
        every landing while the ✕ beside it held still (this pill was the
        row's ONE resting stacking context). Stack order needs no help here
        anyway: the confirm states carry their own z-index (`.undo.armed` and
-       `.quit.armed` are 2, `.help.pushed` is 0), and the resting pills never
+       `.quit.armed` are 2; the pushed states carry none), and the resting pills never
        overlap — an armed word grows across the BRAND, which is in-flow and
        paints under any positioned pill by default. */
-    /* Width transitions alongside transform so arming and lapsing read as one
-       motion rather than a snap. QUIT? in App.svelte does NOT transition width
-       (only opacity/transform), so UNDO? animates slightly more — that is the
-       right tradeoff: the pill grows leftward into the wordmark, and an
-       animated expand reads gentler than a snap.
+    /* Width transitions alongside the pushed slide's margin so arming and
+       lapsing read as one motion rather than a snap. QUIT? in App.svelte
+       does NOT transition width, so UNDO? animates slightly more — that is
+       the right tradeoff: the pill grows leftward into the wordmark, and an
+       animated expand reads gentler than a snap. color at the same 0.12s so
+       the pushed ghost FADES through the channels (a paint-only fade — the
+       capsule's fill/stroke carry the matching transition in
+       CornerPillArt); transform is not here because nothing on this pill
+       transforms (`.undo:active` pins it still).
 
        Opacity is NOT in this list — and `.undo:disabled` below never touches
        the property at all: the disabled dim rides the svg's color channels,
@@ -359,7 +369,8 @@
        readers, who get the same end states instantly. */
     transition:
       width 0.12s ease,
-      transform 0.12s ease;
+      margin-right 0.12s ease,
+      color 0.12s ease;
   }
   /* Armed, the pill carries a word ("UNDO?") in the ✕'s confirm colors — one
      confirm language for the pair, so the second tap means the same thing
@@ -382,6 +393,12 @@
        recipe's padding-block correction on non-trim engines. */
     padding-inline: 8px;
     z-index: 2;
+  }
+  /* The tracking, given back — one 0.04em step rides after the final ?,
+     seating the centered word a half-step left (app.css's .warchip .unit
+     documents the leak). */
+  .undo.armed .chiplbl {
+    margin-inline-end: -0.04em;
   }
   /* The neighbour of a live confirm, and the whole of request #3: while one
      pill is asking for its second tap, everything beside it steps back — this
@@ -441,18 +458,35 @@
     cursor: default;
   }
   .help.pushed {
-    opacity: 0.22;
+    /* The ghost rides the svg's COLOR channels at 22% over --ground — the
+       `.undo:disabled` doctrine above, at the pushed depth. opacity, an
+       animated transform, and the old z-index are all banned here for the
+       disabled rule's reason: each one hoists the svg face onto its own
+       compositor layer for the push and drops it at the lapse, and the drop
+       re-rasterizes the face at fresh device-pixel rounding on its
+       half-pixel seat — the owner watched this pill hop exactly once per
+       QUIT? lapse (and the ✕ hop per UNDO? lapse, fixed the same way in
+       App.svelte). Stack order survives without the z-index: the armed
+       confirms carry z-index 2 and this pill carries none. */
+    --pill-fill: color-mix(in srgb, var(--card) 22%, var(--ground));
+    --pill-ring: color-mix(in srgb, var(--line) 22%, var(--ground));
+    color: color-mix(in srgb, var(--ink) 22%, var(--ground));
     /* The armed "QUIT?" is pinned at 56px in App.svelte precisely so this
-       number can be exact: 56 armed + 4px resting gap − 32px anchor = 28px of
-       push, minus the ~1px the 0.92 scale hands back at the near edge. The
-       word grows and "pushes" the pill; the lapse pulls it home — the resting
-       gap between the two pills is the same in both states. Only THIS pill
-       slides — the ✕ it mirrors never moves, because a quit target that walks
-       sideways under the thumb is the hazard the anchors comment above
-       refuses. Sliding AWAY from an armed confirm has no such victim: the
-       pill is stepped-back and inactive for the duration. */
-    transform: translateX(-27px) scale(0.92);
-    z-index: 0;
+       number can be exact: 56 armed + 4px resting gap − 32px anchor = 28px
+       of push. The word grows and "pushes" the pill; the lapse pulls it
+       home — the resting gap between the two pills is the same in both
+       states. Only THIS pill slides — the ✕ it mirrors never moves, because
+       a quit target that walks sideways under the thumb is the hazard the
+       anchors comment above refuses. Sliding AWAY from an armed confirm has
+       no such victim: the pill is stepped-back and inactive for the
+       duration.
+       The slide is MARGIN, not translateX: margin animates through layout
+       and repaints in place every frame, so the pill never takes a
+       compositor layer it would have to drop at the lapse. The old
+       scale(0.92) went with the transform (its ~1px near-edge give-back is
+       folded into the 28px); a shrink on a 22% ghost read as part of the
+       fade. */
+    margin-right: 28px;
   }
   .help:focus-visible {
     outline: 3px solid var(--blue);

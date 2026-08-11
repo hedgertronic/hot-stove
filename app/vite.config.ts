@@ -2,8 +2,12 @@
 import { defineConfig } from "vite";
 import { configDefaults } from "vitest/config";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import pkg from "./package.json";
 
 export default defineConfig({
+  // The bug-report body stamps the running build (HelpModal reportHref) —
+  // without it, issues filed against different deploys are indistinguishable.
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   // No font preload plugin: Nunito is no longer a bundle asset to race — it
   // ships as a render-blocking data-URI stylesheet (public/nunito.css, linked
   // from index.html), which is what retired the preload it used to need.

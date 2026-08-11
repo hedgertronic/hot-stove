@@ -599,6 +599,10 @@
     letter-spacing: 0.04em;
     padding-inline: 7px;
   }
+  /* The tracking, given back — app.css's .warchip .unit documents the leak. */
+  .chip .chiplbl {
+    margin-inline-end: -0.04em;
+  }
   /* These two keep their saturated club fills and their clubs' own type, which
      is the rule stopping at an edge case rather than an oversight: OAK green on
      OAK gold and NYY navy on white ARE the identity, and thinning either to a
@@ -639,6 +643,10 @@
     font-size: 9px;
     font-weight: 800;
     letter-spacing: 0.08em;
+    /* The tracking, given back — right-aligned, so the trailing step held
+       the ink 0.72px off the column's right edge (app.css's .warchip .unit
+       documents the leak). The media block re-states it at its own track. */
+    margin-inline-end: -0.08em;
     text-transform: uppercase;
     /* --muted on every row, picked or not: this copy is what a first-timer
        reads while COMPARING the unpicked rows, and --gray-ink on the ground
@@ -656,6 +664,10 @@
     font-weight: 800;
     letter-spacing: 0.04em;
     padding-inline: 9px;
+  }
+  /* The tracking, given back — app.css's .warchip .unit documents the leak. */
+  .pill .chiplbl {
+    margin-inline-end: -0.04em;
   }
   /* Open Market's payroll stays dashed even when punched — it isn't known yet. */
   .pill.ghost {
@@ -693,6 +705,7 @@
     .rmeta.caps {
       font-size: 8px;
       letter-spacing: 0.05em;
+      margin-inline-end: -0.05em;
     }
     .pill {
       --chip-h: 21px;
@@ -719,6 +732,12 @@
     padding: 9.4px 12px 8.6px;
     font-size: 17px;
     letter-spacing: 0.04em;
+  }
+  /* The label's trailing step, given back so the flame sits at the designed
+     6px (app.css: .bic zeroes the glyph's own side, .warchip .unit documents
+     the leak). */
+  .playbtn .chiplbl {
+    margin-inline-end: -0.04em;
   }
   /* The chipbox trade, restated for this one flex button: PLAY rides in a
      .chiplbl, so where the engine can trim, the label measures its own cap
@@ -907,7 +926,11 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     text-align: center;
-    padding: 0;
+    /* Start padding equal to one tracking step re-centers the typed code's
+       ink: the trailing step widens the run past its last glyph, and
+       padding-left p shifts a centered run's ink by p/2 (app.css's .warchip
+       .unit documents the leak; the media block re-states the number). */
+    padding: 0 0 0 0.08em;
     outline: none;
   }
   /* GO, the field's one action: the filled ink pill that commits the code.
@@ -941,6 +964,7 @@
   @media (max-width: 359px) {
     .seedin {
       letter-spacing: 0.03em;
+      padding-left: 0.03em;
     }
     .seedgo {
       padding: 5px 7px;
@@ -1012,6 +1036,10 @@
     font-size: 9px;
     font-weight: 800;
     letter-spacing: 0.12em;
+    /* Start padding of one tracking step re-centers the ink on this and the
+       two tracked lines below — a centered run's trailing step seats it a
+       half-step left (app.css's .warchip .unit documents the leak). */
+    padding-left: 0.12em;
     color: var(--muted);
     margin-bottom: 1px;
   }
@@ -1047,6 +1075,7 @@
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.1em;
+    padding-left: 0.1em;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
@@ -1057,6 +1086,7 @@
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.1em;
+    padding-left: 0.1em;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }

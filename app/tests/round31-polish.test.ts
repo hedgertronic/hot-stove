@@ -18,7 +18,10 @@ describe("the HUD ✕ presses like its corner twins", () => {
 
   it("carries the transition, and dips only on the tap that acts", () => {
     const quit = app.match(/\n  \.quit \{[^}]*\}/)?.[0] ?? "";
-    expect(quit).toContain("transition: transform 0.08s");
+    // transform for the press dip; color joined in round 38 so the pushed
+    // ghost's channel dim FADES (the .quit.pushed compositor doctrine).
+    expect(quit).toContain("transform 0.08s");
+    expect(quit).toContain("color 0.12s ease");
     // The dip belongs to the armed confirm (and the finale's confirm-less
     // ✕ via .instant) — a bare `.quit:active` would dip the arming tap too.
     expect(app).toContain(
