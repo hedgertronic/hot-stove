@@ -1180,15 +1180,17 @@
     opacity: 0;
     transform: translateY(10px) scale(0.97);
   }
-  /* The night wash runs at 12%, not the day's 25% (owner call, 2026-08-11):
-     the day tint DARKENS the rows a step below the parchment, but the night
-     -2 washes are lighter than the night ground, so the same 25% lightens
-     the rows into a glow — equal srgb steps read far stronger at the dark
-     end (rows measured 1.08-1.15:1 vs ground against the day rows'
-     1.00-1.06). 12% lands the tint back at the day register: just
-     perceptible, with the --fline border carrying the tier. */
+  /* At night the FILL keeps the day formula — its tint step off the
+     parchment base matches the day register (the whole night palette
+     inverts direction the same way) — but the BORDER dims: the night -8
+     rungs are bright saturated lines tuned for 2px rings on washes, and at
+     this 2.5px weight on the near-black ground the full rung read as a
+     neon glow beside the day card's moderate punch (owner call,
+     2026-08-11). 65% into the card lands the day read — tier hue obvious,
+     no glow — sitting between SpinBanner's 72% night ring lift and the
+     50% mix that under-reads. */
   :global([data-theme="dark"]) .lrow {
-    background: color-mix(in srgb, var(--fore, var(--ground)) 12%, color-mix(in srgb, var(--ground) 55%, var(--card)));
+    border-color: color-mix(in srgb, var(--fline, var(--line)) 65%, var(--card));
   }
   .lrow.show {
     opacity: 1;
