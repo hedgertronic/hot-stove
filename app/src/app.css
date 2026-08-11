@@ -314,6 +314,99 @@
      contains nothing but the flag sequences, so every letter and every other
      emoji falls straight through to Nunito and the platform's emoji font. */
   --disp: "Twemoji Country Flags", "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+
+  /* ---------- theme plumbing ----------
+     The sheet wash and the two tour spotlights dim the page through this one
+     token — an ink-tinted scrim on the day theme, a deeper black at night,
+     where a 45% warm-ink wash over an already-dark page separates nothing. */
+  --scrim: rgba(36, 34, 28, 0.45);
+  /* Type or glyph ink for the few surfaces whose fill stays BRIGHT gold in
+     both themes (the corner cue's capsule, LEGENDARY's inner NEW chip). On
+     the day theme this is simply --ink; at night --ink turns cream, and
+     cream on --yellow is unreadable, so these surfaces read this token and
+     it stays dark. */
+  --gold-ink: var(--ink);
+  color-scheme: light;
+}
+
+/* ---------- THE NIGHT GAME ----------
+   The same cardstock after dark: every token keeps its ROLE and changes its
+   register. The relationships the day theme documents are reproduced, not the
+   hexes:
+
+     * The page is warm near-black (--ground) and every plain box is a step
+       LIGHTER (--card) — paper still sits on the table.
+     * Ink turns warm cream. Type on any rung-2 wash stays --ink, exactly as
+       the tinting rule demands: the washes below all measure 8.2–10.7:1
+       against it.
+     * The tinting rule inverts registers, not roles: fill = the hue mixed
+       deep into the night card (the wash register), border = the hue at a
+       BRIGHTER Open Color rung than the day's 8 (the line register). Measured
+       so every pair's line clears 3:1 against its own wash (WCAG 1.4.11:
+       worst violet 3.07, best orange 4.30).
+     * The structural --line still outranks every tinted border — 6.6:1
+       against --card where the tints run 3.9–6.4 — so a page of boxes keeps
+       its hierarchy: structure first, color inside it.
+     * Ink's two jobs survive by inversion. COMMITTED fills (--ink under
+       --card type: the SIGN pill, the pitcher tag, the NEW chip) become
+       cream marks with dark type — still the hardest marks on the page.
+       ARMED stays the orange pair, now a deep orange wash under a bright
+       orange dash.
+
+   Three surfaces cannot ride the flip and are re-cut below the ladder rules:
+   LEGENDARY (an ink fill has no meaning when ink is cream — it goes deeper
+   than the ground instead, still "off the top" by being the darkest fill
+   under the brightest ring), ULTRA (a bright --yellow fill under cream type
+   is unreadable — the fill goes deep gold and the bright yellow moves to the
+   ring), and the corner cue (bright gold capsule keeps a DARK glyph via
+   --gold-ink). */
+:root[data-theme="dark"] {
+  --ground: #171410;
+  --card: #221f19;
+  --ink: #ede8da;
+  /* 6.62:1 against --card, 7.40:1 against --ground — the same "outranks every
+     tinted border, with headroom" seat the day line holds at 7.53/6.79. */
+  --line: #aaa496;
+  --muted: #a49d8d;
+  /* Stronger than --muted, as on the day theme — at night "stronger" means
+     lighter. */
+  --muted-2: #b3ab99;
+  /* The hue pairs. -2 stays the WASH register (the day hue's rung 8 mixed
+     ~30% into the night card), -8 stays the LINE register (rung 5–6, chosen
+     per hue so the brightest tint stays under --line). Gold's line keeps the
+     day theme's #c98a08 — the one hue whose line was already a judgement
+     call, and it happens to sit right in both registers. */
+  --red-2: #5b2420;
+  --red-8: #fa5252;
+  --green-2: #264526;
+  --green-8: #37b24d;
+  --blue-2: #1f384c;
+  --blue-8: #339af0;
+  --violet-2: #372953;
+  --violet-8: #845ef7;
+  --gold-2: #543f14;
+  --orange-2: #5d3015;
+  --orange-8: #fd7e14;
+  --teal-2: #1c4534;
+  --pink-2: #552a34;
+  /* The warm gray pair, at night weight. */
+  --gray-bg: #2b2721;
+  --gray-ink: #6f695c;
+  /* Legacy singles. --yellow deliberately does NOT move: it is the cue's
+     shout and LEGENDARY's ring, and both want the same bright gold on either
+     ground — the special-case rules below handle the type that sits on it. */
+  --green-wash: #26402b;
+  --green-deep: #55b467;
+  --blue: #5c7cfa;
+  --lilac: #363048;
+  --rare-violet: #3d3358;
+  --record-elite: #edb52a;
+  --brick-wash: #462c24;
+  --amber: #3a3220;
+  --dash: #4a453a;
+  --scrim: rgba(8, 6, 4, 0.62);
+  --gold-ink: #24221c;
+  color-scheme: dark;
 }
 
 * {
@@ -806,6 +899,24 @@ button {
 .brag.ironic {
   --rarity-fill: var(--brick-wash);
   --rarity-line: var(--war-neg);
+}
+/* The night re-cuts of the two rungs that cannot ride the token flip (the
+   theme block's note). LEGENDARY's ink fill would turn cream, so it goes
+   DEEPER than the night ground instead — still the only fill off the ladder,
+   now "off the bottom", under the same bright ring and gold type, and still
+   unmistakably the top rung: the darkest surface on the page wearing its
+   brightest type. ULTRA's bright --yellow fill would carry cream type, so
+   the fill goes deep gold and the bright yellow moves to the RING — the one
+   ring on the rarity ladder brighter than a rung-5, which keeps "gold and
+   nothing else" true one register over. Property-only rules, like the ladder
+   itself: no cascade fight to lose. */
+:root[data-theme="dark"] .brag.ultra,
+:root[data-theme="dark"] .stamp.ultra {
+  --rarity-fill: #63490d;
+  --rarity-line: var(--yellow);
+}
+:root[data-theme="dark"] .brag.legendary {
+  --rarity-fill: #0d0b08;
 }
 
 /* ---------- THE CHIP ----------

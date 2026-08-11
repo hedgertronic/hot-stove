@@ -7,6 +7,8 @@
     markHelpSeen,
     noteNewBadges,
   } from "../lib/settings";
+  import { track } from "../lib/analytics";
+  import { resolveTheme, toggleTheme } from "../lib/theme";
   import CornerPillArt from "./CornerPillArt.svelte";
   import HelpModal from "./HelpModal.svelte";
   import TrophyModal from "./TrophyModal.svelte";
@@ -161,6 +163,20 @@
     onconfirm?.(undoArmed);
   });
 
+  /** The day/night pill. Local state mirrors the document attribute (both
+   * are written by toggleTheme) so the face and the aria-label follow the
+   * tap without a re-render of anything else. Seeded from resolveTheme so a
+   * remount — home↔game, or a second CornerButtons pair — always shows the
+   * face the page is actually wearing. */
+  let theme = $state(resolveTheme());
+
+  // stopPropagation for the pair's reason above.
+  function tapTheme(e: MouseEvent) {
+    e.stopPropagation();
+    theme = toggleTheme();
+    track("theme_toggle", { theme });
+  }
+
   // The confirm outlives this component otherwise: quitting mid-confirm unmounts
   // the HUD with the timer still booked, and it fires into a component that is
   // gone. Teardown reads nothing, so it runs once and its teardown is the
@@ -191,6 +207,19 @@
   aria-label={badgeCue
     ? `Collectibles: ${badgeCount} new badge${badgeCount === 1 ? "" : "s"}`
     : "Collectibles"}><CornerPillArt glyph="trophy" /></button
+>
+
+<!-- The day/night pill, third in the left group. The face shows where the
+     tap GOES (moon by day, sun by night) — the destination convention, so
+     the pill reads as an offer rather than a status lamp. No armed state,
+     no cue, no confirm: a theme flip is instantly reversible, so one tap is
+     the act, like the ? beside it. -->
+<button
+  class="help theme chipbox"
+  class:home
+  onclick={tapTheme}
+  aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+  ><CornerPillArt glyph={theme === "dark" ? "sun" : "moon"} /></button
 >
 
 <!-- The third pill, drawn only where there is a run to rewind — the home
@@ -311,6 +340,17 @@
      anchored to the same corner. */
   .trophy {
     left: 32px;
+    right: auto;
+  }
+  /* Third in the group, sharing the pair's geometry. left: 64px is the seat
+     the undo pill's comment below weighs and declines FOR A CONFIRM control
+     (an armed word growing leftward from here would exit the corner); this
+     pill never arms and never grows, so the seat is safe — the left group
+     runs 92px into a corner the HUD's centered lockup clears at every
+     supported width (verified at 360px). `right: auto` for the trophy's
+     reason above. */
+  .theme {
+    left: 64px;
     right: auto;
   }
   /* Inboard of the ✕, which App.svelte pins at `right: 0` — the mirror of the
@@ -510,10 +550,12 @@
     /* The fill and ring live in CornerPillArt's svg now, so the cue's
        costume change rides the custom-property channel instead of the
        button's own background/border; the glyph goes to ink through
-       currentColor as ever. */
+       currentColor as ever — --gold-ink IS --ink on the day theme, and
+       stays dark at night where the capsule keeps its bright gold
+       (app.css's theme note). */
     --pill-fill: var(--yellow);
     --pill-ring: var(--gold-8);
-    color: var(--ink);
+    color: var(--gold-ink);
   }
   .help.cue::after {
     content: "";

@@ -109,10 +109,10 @@ afterEach(() => document.body.replaceChildren());
 
 describe("the undo pill", () => {
   it("is absent where there is no run to rewind", () => {
-    // The home screen passes no game and keeps its pair.
+    // The home screen passes no game and keeps its trio (?, trophy, theme).
     const ui = open(null);
     expect(ui.undo()).toBeNull();
-    expect(ui.pills()).toBe(2);
+    expect(ui.pills()).toBe(3);
     ui.close();
   });
 
@@ -124,7 +124,7 @@ describe("the undo pill", () => {
     // A word, not a bare glyph: the drawing is aria-hidden and the arrow has no
     // accessible name of its own.
     expect(btn!.getAttribute("aria-label")).toBe("Undo last move");
-    expect(ui.pills()).toBe(3);
+    expect(ui.pills()).toBe(4);
     ui.close();
   });
 
@@ -170,7 +170,7 @@ describe("the undo pill", () => {
     // than vanishing and shifting the two beside it.
     expect(ui.undo()).not.toBeNull();
     expect(ui.undo()!.disabled).toBe(true);
-    expect(ui.pills()).toBe(3);
+    expect(ui.pills()).toBe(4);
     ui.close();
   });
 });

@@ -4,9 +4,31 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#f6f1e3" />
+    <!-- The theme decision, BEFORE first paint: a stored choice wins, else
+         the OS's. Duplicates src/lib/theme.ts's resolveTheme by hand — that
+         module cannot run until the bundle arrives, and a dark-mode player
+         whose page painted day ground for 300ms would watch it flash on
+         every load. Sets the attribute every dark rule keys off, plus the
+         theme-color meta (the hexes are app.css's two --ground values —
+         change together, here and in theme.ts). try/catch: storage access
+         can throw (private windows with storage disabled), and a page that
+         cannot read a preference should paint the OS default, not die. -->
+    <script>
+      try {
+        var hst = localStorage.getItem("hotstove.theme");
+        if (hst !== "dark" && hst !== "light")
+          hst = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = hst;
+        if (hst === "dark")
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#171410");
+      } catch (e) {}
+    </script>
     <!-- The canvas color before the stylesheet lands: without it the page
          flashes UA white until app.css's --ground applies. Same hex as
-         theme-color above and app.css's --ground — change all three together. -->
+         theme-color above and app.css's --ground — change all three together.
+         The dark arm keys off the attribute the script above just set; the
+         !important boot-card rules outrank the card's own inline styles,
+         which are the day values. -->
     <!-- hsboot: the static card's "Warming up the stove…" line fades in on
          the same 400ms delay App.svelte's .bootload uses — a fast load never
          shows it, a slow bundle download gets a sign of life. Keyframes must
@@ -21,7 +43,7 @@
          must sit in app.css's geometry BEFORE app.css exists, or the boot
          handoff drops 2px (UA body margin 8 vs the app shell's 10px + safe
          area). Same values as app.css's body/#app rules; change together. -->
-    <style>html{background:#f6f1e3}body{margin:0}#app{padding-top:calc(10px + env(safe-area-inset-top))}@keyframes hsboot{to{opacity:1}}@media (prefers-reduced-motion:reduce){#warmline{opacity:1 !important}}</style>
+    <style>html{background:#f6f1e3}html[data-theme=dark]{background:#171410}[data-theme=dark] #static-boot{color:#ede8da !important}[data-theme=dark] #warmline{color:#a49d8d !important}body{margin:0}#app{padding-top:calc(10px + env(safe-area-inset-top))}@keyframes hsboot{to{opacity:1}}@media (prefers-reduced-motion:reduce){#warmline{opacity:1 !important}}</style>
     <!-- Nunito rides a render-blocking stylesheet whose bytes ARE the font
          (data URI), so the boot masthead can never paint in the fallback
          face and jump — the full argument lives at the top of the file.

@@ -290,6 +290,11 @@
     font-weight: 800;
     font-size: 13px;
   }
+  /* The night lift TeamPicker's tiles carry, for the same reason: a
+     near-black club accent (CHW, PIT) rings invisibly on the dark card. */
+  :global([data-theme="dark"]) .yr {
+    border-color: color-mix(in srgb, var(--accent) 72%, var(--line));
+  }
   /* Nothing spun yet: the warm gray pair, which is already a fill and its own
      darker line. */
   .yr.idle {

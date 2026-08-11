@@ -108,6 +108,14 @@
     --pick-fill: color-mix(in srgb, var(--accent) 18%, var(--card));
     letter-spacing: 0.04em;
   }
+  /* At night a near-black accent (CHW, PIT) draws an invisible ring on the
+     dark card, so the line register is lifted toward the structural --line:
+     72% accent keeps every bright club unmistakably its own color while the
+     darkest ones borrow just enough of the page's gray to stay drawn. The
+     fill needs no help — 18% of any accent over the night card reads. */
+  :global([data-theme="dark"]) .teambtn {
+    --pick-line: color-mix(in srgb, var(--accent) 72%, var(--line));
+  }
   /* The medal is app.css's shared `.pickopt .pedi` — the same 11px and
      margin the SEASON TICKET sheet reads, centered by the tile's chipbox
      (no raise of its own). The private 9px copy this picker once ran

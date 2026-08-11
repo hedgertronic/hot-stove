@@ -25,6 +25,12 @@
   } as unknown as Game;
 
   const colors: Colors = { franchises: { SEA: "#1f6f6b" } };
+
+  // The card is a LIGHT-THEME artifact: its background is hardcoded ivory and
+  // the shipped PNG must not depend on whoever renders it. The Playwright
+  // generator launches light by default; this pins the same result when the
+  // owner eyeballs ?og-preview from a dark-themed browser.
+  document.documentElement.dataset.theme = "light";
 </script>
 
 <svelte:head><title>Hot Stove OG Preview</title></svelte:head>

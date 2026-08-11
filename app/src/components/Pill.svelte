@@ -263,7 +263,9 @@
      invisible, so the chip inverts with it. */
   .pill.brag.legendary .newchip {
     background: var(--yellow);
-    color: var(--ink);
+    /* --ink on the day theme; stays dark at night, where --ink turns cream
+       and would vanish on the bright gold chip (app.css's theme note). */
+    color: var(--gold-ink);
   }
   .count {
     opacity: 0.7;

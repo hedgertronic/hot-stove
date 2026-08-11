@@ -172,7 +172,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(36, 34, 28, 0.45);
+    background: var(--scrim);
     z-index: 50;
     display: flex;
     align-items: flex-end;

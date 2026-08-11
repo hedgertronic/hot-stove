@@ -38,7 +38,7 @@
   let {
     glyph,
   }: {
-    glyph: "close" | "help" | "trophy" | "undo" | "filter" | "bug";
+    glyph: "close" | "help" | "trophy" | "undo" | "filter" | "bug" | "moon" | "sun";
   } = $props();
 
   /** THE family-wide optical seat, and the only number allowed to become
@@ -120,6 +120,38 @@
       overflow="visible"
       stroke-width="1.3"
       ><path d="M10.7 11.83V8.4A3.71 3.71 0 0 0 6.98 4.69H2.81 M5.59 2.37 2.81 4.69l2.78 2.32" /></svg
+    >
+  {:else if glyph === "moon"}
+    <!-- The theme pill's day face: a crescent, authored with its ink center
+         ON the 15.077 box's center (the sun below is symmetric and centered
+         by construction; the crescent was translated onto the same seat), so
+         the origin needs no recentering. Paints ~10px — the pictorial
+         ground it shares with the trophy and the undo arrow. -->
+    <svg
+      x="7"
+      y={4 + MARK_DY}
+      width="14"
+      height="14"
+      viewBox="0 0 15.077 15.077"
+      overflow="visible"
+      stroke-width="1.3"
+      ><path
+        d="M12.39 7.71A4.59 4.59 0 1 1 7.4 2.72a3.57 3.57 0 0 0 4.99 4.99Z"
+      /></svg
+    >
+  {:else if glyph === "sun"}
+    <!-- The night face: disc and eight rays, symmetric about the box center. -->
+    <svg
+      x="7"
+      y={4 + MARK_DY}
+      width="14"
+      height="14"
+      viewBox="0 0 15.077 15.077"
+      overflow="visible"
+      stroke-width="1.3"
+      ><circle cx="7.539" cy="7.539" r="2.2" /><path
+        d="M11.44 7.54h0.83M3.64 7.54H2.81M7.54 3.64V2.81M7.54 11.44v0.83M10.3 4.78l0.58-0.58M4.78 10.3l-0.58 0.58M10.3 10.3l0.58 0.58M4.78 4.78l-0.58-0.58"
+      /></svg
     >
   {:else if glyph === "filter"}
     <svg

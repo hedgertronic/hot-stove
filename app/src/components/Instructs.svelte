@@ -424,7 +424,7 @@
        the highlight, and the GLIDE below is what says "now look here": the
        hole travels to the next stop instead of teleporting. app.css kills
        every transition for reduced-motion readers. */
-    box-shadow: 0 0 0 200vmax rgba(36, 34, 28, 0.45);
+    box-shadow: 0 0 0 200vmax var(--scrim);
     transition:
       top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
       left 0.3s cubic-bezier(0.4, 0, 0.2, 1),

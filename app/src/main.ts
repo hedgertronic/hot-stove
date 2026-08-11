@@ -3,6 +3,15 @@ import flagFontUrl from "./assets/TwemojiCountryFlags.woff2?url";
 import { mount } from "svelte";
 import "./app.css";
 import App from "./App.svelte";
+import { applyTheme, resolveTheme, watchSystemTheme } from "./lib/theme";
+
+// The theme attribute is already on <html> — index.html's pre-paint script
+// put it there so the first frame never flashes the wrong ground. Re-applying
+// here is the module taking ownership: it also stamps the theme-color meta
+// (the inline script sets only the attribute), and from here on the OS
+// setting is followed live while no explicit choice is stored.
+applyTheme(resolveTheme());
+watchSystemTheme();
 
 // Windows ships no country-flag glyphs: Chrome and Edge there draw a
 // regional-indicator pair (🇺🇸) as two letter glyphs out of Segoe UI Emoji, so
