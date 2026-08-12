@@ -574,7 +574,6 @@
     <button
       class="quit chipbox"
       class:armed={quitArmed}
-      class:instant={game.phase === "finale"}
       class:pushed={undoArmed}
       bind:this={quitEl}
       onclick={tapQuit}
@@ -850,16 +849,13 @@
       transform 0.08s,
       color 0.12s ease;
   }
-  /* The dip belongs to the tap that ACTS, not the tap that asks: arming
-     already answers with the pill's whole costume change (✕ → QUIT? in
-     confirm orange), and dipping both taps made the ask feel like the act.
-     So the resting ✕ holds still, the armed confirm dips — and on the
-     finale, where there is nothing to abandon and no confirm step, the one
-     tap IS the act and dips (`.instant`, set off the phase). Same split as
-     the undo pill's (CornerButtons). */
-  .quit.armed:active,
-  .quit.instant:active {
-    transform: translate(-1px, -1px);
+  /* EVERY tap dips, arming included (owner call, 2026-08-12, superseding
+     the earlier ask/act split): a pressable thing presses, and the arming
+     tap's costume change (✕ → QUIT? in confirm orange) is the ANSWER, not
+     the press. One dip vocabulary across the app — the house translateY,
+     never a lift. */
+  .quit:active {
+    transform: translateY(1.5px);
   }
   /* Armed, the pill carries a word ("QUIT?") — it may outgrow the twin width,
      and reaches across the undo pill 32px inboard. That overlap is intended:

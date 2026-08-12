@@ -17,33 +17,43 @@ const read = (f: string) =>
 describe("the HUD ✕ presses like its corner twins", () => {
   const app = read("App.svelte");
 
-  it("carries the transition, and dips only on the tap that acts", () => {
+  it("carries the transition, and dips on every tap", () => {
     const quit = app.match(/\n  \.quit \{[^}]*\}/)?.[0] ?? "";
     // transform for the press dip; color joined in round 38 so the pushed
     // ghost's channel dim FADES (the .quit.pushed compositor doctrine).
     expect(quit).toContain("transform 0.08s");
     expect(quit).toContain("color 0.12s ease");
-    // The dip belongs to the armed confirm (and the finale's confirm-less
-    // ✕ via .instant) — a bare `.quit:active` would dip the arming tap too.
-    expect(app).toContain(
-      ".quit.armed:active,\n  .quit.instant:active {\n    transform: translate(-1px, -1px);",
-    );
-    expect(app).not.toMatch(/\n  \.quit:active \{/);
+    // Owner call, 2026-08-12: every pressable thing presses — arming tap
+    // included — in the ONE house vocabulary (translateY, never a lift).
+    // Supersedes the round-31/34 ask/act split and retires .instant, whose
+    // only job was carving the finale ✕ out of the old armed-only dip.
+    expect(app).toContain(".quit:active {\n    transform: translateY(1.5px);");
+    expect(app).not.toContain(".quit.armed:active");
+    expect(app).not.toContain("class:instant");
+    expect(app).not.toContain(".instant");
   });
 
-  it("the undo pill never dips — on either tap", () => {
-    // Round 34 revision of the round-31 split: the confirming tap's dip
-    // composited with UNDO?'s width collapse (62 → 28) and glyph swap and
-    // read as a glitch (owner report, 2026-08-09). QUIT? keeps its dip above
-    // because it does not animate width; the undo pill holds still for both
-    // taps.
+  it("the undo pill dips too — the round-34 hold-still is retired", () => {
+    // The round-34 glitch (press + width animation + glyph swap compositing
+    // into a hop, owner report 2026-08-09) belonged to the up-left LIFT;
+    // the house translateY sinks on the axis the width change never touches.
     const corner = read("components/CornerButtons.svelte");
-    expect(corner).toContain(".undo:active {\n    transform: none;");
-    expect(corner).not.toContain(".undo:not(.armed):active");
+    expect(corner).toContain(".undo:active {\n    transform: translateY(1.5px);");
+    expect(corner).not.toContain("transform: none");
   });
 
-  it("the finale ✕ knows it has no confirm step", () => {
-    expect(app).toContain('class:instant={game.phase === "finale"}');
+  it("no surface presses with the retired up-left lift", () => {
+    for (const f of [
+      "App.svelte",
+      "components/PlayerList.svelte",
+      "components/SpecialRows.svelte",
+      "components/PrimePicker.svelte",
+      "components/SpecialPrimePicker.svelte",
+      "components/CornerButtons.svelte",
+      "components/MakerLink.svelte",
+    ]) {
+      expect(read(f), f).not.toContain("translate(-1px, -1px)");
+    }
   });
 });
 

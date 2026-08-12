@@ -58,7 +58,7 @@
     display: block;
   }
   .maker:active {
-    transform: translate(-1px, -1px);
+    transform: translateY(1.5px);
   }
   .maker:focus-visible {
     outline: 3px solid var(--blue);

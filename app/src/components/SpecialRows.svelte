@@ -313,7 +313,7 @@
     }
   }
   .srow:active {
-    transform: translate(-1px, -1px);
+    transform: translateY(1.5px);
   }
   /* PlayerList's .prow rule, restated: when the press is the confirm
      pill's, the tile stands down instead of shifting under it. */

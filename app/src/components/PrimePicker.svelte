@@ -221,7 +221,7 @@
     min-height: 48px;
   }
   .srow:active {
-    transform: translate(-1px, -1px);
+    transform: translateY(1.5px);
   }
   .srow.dead {
     opacity: 0.45;

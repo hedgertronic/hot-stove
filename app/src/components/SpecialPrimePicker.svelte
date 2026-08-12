@@ -202,7 +202,7 @@
     min-height: 48px;
   }
   .srow:active {
-    transform: translate(-1px, -1px);
+    transform: translateY(1.5px);
   }
   /* Unavailable rows speak the taken-tile language from the draft screen: the
      whole card drops to gray and goes monochrome, its own chip included. The

@@ -256,7 +256,7 @@
     min-height: 46px;
   }
   .prow:active {
-    transform: translate(-1px, -1px);
+    transform: translateY(1.5px);
   }
   /* :active propagates to ancestors, so pressing the CONFIRM used to shift
      the whole row while the pill under the finger held still — feedback on

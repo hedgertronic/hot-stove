@@ -329,18 +329,16 @@
   }
   /* The same tactile dip the market rows use (PlayerList .prow:active). */
   .help:active {
-    transform: translate(-1px, -1px);
+    transform: translateY(1.5px);
   }
-  /* The undo pill never dips — on EITHER tap. The arming tap already
-     answers with the costume change (arrow → UNDO? in confirm orange), and
-     the confirming tap can't afford the dip the quit ✕ keeps: UNDO? is the
-     one confirm that also animates width (62 → 28) on release, and press
-     lift + width collapse + glyph swap composite into a pill that hops up
-     and settles back — read as a glitch, not feedback (owner report,
-     2026-08-09). The ? and the trophy have no confirm step: their one tap
-     is the act and keeps the dip above. */
+  /* The undo pill dips like everything else (owner call, 2026-08-12,
+     superseding the round-34 hold-still): every pressable thing presses,
+     one dip vocabulary. The round-34 glitch — press + width animation +
+     glyph swap compositing into a hop (owner report, 2026-08-09) — was the
+     UP-LEFT lift's; the house translateY sinks with the finger and returns
+     on the same axis the width change never touches. */
   .undo:active {
-    transform: none;
+    transform: translateY(1.5px);
   }
   /* The HUD is a centered flex row and hands the pills their vertical position;
      the home screen is a plain block, so there they pin near its top edge —
@@ -567,12 +565,23 @@
     /* The fill and ring live in CornerPillArt's svg now, so the cue's
        costume change rides the custom-property channel instead of the
        button's own background/border; the glyph goes to ink through
-       currentColor as ever — --gold-ink IS --ink on the day theme, and
-       stays dark at night where the capsule keeps its bright gold
-       (app.css's theme note). */
+       currentColor as ever — --gold-ink IS --ink on the day theme. */
     --pill-fill: var(--yellow);
     --pill-ring: var(--gold-8);
     color: var(--gold-ink);
+  }
+  /* Night is the MVP chip's re-cut (AwardPill's .qb.mvp note): a full
+     --yellow capsule on the dark board shouted over everything on screen.
+     Deep gold wash for the fill, the bright yellow promoted to the rings,
+     cream type — still the loudest gold in the corner zone, without the
+     lamp. */
+  :global([data-theme="dark"]) .help.cue {
+    --pill-fill: #63490d;
+    --pill-ring: var(--yellow);
+    color: var(--ink);
+  }
+  :global([data-theme="dark"]) .help.cue::after {
+    border-color: var(--yellow);
   }
   .help.cue::after {
     content: "";
