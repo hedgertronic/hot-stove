@@ -194,18 +194,11 @@
       background-color: transparent;
     }
   }
-  /* The slide is the star and the fade is support: enough travel to read
-     as ARRIVING from the bottom edge (18px read as a plain fade-in — the
-     owner's call), and the sheet is near-opaque the whole way so the eye
-     tracks the edge, not the materialize. */
-  @keyframes sheet-rise {
-    from {
-      opacity: 0.55;
-      transform: translateY(56px);
-    }
-  }
-  /* The wide cardstock modal is anchored to no edge, so it settles instead
-     of rising: a touch smaller and lower, mostly a materialize. */
+  /* ONE entrance at every width: the settle — a touch smaller and lower,
+     mostly a materialize. A bottom-edge slide was tried on the phone twice
+     (18px read as a fade, 56px as its correction) and the owner chose the
+     desktop settle over both: the sheets are one object in two costumes,
+     and they arrive the same way. */
   @keyframes sheet-settle {
     from {
       opacity: 0;
@@ -213,9 +206,7 @@
     }
   }
   .sheet {
-    /* A touch longer than the wide settle: 56px of travel at 0.2s was a
-       blink; 0.26s decelerating lets the rise register as a rise. */
-    animation: sheet-rise 0.26s cubic-bezier(0.05, 0.7, 0.1, 1);
+    animation: sheet-settle 0.2s ease-out;
     background: var(--ground);
     border: 3px solid var(--line);
     border-bottom: 0;
@@ -381,10 +372,6 @@
       border-bottom: 3px solid var(--line);
       border-radius: 18px;
       padding-bottom: 14px;
-      /* The full shorthand, not just the name: the settle keeps its own
-         quicker clock (owner-approved as-is) while the phone rise above
-         runs longer for its longer travel. */
-      animation: sheet-settle 0.2s ease-out;
     }
     /* Centered rather than anchored to an edge, so the ceiling is the backdrop's
        own padded box — a viewport-relative one would let a full sheet hang past
