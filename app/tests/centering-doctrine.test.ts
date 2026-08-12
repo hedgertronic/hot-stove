@@ -99,6 +99,8 @@ const MANIFEST: Record<string, [number, string]> = {
   "components/RailSeat.svelte :: 0.07em": [2, ".cell b / .mgr b — giveback-padding (centered labels)"],
   "components/SeasonsModal.svelte :: 0.02em": [1, ".mode — accepted: sub-pixel"],
   "components/Sheet.svelte :: 0.08em": [1, ".title — giveback-padding (every sheet's centered header)"],
+  "components/RosterRail.svelte :: 0.05em": [1,
+    ".ppos — immune-left (the peek's fixed label lane, Finale's .qpos re-cut)"],
   "components/SpinBanner.svelte :: 0.04em": [1, ".retry — giveback-padding (centered bare text)"],
   "components/TeamPicker.svelte :: 0.04em": [1,
     ".teambtn — accepted: 0.2px at 9.5px, and the tile sometimes ends in a medal whose own side air dominates"],

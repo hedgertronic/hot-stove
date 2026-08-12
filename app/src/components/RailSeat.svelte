@@ -22,18 +22,25 @@
    * in this file. The rail's own concerns (the grid, the phone pin, the section
    * header) stay with the rail, because they are about the ARRANGEMENT of
    * chairs rather than about a chair. */
+  import AwardPill from "./AwardPill.svelte";
+
   let {
     chair = "cell",
     label,
     name = null,
+    full = null,
     meta = null,
     tier = "",
     war = null,
     salary = null,
     salaryTier = "",
+    badges = null,
     pickable = false,
+    expanded = false,
+    controls,
     specimen = false,
     onclick,
+    oninfo,
   }: {
     /** `cell` is one of the eight player seats; `mgr` is the sideways chair
      * that anchors the left edge of the phone grid. */
@@ -43,6 +50,13 @@
     label: string;
     /** Display name — already shortened by the caller. Null is an empty seat. */
     name?: string | null;
+    /** The unabridged name, worn at desktop width where the row has room —
+     * the finale squad card prints "Greg Maddux", and the rail at width IS
+     * that card, so a surname-only row read as the copy drifting from the
+     * original. The phone keeps `name`: a 5-track seat fits one word. Falls
+     * back to `name` so callers with no longer form (the help sheet's
+     * specimens) change nothing. */
+    full?: string | null;
     /** The season line under the name: "1995 ATL". */
     meta?: string | null;
     /** The WAR rung as a bare word (`elite`, `mid`, …), or "" for no rung at
@@ -65,6 +79,16 @@
      * no salary shows. Passed as a word, like `tier`, so the seat stays free
      * of mode logic. */
     salaryTier?: string;
+    /** The seat's hardware, in reading order, or null for a bare seat. Each
+     * mark is either an award code ("MVP", "GG" — AwardPill's registry) or a
+     * standalone glyph ("🏠", "💍", "🚩", "🥇", "🥈"): a code starts with an
+     * ASCII capital, a glyph never does, so the seat can route each mark to
+     * a pill or an emoji span without knowing what any of them MEAN. The
+     * caller builds the list — hero flag, sorted awards, ring-or-pennant,
+     * medal — because ordering and mode gating (showAwards) are game
+     * knowledge and this chair carries none. Always on the row at width; on
+     * the phone the lane hides until the seat unfolds (`expanded`). */
+    badges?: string[] | null;
     /** Armed by the release picker — the armed orange pair, dashed, nudging.
      * Only a player seat is ever pickable; the manager is hired in the front
      * office row. */
@@ -73,17 +97,80 @@
      * tap. The native `inert` attribute takes the button out of the focus
      * order and swallows clicks; the cursor rule below withdraws the promise
      * of one. Only the pickable branch needs it — a resting seat is a div. */
+    /** Whether this seat's peek overlay is open. STATE ONLY — the overlay
+     * itself is the rail's (it overlays the whole row, which is a fact about
+     * the ARRANGEMENT, not about a chair); the seat just reports
+     * aria-expanded so the button and the panel it summons stay one control
+     * to assistive tech. */
+    expanded?: boolean;
+    /** DOM id of the open peek panel, for aria-controls — set only while
+     * `expanded` (the panel exists only then; a dangling reference would be
+     * worse than none). A plain string, like every other prop: which panel
+     * it is stays the caller's business. */
+    controls?: string;
     specimen?: boolean;
     onclick?: () => void;
+    /** Toggles the phone's unfolded read. Distinct from `onclick`, which
+     * belongs to the pickable branch's sign/release tap — the two states
+     * never share an element — and the caller withholds this one at desktop
+     * width (the row already shows everything) and while a pick is armed
+     * ("one question at a time"). Present, the filled seat renders as a
+     * button; absent, it stays the resting div it has always been, which is
+     * also what keeps the help sheet's specimens dead without a new flag. */
+    oninfo?: () => void;
   } = $props();
 
   const rung = $derived(tier === "" ? "" : `war-${tier}`);
 </script>
 
+{#snippet marks(list: string[])}
+  <!-- One mark, two faces: an award code wears its registry pill, a bare
+       glyph (ring, medal, homegrown) stands as type. The leading-capital
+       test is the whole router — see the `badges` prop note. -->
+  <span class="badges"
+    >{#each list as mark}{#if /^[A-Z]/.test(mark)}<AwardPill code={mark} small />{:else}<span
+          class="emo">{mark}</span
+        >{/if}{/each}</span
+  >
+{/snippet}
+
+{#snippet lane()}
+  <!-- .lane is the finale .qmid restated: name, season and hardware share a
+       middle lane that WRAPS at width, so a decorated seat folds its pills
+       to a second line instead of clipping them. On the phone the lane is
+       `display: contents` — the wrapper vanishes and the name stacks in the
+       seat's column exactly as it always did. Both chairs speak it: the
+       manager's MOY and ring ride the same lane the players' hardware does. -->
+  <span class="lane"
+    ><span class="nm short">{name}</span><span class="nm long">{full ?? name}</span><i>{meta}</i
+    >{#if badges?.length}{@render marks(badges)}{/if}</span
+  >
+{/snippet}
+
+{#snippet filledBody()}
+  <b>{label}</b>{@render lane()}
+  {#if salary || war}
+    <span class="chips" class:lone={!war}>
+      {#if salary}<em class="sal {salaryTier}">{salary}</em>{/if}
+      {#if war}<em class="rwar warchip sm">{war}</em>{/if}
+    </span>
+  {/if}
+{/snippet}
+
+{#snippet mgrBody()}
+  <!-- The manager's three rows, now through the shared lane: label, name
+       (surname on the phone, the whole card at width), season, and — new —
+       his hardware (MOY pill, 💍/🚩), the finale MGR row's own read. The
+       wins chip stays a direct child: no salary ever shares his right edge,
+       so the .chips group would be a wrapper around one thing. -->
+  <b>{label}</b>{@render lane()}
+  {#if war}<em class="rwar warchip sm">{war}</em>{/if}
+{/snippet}
+
 {#if pickable}
   <button class="cell pickable {rung}" class:vacant={!name} inert={specimen} {onclick}>
     <b>{label}</b>
-    {#if name}<span>{name}</span><i>{meta}</i>
+    {#if name}<span class="nm">{name}</span><i>{meta}</i>
       {#if salary || war}
         <span class="chips" class:lone={!war}>
           {#if salary}<em class="sal {salaryTier}">{salary}</em>{/if}
@@ -92,6 +179,19 @@
       {/if}
     {/if}
   </button>
+{:else if name && chair === "mgr" && oninfo}
+  <!-- The skipper's chair, offered — the phone tap answers with the rail's
+       peek exactly as a player seat's does. Same inert rule for specimens. -->
+  <button
+    class="mgr filled {rung}"
+    class:expanded
+    aria-expanded={expanded}
+    aria-controls={expanded ? controls : undefined}
+    inert={specimen}
+    onclick={oninfo}
+  >
+    {@render mgrBody()}
+  </button>
 {:else if name && chair === "mgr"}
   <!-- The skipper's chair uses the same upright column layout as the eight
        player seats at all widths: position label, name, WAR chip. The season
@@ -99,20 +199,27 @@
        for the player seats (see .mgr i below). No salary: the manager's cost
        is not a Signed.costPaid and the chair carries no salary prop. -->
   <div class="mgr filled {rung}">
-    <b>{label}</b>
-    <span>{name}</span>
-    <i>{meta}</i>
-    {#if war}<em class="rwar warchip sm">{war}</em>{/if}
+    {@render mgrBody()}
   </div>
+{:else if name && oninfo}
+  <!-- The same chair, offered: identical anatomy to the resting div below,
+       drawn as a button because a phone tap now answers by unfolding the
+       seat. inert covers the help sheet's specimens the way the pickable
+       branch's does — tests/help-specimens.test.ts pins that no embedded
+       seat is a live button. -->
+  <button
+    class="cell filled {rung}"
+    class:expanded
+    aria-expanded={expanded}
+    aria-controls={expanded ? controls : undefined}
+    inert={specimen}
+    onclick={oninfo}
+  >
+    {@render filledBody()}
+  </button>
 {:else if name}
   <div class="cell filled {rung}">
-    <b>{label}</b><span>{name}</span><i>{meta}</i>
-    {#if salary || war}
-      <span class="chips" class:lone={!war}>
-        {#if salary}<em class="sal {salaryTier}">{salary}</em>{/if}
-        {#if war}<em class="rwar warchip sm">{war}</em>{/if}
-      </span>
-    {/if}
+    {@render filledBody()}
   </div>
 {:else}
   <div class="{chair} empty"><b>{label}</b></div>
@@ -209,6 +316,34 @@
   .sal.spendy {
     color: var(--orange);
   }
+  /* The hardware lane: hidden on the phone like the season line — the 64px
+     seat has no row for pills, and the tap answers with the rail's peek
+     overlay instead. Kept in the DOM so the 760px block can restore it
+     without a markup branch, the season line's own pattern. */
+  .badges {
+    display: none;
+  }
+  .emo {
+    font-size: 12px;
+    line-height: 1;
+  }
+  /* A filled seat that answers a tap says so the way every offer here does —
+     the pickable branch's cursor rule, minus the orange (this is a question
+     the player asks, not one the game is asking them). The specimen override
+     mirrors the pickable branch's own [inert] withdrawal below. */
+  button.cell.filled,
+  button.mgr.filled {
+    cursor: pointer;
+  }
+  button.cell.filled[inert],
+  button.mgr.filled[inert] {
+    cursor: default;
+  }
+  button.cell.filled:focus-visible,
+  button.mgr.filled:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
+  }
   .rwar {
     align-self: center;
     margin-top: 3px;
@@ -232,15 +367,36 @@
     padding-inline-start: 0.07em;
     color: var(--muted-2);
   }
-  /* The name line only — .chips is also a span in the seat, and it lays out
-     its own flex row, so the block-line treatment must not reach it. */
-  .cell span:not(.chips) {
+  /* The middle lane holds name, season and hardware. NOT named `mid`: the
+     salary element wears costTier's bucket word as a class, and one of the
+     three buckets IS "mid" — a `.mid` lane rule reached across and re-drew
+     mid-priced salaries (found live: two seats' prices showing on the phone
+     because their $8–25M tier matched the lane's display). On the phone the
+     lane generates no box — display:contents hands its children straight to
+     the seat's column, so the name stacks under the label exactly as before
+     the lane existed. Desktop turns it into the finale's .qmid (the wrapping
+     flex row) in the media block below. */
+  .lane {
+    display: contents;
+  }
+  /* The name line, BY CLASS. This rule was `span:not(.chips)` for a while
+     and that shape is the trap: every later span added to the seat (.mid,
+     .badges) inherited the name's block treatment at higher specificity
+     than its own rules could answer. Naming the one element it means is
+     the fix. */
+  .nm {
     display: block;
     font-weight: 800;
     font-size: 11px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  /* Two cuts of one name, CSS-switched like the season line: the phone
+     wears the surname, width wears the whole card. Both stay in the DOM so
+     the swap is a media fact, not a markup branch. */
+  .nm.long {
+    display: none;
   }
   /* Season line: hidden on the phone (too little room in the 64px seat) and
      kept in the DOM so the 760px media query can restore it without a markup
@@ -323,6 +479,10 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    /* Stated for the BUTTON cut of the chair — a div inherited these free,
+       a button arrives wearing the UA's own face. Same pair .cell states. */
+    font-family: inherit;
+    color: inherit;
   }
   /* MGR is a word in the players' own label register — same tracked caps, same
      muted color. */
@@ -332,15 +492,6 @@
     letter-spacing: 0.07em;
     padding-inline-start: 0.07em;
     color: var(--muted-2);
-  }
-  .mgr span {
-    display: block;
-    font-weight: 800;
-    font-size: 11px;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .mgr.empty {
     border-style: dashed;
@@ -372,27 +523,70 @@
       gap: 8px;
       text-align: left;
       width: 100%;
-      /* Fixed, for the same reason the phone seat's height is: a filled row
-         measures 38.016px — 5px of border, 12px of padding and the 21.016px
-         chip, which is taller than any of the three type lines beside it — so a
-         36px floor let signing a player push the row 2px taller than the empty
-         seats above and below it. 38.5px is the filled height with the
-         remainder as slack, and `align-items: center` splits it. */
-      height: 38.5px;
+      /* A FLOOR, no longer a ceiling — the one surface excused from the
+         fixed-furniture rule, by owner's call: a decorated seat WRAPS its
+         hardware to a second line the way the finale squad row does, and a
+         row that wraps must be allowed to stand taller. 38.5px is still the
+         single-line height (5px border + 12px padding + the 21.016px chip,
+         taller than any type line beside it), so an undecorated rail is
+         pixel-identical to the fixed era: empty seats, Eye Test seats and
+         one-line signings all sit exactly on the floor, and only a second
+         pill line spends anything. */
+      min-height: 38.5px;
+      height: auto;
       padding: 6px 10px;
       line-height: 1.25;
       overflow: hidden;
     }
-    /* The season line is visible again at width, as one flex item in the row.
-       The DOM order (b, span, i, em.rwar) matches the desired read for both
-       the player seats and the manager: pos · name · season · chip. The chip
-       pushes to the right edge via `margin-left: auto` below. */
+    /* The manager rides the same floor: his lane now carries MOY and the
+       ring, so his row must be allowed the same second line the players'
+       get — in practice one pill and a glyph never wrap it, and he stands
+       exactly 38.5px like everyone else. */
+    /* The season line is visible again at width, as one item of the middle
+       lane (player seats) or the row itself (manager, pickable): pos · name
+       · season · hardware · chip. The chip group pushes to the right edge
+       via `margin-left: auto` below. */
     .cell i,
     .mgr i {
       display: block;
       font-size: 11px;
       flex: 0 1 auto;
       min-width: 0;
+    }
+    /* The middle lane becomes the finale's .qmid: name, season and pills
+       share a WRAPPING flex row, so a decorated seat's pressure valve is a
+       second line — the finale squad row's own answer — never a clipped
+       pill. flex: 1 with min-width: 0 is what lets it sit between the label
+       lane and the chip group and still truncate a long name. */
+    .lane {
+      display: flex;
+      flex: 1 1 auto;
+      min-width: 0;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 2px 8px;
+    }
+    /* The name never shrinks to make space for pills — past the lane width
+       it ellipsizes instead, the finale .qname rule. The full-name cut takes
+       the seat; the phone's surname cut stands down. */
+    .nm {
+      font-size: 13px;
+      flex: none;
+      max-width: 100%;
+    }
+    .nm.short {
+      display: none;
+    }
+    .nm.long {
+      display: block;
+    }
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      flex: none;
+      max-width: 100%;
     }
     /* At desktop the chip group becomes a row: salary left, WAR chip right,
        the pair pushed to the right edge as a unit and stopped at the row's
@@ -445,7 +639,6 @@
          above would read as a rightward shove — stood down. */
       padding-inline-start: 0;
     }
-    .cell span:not(.chips),
     .mgr span {
       font-size: 13px;
       flex: 0 1 auto;

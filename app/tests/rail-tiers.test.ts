@@ -67,12 +67,15 @@ const hireMoty = (g: Game) => {
 };
 
 describe("roster rail hardware", () => {
-  it("the MGR seat wears no MOY pill, MotY skipper or not, in either mode", () => {
+  it("the MGR seat wears MOY in Box Score and withholds it from Eye Test", () => {
+    // The rail carries hardware since the seat-detail round (owner call):
+    // the desktop rail is the finale squad card served mid-game, so MOY
+    // rides the skipper's row — but it is still an award signal, and Eye
+    // Test still keeps it in the envelope.
     const { std, sct } = pair(RosterRail, hireMoty, railProps);
-    for (const body of [std, sct]) {
-      expect(body).toContain("Piniella"); // the seat itself still renders
-      expect(body).not.toContain("MOY");
-    }
+    for (const body of [std, sct]) expect(body).toContain("Piniella");
+    expect(std).toContain("MOY");
+    expect(sct).not.toContain("MOY");
   });
 
   it("suppressing the pill leaves the manager's moty flag on the game", () => {

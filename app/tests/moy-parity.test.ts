@@ -57,11 +57,14 @@ describe("Manager of the Year pill parity", () => {
     for (const body of [std, sct]) expect(body).not.toContain("MOY");
   });
 
-  /* The rail carries no hardware at all — not the skipper's MOY, not a
-   * player's MVP. It's a compact who/when card, and on a phone a trailing
-   * pill is the first thing to get cut off. Every hidden award waits for the
-   * finale, which is the game's one reveal surface. */
-  it("MGR rail seat: no MOY pill in either mode, MotY skipper or not", () => {
+  /* The rail carries hardware now — the desktop rail is the finale squad
+   * card served mid-game (owner call, seat-detail round), so the skipper's
+   * MOY rides his row the way a player's MVP rides theirs. The parity half
+   * of the doctrine is unchanged: MOY is an award signal, so Eye Test still
+   * withholds it, and on the phone the CSS hides the lane until the seat's
+   * peek asks for it (a layout fact jsdom can't see; the markup carries the
+   * pill at every width). */
+  it("MGR rail seat: MOY pill in Box Score, withheld from Eye Test", () => {
     const { std, sct } = pair(
       RosterRail,
       (g) => {
@@ -80,10 +83,9 @@ describe("Manager of the Year pill parity", () => {
       },
       (g) => ({ game: g }),
     );
+    expect(std).toContain("MOY");
     // The skipper still reads as himself; only the hardware is withheld.
-    for (const body of [std, sct]) {
-      expect(body).not.toContain("MOY");
-      expect(body).toContain("Piniella");
-    }
+    expect(sct).not.toContain("MOY");
+    for (const body of [std, sct]) expect(body).toContain("Piniella");
   });
 });
