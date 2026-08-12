@@ -464,6 +464,7 @@
                 >{#each peekView.badges as mark}{#if /^[A-Z]/.test(mark)}<AwardPill
                       code={mark}
                       small
+                      snap={false}
                     />{:else}<span class="pemo">{mark}</span>{/if}{/each}</span
               >
             {/if}

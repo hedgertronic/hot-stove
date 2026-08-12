@@ -47,12 +47,23 @@
  * its award pills inside a scaling panel, and the snap taken mid-scale
  * corrected itself at animationend as a visible one-device-pixel hop
  * (down on one-line panels, up on wrapped ones — rounding direction).
- * So apply() skips while any element up the chain is transformed. Safe to
- * skip rather than defer-and-poll, because the app's own doctrine is that
- * transforms resolve to `none` at rest, and the animationend/transitionend
- * listeners below re-apply at exactly that moment. (The snap's own shift
- * rides the `translate` property, which computed `transform` does not
- * include — the guard never sees its own work.) */
+ * So apply() skips while any element up the chain is transformed. (The
+ * snap's own shift rides the `translate` property, which computed
+ * `transform` does not include — the guard never sees its own work.)
+ *
+ * THE SKIP HAS NO SETTLE EVENT UNDER A SVELTE TRANSITION. The re-apply
+ * listeners below hear CSS animations and transitions only — Svelte 5 runs
+ * `transition:` css-functions through the Web Animations API, which fires
+ * NEITHER event, and holds computed transform ≠ none (`fill: 'forwards'`)
+ * until Svelte cancels it. So a pill mounted inside a Svelte transition
+ * skips every apply during the flight and then snaps whenever some
+ * UNRELATED transitionend happens by — a translate landing on a pill
+ * already visibly at rest, i.e. a hop, direction set by the fractional
+ * phase of the pill's resting top (the rail-peek jitter: up from the top
+ * row, down from `.low`). Such hosts must not use gridsnap at all
+ * (AwardPill's `snap={false}`); their pills accept the bounded half-device-
+ * pixel ring asymmetry instead — the same trade the corner/sheet pills
+ * already made. */
 export function gridsnap(node: HTMLElement, active: boolean) {
   if (!active || typeof window === "undefined") return;
   let applied = 0;
