@@ -472,8 +472,6 @@
               <span class="pbadges"
                 >{#each peekView.badges as mark}{#if /^[A-Z]/.test(mark)}<AwardPill
                       code={mark}
-                      small
-                      snap={false}
                     />{:else}<span class="pemo">{mark}</span>{/if}{/each}</span
               >
             {/if}
@@ -673,9 +671,13 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    /* The finale .qmid's own gap — the peek is that row served on demand,
-       so name-to-hardware air matches it exactly (owner parity call). */
-    gap: 2px 4px;
+    /* The finale .qmid's own gap column-wise; the ROW gap runs 4px where
+       the finale's is 2px because the finale's 1.603 line box carries its
+       own air — matching the VISUAL name-to-pills distance (~5.5px of ink
+       air), not the declared number (owner call: the finale's two-line row
+       uses its vertical space better, and the peek is that row served on
+       demand). */
+    gap: 4px 4px;
   }
   /* The desktop row's own registers (13/11) — the peek IS that row served
      on demand, so the type must not read as a smaller cousin of it. */

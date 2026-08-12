@@ -60,10 +60,10 @@
  * UNRELATED transitionend happens by — a translate landing on a pill
  * already visibly at rest, i.e. a hop, direction set by the fractional
  * phase of the pill's resting top (the rail-peek jitter: up from the top
- * row, down from `.low`). Such hosts must not use gridsnap at all
- * (AwardPill's `snap={false}`); their pills accept the bounded half-device-
- * pixel ring asymmetry instead — the same trade the corner/sheet pills
- * already made. */
+ * row, down from `.low`). Such hosts must not use gridsnap at all — the
+ * rail peek wears the finale's FULL-SIZE pills, which never snap — and
+ * accept the bounded half-device-pixel ring asymmetry instead, the same
+ * trade the corner/sheet pills already made. */
 export function gridsnap(node: HTMLElement, active: boolean) {
   if (!active || typeof window === "undefined") return;
   let applied = 0;

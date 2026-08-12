@@ -6,17 +6,8 @@
    * finale ledger. What a code is CALLED and which hue family it wears are
    * lib/awards.ts's business — the same registry format.ts sorts a pill row
    * by — so this file draws pills and holds no table of its own.
-   * `small` is the market-row size; `n` renders a ×N multiplier (ledger).
-   * `snap` opts a small pill out of gridsnap: hosts whose entrance is a
-   * Svelte transition (WAAPI — fires no animationend/transitionend, so the
-   * settle re-apply never comes and the snap lands late, as a visible
-   * post-rest hop) pass false. The rail peek is that host. */
-  let {
-    code,
-    n = 1,
-    small = false,
-    snap = true,
-  }: { code: string; n?: number; small?: boolean; snap?: boolean } = $props();
+   * `small` is the market-row size; `n` renders a ×N multiplier (ledger). */
+  let { code, n = 1, small = false }: { code: string; n?: number; small?: boolean } = $props();
 
   const text = $derived(awardLabel(code));
   /** The label split at its leading medal. 🥇MVP is an emoji glyph and a
@@ -30,7 +21,7 @@
 <!-- gridsnap rides the SMALL cut only: the gameplay rows' stacked half-pixel
      offsets shave the 1.5px ring's top arc at 3× (the action's own note); the
      finale's full-size chips already sit clean and stay untouched. -->
-<span class="chipbox qb {awardFamily(code)}" class:small use:gridsnap={small && snap}
+<span class="chipbox qb {awardFamily(code)}" class:small use:gridsnap={small}
   >{#if medal}<span>{medal}</span>{/if}<span class="chiplbl">{word}</span>{#if n > 1}<span
       class="mult chiplbl">×{n}</span
     >{/if}</span
