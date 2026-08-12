@@ -97,6 +97,7 @@ const MANIFEST: Record<string, [number, string]> = {
   "components/PrimePicker.svelte :: 0.03em": [1, ".pos — accepted: ≤0.15px at 9.5px"],
   "components/PrimePicker.svelte :: 0.01em": [1, ".pos.long — accepted with .pos"],
   "components/RailSeat.svelte :: 0.07em": [2, ".cell b / .mgr b — giveback-padding (centered labels)"],
+  "components/RailSeat.svelte :: 0.05em": [1, "wide .cell b / .mgr b — immune-left (the finale .qpos register, fixed type column)"],
   "components/SeasonsModal.svelte :: 0.02em": [1, ".mode — accepted: sub-pixel"],
   "components/Sheet.svelte :: 0.08em": [1, ".title — giveback-padding (every sheet's centered header)"],
   "components/RosterRail.svelte :: 0.05em": [1,

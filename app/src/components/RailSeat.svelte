@@ -23,6 +23,7 @@
    * header) stay with the rail, because they are about the ARRANGEMENT of
    * chairs rather than about a chair. */
   import AwardPill from "./AwardPill.svelte";
+  import { wrapnudge } from "../lib/wrapnudge";
 
   let {
     chair = "cell",
@@ -147,8 +148,14 @@
        to a second line instead of clipping them. On the phone the lane is
        `display: contents` — the wrapper vanishes and the name stacks in the
        seat's column exactly as it always did. Both chairs speak it: the
-       manager's MOY and ring ride the same lane the players' hardware does. -->
+       manager's MOY and ring ride the same lane the players' hardware does.
+       wrapnudge: the market rows' wrapped-pills rebalance — a wrapped lane
+       reads as sitting low (line one's type carries leading above its caps,
+       line two's pills are ink to their edges). 1.6px = half the cap
+       overhead of 13px type on the row's 1.25 line box. Inert on the phone:
+       display: contents draws no box to nudge. -->
   <span class="lane"
+    use:wrapnudge={1.6}
     ><span class="nm short">{name}</span><span class="nm long">{full ?? name}</span><i>{meta}</i
     >{#if badges?.length}{@render marks(badges)}{/if}</span
   >
@@ -632,6 +639,9 @@
     }
     .sal {
       display: block;
+      /* The finale .qsal's 11px (owner parity call) — the phone keeps the
+         10.5px cut above, sized to its narrower seat. */
+      font-size: 11px;
     }
     /* Inside .chips, the group wrapper handles right-edge placement;
        the chip itself needs no margin push. */
@@ -657,9 +667,15 @@
        gets on the other side. */
     .cell b,
     .mgr b {
-      width: 30px;
+      /* The finale .qpos register EXACTLY (31px, 800, 0.05em) — the wide
+         rail row is that card served mid-game, and its label read visibly
+         lighter beside the finale's (owner parity call). The phone keeps
+         its own 9px/0.07em compact cut above. */
+      width: 31px;
       flex: none;
       font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
       text-align: left;
       /* Left-aligned here, so the centered layout's tracking give-back
          above would read as a rightward shove — stood down. */

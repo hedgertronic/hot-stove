@@ -242,8 +242,14 @@ function fillRoster(g: Game): void {
     ["Paul Abbott", "SP"],
     ["Jeff Nelson", "RP"],
   ];
+  // Seats 1 and 3 carry enough hardware to WRAP the wide row's lane to a
+  // second line — the decorated-seat geometry (finale squad row's own) that
+  // an undecorated roster never shows.
+  const hardware: Partial<Signed>[] = [];
+  hardware[1] = { awards: ["MVP", "SS", "AS"], ws: true, hero: true };
+  hardware[3] = { awards: ["MVP", "GG", "GG", "AS"], pen: true };
   seats.forEach(([name, pos], i) => {
-    g.slots[i] = mkSigned({ name, pos, war: 1 + i * 0.3, costPaid: 4 + i });
+    g.slots[i] = mkSigned({ name, pos, war: 1 + i * 0.3, costPaid: 4 + i, ...hardware[i] });
   });
 }
 

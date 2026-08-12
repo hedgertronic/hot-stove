@@ -2,6 +2,7 @@
   import { track } from "../lib/analytics";
   import { bragRow } from "../lib/badges";
   import { balancewrap } from "../lib/balancewrap";
+  import { wrapnudge } from "../lib/wrapnudge";
   import { ownerFor } from "../lib/data";
   import { SLOT_TYPES, type Game } from "../lib/engine.svelte";
   import { costTier, lastName, money, recordFromTotal, seedCode, signed, slotLabel, sortAwards, statValue, warTier, type WarTier } from "../lib/format";
@@ -900,7 +901,7 @@
   {#if game.manager}
     <div class="qrow">
       <span class="qpos">MGR</span>
-      <span class="qmid">
+      <span class="qmid" use:wrapnudge={2.6}>
         <span class="qname"
           >{#if fin.managerHit}<span class="emo qstar">⭐</span>{/if}{game.manager.name}
           <i>{game.manager.year} {game.manager.team}</i></span
@@ -924,7 +925,7 @@
     {#if slot}
       <div class="qrow">
         <span class="qpos">{slotLabel(SLOT_TYPES[i])}</span>
-        <span class="qmid">
+        <span class="qmid" use:wrapnudge={2.6}>
           <span class="qname"
             >{#if starred(slot)}<span class="emo qstar">⭐</span>{/if}{slot.name}
             <i>{slot.year} {slot.team}</i></span
@@ -1011,7 +1012,7 @@
            dashed-and-washed when the dream club found a better one. -->
       <div class="qrow" class:missed={!fin.managerHit} class:signed={fin.managerHit}>
         <span class="qpos">MGR</span>
-        <span class="qmid">
+        <span class="qmid" use:wrapnudge={2.6}>
           <span class="qname"
             >{fin.bestManager.name}
             <i>{fin.bestManager.year} {fin.bestManager.team}</i></span
@@ -1038,7 +1039,7 @@
         {#if pick}
           <!-- Awards show WHY the solver chose this season — they count in
                its objective now, not just WAR. -->
-          <span class="qmid">
+          <span class="qmid" use:wrapnudge={2.6}>
             <span class="qname"
               >{pick.name}
               <i>{pick.year} {pick.team}</i></span

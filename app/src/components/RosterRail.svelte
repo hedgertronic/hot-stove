@@ -5,6 +5,7 @@
   import { costTier, lastName, money, slotLabel, sortAwards, statValue, warTier } from "../lib/format";
   import { MANAGER_PER_NET_WIN, WBC_CHAMPION_ID, WBC_RUNNERUP_ID } from "../lib/scoring";
   import type { CardPlayer } from "../lib/types";
+  import { wrapnudge } from "../lib/wrapnudge";
   import AwardPill from "./AwardPill.svelte";
   import RailSeat from "./RailSeat.svelte";
 
@@ -462,7 +463,10 @@
           onclick={fold}
         >
           <b class="ppos">{peekView.pos}</b>
-          <span class="pmid">
+          <!-- wrapnudge: the wrapped-lane optical rebalance the rail's .lane
+               and the finale's .qmid carry — same 13px/1.25 line one, same
+               1.6px half-overhead. -->
+          <span class="pmid" use:wrapnudge={1.6}>
             <span class="pname">{peekView.name} <i>{peekView.meta}</i></span>
             {#if peekView.badges?.length}
               <span class="pbadges"
@@ -669,7 +673,9 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 2px 6px;
+    /* The finale .qmid's own gap — the peek is that row served on demand,
+       so name-to-hardware air matches it exactly (owner parity call). */
+    gap: 2px 4px;
   }
   /* The desktop row's own registers (13/11) — the peek IS that row served
      on demand, so the type must not read as a smaller cousin of it. */

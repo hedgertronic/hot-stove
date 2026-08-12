@@ -14,7 +14,7 @@
  * and the name's own descent overhang balances its cap leading — which is
  * why this cannot be a static declaration: CSS has no wrapped-flex selector,
  * so the action watches and nudges only while the column is actually two
- * lines. Transform, not margin: paint-only, so the row's height and the
+ * lines. A translate, not margin: paint-only, so the row's height and the
  * sibling columns never move.
  *
  * WRAP DETECTION IS A THRESHOLD, not an inequality. In a center-aligned flex
@@ -60,7 +60,11 @@ export function wrapnudge(
     // the DOM when the action's update runs, so offsetWidth here would read
     // the post-swap layout. The stored width is the honest one.
     node.style.maxInlineSize = frozen ? `${freeWidth}px` : "";
-    const kids = [...node.children] as HTMLElement[];
+    // RENDERED children only: responsive alternates kept in the DOM at
+    // display:none (RailSeat's phone/wide name pair) sit at offsetTop 0
+    // with no height — anchoring line one on a hidden first child read
+    // every visible sibling as a second line and nudged one-line rows.
+    const kids = ([...node.children] as HTMLElement[]).filter((k) => k.offsetHeight > 0);
     const wrapped =
       kids.length > 1 &&
       kids.some((k) => k.offsetTop > kids[0].offsetTop + kids[0].offsetHeight / 2);
@@ -74,7 +78,15 @@ export function wrapnudge(
     // device pixel of the derived value) and keeps the edges whole.
     const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
     const snapped = Math.round(px * dpr) / dpr;
-    node.style.transform = wrapped ? `translateY(${-snapped}px)` : "";
+    // The CSS `translate` PROPERTY, not `transform` — same paint-only
+    // geometry, different channel on purpose: gridsnap's mid-flight guard
+    // walks ancestors' computed `transform` to skip measuring under an
+    // ANIMATED one, and this nudge is a RESTING offset the pills inside
+    // should measure right through. Computed `transform` excludes
+    // `translate`, so the guard never mistakes a settled nudge for a
+    // flight (a wrapped market row's pills stopped snapping the day the
+    // guard landed — this channel split is the cure).
+    node.style.translate = wrapped ? `0 ${-snapped}px` : "";
   };
   // The observer hears every reflow that can change the wrap: the viewport,
   // the confirm pill swapping the right column in and out, badges appearing
