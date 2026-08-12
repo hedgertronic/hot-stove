@@ -344,13 +344,15 @@
       duration: 240,
       easing: quintOut,
       // t runs 0→1 opening, 1→0 closing; u is its complement. Scale lands
-      // on 1 as u hits 0. The box is opaque card-on-ink, so it rides at
-      // full ink for the whole flight; the t*3 front ramp exists only to
-      // hand off cleanly to the chair underneath in the first/last ~80ms —
-      // exactly the frames where the non-uniform squeeze distorts border
-      // and radius most.
+      // on 1 as u hits 0. TRANSFORM ONLY — no opacity term, the round-37
+      // channel doctrine: an animated opacity crossing 1.0 churns
+      // compositing layers, and the drop at landing re-rasterized the
+      // panel's award pills at fresh device-pixel rounding (the owner's
+      // "pills jitter at land", the undo pill's exact mechanism). The box
+      // needs no fade anyway: it is opaque cardstock and at t=0 it IS the
+      // seat's rectangle, so the handoff under it is covered by geometry.
       css: (t: number, u: number) =>
-        `transform-origin: 0 0; transform: translate(${u * dx}px, ${u * dy}px) scale(${t + sx * u}, ${t + sy * u}); opacity: ${Math.min(1, t * 3)};`,
+        `transform-origin: 0 0; transform: translate(${u * dx}px, ${u * dy}px) scale(${t + sx * u}, ${t + sy * u});`,
     };
   }
 
@@ -586,6 +588,13 @@
     line-height: 1.25;
     color: inherit;
     cursor: pointer;
+    /* Own the compositor layer for the panel's whole (four-second) life
+       rather than letting the morph promote one and drop it at landing —
+       the drop is a re-raster at fresh device-pixel rounding, which is the
+       round-37 undo-pill artifact wearing a new hat (and .pmeter's own
+       will-change precedent). The panel is transient and singular, so the
+       held layer is noise-priced. */
+    will-change: transform;
   }
   /* Anchored to the seat's own half of the weave: seats 0–3 live in the top
      grid row, 4–7 in the bottom. Bottom-anchored, a tall panel grows UP over
@@ -605,6 +614,12 @@
      unfold. */
   .peek > * {
     animation: peek-ink 120ms ease-out;
+    /* Same channel rule as the panel: the ink fade is an animated opacity
+       crossing 1.0, so each lane would get a transient layer and drop it
+       at fade-end — seven re-rasters landing mid-morph. Holding the layers
+       for the panel's life makes the fade's end a no-op for the
+       rasterizer. */
+    will-change: opacity;
   }
   @keyframes peek-ink {
     from {
