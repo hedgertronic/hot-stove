@@ -643,6 +643,10 @@ button {
 .pickopt:active {
   transform: translateY(1.5px);
 }
+/* The option you are already on refuses the dip — the house dead-state pin. */
+.pickopt:disabled:active {
+  transform: none;
+}
 /* The option you are already on: still legible, plainly not a destination. */
 .pickopt:disabled {
   opacity: 0.32;

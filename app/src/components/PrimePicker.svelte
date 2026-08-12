@@ -223,6 +223,11 @@
   .srow:active {
     transform: translateY(1.5px);
   }
+  /* :active propagates to ancestors — the row stands down when the press is
+     the CANCEL pill's own (PlayerList .prow's rule). */
+  .srow:has(.confirm:active):active {
+    transform: none;
+  }
   .srow.dead {
     opacity: 0.45;
     cursor: default;

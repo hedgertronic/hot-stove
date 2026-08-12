@@ -155,6 +155,16 @@
     undoArmed = false;
   });
 
+  // QUIT? arming answers UNDO? with no — the mirror of App's onconfirm
+  // handler, and the half the pointerdown away-listeners can't cover: a
+  // keyboard activation fires no pointerdown, so without this two armed
+  // confirms could sit side by side. `pushed` IS "the ✕ is armed".
+  $effect(() => {
+    if (!pushed) return;
+    clearTimeout(undoTimer);
+    undoArmed = false;
+  });
+
   // The host dims the ✕ and the wordmark while this confirm is up, so it has to
   // hear every change including the one the timeout makes with no tap behind it.
   // Braces, not a bare arrow: an expression body hands the callback's return
@@ -340,6 +350,12 @@
   .undo:active {
     transform: translateY(1.5px);
   }
+  /* A dead control refuses the dip (the house dead-state pin — Home .book,
+     SeasonsModal .row): a spent rewind that still pressed would promise a
+     tap it can't honor. */
+  .undo:disabled:active {
+    transform: none;
+  }
   /* The HUD is a centered flex row and hands the pills their vertical position;
      the home screen is a plain block, so there they pin near its top edge —
      at the HUD's OWN seat, not the block's. The pair is constant chrome that
@@ -413,8 +429,8 @@
        animated expand reads gentler than a snap. color at the same 0.12s so
        the pushed ghost FADES through the channels (a paint-only fade — the
        capsule's fill/stroke carry the matching transition in
-       CornerPillArt); transform is not here because nothing on this pill
-       transforms (`.undo:active` pins it still).
+       CornerPillArt); transform at the house 0.08s so the press dip eases
+       like every other pill's.
 
        Opacity is NOT in this list — and `.undo:disabled` below never touches
        the property at all: the disabled dim rides the svg's color channels,
@@ -425,7 +441,8 @@
     transition:
       width 0.12s ease,
       margin-right 0.12s ease,
-      color 0.12s ease;
+      color 0.12s ease,
+      transform 0.08s;
   }
   /* Armed, the pill carries a word ("UNDO?") in the ✕'s confirm colors — one
      confirm language for the pair, so the second tap means the same thing

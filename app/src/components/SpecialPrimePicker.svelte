@@ -204,6 +204,11 @@
   .srow:active {
     transform: translateY(1.5px);
   }
+  /* :active propagates to ancestors — the row stands down when the press is
+     the CANCEL pill's own (PlayerList .prow's rule). */
+  .srow:has(.confirm:active):active {
+    transform: none;
+  }
   /* Unavailable rows speak the taken-tile language from the draft screen: the
      whole card drops to gray and goes monochrome, its own chip included. The
      tier is not whispered through the way a dead market row keeps its chip's

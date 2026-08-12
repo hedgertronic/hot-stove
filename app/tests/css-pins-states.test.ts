@@ -39,7 +39,32 @@ describe("the HUD ✕ presses like its corner twins", () => {
     // the house translateY sinks on the axis the width change never touches.
     const corner = read("components/CornerButtons.svelte");
     expect(corner).toContain(".undo:active {\n    transform: translateY(1.5px);");
-    expect(corner).not.toContain("transform: none");
+    // The dip eases on the house clock, riding the pill's own list.
+    expect(corner).toContain("transform 0.08s");
+    // A spent rewind refuses the dip — the house dead-state pin.
+    expect(corner).toContain(".undo:disabled:active {\n    transform: none;");
+  });
+
+  it("dead states refuse the unified dip", () => {
+    const css = read("app.css");
+    expect(css).toContain(".pickopt:disabled:active {\n  transform: none;");
+    // The pickers' rows stand down when the press is the CANCEL pill's own —
+    // :active propagates to ancestors (PlayerList .prow's rule).
+    for (const f of [
+      "components/PrimePicker.svelte",
+      "components/SpecialPrimePicker.svelte",
+    ]) {
+      expect(read(f), f).toContain(".srow:has(.confirm:active):active {\n    transform: none;");
+    }
+  });
+
+  it("only one destructive confirm is armed at a time", () => {
+    // The pointerdown away-listeners can't hear a keyboard activation, so
+    // each pill's arming explicitly disarms the other: App's onconfirm
+    // handler quiets QUIT?, and CornerButtons' pushed effect quiets UNDO?.
+    expect(app).toContain("quitArmed = false;\n        }\n      }}");
+    const corner = read("components/CornerButtons.svelte");
+    expect(corner).toContain("if (!pushed) return;\n    clearTimeout(undoTimer);\n    undoArmed = false;");
   });
 
   it("no surface presses with the retired up-left lift", () => {

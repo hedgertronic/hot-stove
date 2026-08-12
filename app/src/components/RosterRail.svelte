@@ -167,7 +167,7 @@
    * already says everything. */
   let expandedSeat = $state<number | "mgr" | null>(null);
   $effect(() => {
-    if (pickPlayer || !phone) expandedSeat = null;
+    if (expandedSeat !== null && (pickPlayer || !phone)) fold();
   });
 
   /** WHO the open panel is about, stamped at tap time. The peek can outlive
@@ -184,7 +184,7 @@
   };
   let peekAbout: string | null = null;
   $effect(() => {
-    if (expandedSeat !== null && occupantKey(expandedSeat) !== peekAbout) expandedSeat = null;
+    if (expandedSeat !== null && occupantKey(expandedSeat) !== peekAbout) fold();
   });
 
   /** The skipper's marks, the finale MGR row's read: MOY (his one pill),

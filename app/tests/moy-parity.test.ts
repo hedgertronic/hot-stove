@@ -57,7 +57,7 @@ describe("Manager of the Year pill parity", () => {
     for (const body of [std, sct]) expect(body).not.toContain("MOY");
   });
 
-  /* The rail carries hardware now — the desktop rail is the finale squad
+  /* The rail carries hardware — the desktop rail is the finale squad
    * card served mid-game (owner call, seat-detail round), so the skipper's
    * MOY rides his row the way a player's MVP rides theirs. The parity half
    * of the doctrine is unchanged: MOY is an award signal, so Eye Test still

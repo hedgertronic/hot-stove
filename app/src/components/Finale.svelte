@@ -885,8 +885,8 @@
   <button
     class="seedchip disp"
     class:ok={gameState === "copied"}
-    title="Copy the full game code — replays this exact season"
-    aria-label="Copy the full game code — replays this exact season"
+    title="Copy the full game code: replays this exact season"
+    aria-label="Copy the full game code: replays this exact season"
     onclick={copyGame}
   >
     {gameState === "idle" ? `GAME @${seedCode(game.seed)}` : gameState === "copied" ? "COPIED ✓" : "COPY FAILED"}

@@ -252,9 +252,16 @@ describe("signed-seat peek (phone)", () => {
   it("the peek folds when its occupant leaves, and does not haunt the refill", () => {
     const g = signedGame();
     const el = board(g);
-    seats(el)[0].click();
+    const [chair] = seats(el);
+    chair.click();
     flushSync();
     expect(peeks(el)).toHaveLength(1);
+    // Every closer funnels through fold(). Here the chair itself unmounts
+    // with its occupant, so there is nothing to hand focus back to — the
+    // isConnected guard is what keeps fold() from focusing a ghost. The
+    // assertion below pins that this degrades quietly (focus falls to body,
+    // no throw), not that it restores.
+    peeks(el)[0].focus();
 
     // The seat empties under the open panel (an undo's rewind, the Trade
     // Deadline's release): the panel is ABOUT someone, so it folds rather
@@ -262,6 +269,8 @@ describe("signed-seat peek (phone)", () => {
     g.slots[0] = null;
     flushSync();
     expect(peeks(el)).toHaveLength(0);
+    expect(chair.isConnected).toBe(false);
+    expect(document.activeElement).toBe(document.body);
 
     // A new man in the same chair does not inherit the old panel — no peek
     // opens without a tap, and the next tap opens HIS read.

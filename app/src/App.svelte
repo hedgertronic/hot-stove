@@ -557,7 +557,17 @@
         ? (game.finale?.newBadges ?? [])
         : null}
       pushed={quitArmed}
-      onconfirm={(armed) => (undoArmed = armed)}
+      onconfirm={(armed) => {
+        undoArmed = armed;
+        // One armed confirm at a time: two destructive second-taps live at
+        // once (reachable by keyboard, whose activations fire no pointerdown
+        // for the away listeners to hear) is two loaded questions. UNDO?
+        // arming answers QUIT? with no, exactly as any other tap would.
+        if (armed) {
+          clearTimeout(quitTimer);
+          quitArmed = false;
+        }
+      }}
       oninstructs={() => (instructsOpen = true)}
       onfinaleinstructs={() => (finaleTourPing += 1)}
     />

@@ -165,9 +165,9 @@
 {/snippet}
 
 {#snippet mgrBody()}
-  <!-- The manager's three rows, now through the shared lane: label, name
-       (surname on the phone, the whole card at width), season, and — new —
-       his hardware (MOY pill, 💍/🚩), the finale MGR row's own read. The
+  <!-- The manager's rows through the shared lane: label, name (surname on
+       the phone, the whole card at width), season, and his hardware
+       (MOY pill, 💍/🚩), the finale MGR row's own read. The
        wins chip stays a direct child: no salary ever shares his right edge,
        so the .chips group would be a wrapper around one thing. -->
   <b>{label}</b>{@render lane()}
@@ -564,7 +564,7 @@
       line-height: 1.25;
       overflow: hidden;
     }
-    /* The manager rides the same floor: his lane now carries MOY and the
+    /* The manager rides the same floor: his lane carries MOY and the
        ring, so his row must be allowed the same second line the players'
        get — in practice one pill and a glyph never wrap it, and he stands
        exactly 38.5px like everyone else. */
@@ -664,11 +664,6 @@
       /* Left-aligned here, so the centered layout's tracking give-back
          above would read as a rightward shove — stood down. */
       padding-inline-start: 0;
-    }
-    .mgr span {
-      font-size: 13px;
-      flex: 0 1 auto;
-      min-width: 0;
     }
     .cell.empty,
     .cell.pickable.vacant,
