@@ -38,6 +38,7 @@
     pickable = false,
     expanded = false,
     controls,
+    arrived = false,
     specimen = false,
     onclick,
     oninfo,
@@ -108,6 +109,12 @@
      * worse than none). A plain string, like every other prop: which panel
      * it is stays the caller's business. */
     controls?: string;
+    /** The man just landed here: plays the house thunk-in once. TRANSIENT —
+     * the caller raises it on the empty→filled edge and drops it after the
+     * animation; a seat mounted already-filled (restore, reload) never sees
+     * it. Transform/opacity only, so the seat's pinned geometry never
+     * moves. */
+    arrived?: boolean;
     specimen?: boolean;
     onclick?: () => void;
     /** Toggles the phone's unfolded read. Distinct from `onclick`, which
@@ -185,6 +192,7 @@
   <button
     class="mgr filled {rung}"
     class:expanded
+    class:landed={arrived}
     aria-expanded={expanded}
     aria-controls={expanded ? controls : undefined}
     inert={specimen}
@@ -198,7 +206,7 @@
        line is hidden on the phone (too narrow) and shown at width, exactly as
        for the player seats (see .mgr i below). No salary: the manager's cost
        is not a Signed.costPaid and the chair carries no salary prop. -->
-  <div class="mgr filled {rung}">
+  <div class="mgr filled {rung}" class:landed={arrived}>
     {@render mgrBody()}
   </div>
 {:else if name && oninfo}
@@ -210,6 +218,7 @@
   <button
     class="cell filled {rung}"
     class:expanded
+    class:landed={arrived}
     aria-expanded={expanded}
     aria-controls={expanded ? controls : undefined}
     inert={specimen}
@@ -218,7 +227,7 @@
     {@render filledBody()}
   </button>
 {:else if name}
-  <div class="cell filled {rung}">
+  <div class="cell filled {rung}" class:landed={arrived}>
     {@render filledBody()}
   </div>
 {:else}
@@ -449,6 +458,23 @@
   @keyframes nudge {
     50% {
       transform: translateY(-2px);
+    }
+  }
+  /* The landing: a signed man THUNKS into his chair — the piece placed on
+     the board, at the exact recipe and back-out curve the badge chips deal
+     in with (Pill.svelte's thunk-in). Keyframe, not a resting transform
+     (the transform must resolve to none at rest), transform/opacity only
+     (the seat's pinned heights never move), and app.css's reduced-motion
+     kill stands it down. Plays only while the caller holds `arrived` on
+     the empty→filled edge, so restores and reloads stay still. */
+  .cell.landed,
+  .mgr.landed {
+    animation: seat-land 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes seat-land {
+    from {
+      opacity: 0.35;
+      transform: scale(0.85);
     }
   }
   /* The manager's chair uses the same upright column layout as the eight player

@@ -177,8 +177,39 @@
     display: flex;
     align-items: flex-end;
     justify-content: center;
+    /* The scrim finds its level as the sheet arrives — a snap-dim beside a
+       rising sheet reads as two different films (the rail's wash makes the
+       same argument). */
+    animation: sheet-scrim 0.15s ease-out;
+  }
+  /* The entrance: a bottom sheet rises from the edge it lives on, so the
+     motion itself teaches the dismissal grammar (tap away, downward). One
+     keyframe here covers every sheet in the app — the shell owns the
+     entrance the way it owns the exits. ENTRANCE ONLY: an exit animation
+     would hold the dialog on screen past onclose and fight the focus
+     hand-back in the effect teardown. Keyframes, not a resting transform
+     (Pill.svelte's rule), and app.css's reduced-motion kill covers both. */
+  @keyframes sheet-scrim {
+    from {
+      background-color: transparent;
+    }
+  }
+  @keyframes sheet-rise {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+  }
+  /* The wide cardstock modal is anchored to no edge, so it settles instead
+     of rising: a touch smaller and lower, mostly a materialize. */
+  @keyframes sheet-settle {
+    from {
+      opacity: 0;
+      transform: scale(0.97) translateY(6px);
+    }
   }
   .sheet {
+    animation: sheet-rise 0.2s ease-out;
     background: var(--ground);
     border: 3px solid var(--line);
     border-bottom: 0;
@@ -344,6 +375,7 @@
       border-bottom: 3px solid var(--line);
       border-radius: 18px;
       padding-bottom: 14px;
+      animation-name: sheet-settle;
     }
     /* Centered rather than anchored to an edge, so the ceiling is the backdrop's
        own padded box — a viewport-relative one would let a full sheet hang past

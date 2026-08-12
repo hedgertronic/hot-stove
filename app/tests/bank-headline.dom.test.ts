@@ -24,9 +24,20 @@
  * proves the adapter hands down the props that produce these states, which is
  * the half of the seam a direct PayrollBox mount would skip.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import BankBox from "../src/components/BankBox.svelte";
+
+// Reduced motion, so the figures SNAP to their final value: the label's
+// count-up (PayrollBox's 300ms rAF tick) would otherwise still be mid-flight
+// when these synchronous assertions read the row. The states being pinned
+// here are the destinations, not the travel.
+vi.stubGlobal("matchMedia", (q: string) => ({
+  matches: q.includes("prefers-reduced-motion"),
+  media: q,
+  addEventListener() {},
+  removeEventListener() {},
+}));
 import { forgeGame, mkCard, mkSigned } from "../src/lab/fixtures";
 import type { Game, GameConfig } from "../src/lib/engine.svelte";
 

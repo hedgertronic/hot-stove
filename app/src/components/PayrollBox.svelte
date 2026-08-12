@@ -47,6 +47,7 @@
    * One size at every width and in both surfaces. There is no wide tier: the
    * box that grew at 760px is what made a desktop finale disagree with the
    * gameplay it was summarizing. */
+  import { untrack } from "svelte";
   import { money } from "../lib/format";
 
   let {
@@ -136,6 +137,61 @@
   const low = $derived(capKnown && !over && spend * 2 < budget);
   /** The full × = line needs both halves; one alone is not a multiplication. */
   const math = $derived(ownerBudget != null && parkMult != null);
+
+  /** Money that COUNTS: when spend or the effective cap moves, the SPENT and
+   * LEFT/OVER figures tick to their new value over the same 300ms cubic
+   * ease-out the bar's own `width 0.3s` runs — the number and the fill
+   * arrive together (the Finale's count() recipe, from→to). Only the
+   * FIGURES ride the display values; the words and the bar's states (`over`,
+   * `low`, colors) keep reading the real props, so a threshold crossed
+   * mid-tick flips the label exactly once, on the truth.
+   *
+   * The display pair initializes to the props, so the first paint is the
+   * final value — which is precisely what the finale's copies need (nothing
+   * counts on a restored scorecard) and why there is no "skip initial run"
+   * flag. Reduced motion snaps, the same matchMedia read SpinBanner takes,
+   * because app.css's global kill cannot reach a rAF loop. */
+  const reduced =
+    typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const cap = $derived(capKnown ? budget : 0);
+  /* svelte-ignore state_referenced_locally -- the initial capture IS the
+     design: seeding the display pair from the mount-time props is what makes
+     the first paint the final value (no count on a restored finale). */
+  let dispSpend = $state(spend);
+  /* svelte-ignore state_referenced_locally */
+  let dispCap = $state(capKnown ? budget : 0);
+  let raf = 0;
+  function tickTo(toS: number, toC: number) {
+    const fromS = dispSpend;
+    const fromC = dispCap;
+    const t0 = performance.now();
+    const MS = 300;
+    const step = (now: number) => {
+      const prog = Math.min((now - t0) / MS, 1);
+      const e = 1 - Math.pow(1 - prog, 3);
+      dispSpend = fromS + (toS - fromS) * e;
+      dispCap = fromC + (toC - fromC) * e;
+      if (prog < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  }
+  $effect(() => {
+    const toS = spend;
+    const toC = cap;
+    // untrack: the display values are this effect's OUTPUT — reading them
+    // tracked would re-run it every frame of its own animation.
+    untrack(() => {
+      if (toS === dispSpend && toC === dispCap) return;
+      cancelAnimationFrame(raf);
+      if (reduced || typeof requestAnimationFrame !== "function") {
+        dispSpend = toS;
+        dispCap = toC;
+      } else {
+        tickTo(toS, toC);
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  });
 </script>
 
 <!-- The bar, alone, so the box and the finale's ledger row hold the SAME object
@@ -216,13 +272,18 @@
       </div>
     {/if}
     {@render meter()}
+    <!-- The figures read the ticking display pair; the words and the choice
+         between them read the real props (see the count-up note above). The
+         clamps cover the frames where a display value trails a threshold the
+         truth has already crossed — a LEFT that has really hit $0 must not
+         flash negative on its way down. -->
     <div class="paylbl">
-      <span class="spent">SPENT <span class="pamt">{money(spend)}</span></span>
+      <span class="spent">SPENT <span class="pamt">{money(dispSpend)}</span></span>
       {#if over}
-        <span class="warn"><span class="pamt">{money(overBy)}</span> OVER</span>
+        <span class="warn"><span class="pamt">{money(Math.max(0, dispSpend - dispCap))}</span> OVER</span>
       {:else}
         <span class="left"
-          ><span class="pamt">{money((capKnown ? budget : 0) - spend)}</span> LEFT</span
+          ><span class="pamt">{money(Math.max(0, dispCap - dispSpend))}</span> LEFT</span
         >
       {/if}
     </div>
@@ -612,6 +673,10 @@
     font-size: 16px;
     font-weight: 800;
     white-space: nowrap;
+    /* Fixed-width digits so a mid-count figure doesn't jitter the row as its
+       glyphs change — width variance, not box height, so the pinned label
+       row geometry is untouched. */
+    font-variant-numeric: tabular-nums;
   }
   .spent .pamt,
   .warn .pamt {

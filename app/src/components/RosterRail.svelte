@@ -104,6 +104,45 @@
   const mgrWins = $derived(game.managerNetWins * MANAGER_PER_NET_WIN);
   const mgrTier = $derived(game.manager && game.showWar ? warTier(mgrWins) : "");
 
+  /** The landing thunk: a seat that goes empty→filled plays the house
+   * thunk-in once — with same-type seats auto-resolving, this is the only
+   * signal saying WHERE the man went. Occupancy is DIFFED against a
+   * snapshot seeded at mount, deliberately not keyed markup: a {#key} would
+   * replay every thunk on restore/reload (the iOS tab-eviction toll the
+   * finale's resolved branch exists to avoid), while a diff seeded from the
+   * live state thunks only what changes while the player watches. A swap
+   * that never passes through empty (undo straight into a different man) is
+   * a rewind, and rewinds say nothing on purpose. The mark clears after the
+   * animation so a later remount of the same seat stays still; the timer
+   * deliberately outlives effect re-runs (clearing it there would strand
+   * the mark whenever an unrelated slot changed mid-flight). */
+  let landedSeats = $state<(number | "mgr")[]>([]);
+  /* svelte-ignore state_referenced_locally -- the mount-time capture IS the
+     design: the snapshot seeds from whatever the rail mounts over, which is
+     exactly what keeps a restored roster silent. */
+  let prevOcc: (string | null)[] = game.slots.map((s) => s?.id ?? null);
+  /* svelte-ignore state_referenced_locally */
+  let prevMgr: string | null = game.manager ? `${game.manager.name}:${game.manager.year}` : null;
+  let landTimer = 0;
+  $effect(() => {
+    const occ = game.slots.map((s) => s?.id ?? null);
+    const mgr = game.manager ? `${game.manager.name}:${game.manager.year}` : null;
+    untrack(() => {
+      const landed: (number | "mgr")[] = [];
+      occ.forEach((id, i) => {
+        if (id && prevOcc[i] === null) landed.push(i);
+      });
+      if (mgr && prevMgr === null) landed.push("mgr");
+      prevOcc = occ;
+      prevMgr = mgr;
+      if (landed.length) {
+        landedSeats = landed;
+        clearTimeout(landTimer);
+        landTimer = window.setTimeout(() => (landedSeats = []), 500);
+      }
+    });
+  });
+
   /** Phone or not, as the CSS breakpoint sees it — the seat tap is a PHONE
    * gesture only. At width every fact is already on the row, so a click has
    * nothing to answer with, and a button that does nothing is worse than a
@@ -362,6 +401,7 @@
       badges={game.manager && game.showAwards ? mgrMarks(game.manager) : null}
       expanded={expandedSeat === "mgr"}
       controls="railpeek"
+      arrived={landedSeats.includes("mgr")}
       oninfo={game.manager && phone && !pickPlayer ? () => tapInfo("mgr") : undefined}
     />
     {#each game.slots as slot, i}
@@ -378,6 +418,7 @@
         pickable={pickableCells.has(i)}
         expanded={expandedSeat === i}
         controls="railpeek"
+        arrived={landedSeats.includes(i)}
         onclick={() => tapCell(i)}
         oninfo={slot && phone && !pickPlayer ? () => tapInfo(i) : undefined}
       />
