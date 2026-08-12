@@ -315,6 +315,11 @@
   .srow:active {
     transform: translate(-1px, -1px);
   }
+  /* PlayerList's .prow rule, restated: when the press is the confirm
+     pill's, the tile stands down instead of shifting under it. */
+  .srow:has(:global(.confirm:active)):active {
+    transform: none;
+  }
   /* A specimen tile is a diagram: inert on the outer div blocks the active
      transform; the cursor withdraws the offer of interaction. */
   .srow[inert] {

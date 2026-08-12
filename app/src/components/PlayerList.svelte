@@ -258,6 +258,13 @@
   .prow:active {
     transform: translate(-1px, -1px);
   }
+  /* :active propagates to ancestors, so pressing the CONFIRM used to shift
+     the whole row while the pill under the finger held still — feedback on
+     the wrong element. The pill dips for itself now (app.css .confirm); the
+     row stands down when the press is the pill's. */
+  .prow:has(:global(.confirm:active)):active {
+    transform: none;
+  }
   /* Wide: the rows keep the phone's 10px horizontal frame — the widths were
      14px for a round, and the extra air pushed the position and WAR chips
      inboard where the phone's tighter frame read better balanced. 10px is

@@ -1116,6 +1116,15 @@ button {
      tap extension (the earlier sibling's ::after would otherwise cover it —
      see the row tap surface below). */
   position: relative;
+  transition: transform 0.08s;
+}
+/* The dip belongs to the tap that ACTS (App .quit's doctrine) — and this
+   pill is the acting tap of the whole core loop. It had none while the
+   arming row underneath dipped, so pressing SIGN moved the ROW and not the
+   pill under the finger: feedback on the wrong element, and the
+   ask/act inversion of the doctrine. Chip scale, 1.5px. */
+.confirm:active {
+  transform: translateY(1.5px);
 }
 /* The tracking, given back — the .warchip .unit rule above documents the
    leak. Nested tour arrows carry no .chiplbl and are untouched. */

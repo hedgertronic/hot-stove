@@ -329,6 +329,9 @@
     justify-content: center;
     cursor: pointer;
     position: relative;
+    /* The dip eases like every sibling pill's (press census: this was one
+       of five ✕-family dips that snapped while the corner pills eased). */
+    transition: transform 0.08s;
   }
   /* The tap target, grown without growing the pill — the same invisible
      extension the powerup pills use. 28+8+8 and 22+11+11 both land on 44. */

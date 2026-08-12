@@ -825,6 +825,7 @@
     justify-content: center;
     text-decoration: none;
     position: relative;
+    transition: transform 0.08s; /* dip eases like its sibling pills (press census) */
   }
   .report::after {
     content: "";

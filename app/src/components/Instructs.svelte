@@ -515,6 +515,7 @@
     justify-content: center;
     cursor: pointer;
     position: relative;
+    transition: transform 0.08s; /* dip eases like its sibling pills (press census) */
   }
   .x::after {
     content: "";
