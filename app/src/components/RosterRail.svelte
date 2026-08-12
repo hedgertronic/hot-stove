@@ -594,19 +594,22 @@
     top: auto;
     bottom: 0;
   }
-  /* The landing beat: the box flies plain, the CONTENT gets the flourish.
-     `backwards` fill holds every lane invisible while the box is in flight
-     (the 90ms delay covers the stretch), then label, name row, salary and
-     chip rise 3px into place just as the edges land. Keyframes, not a
-     transition: this plays only on the panel's mount, so the close simply
-     rides the box out — a fold should be plainer than an unfold. */
+  /* The landing beat: the box flies plain, the CONTENT arrives as it lands.
+     `backwards` fill holds every lane invisible through the stretch's worst
+     early frames (the 50ms delay), then label, name row, salary and chip
+     fade in IN PLACE — fully inked by ~150ms of the box's 240ms flight.
+     Opacity only, and quick: an earlier cut rose the text 3px (read as
+     jitter, owner call) and held it to 90+140ms (read as lag, owner call);
+     the box supplies the motion, the ink just shows up for the landing.
+     Keyframes, not a transition: this plays only on the panel's mount, so
+     the close simply rides the box out — a fold should be plainer than an
+     unfold. */
   .peek > * {
-    animation: peek-ink 140ms ease-out 90ms backwards;
+    animation: peek-ink 100ms ease-out 50ms backwards;
   }
   @keyframes peek-ink {
     from {
       opacity: 0;
-      transform: translateY(3px);
     }
   }
   @media (prefers-reduced-motion: reduce) {

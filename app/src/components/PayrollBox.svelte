@@ -47,7 +47,6 @@
    * One size at every width and in both surfaces. There is no wide tier: the
    * box that grew at 760px is what made a desktop finale disagree with the
    * gameplay it was summarizing. */
-  import { untrack } from "svelte";
   import { money } from "../lib/format";
 
   let {
@@ -138,59 +137,63 @@
   /** The full × = line needs both halves; one alone is not a multiplication. */
   const math = $derived(ownerBudget != null && parkMult != null);
 
-  /** Money that COUNTS: when spend or the effective cap moves, the SPENT and
-   * LEFT/OVER figures tick to their new value over the same 300ms cubic
-   * ease-out the bar's own `width 0.3s` runs — the number and the fill
-   * arrive together (the Finale's count() recipe, from→to). Only the
-   * FIGURES ride the display values; the words and the bar's states (`over`,
-   * `low`, colors) keep reading the real props, so a threshold crossed
-   * mid-tick flips the label exactly once, on the truth.
+  /** Money STAMPS, it does not count. The figures always show the true
+   * value — a signing snaps SPENT and LEFT to their destinations in the
+   * same frame the state changes — and the motion is a scale pop on the
+   * figure that just changed (the house back-out, the thunk the chips
+   * land with). A digit-by-digit count-up was tried and read as jank: the
+   * money() strings change LENGTH mid-flight ($58M → $58.2M), so the
+   * space-between row re-seated the figures every frame. A stamp has no
+   * intermediate values, so nothing can jitter, and it suits the board:
+   * this game's numbers are facts the moment they happen.
    *
-   * The display pair initializes to the props, so the first paint is the
-   * final value — which is precisely what the finale's copies need (nothing
-   * counts on a restored scorecard) and why there is no "skip initial run"
-   * flag. Reduced motion snaps, the same matchMedia read SpinBanner takes,
-   * because app.css's global kill cannot reach a rAF loop. */
-  const reduced =
-    typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+   * The same diff drives the front-office chips: a seat that goes
+   * ghost→hired thunks its chip (the rail seats' landing, at chip scale),
+   * and the payroll product chip thunks when the number it carries moves.
+   * Both marks are TRANSIENT and the diff is seeded at mount, the rail's
+   * own rule — a restored scorecard stamps nothing. Timer-cleared so a
+   * later re-render replays nothing; consecutive changes inside one 400ms
+   * window merge into a single pop, which is fine, since nothing signs
+   * that fast. All CSS keyframes, so app.css's reduced-motion kill covers
+   * the whole feature. */
   const cap = $derived(capKnown ? budget : 0);
-  /* svelte-ignore state_referenced_locally -- the initial capture IS the
-     design: seeding the display pair from the mount-time props is what makes
-     the first paint the final value (no count on a restored finale). */
-  let dispSpend = $state(spend);
+  let bump = $state(false);
+  let landedChips = $state<("own" | "stad" | "eff")[]>([]);
+  /* svelte-ignore state_referenced_locally -- the mount-time capture IS the
+     design: the diff seeds from whatever the box mounts over, which is what
+     keeps a restored (or finale) box silent. */
+  let prevSpend = spend;
   /* svelte-ignore state_referenced_locally */
-  let dispCap = $state(capKnown ? budget : 0);
-  let raf = 0;
-  function tickTo(toS: number, toC: number) {
-    const fromS = dispSpend;
-    const fromC = dispCap;
-    const t0 = performance.now();
-    const MS = 300;
-    const step = (now: number) => {
-      const prog = Math.min((now - t0) / MS, 1);
-      const e = 1 - Math.pow(1 - prog, 3);
-      dispSpend = fromS + (toS - fromS) * e;
-      dispCap = fromC + (toC - fromC) * e;
-      if (prog < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-  }
+  let prevCap = capKnown ? budget : 0;
+  /* svelte-ignore state_referenced_locally */
+  let prevOwn = ownerBudget != null;
+  /* svelte-ignore state_referenced_locally */
+  let prevStad = parkMult != null;
+  let bumpTimer = 0;
+  let chipTimer = 0;
   $effect(() => {
-    const toS = spend;
-    const toC = cap;
-    // untrack: the display values are this effect's OUTPUT — reading them
-    // tracked would re-run it every frame of its own animation.
-    untrack(() => {
-      if (toS === dispSpend && toC === dispCap) return;
-      cancelAnimationFrame(raf);
-      if (reduced || typeof requestAnimationFrame !== "function") {
-        dispSpend = toS;
-        dispCap = toC;
-      } else {
-        tickTo(toS, toC);
-      }
-    });
-    return () => cancelAnimationFrame(raf);
+    const s = spend;
+    const c = cap;
+    const own = ownerBudget != null;
+    const stad = parkMult != null;
+    const chips: ("own" | "stad" | "eff")[] = [];
+    if (own && !prevOwn) chips.push("own");
+    if (stad && !prevStad) chips.push("stad");
+    if (c !== prevCap) chips.push("eff");
+    if (s !== prevSpend || c !== prevCap) {
+      bump = true;
+      clearTimeout(bumpTimer);
+      bumpTimer = window.setTimeout(() => (bump = false), 400);
+    }
+    if (chips.length) {
+      landedChips = chips;
+      clearTimeout(chipTimer);
+      chipTimer = window.setTimeout(() => (landedChips = []), 500);
+    }
+    prevSpend = s;
+    prevCap = c;
+    prevOwn = own;
+    prevStad = stad;
   });
 </script>
 
@@ -223,7 +226,7 @@
         >
       {:else if math || pending}
         {#if ownerBudget != null}
-          <span class="chip chipbox own"
+          <span class="chip chipbox own" class:landed={landedChips.includes("own")}
             ><span class="ph">💰</span><span class="chiplbl">{money(ownerBudget)}</span></span
           >
         {:else}
@@ -231,7 +234,7 @@
         {/if}
         <span class="op">×</span>
         {#if parkMult != null}
-          <span class="chip chipbox stad"
+          <span class="chip chipbox stad" class:landed={landedChips.includes("stad")}
             ><span class="ph">🏟️</span><span class="chiplbl">{parkMult.toFixed(2)}</span></span
           >
         {:else}
@@ -239,7 +242,9 @@
         {/if}
         <span class="op">=</span>
         {#if capKnown}
-          <span class="chip chipbox eff"><span class="chiplbl">{money(budget)}</span></span>
+          <span class="chip chipbox eff" class:landed={landedChips.includes("eff")}
+            ><span class="chiplbl">{money(budget)}</span></span
+          >
         {:else}
           <!-- Dashed, because a payroll is still coming; $0, because until it
                does there genuinely isn't one. Both halves of the multiplication
@@ -272,18 +277,15 @@
       </div>
     {/if}
     {@render meter()}
-    <!-- The figures read the ticking display pair; the words and the choice
-         between them read the real props (see the count-up note above). The
-         clamps cover the frames where a display value trails a threshold the
-         truth has already crossed — a LEFT that has really hit $0 must not
-         flash negative on its way down. -->
+    <!-- The figures are always the truth; `bump` is the stamp that says the
+         truth just changed (the note above the diff effect). -->
     <div class="paylbl">
-      <span class="spent">SPENT <span class="pamt">{money(dispSpend)}</span></span>
+      <span class="spent">SPENT <span class="pamt" class:bump>{money(spend)}</span></span>
       {#if over}
-        <span class="warn"><span class="pamt">{money(Math.max(0, dispSpend - dispCap))}</span> OVER</span>
+        <span class="warn"><span class="pamt" class:bump>{money(overBy)}</span> OVER</span>
       {:else}
         <span class="left"
-          ><span class="pamt">{money(Math.max(0, dispCap - dispSpend))}</span> LEFT</span
+          ><span class="pamt" class:bump>{money((capKnown ? budget : 0) - spend)}</span> LEFT</span
         >
       {/if}
     </div>
@@ -673,10 +675,29 @@
     font-size: 16px;
     font-weight: 800;
     white-space: nowrap;
-    /* Fixed-width digits so a mid-count figure doesn't jitter the row as its
-       glyphs change — width variance, not box height, so the pinned label
-       row geometry is untouched. */
-    font-variant-numeric: tabular-nums;
+  }
+  /* The stamp: a figure that just changed pops in at the house back-out and
+     settles — no intermediate values, so nothing in the row can jitter.
+     Transform on a flex item (blockified), origin center, resolves to none
+     at rest. */
+  .pamt.bump {
+    animation: pamt-stamp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes pamt-stamp {
+    from {
+      transform: scale(1.3);
+    }
+  }
+  /* A front-office chip that just filled its seat lands the way a rail seat
+     does — the same recipe at chip scale. */
+  .chip.landed {
+    animation: chip-land 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes chip-land {
+    from {
+      opacity: 0.35;
+      transform: scale(0.85);
+    }
   }
   .spent .pamt,
   .warn .pamt {

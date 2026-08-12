@@ -194,10 +194,14 @@
       background-color: transparent;
     }
   }
+  /* The slide is the star and the fade is support: enough travel to read
+     as ARRIVING from the bottom edge (18px read as a plain fade-in — the
+     owner's call), and the sheet is near-opaque the whole way so the eye
+     tracks the edge, not the materialize. */
   @keyframes sheet-rise {
     from {
-      opacity: 0;
-      transform: translateY(18px);
+      opacity: 0.55;
+      transform: translateY(56px);
     }
   }
   /* The wide cardstock modal is anchored to no edge, so it settles instead
@@ -209,7 +213,9 @@
     }
   }
   .sheet {
-    animation: sheet-rise 0.2s ease-out;
+    /* A touch longer than the wide settle: 56px of travel at 0.2s was a
+       blink; 0.26s decelerating lets the rise register as a rise. */
+    animation: sheet-rise 0.26s cubic-bezier(0.05, 0.7, 0.1, 1);
     background: var(--ground);
     border: 3px solid var(--line);
     border-bottom: 0;
@@ -375,7 +381,10 @@
       border-bottom: 3px solid var(--line);
       border-radius: 18px;
       padding-bottom: 14px;
-      animation-name: sheet-settle;
+      /* The full shorthand, not just the name: the settle keeps its own
+         quicker clock (owner-approved as-is) while the phone rise above
+         runs longer for its longer travel. */
+      animation: sheet-settle 0.2s ease-out;
     }
     /* Centered rather than anchored to an edge, so the ceiling is the backdrop's
        own padded box — a viewport-relative one would let a full sheet hang past

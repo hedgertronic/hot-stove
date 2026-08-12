@@ -24,20 +24,9 @@
  * proves the adapter hands down the props that produce these states, which is
  * the half of the seam a direct PayrollBox mount would skip.
  */
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import BankBox from "../src/components/BankBox.svelte";
-
-// Reduced motion, so the figures SNAP to their final value: the label's
-// count-up (PayrollBox's 300ms rAF tick) would otherwise still be mid-flight
-// when these synchronous assertions read the row. The states being pinned
-// here are the destinations, not the travel.
-vi.stubGlobal("matchMedia", (q: string) => ({
-  matches: q.includes("prefers-reduced-motion"),
-  media: q,
-  addEventListener() {},
-  removeEventListener() {},
-}));
 import { forgeGame, mkCard, mkSigned } from "../src/lab/fixtures";
 import type { Game, GameConfig } from "../src/lib/engine.svelte";
 
@@ -186,6 +175,40 @@ describe("the payroll label row", () => {
     expect(target.querySelector(".left")).toBe(null);
     // …and the spent figure keeps its own orange, so the row reads as one alarm.
     expect(amount(spent)).toBe("$34M");
+
+    unmount(comp as never);
+    target.remove();
+  });
+
+  it("a hire thunks its chip and stamps the figures; a mounted box is silent", () => {
+    // The landing marks are TRANSIENT state driven by a diff seeded at mount
+    // (the rail seats' rule): a box mounted over an already-hired club plays
+    // nothing, and only the seat that just filled wears .landed.
+    const game = spendGame(CLASSIC, 34);
+    const { target, comp } = mountBox(game);
+    expect(target.querySelector(".landed")).toBe(null);
+    expect(target.querySelector(".bump")).toBe(null);
+
+    game.owner = { ...OWNER };
+    flushSync();
+    // The owner's chip lands, and the payroll product chip lands with it —
+    // the number it carries just came into being. The stadium ghost stays.
+    expect(target.querySelector(".chip.own.landed")).not.toBe(null);
+    expect(target.querySelector(".chip.eff.landed")).not.toBe(null);
+    expect(target.querySelector(".chip.stad")).toBe(null);
+    // The figures stamp: the truth changed, and both wear the pop.
+    expect(target.querySelectorAll(".pamt.bump").length).toBe(2);
+
+    unmount(comp as never);
+    target.remove();
+  });
+
+  it("a box mounted over a finished club never wears a landing mark", () => {
+    const game = spendGame(CLASSIC, 34);
+    game.owner = { ...OWNER };
+    const { target, comp } = mountBox(game);
+    expect(target.querySelector(".landed")).toBe(null);
+    expect(target.querySelector(".bump")).toBe(null);
 
     unmount(comp as never);
     target.remove();
