@@ -381,7 +381,12 @@
 
 <div class="railwrap disp" class:pinned={!!pickPlayer && pinNeeded} bind:this={wrapEl} bind:clientHeight={railH}>
   <div class="psep railhead">YOUR SQUAD</div>
-  <div class="rail" class:peeking={peekView !== null} bind:this={railEl}>
+  <div
+    class="rail"
+    class:peeking={peekView !== null}
+    class:mgrpeek={expandedSeat === "mgr"}
+    bind:this={railEl}
+  >
     <!-- The manager's seat leads the card at both widths — on the phone it
          anchors the left edge spanning both rows, at width it is the first row.
          One club, nine chairs, same visual language throughout. MGR labels it
@@ -550,6 +555,18 @@
   .peeking > :global(.cell),
   .peeking > :global(.mgr) {
     opacity: 0.35;
+  }
+  /* The manager's own peek empties the manager's chair — outline and all.
+     Every player seat is fully covered by its panel, but the MGR chair
+     spans both grid rows (RailSeat's grid-row: 1 / 3) while the panel is
+     one row band — at 0.35 the chair's lower half, WAR chip included, read
+     as a second "1.2" hanging under the panel's. The morph's story is a
+     box leaving its chair, so the chair it left goes dark; the 0.24s wash
+     transition above carries it out and back in step with the panel.
+     (Contents-only fade with the frame kept was tried — owner picked the
+     full fade.) */
+  .mgrpeek > :global(.mgr) {
+    opacity: 0;
   }
   /* The wash eases in step with the panel's 240ms morph — a snap-dim beside
      an animated box read as two different films. Opacity only ever changes

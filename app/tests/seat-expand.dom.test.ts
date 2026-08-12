@@ -168,6 +168,19 @@ describe("signed-seat peek (phone)", () => {
     expect(peek.textContent).toContain("🚩");
     // No salary line: the skipper's cost is not a Signed.costPaid.
     expect(peek.querySelector(".psal")).toBeNull();
+    // The chair the box left goes dark (.mgrpeek → opacity 0, outline and
+    // all): the MGR chair spans both grid rows, so unlike a player seat
+    // the panel does not cover it — its lower half read as a second WAR
+    // chip hanging under the panel's.
+    expect(el.querySelector(".rail")!.classList.contains("mgrpeek")).toBe(true);
+  });
+
+  it("a player's peek does not empty the manager's chair", () => {
+    const el = board(signedGame());
+    seats(el)[0].click();
+    flushSync();
+    expect(peeks(el)).toHaveLength(1);
+    expect(el.querySelector(".rail")!.classList.contains("mgrpeek")).toBe(false);
   });
 
   it("a tap anywhere outside the panel closes it", () => {
