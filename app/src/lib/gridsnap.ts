@@ -39,13 +39,31 @@
  * engines), so snapping bought nothing there while its late re-applies
  * were VISIBLE as micro-jumps, and a re-measure landing during a pill's
  * armed/pushed transform absorbed the transform into a persistent wrong
- * offset. A future consumer that carries transforms needs a guard (skip
- * apply while `getComputedStyle(node).transform !== "none"`) before it
- * needs this action. */
+ * offset.
+ *
+ * NEVER MEASURE MID-FLIGHT. A rect read under an active transform — the
+ * node's own or any ancestor's — is a transient position, and a snap
+ * computed from it is wrong at rest: the rail peek's FLIP morph mounts
+ * its award pills inside a scaling panel, and the snap taken mid-scale
+ * corrected itself at animationend as a visible one-device-pixel hop
+ * (down on one-line panels, up on wrapped ones — rounding direction).
+ * So apply() skips while any element up the chain is transformed. Safe to
+ * skip rather than defer-and-poll, because the app's own doctrine is that
+ * transforms resolve to `none` at rest, and the animationend/transitionend
+ * listeners below re-apply at exactly that moment. (The snap's own shift
+ * rides the `translate` property, which computed `transform` does not
+ * include — the guard never sees its own work.) */
 export function gridsnap(node: HTMLElement, active: boolean) {
   if (!active || typeof window === "undefined") return;
   let applied = 0;
+  const inFlight = () => {
+    for (let el: Element | null = node; el && el !== document.body; el = el.parentElement) {
+      if (getComputedStyle(el).transform !== "none") return true;
+    }
+    return false;
+  };
   const apply = () => {
+    if (inFlight()) return;
     const dpr = window.devicePixelRatio || 1;
     // Layout's own top: the rect minus what this action already added.
     const top = node.getBoundingClientRect().top - applied;
