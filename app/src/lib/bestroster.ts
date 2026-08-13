@@ -977,10 +977,19 @@ function completeClub(
   }
   // Distinct CARDS, not candidates: five catchers off one card are still one
   // pick, so a type is unreachable whenever fewer cards than seats can supply
-  // it. Counting candidates instead would send an infeasible pool the long way
-  // round for the same answer.
-  for (let t = 0; t < CAPACITY.length; t++)
-    if (new Set(cands[t].map((x) => x.card)).size < CAPACITY[t]) return null;
+  // it — EXCEPT the doubled card, which can seat two of a type by itself
+  // whenever it carries two candidates of that type (two same-type items off
+  // one card are two distinct humans: `cardItems` yields at most one item per
+  // eligible type per player). Without that exception this reject refused
+  // legal clubs whose ✌️ was the only way to fill a two-seat type. Counting
+  // candidates instead would send an infeasible pool the long way round for
+  // the same answer.
+  for (let t = 0; t < CAPACITY.length; t++) {
+    const supply = new Set(cands[t].map((x) => x.card));
+    const dupExtra =
+      dupCard >= 0 && cands[t].filter((x) => x.card === dupCard).length >= 2 ? 1 : 0;
+    if (supply.size + dupExtra < CAPACITY[t]) return null;
+  }
 
   const order = CAPACITY.map((_, t) => t).sort(
     (a, b) => cands[a].length - cands[b].length || a - b,
@@ -1583,4 +1592,9 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
   }
   return best!;
 }
-
+/** Test-only handles. `completeClub` is rule 6's backstop, and the pools where
+ * its upfront feasibility rejects decide anything are exactly the pools the
+ * heuristic passes already solve on their own through `bestRoster` — so the
+ * invariant those rejects must respect is pinned at this level instead. Not
+ * public API; nothing outside the tests may import it. */
+export const _internals = { cardItems, completeClub };

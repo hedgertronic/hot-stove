@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
-import { bestRoster } from "../src/lib/bestroster";
+import { _internals, bestRoster } from "../src/lib/bestroster";
 import {
   GAMES,
   MANAGER_PER_NET_WIN,
@@ -1528,4 +1528,53 @@ describe("bestRoster on a landing that cycled through more than one card", () =>
     expect(bestRoster(pool, { landings: pool.map((_, i) => 4 + i) })).toEqual(plain);
   });
 });
+/** Rule 6's backstop, at its own level: `completeClub` is the exact search
+ * that answers "does ANY complete club exist here", and its upfront
+ * feasibility rejects must never refuse a club the seat search below them
+ * would have found. Tested through `_internals` because the pools where these
+ * rejects decide anything are exactly the pools the heuristic passes already
+ * solve through `bestRoster` on their own. */
+describe("completeClub feasibility rejects", () => {
+  /** Eight cards, nine seats: the ✌️ must double SOMETHING, and the only two
+   * infielders in the pool live together on one card — a legal club exists
+   * only by doubling it. */
+  const pool = (): Card[] => [
+    card(
+      [
+        player({ pos: "SS", posG: IF, war: 5 }),
+        player({ pos: "2B", posG: IF, war: 4 }),
+      ],
+      { team: "X", franchise: "X", name: "Both Infielders", year: 1990, manager: null },
+    ),
+    ...multiCards(
+      [
+        [player({ pos: "C", posG: C, war: 3 })],
+        [player({ pos: "CF", posG: OF, war: 3 })],
+        [player({ pos: "DH", posG: NONE, war: 3 })],
+        [player({ pos: "SP", posG: NONE, war: 3 })],
+        [player({ pos: "SP", posG: NONE, war: 3 })],
+        [player({ pos: "RP", posG: NONE, war: 3 })],
+      ],
+      { manager: null },
+    ),
+    card([], { team: "M", franchise: "M", name: "Skipper Only", year: 1991 }),
+  ];
 
+  it("seats two of a type off the one DOUBLED card that carries both", () => {
+    const items = pool().map(_internals.cardItems);
+    const club = _internals.completeClub(items, [], 0);
+    expect(club).not.toBeNull();
+    expect(club!).toHaveLength(9);
+    // Both IF seats really did come off the doubled card.
+    expect(club!.filter((c) => c.card === 0)).toHaveLength(2);
+  });
+
+  it("still refuses the pool when no ✌️ makes it whole", () => {
+    // Undoubled, the same pool is genuinely a seat short: one card cannot
+    // supply two picks without the ✌️, and nothing else carries an infielder.
+    const items = pool().map(_internals.cardItems);
+    expect(_internals.completeClub(items, [], -1)).toBeNull();
+    // Doubling a card that does NOT hold the pair is no help either.
+    expect(_internals.completeClub(items, [], 1)).toBeNull();
+  });
+});
