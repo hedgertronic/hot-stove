@@ -30,7 +30,7 @@ export default defineConfig({
           // BOT_STUDIES=1; the powerup-bots.test.ts harness regression
           // (400 games/bot, ~10 min — all but ~25s of the whole suite)
           // needs BOT_HARNESS=1. `npm test` sets neither and stays fast;
-          // `npm run test:full` is what gates a deploy.
+          // `npm run test:full` runs separately on a schedule or by hand.
           exclude: [
             ...configDefaults.exclude,
             "tests/**/*.dom.test.ts",

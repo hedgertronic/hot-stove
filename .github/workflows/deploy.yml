@@ -15,14 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  verify:
     runs-on: ubuntu-latest
-    # Job-level because step `if:` can read the env context but not secrets —
-    # this is how the Deploy step knows whether the token exists yet.
-    # Account ID is not a secret; inlining it keeps the token the only setup.
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: 6d63b4357cfd12a3d5aaa31e5b5d6863
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,9 +28,12 @@ jobs:
       # binary arrives as a platform optional dep, so no scripts are needed.
       - run: npm ci
         working-directory: app
-      # test:full is everything but the opt-in bot studies; `npm test` is the
-      # fast local subset and must never be what gates a deploy.
-      - run: npm run test:full
+      - run: npm run check
+        working-directory: app
+      # The deterministic suite gates deploys. The 1,200-game powerup
+      # simulation has its own scheduled/manual workflow because it produces
+      # a statistical report and accounts for nearly the entire CI runtime.
+      - run: npm test
         working-directory: app
       # The ink probe: real-browser typography gate. Renders the chip and
       # button recipes in Chromium and fails the deploy when any label's cap
@@ -55,11 +52,31 @@ jobs:
       # dist/data, so the bundle is fully self-contained.
       - run: npm run build
         working-directory: app
-      # The lockfile-pinned wrangler pushes dist/ + worker.js to the
-      # hot-stove Worker (hedgertronic.com/games/hot-stove*). Skips — green,
-      # not red — until the CLOUDFLARE_API_TOKEN repo secret exists, so CI
-      # still gates every push in the meantime.
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    # Account ID is not a secret; inlining it keeps the API token as the only
+    # repository-secret setup. A missing token now fails instead of silently
+    # producing a green run that did not deploy.
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: 6d63b4357cfd12a3d5aaa31e5b5d6863
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+        working-directory: app
+      # Rebuilding is about two seconds and keeps deployment self-contained;
+      # a failed deploy can be retried without repeating the verification job.
+      - run: npm run build
+        working-directory: app
+      # The lockfile-pinned Wrangler deploys the static bundle and worker to
+      # hotstove.io, www.hotstove.io, and the legacy redirect route.
       - name: Deploy
-        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         run: npx wrangler deploy
         working-directory: app
