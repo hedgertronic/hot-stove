@@ -1,9 +1,7 @@
 # hotstove.io migration plan
 
-Status: phase 1 DEPLOYED 2026-08-13 from branch `io-domain` (worker version
-`db36446a-ca12-4ec5-99ff-2a2111004954`; the version it replaced, and so the
-rollback target, is `67ec899f-3fa1-44a6-90f8-82cf4c9f90b3`). Phases 2 and 3
-unbuilt.
+Status: phase 1 DEPLOYED 2026-08-13. Phase 2 is built and verified locally,
+awaiting production deployment. Phase 3 is unbuilt.
 
 Rolling the worker back does NOT detach routes — those are zone config, not part
 of a version — so a rollback leaves `hotstove.io/*` pointing at an older script
@@ -111,7 +109,7 @@ default to `max-age=0, must-revalidate`. Phase 2's hostname branch is
 client-side, so a cached document cannot select the wrong branch — that stops
 being true if the worker ever generates host-specific HTML.
 
-## Phase 2 — the save handoff (UNBUILT)
+## Phase 2 — the save handoff (BUILT, NOT YET DEPLOYED)
 
 ### Mechanism, and the one that was rejected
 
@@ -183,14 +181,31 @@ mid-season on `hotstove.io` does not get the game yanked out from under them.
 
 ### Idempotency without dedupe
 
-A high-water marker on the TARGET: `hotstove.adopted`, mapping a source origin to
-the number of source `history` and `archive` rows already merged. A later handoff
-merges only rows past that mark.
+The original count-marker design was unsafe in two ways discovered during
+implementation: the capped archive is not append-only, and a crash after writing
+history but before advancing the marker would duplicate rows on retry.
 
-This gives exact multiplicity, since nothing is ever compared for equality, and
-still catches late additions — a player who keeps an old tab open and finishes
-more games there gets them merged on the next handoff. Both logs are append-only
-in practice, which is what makes a count a valid mark.
+The built protocol uses three different mechanisms:
+
+- `history`: contiguous source ranges and a target high-water count. Initial
+  ranges insert before target play; ranges found after completion append after
+  it. No equality comparison, so identical quits remain separate events.
+- `archive`: stable archive IDs, not row counts. Source and target merge by ID
+  and retain the newest 50.
+- every multi-key commit: `hotstove.adopting`, a write-ahead journal holding
+  SHA-256 before/after hashes and intended values. A retry sees each value as
+  still-before, already-after, or unexpectedly changed; the last case stops
+  rather than overwriting another tab. `hotstove.adopted` is written last.
+
+The target marker also remembers the exact singular values migration last wrote.
+A later old-tab save may replace one only while the target still equals that
+migrated copy. Any gameplay on `.io` breaks that ownership and target wins.
+
+After target verification, the browser returns to the old origin once to write
+`hotstove.migrated` with a fingerprint of all eight source keys. Future old-URL
+visits compare it and forward directly to `.io`. A pre-migration tab that later
+changes any source value invalidates the fingerprint and receives one more silent
+handoff rather than losing its newer state.
 
 ### The adopt hop
 
@@ -228,27 +243,28 @@ Budget: 48 KB of base64, well under Chromium's 2 MB navigation limit. There is n
 normative cross-browser fragment limit, so this needs real-device testing on
 Safari, iOS WebViews and in-app browsers before it ships.
 
-Tiers: history and the small keys first, then archive rows newest-first until the
-budget is hit. Dropping archive rows degrades the way the model already expects —
+History crosses as one or more contiguous ranges. Singular state travels only on
+the final range; archive rows are then added newest-first while they fit. Dropping
+archive rows degrades the way the model already expects —
 a history row whose archive record is gone is *"still counted, still stamped, no
 longer openable"* — so the season keeps contributing to the record book and to
 badge tallies.
 
 **Corrected.** History is uncapped (`history.ts:159`), so "tier 1 always carried
-whole" was not a guarantee. At ~420 B/row and roughly 8× compression, 48 KB of
-base64 holds on the order of 685 rows; a player past that carries the newest rows
-that fit and the marker records the merge as partial. That ceiling is an estimate
-and worth measuring rather than trusting.
+whole" was not a guarantee. A heavy career therefore crosses in contiguous
+prefix chunks, never newest-first: a range marker can prove exactly which rows
+landed only when no hole is skipped.
 
 `localStorage` has no multi-key transaction, so adoption can partially succeed.
-Order is: write → re-read and verify each key → record the high-water mark for
-what verified → clean the URL → reload. A quota failure leaves the mark short, so
-the next handoff retries the remainder instead of assuming completion.
+The write-ahead journal makes the partial commit recoverable: write and verify the
+journal, write and verify every value, write the marker last, then remove the
+journal. A quota failure leaves enough evidence to continue without duplicating
+a successful write.
 
 `CompressionStream` is Safari 16.4+, and this codebase supports iOS Safari 16.0+
 (`scrolllock.ts:19`). Where it is missing, send uncompressed base64 if it fits
-the budget; if it does not, skip the automatic handoff and leave the player the
-explicit affordance below.
+the budget; if it does not, stop with the recovery message and leave the source
+copy untouched.
 
 ### Untrusted input
 
@@ -292,12 +308,13 @@ long load. The address bar changing to `hotstove.io` is the only cue. No new
 player-facing copy, which also keeps out the change-state language a migration
 notice would require.
 
-### The explicit affordance
+### No migration UI on the new site
 
-A "played before on hedgertronic.com?" link on the new site, routing through the
-bridge and back. It covers the player who arrives directly at `hotstove.io` and
-never passes through the old URL, and the high-water marker makes clicking it
-repeatedly harmless.
+There is deliberately no "played before?" link or migration copy on `.io`.
+New users get the ordinary clean home screen. Existing players enter the handoff
+by using the old URL, which is where their origin-scoped data can actually be
+read. A failure is the only time migration text appears: it says the old copy is
+still safe and offers retry or the explicitly bypassed old version.
 
 ## Phase 3 — retire the old path (UNBUILT)
 
@@ -316,7 +333,7 @@ keep.
 
 1. The handoff fires only for players who arrive via the OLD url. Anyone who
    types `hotstove.io` or clicks a fresh share link sees an empty store until
-   they use an old link or the explicit affordance. Inherent to origin-scoped
+   they use an old link. Inherent to origin-scoped
    storage: nothing can read `hedgertronic.com` storage without the browser
    visiting `hedgertronic.com`.
 2. An unfinished season on the old origin is lost when a season is already in

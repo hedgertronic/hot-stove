@@ -4,6 +4,43 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#f6f1e3" />
+    <!-- Migration routing must finish SYNCHRONOUSLY before the module tag can
+         initialize against half-written storage. The async work itself lives
+         in lib/migration.ts; this small switch only selects the boot mode. -->
+    <script>
+      (function () {
+        var p = new URLSearchParams(location.hash.slice(1));
+        var old = location.hostname === "hedgertronic.com" &&
+          (location.pathname === "/games/hot-stove" || location.pathname.startsWith("/games/hot-stove/"));
+        var apex = location.hostname === "hotstove.io";
+        var mode = null;
+        if (old && p.has("stay")) {
+          history.replaceState(null, "", location.pathname + location.search);
+        } else if (old && p.has("complete")) mode = "legacy-complete";
+        else if (old && p.has("export")) mode = "legacy-export";
+        else if (old) {
+          var moved = false;
+          try {
+            var mark = JSON.parse(localStorage.getItem("hotstove.migrated") || "null");
+            var keys = ["hotstove.history", "hotstove.archive", "hotstove.current", "hotstove.finale", "hotstove.finale.open", "hotstove.settings", "hotstove.cues", "hotstove.theme"];
+            var text = keys.map(function (key) { return key + "\0" + (localStorage.getItem(key) || "") + "\0"; }).join("");
+            var sig = 2166136261;
+            for (var i = 0; i < text.length; i++) {
+              sig ^= text.charCodeAt(i);
+              sig = Math.imul(sig, 16777619);
+            }
+            moved = mark && mark.v === 1 && mark.target === "https://hotstove.io" && mark.signature === (sig >>> 0).toString(16).padStart(8, "0");
+          } catch (e) {}
+          mode = p.has("remigrate") ? "legacy-start" : moved ? "legacy-forward" : "legacy-start";
+        } else if (apex && p.has("prepare")) mode = "target-prepare";
+        else if (apex && p.has("adopt")) mode = "target-adopt";
+        else if (apex && p.has("done")) mode = "target-done";
+        if (mode) window.__HOTSTOVE_MIGRATION__ = { mode: mode, hash: location.hash };
+        var mt = p.get("t");
+        if (mode === "target-adopt" && (mt === "light" || mt === "dark"))
+          window.__HOTSTOVE_MIGRATION_THEME__ = mt;
+      })();
+    </script>
     <!-- The theme decision, BEFORE first paint: a stored choice wins, else
          the OS's. Duplicates src/lib/theme.ts's resolveTheme by hand — that
          module cannot run until the bundle arrives, and a dark-mode player
@@ -17,8 +54,8 @@
          whole script would skip that fallback and leave a dark-OS player
          flashing the light card. -->
     <script>
-      var hst = null;
-      try {
+      var hst = window.__HOTSTOVE_MIGRATION_THEME__ || null;
+      if (!hst) try {
         hst = localStorage.getItem("hotstove.theme");
       } catch (e) {}
       if (hst !== "dark" && hst !== "light")
@@ -148,22 +185,30 @@
         "author": { "@type": "Person", "name": "hedgertronic" }
       }
     </script>
-    <!-- Google Analytics. Preconnect first: the async script still pays DNS +
-         TLS to a third-party origin during the boot window; warming the
-         connection overlaps that with the HTML parse. -->
-    <link rel="preconnect" href="https://www.googletagmanager.com" />
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-35RY8Y6Q5V"></script>
+    <!-- Google Analytics. The tags are created only on an ordinary app boot:
+         an adoption fragment contains private player state, so the migration
+         document makes no third-party connection and emits no pageview. -->
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      // Mirror of lib/analytics.ts guard (2): `config` fires the automatic
-      // page_view, and localhost dev sessions must not count as production
-      // traffic. Same accepted gap as track()'s: a LAN phone test
-      // (192.168.x via the Vite host flag) still fires. Custom events
-      // already suppress themselves in track().
-      var h = location.hostname;
-      if (h !== 'localhost' && h !== '127.0.0.1' && h !== '') gtag('config', 'G-35RY8Y6Q5V');
+      if (!window.__HOTSTOVE_MIGRATION__) {
+        var pre = document.createElement('link');
+        pre.rel = 'preconnect';
+        pre.href = 'https://www.googletagmanager.com';
+        document.head.appendChild(pre);
+        var ga = document.createElement('script');
+        ga.async = true;
+        ga.src = 'https://www.googletagmanager.com/gtag/js?id=G-35RY8Y6Q5V';
+        document.head.appendChild(ga);
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function(){dataLayer.push(arguments);};
+        gtag('js', new Date());
+        // Mirror of lib/analytics.ts guard (2): `config` fires the automatic
+        // page_view, and localhost dev sessions must not count as production
+        // traffic. Same accepted gap as track()'s: a LAN phone test
+        // (192.168.x via the Vite host flag) still fires. Custom events
+        // already suppress themselves in track().
+        var h = location.hostname;
+        if (h !== 'localhost' && h !== '127.0.0.1' && h !== '') gtag('config', 'G-35RY8Y6Q5V');
+      }
     </script>
   </head>
   <body>

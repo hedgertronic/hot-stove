@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:full": "BOT_HARNESS=1 vitest run",
     "test:studies": "BOT_HARNESS=1 BOT_STUDIES=1 vitest run tests/bots",
-    "test:ink": "node tests/probe/ink-centering.mjs"
+    "test:ink": "node tests/probe/ink-centering.mjs",
+    "test:migration:browsers": "node tests/probe/migration-origins.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "7.2.0",
