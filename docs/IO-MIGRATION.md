@@ -1,7 +1,13 @@
 # hotstove.io migration plan
 
-Status: phase 1 DEPLOYED 2026-08-13. Phase 2 is built and verified locally,
-awaiting production deployment. Phase 3 is unbuilt.
+Status: phases 1 and 2 DEPLOYED 2026-08-13 from commit `cefb714` (worker
+version `7c7775ca-c190-405d-946d-b0ce1389f894`; GitHub Actions run
+`31751173914`). Phase 3 is unbuilt.
+
+All 15 live route checks passed after the phase 2 deployment. The deployment
+gate also passed the migration flow against two distinct origins in Chromium,
+Firefox and WebKit, including acknowledgment, clean Back behavior, later direct
+forwarding and a changed pre-migration tab.
 
 Rolling the worker back does NOT detach routes — those are zone config, not part
 of a version — so a rollback leaves `hotstove.io/*` pointing at an older script
@@ -109,7 +115,7 @@ default to `max-age=0, must-revalidate`. Phase 2's hostname branch is
 client-side, so a cached document cannot select the wrong branch — that stops
 being true if the worker ever generates host-specific HTML.
 
-## Phase 2 — the save handoff (BUILT, NOT YET DEPLOYED)
+## Phase 2 — the save handoff (DEPLOYED)
 
 ### Mechanism, and the one that was rejected
 
