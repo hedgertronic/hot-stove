@@ -527,6 +527,16 @@ function fill(state: number, type: number): number {
   return used < CAPACITY[type] ? state + STRIDE[type] : -1;
 }
 
+/** `fill` precomputed over every (state, type) — the DP's innermost read,
+ * ~2k transitions in a solve that runs thousands of times per finale, so the
+ * div/mod pair is paid once here instead of per transition. */
+const FILL: Int32Array = (() => {
+  const f = new Int32Array(STATES * RADIX.length);
+  for (let s = 0; s < STATES; s++)
+    for (let t = 0; t < RADIX.length; t++) f[s * RADIX.length + t] = fill(s, t);
+  return f;
+})();
+
 /** Seats filled, per DP state — the digit sum of the state's mixed radix.
  *
  * This is what makes each probe return the FULLEST club at its own λ, which is
@@ -751,7 +761,7 @@ class Dp {
         if (at === -Infinity) continue;
         for (let oi = 0; oi < opts.length; oi++) {
           const item = opts[oi];
-          const ns = fill(s, item.type);
+          const ns = FILL[s * 7 + item.type];
           if (ns < 0) continue;
           const v = at + item.base + lambda * item.cost;
           if (v > nxt[ns]) {
@@ -808,12 +818,28 @@ function sweep(
   forceManager: boolean,
   refine: boolean,
   dup = -1,
+  cache?: Map<string, Chosen[] | null>,
 ): { best: Club; bestUnder: Club | null } | null {
   const found: Club[] = [];
-  const run = (lambda: number): Chosen[] | null => {
-    const raw = dp.solve(lambda, skip, null, forceManager);
-    if (raw === null) return null;
-    const chosen = repair(raw, dp.items, lambda);
+  // A probe at a budget-INDEPENDENT λ depends only on (doubled card, skip set,
+  // manager floor, λ) — never on which of a card pair owns and which supplies
+  // the park — and passes 2 and 3 revisit the same skip set under both
+  // orderings' budgets. `cache` shares the post-repair solution between them
+  // (the set is normalized, so [o,p] and [p,o] read one entry); the club is
+  // still scored EXACTLY against this call's own budget, which is the only
+  // budget-dependent step. λ = 20/budget probes and the bisection's midpoints
+  // never pass `cacheable`.
+  const cacheKey = (lambda: number): string =>
+    `${dup}|${[...skip].sort((a, b) => a - b).join(",")}|${forceManager}|${lambda}`;
+  const run = (lambda: number, cacheable = false): Chosen[] | null => {
+    const key = cacheable && cache !== undefined ? cacheKey(lambda) : null;
+    let chosen = key !== null ? cache!.get(key) : undefined;
+    if (chosen === undefined) {
+      const raw = dp.solve(lambda, skip, null, forceManager);
+      chosen = raw === null ? null : repair(raw, dp.items, lambda);
+      if (key !== null) cache!.set(key, chosen);
+    }
+    if (chosen === null) return null;
     found.push(clubOf(chosen, budgetM, dup));
     return chosen;
   };
@@ -821,14 +847,14 @@ function sweep(
   const lambdaUnder = budgetM > 0 ? (2 * BUDGET_BONUS_MAX) / budgetM : 0;
   const under = run(lambdaUnder);
   if (under === null) return null;
-  run(-LUXURY_TAX_PER_M);
+  run(-LUXURY_TAX_PER_M, true);
   // The third probe is the one that keeps rich owners in the race. λ = 20/budget
   // buys the whole shop and gets taxed for it; λ = −1 buys nothing and forfeits
   // the bonus. Against a $144M cap the club that actually wins is the plain
   // best-players club sitting between them, and without this probe every big
   // bankroll scores as one of its two extremes and loses to a $16M owner whose
   // cheap roster maxes a bonus worth ten points — measured, on a real seed.
-  run(0);
+  run(0, true);
 
   // The under-cap optimum spends as close to the cap as it can. When the full
   // slope overshoots, walk λ down until the club fits: every step is a real
@@ -1179,8 +1205,11 @@ function solveClub(cards: Card[], opts: BestClubOptions, noDouble = false): Best
       (a, b) =>
         b.s.best.seats - a.s.best.seats || b.s.best.total - a.s.best.total || a.i - b.i,
     );
+  // Shared across passes 2 and 3 — see `sweep`. Keyed by (dup, skip set,
+  // manager, λ), so a Dp is never read through another's entries.
+  const probeCache = new Map<string, Chosen[] | null>();
   for (const { s } of order.slice(0, REFINE_PAIRS)) {
-    const refined = sweep(dp, s.pair.budget, s.pair.skip, s.manager, true);
+    const refined = sweep(dp, s.pair.budget, s.pair.skip, s.manager, true, -1, probeCache);
     if (refined === null) continue;
     if (better(refined.best, s.best)) s.best = refined.best;
     note(refined.bestUnder);
@@ -1202,7 +1231,7 @@ function solveClub(cards: Card[], opts: BestClubOptions, noDouble = false): Best
         // Never the off-reel card: ⭐ Prime Time buys one named season, and
         // doubling it would invent a second pick nobody was ever offered.
         if (!frontOffice[x]) continue;
-        const out = sweep(doubled(x), s.pair.budget, s.pair.skip, s.manager, false, x);
+        const out = sweep(doubled(x), s.pair.budget, s.pair.skip, s.manager, false, x, probeCache);
         if (out === null) continue;
         if (better(out.best, s.best)) s.best = out.best;
         note(out.bestUnder);
@@ -1342,11 +1371,13 @@ function solveClub(cards: Card[], opts: BestClubOptions, noDouble = false): Best
 
 /** Pools the landing enumeration will solve, at most. 🎟️ and 🚚 fire once a
  * game each, so the two of them together are four pools, and a ⭐ split group
- * multiplies by three — eight covers either reroll alone beside a ⭐, and both
- * rerolls without one, with room for a two-card cold-stove chain. The number
- * is a real budget, not a formality: each pool is a full solve, and the
- * finale has one staged reveal to hide them all behind. Measured over 20 bot
- * games per arm, the enumeration
+ * multiplies by three — six covers either reroll alone beside a ⭐, and both
+ * rerolls without one. The cap was 8 when only rerolls bought pools, and
+ * across the 480 games of the 2026-08-13 remeasure the reroll product never
+ * exceeded 4, so the headroom above 6 was paying wall clock (each pool is a
+ * full solve, and the finale has one staged reveal to hide them all behind)
+ * for a cold-stove chain no game produced. Measured over 20 bot games per
+ * arm, the enumeration
  * costs 2.8× the solves for 1.79× the wall clock — a pool holding one card per
  * landing is a card or two shorter than the raw pool and solves cheaper, so the
  * multiplier a four-pool game pays is nearer three than four.
@@ -1357,7 +1388,7 @@ function solveClub(cards: Card[], opts: BestClubOptions, noDouble = false): Best
  * enumeration is the Prime rule itself). The pinning is logged rather than
  * taken quietly, and it only ever takes options away, so the ceiling can read
  * LOW when it binds and never high. */
-const MAX_LANDING_POOLS = 8;
+const MAX_LANDING_POOLS = 6;
 
 /** `better` for a finished club, on the same (seats, total) order — see the
  * long note on `better` for why seat count dominates. */

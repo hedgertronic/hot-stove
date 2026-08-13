@@ -1443,12 +1443,13 @@ describe("bestRoster on a landing that cycled through more than one card", () =>
   });
 
   it("pins landings to the card played once the pool count passes the cap, and says so", () => {
-    // Four rerolled landings ask for 2⁴ = 16 pools against a cap of 8, so one
-    // landing is pinned to the last card of its group — the card the reel left
-    // the player holding. Ties on group size break on the first card, so the
-    // pinned landing is the first, and its 12-win catcher is the pick the cap
-    // costs. That direction is the whole safety of the cap: a pinned landing can
-    // only make the ceiling read LOW, never high.
+    // Four rerolled landings ask for 2⁴ = 16 pools against a cap of 6, so two
+    // landings are pinned to the last card of their groups — the card the reel
+    // left the player holding. Ties on group size break on the first card, so
+    // the pinned landings are the first two, and their 12-win catcher and
+    // 9-win shortstop are the picks the cap costs. That direction is the whole
+    // safety of the cap: a pinned landing can only make the ceiling read LOW,
+    // never high.
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const best = bestRoster(
       multiCards(
@@ -1467,13 +1468,13 @@ describe("bestRoster on a landing that cycled through more than one card", () =>
       { fixedBudgetM: HUGE, landings: [1, 1, 2, 2, 3, 3, 4, 4] },
     );
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][1]).toEqual(["T0_1980"]);
+    expect(warn.mock.calls[0][1]).toEqual(["T0_1980", "T2_1982"]);
     warn.mockRestore();
-    // One card per landing still, and the three landings that kept their
-    // enumeration all took the better card.
+    // One card per landing still, and the two landings that kept their
+    // enumeration both took the better card.
     expect(clubCards(best)).toHaveLength(4);
     expect(best.picks[0]?.war).toBe(1);
-    expect(best.totalWar).toBeCloseTo(1 + 9 + 9 + 9, 1);
+    expect(best.totalWar).toBeCloseTo(1 + 1 + 9 + 9, 1);
   });
 
   it("leaves a game that never rerolled bit-identical", () => {
