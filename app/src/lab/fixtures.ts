@@ -793,12 +793,13 @@ export function finaleCeilingMet(): Game {
   return ceilingGame({ solved: (t) => t });
 }
 
-/** The one finale that needs a word. The search's own club scores 3.1 BELOW the
- * one the player built — it lost to a line it does not model (✌️ Double Play
- * taking two picks off one card, or the reel repeating a card), measured at
- * 3.2% of full-powerup games. The ceiling is floored at the player's total, so
- * printing it would claim a score this roster does not have; the label
- * "BEST CLUB WE FOUND" stands in and no number is printed. */
+/** The finale where the player OUTSCORED the search. The search's own club
+ * scores 3.1 below the one built: ✌️ and repeat landings are modeled, so a
+ * real beat comes off 🏠 Homegrown (unmodeled on purpose, to keep this state
+ * reachable) or the search's own shortlist gap. The caption prints the dream
+ * club's own losing number RAW — it must be true of the roster beneath it,
+ * and 🦉 OUTSCOUTED is a claim about exactly this number
+ * (finale-ceiling.test.ts pins both). */
 export function finaleCeilingMatched(): Game {
   return ceilingGame({ solved: (t) => t - 3.1 });
 }

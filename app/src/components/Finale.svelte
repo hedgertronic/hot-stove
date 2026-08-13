@@ -528,10 +528,11 @@
   const ceilTotal = $derived(fin.bestPossibleTotal ?? null);
   /** The solver's own UNCLAMPED total. `bestPossibleTotal` is floored at the
    * club the player actually built, so the two differ exactly when the search
-   * lost to a line it does not model (✌️ Double Play taking two picks off one
-   * card, or the reel landing on the same card twice) — and in that case the
-   * dream club listed below genuinely scores less than the ceiling. Absent on
-   * old saves and on fixtures that predate the field. */
+   * lost to a real line — ✌️ Double Play and repeat landings are modeled, so
+   * what remains is 🏠 Homegrown (unmodeled on purpose, so the badge stays
+   * earnable) and the search's own shortlist gap — and in that case the dream
+   * club listed below genuinely scores less than the ceiling. Absent on old
+   * saves and on fixtures that predate the field. */
   const solved = $derived(fin.best?.total ?? null);
   /** What the caption prints: the SOLVED total when the finale carries one —
    * the club actually listed beneath it — falling back to the stored ceiling

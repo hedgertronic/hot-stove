@@ -683,13 +683,14 @@
     <Finale game={finCeilMet} onreplay={noop} onmodes={noop} />
   </div>
 
-  <div class="psep">FINALE · BEST CLUB WE FOUND</div>
+  <div class="psep">FINALE · OUTSCOUTED THE SEARCH</div>
   <div class="cap">
-    The only finale that needs a word (3.2% of full-powerup games): the solver's
-    own club scores 3.1 BELOW the one built — it lost to a line it does not
-    model. The roster listed below really is worse, so printing the ceiling
-    would claim a score it does not have; the label stands in and no number is
-    printed
+    The finale where the player beat the solver: the dream club scores 3.1
+    BELOW the one built — ✌️ and repeat landings are modeled, so the beat came
+    off 🏠 Homegrown (unmodeled on purpose) or the search's shortlist gap. The
+    caption prints the dream club's own losing number raw: it must be true of
+    the roster beneath it, and 🦉 OUTSCOUTED is a claim about exactly this
+    number
   </div>
   <div class="fincase" id="fin-ceil-matched">
     <Finale game={finCeilMatched} onreplay={noop} onmodes={noop} />

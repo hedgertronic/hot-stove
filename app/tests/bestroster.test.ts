@@ -311,12 +311,20 @@ describe("bestRoster one pick per card, plus one ✌️", () => {
     expect(doubledCards(best)).toBe(1);
   });
 
-  it("collapses duplicate team-seasons in the input to a single card", () => {
+  it("a repeat landing is a second draw: duplicate entries field extra picks", () => {
+    // The reel samples with replacement, so the same card twice in the input
+    // is two landings — two picks, plus the Double Play's second. The pool
+    // used to dedupe by team|year here, and a player who drew off both
+    // landings built a club the ceiling could not field (the one real
+    // 8-seat dream team).
     const one = card(fullSquad(), { manager: null });
-    const dupe = dream([one, card(fullSquad(), { manager: null })]);
-    // One card in the pool: one pick, plus the Double Play's second.
-    expect(dupe.picks.filter((p) => p !== null)).toHaveLength(2);
-    expect(dream([one]).totalWar).toBe(dupe.totalWar);
+    const twice = dream([one, card(fullSquad(), { manager: null })]);
+    expect(twice.picks.filter((p) => p !== null)).toHaveLength(3);
+    // Rule 2 still holds across the copies: three different humans.
+    const ids = twice.picks.filter((p) => p !== null).map((p) => p!.id);
+    expect(new Set(ids).size).toBe(3);
+    // And the second landing can only help: never below the single-landing club.
+    expect(twice.total!).toBeGreaterThanOrEqual(dream([one]).total!);
   });
 
   it("never takes three things off one card", () => {
@@ -797,6 +805,52 @@ describe("bestRoster off-reel seasons (⭐ Prime Time)", () => {
     expect(best.owner?.team).not.toBe("OFF");
     expect(best.park?.team).not.toBe("OFF");
     expect(best.budget).toBeLessThan(999);
+  });
+});
+
+describe("bestRoster leaves 🏠 Homegrown unmodeled on purpose", () => {
+  // A $40M cap and two $39M stars, one of them debut-SEA on a SEA card. At
+  // list the pair costs 78 and eats a $38M luxury tax. The 🏠 discount would
+  // reprice the homegrown star to $1M and put the pair exactly AT the cap,
+  // worth the full +10 bonus — the line the solver deliberately cannot see.
+  //
+  // This test exists to make removing that blindness a DECISION. Modeling the
+  // discount raised the mean ceiling 2.0 points over 800 bot games and took
+  // 🦉 OUTSCOUTED's beat rate to zero (Study 15, 2026-08-12). If you make this
+  // test fail, you have chosen ceiling accuracy over the badge; read
+  // bestroster's header before you re-pin it.
+  const homer = (over: Partial<CardPlayer> = {}) =>
+    player({ pos: "C", posG: { c: 100, if: 0, of: 0 }, war: 10, cost: 39, debut: "SEA", ...over });
+  const outsider = (over: Partial<CardPlayer> = {}) =>
+    player({ pos: "1B", posG: { c: 0, if: 100, of: 0 }, war: 10, cost: 39, debut: "OTH", ...over });
+
+  it("prices a debut-franchise star at list, tax and all", () => {
+    const a = card([homer()]); // SEA card, debut SEA — would qualify for 🏠
+    const b = card([outsider()], { team: "OTH", franchise: "OTH", name: "Others" });
+    const best = bestRoster([a, b], { fixedBudgetM: 40 });
+    // Seats rank before total (see `better`), so both men sign either way.
+    expect(best.picks.filter((p) => p !== null)).toHaveLength(2);
+    expect(best.spend).toBe(78); // 39 + 39 — NOT 40
+  });
+
+});
+
+describe("bestRoster seat costs reconcile with the printed payroll", () => {
+  // NOT a 🏠 pin — this holds however the solver prices a club. Finale.svelte
+  // draws a cost on every dream seat directly above the payroll meter fed by
+  // `spend`, so the two must add up. A club-level price adjustment that never
+  // reached the seats broke this once: eight seats totalling 78 under a meter
+  // reading 40.
+  it("the seats the finale draws add up to the payroll it prints", () => {
+    const homer = () =>
+      player({ pos: "C", posG: { c: 100, if: 0, of: 0 }, war: 10, cost: 39, debut: "SEA" });
+    const outsider = () =>
+      player({ pos: "1B", posG: { c: 0, if: 100, of: 0 }, war: 10, cost: 39, debut: "OTH" });
+    const a = card([homer()]);
+    const b = card([outsider()], { team: "OTH", franchise: "OTH", name: "Others" });
+    const best = bestRoster([a, b], { fixedBudgetM: 40 });
+    const costs = best.picks.filter((p) => p !== null).map((p) => p!.cost!);
+    expect(costs.reduce((s, c) => s + c, 0)).toBe(best.spend);
   });
 });
 

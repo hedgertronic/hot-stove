@@ -31,12 +31,14 @@
  *
  * WHAT A LEGAL CLUB IS. Six rules, all solved together:
  *
- * 1. ONE PICK PER CARD, PLUS ONE ✌️. A spin lands on one team-season and buys
- *    one thing — a player, the skipper, the owner, OR the ballpark. So the
- *    yardstick is a club the player could genuinely have drafted, not five 1998
- *    Yankees off a single card. Double Play is the one exception the game
- *    itself grants, and every game starts holding it: exactly one card may
- *    supply two things.
+ * 1. ONE PICK PER LANDING, PLUS ONE ✌️. A spin lands on one team-season and
+ *    buys one thing — a player, the skipper, the owner, OR the ballpark. So
+ *    the yardstick is a club the player could genuinely have drafted, not
+ *    five 1998 Yankees off a single card. The reel samples with replacement,
+ *    so the same card landing twice is two landings and two picks — the pool
+ *    carries one entry per landing, never deduped. Double Play is the one
+ *    exception the game itself grants, and every game starts holding it:
+ *    exactly one landing may supply two things.
  * 2. ONE SEASON PER HUMAN. The same B-R id may fill only one seat, the same
  *    rule the draft enforces.
  * 3. SLOT CAPACITY. C1 IF2 OF1 FLEX1 SP2 RP1, plus one manager seat.
@@ -68,7 +70,7 @@
  *
  * WHAT THE CEILING ASSUMES, in one sentence: perfect play of the cards the reel
  * actually showed you — every roster seat, the skipper, the owner and the
- * ballpark chosen with hindsight, one pick per card plus a ✌️ Double Play
+ * ballpark chosen with hindsight, one pick per landing plus a ✌️ Double Play
  * second pick off one of them, at list prices, plus the one off-reel season
  * ⭐ Prime Time reached, which enters the pool as an extra card rather than
  * being charged the spin it really cost.
@@ -82,12 +84,34 @@
  * measures how often that happens. Off-reel cards are barred from the front
  * office and from the Double Play, so the slack can never exceed one seat.
  *
- * Not modeled, deliberately: 🏠 Homegrown's discount (it only ever lowers
- * payroll, and under the bonus that is a cost, not a saving), 🔁 Trade Deadline
- * (re-choosing a seat is free to a solver that chose with hindsight), and
- * 🎟️/🚚 rerolls (they change WHICH cards you see, and the pool already is the
- * cards you saw). The finale clamps the ceiling up to the club actually built,
- * so a line this search cannot see can never make the ceiling read below it.
+ * 🏠 Homegrown is NOT modeled, and the omission is deliberate. Do not "fix"
+ * it on the old argument that the discount only lowers payroll and so forfeits
+ * bonus — that reasoning is wrong. `budgetBonus` pays most AT the cap, and the
+ * discount frees cap the club RE-SPENDS on better seasons: modeling it raised
+ * the mean ceiling 2.0 points across 800 bot games (Study 15, four arms,
+ * 2026-08-12). It stays unmodeled because it is the last mechanic a player can
+ * out-think the search with. Those same 800 games produced ZERO ceiling beats
+ * with it modeled, against 4 without — 🦉 OUTSCOUTED is what the accuracy
+ * would cost, and the badge won.
+ *
+ * Also not modeled: 🔁 Trade Deadline (re-choosing a seat is free to a solver
+ * that chose with hindsight).
+ *
+ * KNOWN GAP — 🎟️/🚚 rerolls. A re-deal leaves the ABANDONED card in `seen`:
+ * both powerups run at phase "landed", after `land()` has already recorded it,
+ * and neither takes it back. So the pool carries BOTH cards of a re-deal and
+ * the search may draft a pick from each. The player got one. The extra card
+ * only widens the feasible pool, so it need not change the winning club — but
+ * when it does it inflates the ceiling by a whole team-season, and denies
+ * 🦉 OUTSCOUTED for a solver bug rather than for play. The fix is to group a
+ * landing's cards and make the GROUP, not the card, the unit rule 1 rations
+ * (`spinCount` is already the group id — a re-deal decrements it before
+ * `beginSpin` puts it back, so every card of one landing shares it).
+ *
+ * When the search loses to a real line the finale prints the losing number
+ * RAW — the caption must be true of the roster beneath it, and 🦉 OUTSCOUTED
+ * needs the beaten number on screen (finale-ceiling.test.ts pins this; the
+ * engine's clamped bestPossibleTotal is bookkeeping no surface draws).
  *
  * SOLVE SHAPE. For a fixed budget the score is linear in payroll on each side
  * of the cap: below it every $1M is worth +20/budget points, above it every
@@ -206,8 +230,8 @@ export interface BestRoster {
    * (null only when no spun card carried a manager). */
   manager?: BestManagerPick | null;
   /** Seats the dream club actually occupies — filled roster slots plus the
-   * skipper. This is the honest ⭐ denominator: with one pick per card, a game
-   * that spun only 8 cards can never show 9 seats, so a fixed 8-or-9 would
+   * skipper. This is the honest ⭐ denominator: with one pick per landing, a
+   * game of only 8 landings can never show 9 seats, so a fixed 8-or-9 would
    * advertise a target nobody could hit. Optional for the same fixture reason
    * as `manager`; the solver always sets it. Owner and ballpark are NOT counted
    * — the engine awards no scout point for either. */
@@ -814,17 +838,10 @@ function branchAndBound(
     if (raw === null) return;
     const conflict = findConflict(raw);
     if (conflict === null) {
-      const total = evaluate(raw, budgetM);
       // Seats first here too: this search is the only one that can hand back a
       // seat `repair` had to vacate, and ranking its leaves on the total alone
       // is exactly how a complete club got discarded for an incomplete one.
-      const cand = {
-        total,
-        spend: spendOf(raw),
-        seats: raw.length,
-        chosen: raw,
-        dup,
-      };
+      const cand = clubOf(raw, budgetM, dup);
       if (better(cand, best)) best = cand;
       return;
     }
@@ -852,19 +869,20 @@ const EMPTY: BestRoster = {
 };
 
 export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoster {
-  // One entry per team-season: a reel that lands twice on the same card still
-  // only ever offered one choice from it.
-  const pool: Card[] = [];
-  const frontOffice: boolean[] = [];
-  const keys = new Set<string>();
-  for (const card of cards) {
-    const key = `${card.team}|${card.year}`;
-    if (keys.has(key)) continue;
-    keys.add(key);
-    pool.push(card);
-    frontOffice.push(true);
-  }
+  // One pool entry PER LANDING, duplicates included: the reel samples with
+  // replacement, so a card that lands twice really did offer two draws, and
+  // the player may have taken both (rule 2 still bars the same HUMAN
+  // twice). This used to dedupe by team|year on the premise that a repeat
+  // landing was one choice — false, and the cause of the one real 8-seat
+  // dream club: a player who drew off both landings built a club the
+  // deduped pool was a card short of fielding.
+  const pool: Card[] = [...cards];
+  const frontOffice: boolean[] = pool.map(() => true);
+  const keys = new Set<string>(cards.map((c) => `${c.team}|${c.year}`));
   for (const card of opts.offReel ?? []) {
+    // ⭐ Prime deliberately reaches only cards the reel never landed
+    // (engine's candidate gate), so this guard is for malformed callers
+    // and old saves rather than a real path.
     const key = `${card.team}|${card.year}`;
     if (keys.has(key)) continue;
     keys.add(key);

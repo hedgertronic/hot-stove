@@ -1778,6 +1778,26 @@ describe("mid-spin fetch failure", () => {
     expect(g.phase).toBe("preSpin");
     expect(g.loadFailed).toBe(false);
   });
+
+  // Last in this describe on purpose: the retrySpin test above memoized
+  // SEA 1995 into the card loader, and the failure tests need it cold.
+  it("a repeat landing is scouted again — seen records every landing", async () => {
+    // The reel samples with replacement, and a second landing on the same
+    // card is a second real draw. `seen` feeds the dream-team pool one
+    // entry per landing, so it must not dedupe: the deduped list left the
+    // solver a card short of the club a player drew off both landings
+    // (the 8-seat dream team).
+    const g = new Game(meta, seaIndex, owners, 42);
+    g.spin();
+    await g.land();
+    g.signPlayer(g.card!.players[0]);
+    g.spin();
+    await g.land();
+    expect(g.seen).toEqual([
+      { team: "SEA", year: 1995 },
+      { team: "SEA", year: 1995 },
+    ]);
+  });
 });
 
 describe("Manager of the Year", () => {

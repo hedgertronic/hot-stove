@@ -21,13 +21,21 @@
  * purpose.
  *
  * THE CEILING QUESTION, for the "beat the dream team" badge. The solver models
- * ✌️ Double Play (one card supplies two things) and ⭐ Prime Time (the off-reel
- * season enters the pool), and deliberately models neither 🏠 Homegrown, 🔁
- * Trade Deadline nor the 🎟️/🚚 rerolls. Only one of those omissions is
- * exploitable: Homegrown reprices a signing to a flat sticker, keeping the
- * season's wins while cutting its payroll, and the solver prices every player
- * at list. The 🏠-off arm is the control — if beating the ceiling is a Homegrown
- * trick, that arm should not manage it.
+ * ✌️ Double Play (one card supplies two things), ⭐ Prime Time (the off-reel
+ * season enters the pool, narrowed to the one man the powerup bought), and
+ * repeat landings (one pool entry per landing; `seen` records duplicates).
+ *
+ * 🏠 Homegrown is deliberately NOT modeled, and this study is where that was
+ * priced: modeling it raised the mean ceiling 2.0 points across these four
+ * arms and dropped the beat count from 4 to 0 (200 games/arm, 2026-08-12).
+ * The omission is what keeps 🦉 OUTSCOUTED earnable. The 🏠-off arm is the
+ * control — it isolates bot behavior, not solver modeling, so both arms run
+ * the same solver.
+ *
+ * 🔁 Trade Deadline is unmodeled and cannot move the ceiling. The 🎟️/🚚
+ * rerolls are a KNOWN GAP in the other direction: the abandoned card stays in
+ * `seen`, so the solver drafts from both cards of a re-deal and the ceiling is
+ * inflated on any game that rerolled (bestroster's header carries the fix).
  *
  * Run: BOT_STUDIES=1 npx vitest run tests/bots/study15-dreamfill.test.ts
  * (BOT_GAMES=<n>, default 500) */

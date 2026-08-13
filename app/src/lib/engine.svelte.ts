@@ -702,7 +702,9 @@ export class Game {
    * "running" flag could do the first two but latched on forever on the third,
    * leaving the reel frozen. */
   spinEpoch = $state(0);
-  /** Every distinct card this game has landed on — the scouting yardstick. */
+  /** Every LANDING this game has made — the scouting yardstick. One entry per
+   * landing, duplicates included: the reel samples with replacement, and a
+   * repeat landing is a second real draw the dream pool must carry. */
   seen = $state<{ team: string; year: number }[]>([]);
   /** Sign-time slot ambiguity: rail becomes a slot picker for this player. */
   slotPick = $state<string | null>(null);
@@ -1284,15 +1286,16 @@ export class Game {
     this.phase = "landed";
     this.choicesLeft = 1;
     this.choicesUsed = 0;
-    if (
-      !this.seen.some(
-        (s) => s.team === this.card!.team && s.year === this.card!.year,
-      )
-    )
-      this.seen = [
-        ...this.seen,
-        { team: this.card.team, year: this.card.year },
-      ];
+    // One entry PER LANDING, duplicates included: the reel samples with
+    // replacement, and a second landing on the same card is a second real
+    // draw — the player may sign off both. The dream-team pool is built
+    // from this list, so recording the repeat is what lets the solver
+    // field the club the market genuinely offered (it used to dedupe here
+    // AND in bestroster, and a player who drew off both landings built a
+    // club the ceiling could not — the owner's 8-seat dream team). Undo
+    // rewinds this list wholesale via the snapshot, so an undone spin
+    // never double-counts its re-landing.
+    this.seen = [...this.seen, { team: this.card.team, year: this.card.year }];
     this.clearTransients();
     this.save();
   }
@@ -2558,11 +2561,15 @@ export class Game {
     const seenBefore = earnedBadgeKeys();
     const newBadges = badges.filter((k) => !seenBefore.has(k));
     // The club actually built is a proven-reachable club, so it is the search's
-    // incumbent: the ceiling is never below it. The solver normally clears it by
-    // a wide margin; it can lose only on a line the search does not model (✌️
-    // Double Play taking two picks off one card, or the reel landing on one card
-    // twice), and printing "your best was worse than what you did" would be a
-    // bug on screen either way.
+    // incumbent: this clamped ceiling is never below it. The solver models ✌️
+    // Double Play and repeat landings (one pool entry per landing), and
+    // deliberately does NOT model 🏠 Homegrown — that omission is what keeps
+    // 🦉 OUTSCOUTED earnable, and bestroster's header carries the measurement
+    // behind the choice. NOTE the finale's dream-team caption
+    // deliberately does NOT read this clamp: it prints the solver's own raw
+    // total, beaten and all, because the caption must be true of the roster
+    // beneath it and 🦉 OUTSCOUTED needs the beaten number on screen
+    // (finale-ceiling.test.ts pins that).
     // `solvedTotal` is the raw solve read above for 📝; the ceiling is that
     // clamped up to the played club.
     const bestPossibleTotal =
