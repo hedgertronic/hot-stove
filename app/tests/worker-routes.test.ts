@@ -13,6 +13,10 @@
  * again. Misses now resolve by request type instead — see `never serves the
  * bounce page` at the bottom. */
 import { describe, expect, it } from "vitest";
+// The brand page as text, for the mount-portability assertion at the bottom.
+// `?raw` rather than node:fs — vite/client (tsconfig "types") declares it, so
+// this needs no @types/node and no dependency.
+import brandPage from "../public/404.html?raw";
 // @ts-expect-error -- plain JS Worker module, no declaration file
 import worker from "../worker.js";
 
@@ -36,7 +40,13 @@ const env = {
       // it again, the assertion at the bottom of this file sees this body.
       const body =
         pathname === "/404.html" ? '<script>location.replace("/games/hot-stove/")</script>' : "ok";
-      return new Response(body, { status: 200 });
+      // nosniff stands in for everything public/_headers attaches. The asset
+      // layer applies those headers, so an arm that rebuilt the Response
+      // instead of returning it would silently drop the whole file.
+      return new Response(body, {
+        status: 200,
+        headers: { "X-Content-Type-Options": "nosniff" },
+      });
     },
   },
 };
@@ -84,6 +94,14 @@ describe("hotstove.io (apex)", () => {
     const r = await hit(sub("https://hotstove.io/data/missing.json"));
     expect(r.status).toBe(404);
     expect(r.headers.get("location")).toBeNull();
+  });
+
+  it("passes the asset layer's headers through untouched", async () => {
+    // public/_headers is applied by the asset layer, so the worker has to
+    // return that Response rather than copy its body into a new one. The apex
+    // is the canonical host and the newest arm, so it is the one to pin.
+    const r = await hit(nav("https://hotstove.io/"));
+    expect(r.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 });
 
@@ -171,5 +189,20 @@ describe("the 404 loop cannot come back", () => {
     // redirect again forever.
     const r = await hit(nav("https://hotstove.io/games/hot-stove/"));
     expect(r.headers.get("location")).toBe("https://hotstove.io/");
+  });
+
+  it("keeps the brand page's own links relative, so it cannot leave its mount", () => {
+    // 404.html is reachable by asking for it directly, and it bounces to the
+    // game. Relative targets resolve to the game on WHICHEVER host served the
+    // page; an absolute /games/hot-stove/ would name one mount and send an
+    // apex visitor to the other domain — the same cross-mount jump that made
+    // the loop. Restoring not_found_handling would break this (the page would
+    // be served at arbitrary depth, where "./" is that path's parent), which
+    // is why the worker resolves misses itself.
+    const targets = [...brandPage.matchAll(/(?:href|url)=["']?([^"'\s>]+)/g)].map((m) => m[1]);
+    expect(targets.length).toBeGreaterThan(0);
+    for (const target of targets) {
+      expect(target.startsWith("/")).toBe(false);
+    }
   });
 });

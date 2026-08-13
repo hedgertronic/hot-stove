@@ -17,15 +17,20 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    // Every real request arrives prefixed (/games/hot-stove/...), and every
-    // prefixed path misses the manifest. Without run_worker_first the asset
-    // layer short-circuits NAVIGATION requests (Sec-Fetch-Mode: navigate)
-    // at that miss — applying not_found_handling without ever invoking the
-    // worker — so browsers got 404s (or, under not_found_handling
-    // "404-page", the bounce page in an infinite redirect loop) while curl
-    // and fetch() reached the worker and saw a healthy site. The worker
-    // must own every request; it serves dist/404.html for real misses
-    // itself, so not_found_handling stays at the default.
+    // On the hedgertronic.com route every request arrives prefixed
+    // (/games/hot-stove/...), and every prefixed path misses the manifest.
+    // Without run_worker_first the asset layer short-circuits NAVIGATION
+    // requests (Sec-Fetch-Mode: navigate) at that miss — applying
+    // not_found_handling without ever invoking the worker — so browsers got
+    // 404s while curl and fetch() reached the worker and saw a healthy site.
+    // The worker must own every request.
+    //
+    // not_found_handling stays at the default (plain 404) because the worker
+    // resolves misses itself, by request type: a navigation redirects to the
+    // game on that host, a subresource stays a 404. Serving dist/404.html
+    // here instead is what caused an infinite redirect loop at a domain
+    // root — that page sends browsers to the game, which at the apex is
+    // itself a missing root asset that served the same page again.
     "run_worker_first": true
   }
 }

@@ -3,10 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- A mangled shared link (/hot-stove/anything) previously fell through to
-         the parent site's 404; the game is one URL, so every miss under its
-         path goes home. Meta refresh rather than JS so it works for every
-         agent; noindex so the redirect page itself never enters the index.
+    <!-- The game's brand face for a miss. worker.js owns misses now — a
+         navigation to a path that is not the game redirects to the game on
+         that host — so this page is no longer the mechanism, and it is
+         reached only by asking for it directly (/404.html, or ?review to
+         stay on it). noindex so it never enters the index.
 
          The body is the static boot card's masthead recipe (index.html
          #static-boot), because for the one frame — or one direct visit —
@@ -20,19 +21,29 @@
          see a page that leaves in 0 seconds), with a meta refresh inside
          noscript so agents without JS still get sent home. Between them
          every agent is covered, which was the meta-only version's whole
-         argument. -->
+         argument.
+
+         "./" rather than an absolute path, because the game answers on two
+         mounts and this one target has to mean both: from /404.html it
+         resolves to hotstove.io's root, and from /games/hot-stove/404.html to
+         that prefix. This works only because worker.js no longer serves this
+         page on a miss — it resolves misses by request type instead, so the
+         page is reached at its own asset path and nowhere else. Restoring
+         not_found_handling would serve it at whatever URL missed, where "./"
+         resolves to that URL's parent; these would have to go back to being
+         absolute, and absolute can only name one mount. -->
     <script>
       if (!new URLSearchParams(location.search).has("review")) {
-        location.replace("/games/hot-stove/");
+        location.replace("./");
       }
     </script>
-    <noscript><meta http-equiv="refresh" content="0; url=/games/hot-stove/" /></noscript>
+    <noscript><meta http-equiv="refresh" content="0; url=./" /></noscript>
     <!-- The game's own face, from the same paint-blocking data-URI sheet the
-         app uses — absolute path like the redirect's, since this page serves
-         at whatever URL just missed. Locally (preview at /) it 404s and the
+         app uses — relative like the redirect's, and portable across both
+         mounts for the same reason. Locally (preview at /) it 404s and the
          rounded fallback stack below carries the card; in production the
          masthead is pixel-true to the boot card. -->
-    <link rel="stylesheet" href="/games/hot-stove/nunito.css" />
+    <link rel="stylesheet" href="./nunito.css" />
     <link rel="stylesheet" href="./brand.css" />
     <title>Hot Stove</title>
     <style>
@@ -97,7 +108,7 @@
            DELAY — baseball's word for the mishap, then the way back, fused
            into the one pill there is to tap. -->
       <p style="margin: 26px 0 0">
-        <a class="foul" href="/games/hot-stove/" aria-label="Foul ball. This page doesn't exist. Back to the game."><span class="foul-ball" aria-hidden="true">⚾</span><span class="foul-copy">FOUL BALL · BACK TO THE GAME</span></a>
+        <a class="foul" href="./" aria-label="Foul ball. This page doesn't exist. Back to the game."><span class="foul-ball" aria-hidden="true">⚾</span><span class="foul-copy">FOUL BALL · BACK TO THE GAME</span></a>
       </p>
     </div>
   </body>

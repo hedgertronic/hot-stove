@@ -1,6 +1,6 @@
 # Hot Stove
 
-**Play it: [hedgertronic.com/games/hot-stove](https://hedgertronic.com/games/hot-stove/)**
+**Play it: [hotstove.io](https://hotstove.io/)**
 
 A baseball roster-drafting game. Each spin deals a random real team-season (1985–2025); take one thing per spin — sign a player at his real salary, or hire that year's manager, owner, or stadium. Fill 8 roster slots plus a front office, then score the season across wins, payroll, hardware, pedigree, and scouting. Two knowledge modes, three payroll modes, and six once-per-game powerups.
 
@@ -38,7 +38,7 @@ The build is byte-stable. Raw data is snapshotted under `build/raw/` — delete 
 
 Every push to `main` runs tests, the real-browser ink-alignment probe, then build, then deploys to Cloudflare Workers via `.github/workflows/deploy.yml` (`wrangler deploy` on `app/wrangler.jsonc` + `app/worker.js`). A failing test blocks the deploy. Pushes that touch only `*.md` or `design/` files skip the workflow.
 
-The deployed game lives at `hedgertronic.com/games/hot-stove/`; the `hot-stove.josh-6d6.workers.dev` origin remains available as a direct Worker preview. To deploy by hand, run `wrangler deploy` from `app/`.
+The deployed game lives at `hotstove.io`, its canonical home. One Worker serves it at three origins: the apex, `hedgertronic.com/games/hot-stove/` (the original mount, still serving because each origin holds its own `localStorage` and a redirect would strand a returning player's record book), and `hot-stove.josh-6d6.workers.dev` as a direct preview. `www.hotstove.io` redirects to the apex. To deploy by hand, run `wrangler deploy` from `app/`.
 
 The social-card image (`app/public/og-image.png`) is committed, not built in CI; regenerate it after a branding change with `uv run --with playwright python tools/generate_og_image.py`.
 

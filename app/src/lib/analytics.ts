@@ -6,11 +6,19 @@
  * has to remember to check them, and no future event can slip past them.
  *
  * The measurement ID G-35RY8Y6Q5V belongs to the hedgertronic.com GA4
- * property. Hot Stove is served from the same domain at /games/hot-stove/,
- * so it shares the property with the main site rather than owning a second
- * one. Page-path filtering in GA4 (Analytics > Reports > Pages and screens)
- * distinguishes the two surfaces: paths beginning with /games/hot-stove/ are
- * the game; everything else is the main site.
+ * property. Hot Stove shares that property rather than owning a second one,
+ * and it now answers on two hosts: hotstove.io, the canonical home, where the
+ * game sits at the root path, and hedgertronic.com/games/hot-stove/, the
+ * original mount. So HOSTNAME is what separates the game from the main site
+ * in GA4, not page path — filter reports on hostname = hotstove.io, and treat
+ * the /games/hot-stove/ path prefix as the main site's game sub-tree. Path
+ * alone no longer distinguishes them: "/" is the game on one host and the
+ * site's front page on the other.
+ *
+ * No code here reads the path. Sending events from a second host needs no
+ * change in this module: the gtag config in index.html leaves cookie_domain
+ * at its default ("auto"), which derives the cookie scope from whichever
+ * registrable domain is serving the page.
  *
  * The gtag script is loaded by index.html via the canonical Google snippet.
  * This module does NOT load it — if the script is missing (adblocker,
