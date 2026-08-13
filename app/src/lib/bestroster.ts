@@ -1387,9 +1387,15 @@ function solveClub(cards: Card[], opts: BestClubOptions, noDouble = false): Best
  * Over the cap, the reroll landings that bought the most pools are PINNED to
  * the last card their group dealt — the card the reel left the player holding,
  * so the pool is the season as played. The ⭐ split group is never pinned (its
- * enumeration is the Prime rule itself). The pinning is logged rather than
- * taken quietly, and it only ever takes options away, so the ceiling can read
- * LOW when it binds and never high. */
+ * enumeration is the Prime rule itself), which means the cap is a budget for
+ * the REROLL product rather than a hard ceiling on solves: a split group of k
+ * landed cards runs k + 2 variants per surviving combination (k retained, one
+ * ⭐-only, one both-pay off the last card), so a lone rerolled-then-primed
+ * group can run the count past the cap by a couple of solves — bounded by the
+ * cold-stove chain length, and accepted rather than pinned because pinning it
+ * would pin the Prime rule. The pinning is logged rather than taken quietly,
+ * and it only ever takes options away, so the ceiling can read LOW when it
+ * binds and never high. */
 const MAX_LANDING_POOLS = 6;
 
 /** `better` for a finished club, on the same (seats, total) order — see the
@@ -1416,11 +1422,15 @@ const betterRoster = (a: BestRoster, b: BestRoster): boolean =>
  *
  * A split group is built from `opts.offReelLandings` — the off-reel season
  * joins the group of the landing whose pick bought it — and enumerated in the
- * wrapper like everything else, as three variants per retained landed card:
- * the landed card pays and the ⭐ season goes unbought; the ⭐ season pays and
- * the landed card supplies nothing; or BOTH pay, which is the ✌️ Double Play
- * spent on this landing with its two picks split across the pair, so that
- * variant's pool is solved with every other doubling barred (`noDouble`). */
+ * wrapper like everything else: per retained landed card, the landed card
+ * pays and the ⭐ season goes unbought; once, the ⭐ season pays and the
+ * landed card supplies nothing; and for the LAST card the group dealt only,
+ * BOTH pay — the ✌️ Double Play spent on this landing with its two picks
+ * split across the pair, so that variant's pool is solved with every other
+ * doubling barred (`noDouble`). Last card only because that is the card ⭐
+ * was really browsed from: every re-deal is refused once the spin's choice
+ * is spent, so a card the reroll abandoned was never held together with the
+ * ⭐ season and cannot share the ✌️ with it. */
 interface Landing {
   cards: number[];
   split: boolean;
@@ -1553,8 +1563,15 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
     // (a) The landed card keeps the landing's pick; the ⭐ season goes unbought.
     solveOne(skip, offReel.filter((_, j) => j !== splitOff), false);
     // (b) BOTH pay out — the ✌️ Double Play spent here, split across the pair,
-    //     so no card in this pool may double on top of it.
-    solveOne(skip, offReel, true);
+    //     so no card in this pool may double on top of it. ONLY with the card
+    //     ⭐ was really reached from, the LAST card the group dealt: every
+    //     re-deal is refused once the spin's choice is spent (the engine's
+    //     choicesUsed gates), so Prime always fires from the card the reel
+    //     left the player holding — a split with a card the reroll abandoned
+    //     would pair the ⭐ season with a card it could never have been
+    //     browsed from.
+    if (splitKeep === split.cards[split.cards.length - 1])
+      solveOne(skip, offReel, true);
     // (c) The ⭐ season is the landing's one pick; the landed card supplies
     //     nothing. Once every landed card of the group is dropped the retained
     //     choice no longer matters, so this runs once per odometer family.
@@ -1566,3 +1583,4 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
   }
   return best!;
 }
+

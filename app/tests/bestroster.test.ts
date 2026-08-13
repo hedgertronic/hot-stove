@@ -880,10 +880,11 @@ describe("bestRoster off-reel seasons (⭐ Prime Time)", () => {
       expect(picks.some((p) => p!.team === "T0")).toBe(false);
     });
 
-    it("shares a pick with the card the reroll RETAINED, either retained card", () => {
+    it("shares a pick with the card the reroll left in hand", () => {
       // Landing 3 was itself rerolled (two landed cards) before ⭐ reached the
       // off-reel season: the group is three cards, one pick — two with the ✌️
-      // split — and the enumeration still tries both retained cards.
+      // split, and the split may only ride the card the reel left the player
+      // holding, since ⭐ was browsed from it.
       const cards = multiCards(
         [
           [player({ pos: "C", posG: C, war: 3 })],
@@ -900,6 +901,36 @@ describe("bestRoster off-reel seasons (⭐ Prime Time)", () => {
       });
       // Best: ✌️ split on landing 3 — SS (the better retained card) + ⭐ 12 —
       // plus the CF: three items off two landings and the ✌️.
+      const picks = best.picks.filter((p) => p !== null);
+      expect(picks).toHaveLength(3);
+      expect(picks.some((p) => p!.id === "prime")).toBe(true);
+      expect(picks.some((p) => p!.team === "T1")).toBe(true);
+      expect(picks.some((p) => p!.team === "T0")).toBe(false);
+    });
+
+    it("never splits the ✌️ with the card the reroll ABANDONED", () => {
+      // The abandoned card is the strong one this time. ⭐ was browsed from
+      // the weak card the reel left in hand, so abandoned-card + ⭐ is a pair
+      // nobody ever held at once: rerolls are refused after the spin's choice
+      // is spent, and the ⭐ pick IS that choice. The solver may still keep
+      // the abandoned card WITHOUT the ⭐ season (the reroll counterfactual),
+      // but the split rides the played card only.
+      const cards = multiCards(
+        [
+          [player({ pos: "SS", posG: IF, war: 9 })], // abandoned
+          [player({ pos: "C", posG: C, war: 2 })], // played; ⭐ spent from here
+          [player({ pos: "CF", posG: OF, war: 8 })],
+        ],
+        { manager: null },
+      );
+      const best = bestRoster(cards, {
+        fixedBudgetM: HUGE,
+        landings: [3, 3, 4],
+        offReel: [prime()],
+        offReelLandings: [3],
+      });
+      // Abandoned SS 9 + ⭐ 12 + CF 8 would score 29; the legal best is the
+      // played C 2 + ⭐ 12 + CF 8 at 22, and that is what must print.
       const picks = best.picks.filter((p) => p !== null);
       expect(picks).toHaveLength(3);
       expect(picks.some((p) => p!.id === "prime")).toBe(true);
@@ -1497,3 +1528,4 @@ describe("bestRoster on a landing that cycled through more than one card", () =>
     expect(bestRoster(pool, { landings: pool.map((_, i) => 4 + i) })).toEqual(plain);
   });
 });
+
