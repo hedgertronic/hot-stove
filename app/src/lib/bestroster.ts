@@ -856,6 +856,93 @@ function branchAndBound(
   return best;
 }
 
+/** ANY complete club off this pool under one front office, or null if the pool
+ * genuinely cannot field one. Exact: a backtracking search over the nine seats
+ * that stops at the first legal club it reaches.
+ *
+ * This exists because everything above it is a heuristic and rule 6 is not. The
+ * sweep relaxes one-season-per-human and hands the gap to `repair`, which can
+ * only refill off the conflicting card and so gives back a seat whenever that
+ * card carried one usable human; `branchAndBound` wins the seat back, but the
+ * recovery pass runs it on the WINNING front office alone. So a pair whose DP
+ * solution conflicts at every sampled λ is recorded at eight seats, loses the
+ * winner slot to a pair that also reached eight but scored higher, and the nine
+ * seats it could legally have filled are never looked for. DOUBLE_PAIRS,
+ * MAX_NODES and a front office eating the pool's only catcher can each hide a
+ * complete club the same way. None of that is worth fixing in the sweep: the
+ * sweep's job is points, and this search's job is the one thing points must
+ * never be traded against.
+ *
+ * It does NOT optimize. The club it returns is the first one the seat order
+ * reaches, scored afterwards by the same `clubOf` as every other candidate, and
+ * it only ever replaces a club that was a seat short — which `better` already
+ * ranks below any complete club, at any total.
+ *
+ * `dupCard` is the pool entry the ✌️ Double Play buys twice, or −1. Allowance
+ * follows `doubled()`: a card the front office took supplies nothing more, and
+ * the Double Play adds one pick wherever it lands, so doubling the owner's card
+ * buys one roster seat off it and doubling any other card buys two.
+ *
+ * Seats are taken fewest-candidates-first, and the two upfront rejects below
+ * are what stand in for a node cap. They fire on every thin pool in the suite —
+ * a three-card fixture fails the allowance count, a `manager: null` pool has no
+ * dugout candidate, a pool of catchers has no outfielder — so the pools that
+ * reach the backtracking at all are pools where a complete club is plausible
+ * and usually immediate. */
+function completeClub(
+  items: Item[][],
+  skip: readonly number[],
+  dupCard: number,
+): Chosen[] | null {
+  const allowance = items.map(
+    (_, c) => (skip.includes(c) ? 0 : 1) + (c === dupCard ? 1 : 0),
+  );
+  if (allowance.reduce((a, b) => a + b, 0) < SEATS_FULL) return null;
+
+  const cands: Chosen[][] = CAPACITY.map(() => []);
+  for (let c = 0; c < items.length; c++) {
+    if (allowance[c] === 0) continue;
+    for (const item of items[c]) cands[item.type].push({ card: c, item });
+  }
+  // Distinct CARDS, not candidates: five catchers off one card are still one
+  // pick, so a type is unreachable whenever fewer cards than seats can supply
+  // it. Counting candidates instead would send an infeasible pool the long way
+  // round for the same answer.
+  for (let t = 0; t < CAPACITY.length; t++)
+    if (new Set(cands[t].map((x) => x.card)).size < CAPACITY[t]) return null;
+
+  const order = CAPACITY.map((_, t) => t).sort(
+    (a, b) => cands[a].length - cands[b].length || a - b,
+  );
+  const used = new Set<string>();
+  const left = allowance.slice();
+  const chosen: Chosen[] = [];
+  // The two seats of a doubled type are filled in ascending candidate order, so
+  // one pair of men is offered once rather than once per ordering.
+  const seat = (oi: number, k: number, start: number): boolean => {
+    if (oi === order.length) return true;
+    const t = order[oi];
+    if (k === CAPACITY[t]) return seat(oi + 1, 0, 0);
+    const list = cands[t];
+    const rest = CAPACITY[t] - k - 1;
+    for (let i = start; i < list.length - rest; i++) {
+      const cand = list[i];
+      if (left[cand.card] === 0) continue;
+      const id = cand.item.playerId;
+      if (id !== null && used.has(id)) continue;
+      left[cand.card] -= 1;
+      if (id !== null) used.add(id);
+      chosen.push(cand);
+      if (seat(oi, k + 1, i + 1)) return true;
+      chosen.pop();
+      if (id !== null) used.delete(id);
+      left[cand.card] += 1;
+    }
+    return false;
+  };
+  return seat(0, 0, 0) ? [...chosen] : null;
+}
+
 const EMPTY: BestRoster = {
   picks: Array(8).fill(null),
   totalWar: 0,
@@ -1104,6 +1191,41 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
         if (!frontOffice[x] || x === firstDup) continue;
         winner.best = branch(x, winner.best);
         if (winner.best.seats >= SEATS_FULL) break;
+      }
+    }
+  }
+
+  // Last word on rule 6. Everything above ranks clubs; this only asks whether a
+  // complete one exists, and it asks every front office and every ✌️ Double
+  // Play rather than the one the ranking left on top. A club it finds is worth
+  // fewer points than the eight-seat club it displaces — that is the whole
+  // reason the eight-seat club won — and it is still the only one of the two
+  // the game would have let anybody finish.
+  //
+  // Off the common path entirely: a winner already holding nine seats never
+  // reaches this, so a finished classic game pays nothing for it.
+  if (winner.best.seats < SEATS_FULL) {
+    const dups = [-1, ...pool.map((_, i) => i).filter((i) => frontOffice[i])];
+    // Feasibility reads the skip SET, so the two orderings of one card pair ask
+    // the same question; the second ordering pays only a lookup for it.
+    const infeasible = new Set<string>();
+    for (const { s } of orderRefined) {
+      if (winner.best.seats >= SEATS_FULL) break;
+      const key =
+        s.pair.skip.length === 2
+          ? `${Math.min(...s.pair.skip)}|${Math.max(...s.pair.skip)}`
+          : "-";
+      for (const d of dups) {
+        if (infeasible.has(`${key}|${d}`)) continue;
+        const club = completeClub(items, s.pair.skip, d);
+        if (club === null) {
+          infeasible.add(`${key}|${d}`);
+          continue;
+        }
+        const full = clubOf(club, s.pair.budget, d);
+        if (full.spend <= s.pair.budget) note(full);
+        winner = { pair: s.pair, best: full, manager: s.manager };
+        break;
       }
     }
   }

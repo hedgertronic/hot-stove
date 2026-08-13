@@ -1083,4 +1083,89 @@ describe("bestRoster fills every seat, on the pools that left one open", () => {
     expect(doubledCards(best)).toBe(1);
     expect(best.picks.filter((p) => p?.id === "twoSeasons")).toHaveLength(1);
   });
+
+  /** Ten cards on the classic bank, holding exactly one complete club — the
+   * pool the sweep alone reads as a seat short.
+   *
+   * Cards 7 and 8 carry no qualified player and no skipper, so they are the
+   * front office and nothing else. That leaves eight cards and the ✌️ Double
+   * Play for nine seats, so every remaining card supplies exactly one thing and
+   * one of them supplies two. Five cards carry a man who can take a position
+   * seat, against the five position seats (C, IF, IF, OF, FLEX), so each of
+   * those five is spoken for; the only catcher is card 4's, the two infielders
+   * are cards 5 and 9, and cards 1 and 2 take outfield and FLEX. Cards 3 and 6
+   * are the rotation. The dugout is therefore card 0's, and card 4 is doubled
+   * for its reliever — that is the club, and it is the only one.
+   *
+   * What hides it from the sweep is card 0's reliever, who is card 1's
+   * outfielder in another season. The relaxed DP seats him twice, `repair`
+   * vacates the second seating and has nothing else on that card to refill
+   * with, and the eight-seat club that falls out spends the Double Play on
+   * card 0 for owner AND skipper. That club is the one the second half of the
+   * test below reconstructs, and it scores 53.5 against the complete club's
+   * 37.5 — sixteen points HIGHER with the reliever's seat drawn empty, which is
+   * why no amount of point-seeking reaches the ninth seat. Only asking whether
+   * a complete club exists reaches it. */
+  const oneClubPool = (barrenSkippers: boolean): Card[] => {
+    const seat = (over: Partial<CardPlayer>, war: number): CardPlayer =>
+      player({ cost: 20, war, ...over });
+    return multiCards(
+      [
+        [seat({ pos: "RP", posG: NONE, id: "repeated" }, 4)],
+        [seat({ pos: "CF", posG: OF, id: "repeated" }, 8)],
+        [seat({ pos: "CF", posG: OF }, 7)],
+        [seat({ pos: "SP", posG: NONE }, 6)],
+        [seat({ pos: "RP", posG: NONE }, 3), seat({ pos: "C", posG: C }, 5)],
+        [seat({ pos: "SP/1B", posG: IF }, 6.5)],
+        [seat({ pos: "SP", posG: NONE }, 5.5)],
+        [],
+        [],
+        [seat({ pos: "SS", posG: IF }, 7.5)],
+      ],
+      // A .500 skipper on every card, so the dugout is worth the same wherever
+      // it comes from and the totals below are the roster's alone.
+      { budget: 90, stadiumMult: 1, wins: 81, losses: 81 },
+    ).map((c, i) =>
+      i === 7 || i === 8 ? { ...c, manager: barrenSkippers ? c.manager : null } : c,
+    );
+  };
+
+  it("finds the one complete club in a pool the sweep reads a seat short", () => {
+    const best = bestRoster(oneClubPool(false));
+    expect(best.dreamSeats).toBe(9);
+    expect(best.picks.filter((p) => p === null)).toHaveLength(0);
+    expect(best.manager).not.toBeNull();
+    expect(perType(best)).toEqual([1, 2, 1, 1, 2, 1]);
+    // The club described above, and the rules it holds: one card doubled, the
+    // repeated human seated once.
+    expect(doubledCards(best)).toBe(1);
+    expect(best.picks.filter((p) => p?.id === "repeated")).toHaveLength(1);
+
+    // And it really did give up points for the seat. Take card 4's reliever
+    // away and nine seats become unreachable, so the same eight-seat club is
+    // the honest ceiling for that pool — and it outscores the complete club
+    // this pool prints.
+    const eight = bestRoster(
+      oneClubPool(false).map((c, i) =>
+        i === 4 ? { ...c, players: c.players.filter((p) => p.pos !== "RP") } : c,
+      ),
+    );
+    expect(eight.dreamSeats).toBe(8);
+    expect(best.total!).toBeLessThan(eight.total!);
+  });
+
+  it("leaves a pool that already solves complete exactly as the sweep solved it", () => {
+    // The same ten cards with a skipper back on the two barren ones. The dugout
+    // no longer competes for a card that carries a bat, the sweep reaches nine
+    // seats on its own, and the feasibility search never runs. These are the
+    // sweep's own numbers, unchanged by the fallback's existence — a fallback
+    // that fired here would print the first legal club it stumbled on instead
+    // of the best one, and this total would fall.
+    const best = bestRoster(oneClubPool(true));
+    expect(best.dreamSeats).toBe(9);
+    expect(best.picks.filter((p) => p === null)).toHaveLength(0);
+    expect(best.total).toBe(37.5);
+    expect(best.spend).toBe(160);
+    expect(best.totalWar).toBeCloseTo(48.5, 1);
+  });
 });
