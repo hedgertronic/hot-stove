@@ -37,10 +37,11 @@
  * stay in the pool and the landing pays out at most one of them, so a game that
  * rerolled no longer draws a pick off each card it cycled through.
  *
- * ⭐ Prime Time is the KNOWN GAP that remains, and it inflates: `primeSign`
- * spends the landing's pick, but `offReelCards()` hands the solver that season
- * for free on top of every landing — 3.2 points on one recorded game.
- * bestroster's header carries the shape of the fix.
+ * ⭐ Prime Time is charged the pick it spends: the off-reel season shares a
+ * split landing group with the card the reel left under it, and both pay only
+ * when the ✌️ Double Play is spent there (bestroster's rule 1). The old
+ * free-card accounting — 3.2 points loose on one recorded game — survives
+ * only for saves written before the landing was recorded.
  *
  * Run: BOT_STUDIES=1 npx vitest run tests/bots/study15-dreamfill.test.ts
  * (BOT_GAMES=<n>, default 500) */
