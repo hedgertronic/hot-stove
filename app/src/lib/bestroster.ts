@@ -81,9 +81,12 @@
  * three-card lab fixture, or a game abandoned four spins in. `better` compares
  * seat counts rather than testing for nine, so those still get the fullest club
  * their cards can field, and `dreamSeats` reports what came out; that is why the
- * ⭐ denominator is that number and not a fixed nine. Across 800 bot games on
+ * ⭐ denominator is that number and not a fixed nine. Across 480 bot games on
  * the classic bank the exception never fires: every finished game reaches nine,
- * which is Study 15's assertion rather than a rate it tolerates.
+ * which is Study 15's assertion rather than a rate it tolerates. That number is
+ * re-measured rather than inherited — Study 15, four arms, 120 games each,
+ * 2026-08-13, with landing grouping and `completeClub` both in; every arm
+ * printed a mean of 9.000 seats and 0.00% short.
  *
  * WHAT THE CEILING ASSUMES, in one sentence: perfect play of the cards the reel
  * actually showed you — every roster seat, the skipper, the owner and the
@@ -110,6 +113,11 @@
  * out-think the search with. Those same 800 games produced ZERO ceiling beats
  * with it modeled, against 4 without — 🦉 OUTSCOUTED is what the accuracy
  * would cost, and the badge won.
+ *
+ * Re-measured after landing grouping (480 games, 2026-08-13), the badge still
+ * pays and still pays for that reason: 2 beats, and BOTH were games that signed
+ * a 🏠 season, while the 🏠-off control arm scored none. The omission is not
+ * merely tolerated by the beat rate, it is where the beat rate comes from.
  *
  * Also not modeled: 🔁 Trade Deadline (re-choosing a seat is free to a solver
  * that chose with hindsight).

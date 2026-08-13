@@ -33,9 +33,14 @@
  * the same solver.
  *
  * 🔁 Trade Deadline is unmodeled and cannot move the ceiling. The 🎟️/🚚
- * rerolls are a KNOWN GAP in the other direction: the abandoned card stays in
- * `seen`, so the solver drafts from both cards of a re-deal and the ceiling is
- * inflated on any game that rerolled (bestroster's header carries the fix).
+ * rerolls and the cold-stove respin ARE modeled now: both cards of a re-deal
+ * stay in the pool and the landing pays out at most one of them, so a game that
+ * rerolled no longer draws a pick off each card it cycled through.
+ *
+ * ⭐ Prime Time is the KNOWN GAP that remains, and it inflates: `primeSign`
+ * spends the landing's pick, but `offReelCards()` hands the solver that season
+ * for free on top of every landing — 3.2 points on one recorded game.
+ * bestroster's header carries the shape of the fix.
  *
  * Run: BOT_STUDIES=1 npx vitest run tests/bots/study15-dreamfill.test.ts
  * (BOT_GAMES=<n>, default 500) */
