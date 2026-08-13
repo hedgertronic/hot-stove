@@ -231,7 +231,9 @@ describe("what a rewind puts back", () => {
     expect(g!.card).toBe(from);
     expect(g!.card!.year).toBe(from.year);
     expect(g!.powerups.seasonTicket).toBe("ready");
-    expect(g!.seen).toEqual([{ team: from.team, year: from.year }]);
+    // The landing id rides back through the undo serializer with the rest of
+    // the position: this is the game's first landing either side of the rewind.
+    expect(g!.seen).toEqual([{ team: from.team, year: from.year, spin: 1 }]);
     expect(g!.phase).toBe("landed");
     expect(g!.choicesLeft).toBe(1);
   });

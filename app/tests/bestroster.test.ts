@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { bestRoster } from "../src/lib/bestroster";
 import {
   GAMES,
@@ -1167,5 +1167,231 @@ describe("bestRoster fills every seat, on the pools that left one open", () => {
     expect(best.total).toBe(37.5);
     expect(best.spend).toBe(160);
     expect(best.totalWar).toBeCloseTo(48.5, 1);
+  });
+});
+
+/** Rule 1's landing half: 🎟️ Season Ticket, 🚚 Relocate and the cold-stove
+ * respin re-deal the card a landing is standing on, so one landing can leave
+ * two cards behind in the pool, and one pick is all it ever bought.
+ *
+ * These say it in solver terms — a pool plus `opts.landings`. What makes a real
+ * game produce that pair of arguments is engine work, and reroll-landings
+ * tests it through each of the three mechanisms. */
+describe("bestRoster on a landing that cycled through more than one card", () => {
+  /** Every card the club draws on, repeats included: roster seats, the skipper,
+   * the OWNER and the BALLPARK. The front office costs cards too (rule 4), so a
+   * landing test counting only `picks` would pass while the ballpark quietly
+   * came off the card the reroll abandoned. */
+  const clubCards = (best: ReturnType<typeof bestRoster>): string[] => {
+    const keys = best.picks.filter((p) => p !== null).map((p) => `${p!.team}_${p!.year}`);
+    if (best.manager) keys.push(`${best.manager.team}_${best.manager.year}`);
+    if (best.owner) keys.push(`${best.owner.team}_${best.owner.year}`);
+    if (best.park) keys.push(`${best.park.team}_${best.park.year}`);
+    return keys;
+  };
+
+  /** Three cards, one man each, no skipper: the shape a reroll leaves behind
+   * when the first two cards are the two sides of one landing. */
+  const rerolled = (): Card[] =>
+    multiCards(
+      [
+        [player({ pos: "C", posG: C, war: 9 })],
+        [player({ pos: "SS", posG: IF, war: 9 })],
+        [player({ pos: "CF", posG: OF, war: 8 })],
+      ],
+      { manager: null },
+    );
+
+  it("buys one card off a rerolled landing, not one off each", () => {
+    const cards = rerolled();
+    // Landing 7 was rerolled; landing 8 is the next spin. The ids are the
+    // engine's spinCount, which is why they are neither zero-based nor dense.
+    const best = bestRoster(cards, { fixedBudgetM: HUGE, landings: [7, 7, 8] });
+    expect(clubCards(best)).toHaveLength(2);
+    expect(clubCards(best)).toContain("T2_1982");
+    expect(clubCards(best).filter((k) => k === "T0_1980" || k === "T1_1981")).toHaveLength(1);
+
+    // The same pool with the landing unsaid is the bug this rule closes: two
+    // landings' worth of picks charged to a season that took one.
+    expect(clubCards(bestRoster(cards, { fixedBudgetM: HUGE }))).toHaveLength(3);
+  });
+
+  it("keeps the abandoned card out of the front office too", () => {
+    // The classic bank is where a rerolled landing has a second way to pay out
+    // twice: a man off the card kept and the BALLPARK off the card abandoned.
+    // Five cards so the front office does not eat the pool — owner, ballpark and
+    // two roster seats — and the rule has to hold across all four.
+    const best = bestRoster(
+      multiCards(
+        [
+          [player({ pos: "C", posG: C, war: 9 })],
+          [player({ pos: "SS", posG: IF, war: 9 })],
+          [player({ pos: "CF", posG: OF, war: 8 })],
+          [player({ pos: "SP", posG: NONE, war: 7 })],
+          [player({ pos: "RP", posG: NONE, war: 6 })],
+        ],
+        { manager: null },
+      ),
+      { landings: [9, 9, 10, 11, 12] },
+    );
+    expect(best.owner).not.toBeNull();
+    expect(best.park).not.toBeNull();
+    // One CARD of the landing, counted distinctly — the club really does draw on
+    // the landing, and it may draw twice, because spending the ✌️ there is two
+    // things off one card and legal.
+    const group = clubCards(best).filter((k) => k === "T0_1980" || k === "T1_1981");
+    expect(group.length).toBeGreaterThan(0);
+    expect(new Set(group).size).toBe(1);
+  });
+
+  it("takes both ✌️ Double Play picks off the SAME card of the landing", () => {
+    // The player held one card at a time on this landing, so a second pick
+    // bought there is a second man off whichever card was in hand — never one
+    // from the card kept and one from the card abandoned.
+    const best = bestRoster(
+      multiCards(
+        [
+          [
+            player({ pos: "C", posG: C, war: 9 }),
+            player({ pos: "SS", posG: IF, war: 9 }),
+          ],
+          [
+            player({ pos: "CF", posG: OF, war: 9 }),
+            player({ pos: "RP", posG: NONE, war: 9 }),
+          ],
+          [player({ pos: "1B", posG: IF, war: 1 })],
+        ],
+        { manager: null },
+      ),
+      { fixedBudgetM: HUGE, landings: [4, 4, 5] },
+    );
+    // Three seats: one landing's card doubled, plus the other landing's man.
+    const group = clubCards(best).filter((k) => k === "T0_1980" || k === "T1_1981");
+    expect(best.dreamSeats).toBe(3);
+    expect(group).toHaveLength(2);
+    expect(new Set(group).size).toBe(1);
+  });
+
+  it("still drafts off the card the reroll walked away from", () => {
+    // The counterfactual the enumeration exists to ask: the player rerolled a
+    // 12-win catcher into a 1-win one, and the ceiling is entitled to say so.
+    // Dropping the abandoned card instead of grouping it would lose this.
+    const best = bestRoster(
+      multiCards(
+        [
+          [player({ pos: "C", posG: C, war: 12 })],
+          [player({ pos: "C", posG: C, war: 1 })],
+          [player({ pos: "SS", posG: IF, war: 5 })],
+        ],
+        { manager: null },
+      ),
+      { fixedBudgetM: HUGE, landings: [3, 3, 4] },
+    );
+    expect(clubCards(best)).toEqual(expect.arrayContaining(["T0_1980", "T2_1982"]));
+    expect(clubCards(best)).not.toContain("T1_1981");
+    expect(best.picks[0]?.war).toBe(12);
+  });
+
+  it("pays a card the reel landed on TWICE for both landings", () => {
+    // The mirror image of a reroll, and the whole reason the key is the landing
+    // id rather than the team-season. Two landings on one card spent two spins
+    // there and bought twice; one landing that cycled through two cards spent
+    // one spin and bought once. A key on team and year cannot tell those apart
+    // and would rob the first to fix the second.
+    // Three men in three slot types, because ONE SEASON PER HUMAN is what
+    // bounds this: a landing buys a man, not a copy of the card, so the payoff
+    // for landing twice can only show on a card deep enough to seat a third.
+    const twice = card(
+      [
+        player({ pos: "C", posG: C, war: 9 }),
+        player({ pos: "SS", posG: IF, war: 8 }),
+        player({ pos: "CF", posG: OF, war: 7 }),
+      ],
+      { team: "T0", franchise: "T0", name: "Team 0", year: 1980, manager: null },
+    );
+    const once = bestRoster([twice], { fixedBudgetM: HUGE, landings: [1] });
+    const repeat = bestRoster([twice, twice], { fixedBudgetM: HUGE, landings: [1, 2] });
+    const reroll = bestRoster([twice, twice], { fixedBudgetM: HUGE, landings: [1, 1] });
+    // Two landings buy a seat the single landing could not reach.
+    expect(repeat.dreamSeats).toBeGreaterThan(once.dreamSeats!);
+    // One landing buys exactly what one landing buys, however many cards it
+    // cycled through on the way.
+    expect(reroll.dreamSeats).toBe(once.dreamSeats);
+  });
+
+  it("reads a save's fieldless entries as one landing each", () => {
+    // Old saves carry `seen` entries written before the landing id existed. An
+    // entry without one is its own landing, which is what the solver assumed
+    // for the whole life of those saves.
+    const cards = rerolled();
+    expect(
+      bestRoster(cards, { fixedBudgetM: HUGE, landings: [undefined, undefined, undefined] }),
+    ).toEqual(bestRoster(cards, { fixedBudgetM: HUGE }));
+  });
+
+  it("keeps a fieldless entry out of a real landing's group", () => {
+    // A restored save keeps its fieldless entries AND goes on playing, so one
+    // `seen` array holds both kinds. The id this file invents for a fieldless
+    // entry is negative for exactly that reason: were it the card's index,
+    // index 0 here would merge with the landing that really is numbered 0, and
+    // a season would silently lose a pick with no reroll anywhere in it.
+    const cards = rerolled();
+    expect(
+      clubCards(bestRoster(cards, { fixedBudgetM: HUGE, landings: [undefined, undefined, 0] })),
+    ).toHaveLength(3);
+  });
+
+  it("pins landings to the card played once the pool count passes the cap, and says so", () => {
+    // Four rerolled landings ask for 2⁴ = 16 pools against a cap of 8, so one
+    // landing is pinned to the last card of its group — the card the reel left
+    // the player holding. Ties on group size break on the first card, so the
+    // pinned landing is the first, and its 12-win catcher is the pick the cap
+    // costs. That direction is the whole safety of the cap: a pinned landing can
+    // only make the ceiling read LOW, never high.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const best = bestRoster(
+      multiCards(
+        [
+          [player({ pos: "C", posG: C, war: 12 })],
+          [player({ pos: "C", posG: C, war: 1 })],
+          [player({ pos: "SS", posG: IF, war: 9 })],
+          [player({ pos: "SS", posG: IF, war: 1 })],
+          [player({ pos: "CF", posG: OF, war: 9 })],
+          [player({ pos: "CF", posG: OF, war: 1 })],
+          [player({ pos: "SP", posG: NONE, war: 9 })],
+          [player({ pos: "SP", posG: NONE, war: 1 })],
+        ],
+        { manager: null },
+      ),
+      { fixedBudgetM: HUGE, landings: [1, 1, 2, 2, 3, 3, 4, 4] },
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][1]).toEqual(["T0_1980"]);
+    warn.mockRestore();
+    // One card per landing still, and the three landings that kept their
+    // enumeration all took the better card.
+    expect(clubCards(best)).toHaveLength(4);
+    expect(best.picks[0]?.war).toBe(1);
+    expect(best.totalWar).toBeCloseTo(1 + 9 + 9 + 9, 1);
+  });
+
+  it("leaves a game that never rerolled bit-identical", () => {
+    // A real 13-card pool rather than a fixture, because "unchanged" has to
+    // mean the whole answer — every seat, the front office, the totals — and a
+    // three-card pool exercises almost none of the search that produces them.
+    const CARD_DIR = path.resolve(
+      fileURLToPath(new URL(".", import.meta.url)),
+      "../..",
+      "data",
+      "cards",
+    );
+    const pool = [
+      "COL_2018", "KCR_2002", "TEX_2002", "NYY_2007", "DET_2014", "ARI_2000", "ARI_2006",
+      "PIT_1986", "CHC_1991", "MON_1989", "PIT_2018", "CIN_1989", "KCR_1989",
+    ].map(
+      (key) => JSON.parse(fs.readFileSync(path.join(CARD_DIR, `${key}.json`), "utf8")) as Card,
+    );
+    const plain = bestRoster(pool);
+    expect(bestRoster(pool, { landings: pool.map((_, i) => 4 + i) })).toEqual(plain);
   });
 });

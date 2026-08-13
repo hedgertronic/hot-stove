@@ -73,6 +73,12 @@ describe("powerup bot study", () => {
     // M-series laptop, suite otherwise idle; BOT_ABLATIONS=1 triples the
     // games. The margin is for CI's slower runners, for this file sharing
     // cores with the rest of the suite, and for opt-in ablation runs.
+    //
+    // A game that rerolled costs more than one solve: bestroster enumerates one
+    // pool per retained card per landing, and the two bots that play 🎟️ and 🚚
+    // reach four pools most games. Measured at 20 games/bot, that is 2.8× the
+    // solves for 1.79× the wall clock — a pool with one card per landing is a
+    // card or two smaller than the raw pool and solves cheaper.
     { timeout: 1_800_000 },
     async () => {
       const d = loadData();

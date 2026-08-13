@@ -1078,11 +1078,18 @@ export async function playGame(
     const c = d.cards.get(`${g.manager.team}_${g.manager.year}`);
     if (c) offReel.push({ ...c, players: [] });
   }
-  const pool = g.seen.map((s) => d.cards.get(`${s.team}_${s.year}`)!).filter(Boolean);
+  // The landings array is indexed against the pool, so the two are narrowed
+  // together: a card the corpus no longer carries has to leave both or the
+  // landing ids slide onto the wrong cards.
+  const landed = g.seen.filter((s) => d.cards.has(`${s.team}_${s.year}`));
+  const pool = landed.map((s) => d.cards.get(`${s.team}_${s.year}`)!);
   const t0 = performance.now();
   const solved = bestRoster(pool, {
     fixedBudgetM: g.fixedCap ? g.effectiveBudget : null,
     offReel,
+    // A 🎟️/🚚/cold-stove landing's two cards are one landing here too. Without
+    // it this replay would measure a solver the game does not ship.
+    landings: landed.map((s) => s.spin),
   });
   const solveMs = performance.now() - t0;
   inspect?.(g);

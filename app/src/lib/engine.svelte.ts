@@ -430,7 +430,7 @@ export interface StoredFinale {
   seed: number;
   config: GameConfig;
   spinCount: number;
-  seen: { team: string; year: number }[];
+  seen: { team: string; year: number; spin?: number }[];
   slots: (Signed | null)[];
   owner: OwnerPick | null;
   stadium: StadiumPick | null;
@@ -704,8 +704,30 @@ export class Game {
   spinEpoch = $state(0);
   /** Every LANDING this game has made — the scouting yardstick. One entry per
    * landing, duplicates included: the reel samples with replacement, and a
-   * repeat landing is a second real draw the dream pool must carry. */
-  seen = $state<{ team: string; year: number }[]>([]);
+   * repeat landing is a second real draw the dream pool must carry.
+   *
+   * `spin` is the landing the card arrived on, and it is `spinCount` because
+   * 🎟️ Season Ticket, 🚚 Relocate and the cold-stove respin each decrement that
+   * counter before they re-deal (same spin, new card), so every card one
+   * landing cycled through carries the same value. The dream solver needs it:
+   * `land()` has already pushed the abandoned card in here by the time a
+   * re-deal runs, and without the id the solver reads that card and its
+   * replacement as two landings and drafts a pick from each — one pick more
+   * than the player was ever offered. It stays on the abandoned card rather
+   * than being deleted because "should you have kept the original?" is a real
+   * comparison the ceiling is entitled to make.
+   *
+   * `spinCount` and not the team-season is the key, because the two ways this
+   * array repeats a card are opposite facts. A REROLL leaves two cards on ONE
+   * landing and they must share a pick; a REPEAT LANDING is the same card across
+   * TWO landings and each keeps its own pick. Only the landing id tells them
+   * apart — a key on team and year would collapse the second into the first and
+   * charge a season for a pick it really made.
+   *
+   * Optional, so a save written before the field restores as-is: an entry
+   * without it is its own landing, which is exactly what the solver assumed
+   * before landings existed. */
+  seen = $state<{ team: string; year: number; spin?: number }[]>([]);
   /** Sign-time slot ambiguity: rail becomes a slot picker for this player. */
   slotPick = $state<string | null>(null);
   /** TD release picker: rail cells the incoming player could replace. */
@@ -1288,14 +1310,20 @@ export class Game {
     this.choicesUsed = 0;
     // One entry PER LANDING, duplicates included: the reel samples with
     // replacement, and a second landing on the same card is a second real
-    // draw — the player may sign off both. The dream-team pool is built
-    // from this list, so recording the repeat is what lets the solver
-    // field the club the market genuinely offered (it used to dedupe here
-    // AND in bestroster, and a player who drew off both landings built a
-    // club the ceiling could not — the owner's 8-seat dream team). Undo
-    // rewinds this list wholesale via the snapshot, so an undone spin
-    // never double-counts its re-landing.
-    this.seen = [...this.seen, { team: this.card.team, year: this.card.year }];
+    // draw — the player may sign off both. The dream-team pool is built from
+    // this list, so recording the repeat is what lets the solver field the club
+    // the market genuinely offered (it used to dedupe here AND in bestroster,
+    // and a player who drew off both landings built a club the ceiling could
+    // not — the owner's 8-seat dream team). Undo rewinds this list wholesale
+    // via the snapshot, so an undone spin never double-counts its re-landing.
+    //
+    // `spin` separates the two ways this list repeats a card: two landings on
+    // one card carry different ids and keep a pick each, while a 🎟️/🚚/
+    // cold-stove re-deal leaves two cards on ONE id that share a single pick.
+    this.seen = [
+      ...this.seen,
+      { team: this.card.team, year: this.card.year, spin: this.spinCount },
+    ];
     this.clearTransients();
     this.save();
   }
@@ -2366,6 +2394,10 @@ export class Game {
         // owner or ballpark to solve for.
         fixedBudgetM: this.fixedCap ? this.effectiveBudget : null,
         offReel: await this.offReelCards(),
+        // Indexed the same as `cards`, because both are mapped off `seen` in
+        // its own order. This is what tells the solver that a 🎟️/🚚/cold-stove
+        // re-deal left two cards behind one landing (see `seen`).
+        landings: this.seen.map((s) => s.spin),
       });
       bestManager = best.manager ?? null;
     } catch {
