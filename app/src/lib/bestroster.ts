@@ -32,13 +32,30 @@
  * WHAT A LEGAL CLUB IS. Six rules, all solved together:
  *
  * 1. ONE PICK PER LANDING, PLUS ONE ✌️. A spin lands on one team-season and
- *    buys one thing — a player, the skipper, the owner, OR the ballpark. So
- *    the yardstick is a club the player could genuinely have drafted, not
- *    five 1998 Yankees off a single card. The reel samples with replacement,
- *    so the same card landing twice is two landings and two picks — the pool
- *    carries one entry per landing, never deduped. Double Play is the one
- *    exception the game itself grants, and every game starts holding it:
- *    exactly one landing may supply two things.
+ *    buys one thing — a player, the skipper, the owner, OR the ballpark. So the
+ *    yardstick is a club the player could genuinely have drafted, not five 1998
+ *    Yankees off a single card. The reel samples with replacement, so the same
+ *    card landing twice is two landings and two picks — the pool carries one
+ *    entry per landing, never deduped. Double Play is the one exception the game
+ *    itself grants, and every game starts holding it: exactly one landing may
+ *    supply two things.
+ *
+ *    A landing is not always one card. 🎟️ Season Ticket, 🚚 Relocate and the
+ *    cold-stove respin re-deal the card a landing is standing on, and the
+ *    player still leaves that landing holding one card, so both the abandoned
+ *    card and its replacement are legal for it and at most one of them may pay
+ *    out. `opts.landings` names which cards share a landing; the solver reads
+ *    it in the outer wrapper (see `bestRoster` at the bottom of the file), by
+ *    enumerating one retained card per landing and solving each resulting pool.
+ *    The abandoned card is kept in the pool rather than dropped because
+ *    "should you have kept the original?" is a real question about the season,
+ *    and the enumeration is what asks it. It also makes the ✌️ rule right for
+ *    free: a re-deal REPLACES the card under the player, who holds one of them
+ *    at a time, so a doubled reroll landing must spend both picks on the same
+ *    card — which is what a pool of one card per landing already says. That is
+ *    a fact about the re-deal rather than about landings in general (see the
+ *    `Landing` record's `split`), and ⭐ Prime Time, which reaches its season
+ *    while the landed card is still held, answers it the other way.
  * 2. ONE SEASON PER HUMAN. The same B-R id may fill only one seat, the same
  *    rule the draft enforces.
  * 3. SLOT CAPACITY. C1 IF2 OF1 FLEX1 SP2 RP1, plus one manager seat.
@@ -64,25 +81,27 @@
  * three-card lab fixture, or a game abandoned four spins in. `better` compares
  * seat counts rather than testing for nine, so those still get the fullest club
  * their cards can field, and `dreamSeats` reports what came out; that is why the
- * ⭐ denominator is that number and not a fixed nine. Across 800 bot games on
+ * ⭐ denominator is that number and not a fixed nine. Across 480 bot games on
  * the classic bank the exception never fires: every finished game reaches nine,
- * which is Study 15's assertion rather than a rate it tolerates.
+ * which is Study 15's assertion rather than a rate it tolerates. That number is
+ * re-measured rather than inherited — Study 15, four arms, 120 games each,
+ * 2026-08-13, with landing grouping and `completeClub` both in; every arm
+ * printed a mean of 9.000 seats and 0.00% short.
  *
  * WHAT THE CEILING ASSUMES, in one sentence: perfect play of the cards the reel
  * actually showed you — every roster seat, the skipper, the owner and the
  * ballpark chosen with hindsight, one pick per landing plus a ✌️ Double Play
- * second pick off one of them, at list prices, plus the one off-reel season
- * ⭐ Prime Time reached, which enters the pool as an extra card rather than
- * being charged the spin it really cost.
- *
- * Counting that last clause exactly: a real Prime spends a landed card's
- * choice and buys elsewhere, so a game that spun N cards had N + 1 choices
- * (the Double Play is the +1) no matter how they were used. The pool here can
- * yield N + 2 items — one per spun card, one doubled, one off-reel — so it is
- * one item loose, and that slack can only bind when N + 1 is short of the 11
- * seats a club fills, i.e. when the reel showed 9 cards or fewer. Study 12
- * measures how often that happens. Off-reel cards are barred from the front
- * office and from the Double Play, so the slack can never exceed one seat.
+ * second pick off one of them, at list prices. The one off-reel season
+ * ⭐ Prime Time reached is charged the pick it really cost: it shares a
+ * `split` landing group with the card the reel left under it (see `Landing`
+ * and `opts.offReelLandings`), so the two cards pay out at most one item
+ * between them unless the ✌️ is spent on that landing — in which case one
+ * item may come off each, and nothing else in the pool may double. A game of
+ * N landings therefore yields at most N + 1 items, exactly the choices it
+ * had. Off-reel cards stay barred from the front office and from being the
+ * doubled card themselves. The old accounting — the off-reel card as a free
+ * extra on top of every landing — survives only for saves written before the
+ * landing was recorded, and measured 3.2 points loose on one recorded game.
  *
  * 🏠 Homegrown is NOT modeled, and the omission is deliberate. Do not "fix"
  * it on the old argument that the discount only lowers payroll and so forfeits
@@ -94,19 +113,28 @@
  * with it modeled, against 4 without — 🦉 OUTSCOUTED is what the accuracy
  * would cost, and the badge won.
  *
+ * Re-measured after landing grouping (480 games, 2026-08-13), the badge still
+ * pays and still pays for that reason: 2 beats, and BOTH were games that signed
+ * a 🏠 season, while the 🏠-off control arm scored none. The omission is not
+ * merely tolerated by the beat rate, it is where the beat rate comes from.
+ * Re-measured again the same day with ⭐ Prime Time charged its pick (480
+ * games): 1 beat, again a 🏠 game, again none in the control arm.
+ *
  * Also not modeled: 🔁 Trade Deadline (re-choosing a seat is free to a solver
  * that chose with hindsight).
  *
- * KNOWN GAP — 🎟️/🚚 rerolls. A re-deal leaves the ABANDONED card in `seen`:
- * both powerups run at phase "landed", after `land()` has already recorded it,
- * and neither takes it back. So the pool carries BOTH cards of a re-deal and
- * the search may draft a pick from each. The player got one. The extra card
- * only widens the feasible pool, so it need not change the winning club — but
- * when it does it inflates the ceiling by a whole team-season, and denies
- * 🦉 OUTSCOUTED for a solver bug rather than for play. The fix is to group a
- * landing's cards and make the GROUP, not the card, the unit rule 1 rations
- * (`spinCount` is already the group id — a re-deal decrements it before
- * `beginSpin` puts it back, so every card of one landing shares it).
+ * 🎟️/🚚 rerolls and the cold-stove respin ARE modeled, and rule 1 says how:
+ * they do not change how many picks the season had, only which card each one
+ * came off. They used to inflate the ceiling instead — `land()` records the
+ * abandoned card before a re-deal runs and nothing took it back, so the pool
+ * read one landing as two and drafted a pick from each.
+ *
+ * ⭐ Prime Time is modeled the same way, with the one difference rule 1
+ * describes: `primeSign` consumes a choice, so the off-reel season costs the
+ * landing it was bought from a pick. Prime reaches that season while the
+ * landed card is still HELD, so the group's two ✌️ picks may split across its
+ * cards — the `split` case — where a reroll's doubled landing spends both on
+ * the one card it kept.
  *
  * When the search loses to a real line the finale prints the losing number
  * RAW — the caption must be true of the roster beneath it, and 🦉 OUTSCOUTED
@@ -266,6 +294,23 @@ export interface BestClubOptions {
    * They fill roster and dugout seats but never the front office (Prime Time
    * cannot target the owner or the ballpark). */
   offReel?: Card[];
+  /** Which landing each entry of `cards` arrived on, same index — the engine's
+   * `spinCount` at the moment the reel landed. Cards sharing a value are the
+   * cards ONE landing cycled through (🎟️ Season Ticket, 🚚 Relocate, the
+   * cold-stove respin), and rule 1 lets at most one of them pay out.
+   *
+   * Absent, or absent for an entry, means one landing per card: that is what a
+   * lab fixture wants and what a save written before the field can honestly
+   * say. */
+  landings?: (number | undefined)[];
+  /** Which landing each `offReel` entry's ⭐ Prime Time pick was spent on, same
+   * index — `primeSign` consumes the choice of the landing it stands on, and
+   * that landing id is what ties the off-reel season to the landed card it
+   * shares a pick with (the `split` landing group `bestRoster` builds from it).
+   * Absent, or absent for an entry, means the tie is unknown — an old save, or
+   * a lab fixture — and the off-reel card rides free the way it always did,
+   * which can only read the ceiling HIGH, never low. */
+  offReelLandings?: (number | undefined)[];
 }
 
 const TYPE_ORDER: SlotType[] = ["C", "IF", "OF", "FLEX", "SP", "RP"];
@@ -483,6 +528,16 @@ function fill(state: number, type: number): number {
   const used = Math.floor(state / STRIDE[type]) % RADIX[type];
   return used < CAPACITY[type] ? state + STRIDE[type] : -1;
 }
+
+/** `fill` precomputed over every (state, type) — the DP's innermost read,
+ * ~2k transitions in a solve that runs thousands of times per finale, so the
+ * div/mod pair is paid once here instead of per transition. */
+const FILL: Int32Array = (() => {
+  const f = new Int32Array(STATES * RADIX.length);
+  for (let s = 0; s < STATES; s++)
+    for (let t = 0; t < RADIX.length; t++) f[s * RADIX.length + t] = fill(s, t);
+  return f;
+})();
 
 /** Seats filled, per DP state — the digit sum of the state's mixed radix.
  *
@@ -708,7 +763,7 @@ class Dp {
         if (at === -Infinity) continue;
         for (let oi = 0; oi < opts.length; oi++) {
           const item = opts[oi];
-          const ns = fill(s, item.type);
+          const ns = FILL[s * 7 + item.type];
           if (ns < 0) continue;
           const v = at + item.base + lambda * item.cost;
           if (v > nxt[ns]) {
@@ -765,12 +820,28 @@ function sweep(
   forceManager: boolean,
   refine: boolean,
   dup = -1,
+  cache?: Map<string, Chosen[] | null>,
 ): { best: Club; bestUnder: Club | null } | null {
   const found: Club[] = [];
-  const run = (lambda: number): Chosen[] | null => {
-    const raw = dp.solve(lambda, skip, null, forceManager);
-    if (raw === null) return null;
-    const chosen = repair(raw, dp.items, lambda);
+  // A probe at a budget-INDEPENDENT λ depends only on (doubled card, skip set,
+  // manager floor, λ) — never on which of a card pair owns and which supplies
+  // the park — and passes 2 and 3 revisit the same skip set under both
+  // orderings' budgets. `cache` shares the post-repair solution between them
+  // (the set is normalized, so [o,p] and [p,o] read one entry); the club is
+  // still scored EXACTLY against this call's own budget, which is the only
+  // budget-dependent step. λ = 20/budget probes and the bisection's midpoints
+  // never pass `cacheable`.
+  const cacheKey = (lambda: number): string =>
+    `${dup}|${[...skip].sort((a, b) => a - b).join(",")}|${forceManager}|${lambda}`;
+  const run = (lambda: number, cacheable = false): Chosen[] | null => {
+    const key = cacheable && cache !== undefined ? cacheKey(lambda) : null;
+    let chosen = key !== null ? cache!.get(key) : undefined;
+    if (chosen === undefined) {
+      const raw = dp.solve(lambda, skip, null, forceManager);
+      chosen = raw === null ? null : repair(raw, dp.items, lambda);
+      if (key !== null) cache!.set(key, chosen);
+    }
+    if (chosen === null) return null;
     found.push(clubOf(chosen, budgetM, dup));
     return chosen;
   };
@@ -778,14 +849,14 @@ function sweep(
   const lambdaUnder = budgetM > 0 ? (2 * BUDGET_BONUS_MAX) / budgetM : 0;
   const under = run(lambdaUnder);
   if (under === null) return null;
-  run(-LUXURY_TAX_PER_M);
+  run(-LUXURY_TAX_PER_M, true);
   // The third probe is the one that keeps rich owners in the race. λ = 20/budget
   // buys the whole shop and gets taxed for it; λ = −1 buys nothing and forfeits
   // the bonus. Against a $144M cap the club that actually wins is the plain
   // best-players club sitting between them, and without this probe every big
   // bankroll scores as one of its two extremes and loses to a $16M owner whose
   // cheap roster maxes a bonus worth ten points — measured, on a real seed.
-  run(0);
+  run(0, true);
 
   // The under-cap optimum spends as close to the cap as it can. When the full
   // slope overshoots, walk λ down until the club fits: every step is a real
@@ -856,6 +927,102 @@ function branchAndBound(
   return best;
 }
 
+/** ANY complete club off this pool under one front office, or null if the pool
+ * genuinely cannot field one. Exact: a backtracking search over the nine seats
+ * that stops at the first legal club it reaches.
+ *
+ * This exists because everything above it is a heuristic and rule 6 is not. The
+ * sweep relaxes one-season-per-human and hands the gap to `repair`, which can
+ * only refill off the conflicting card and so gives back a seat whenever that
+ * card carried one usable human; `branchAndBound` wins the seat back, but the
+ * recovery pass runs it on the WINNING front office alone. So a pair whose DP
+ * solution conflicts at every sampled λ is recorded at eight seats, loses the
+ * winner slot to a pair that also reached eight but scored higher, and the nine
+ * seats it could legally have filled are never looked for. DOUBLE_PAIRS,
+ * MAX_NODES and a front office eating the pool's only catcher can each hide a
+ * complete club the same way. None of that is worth fixing in the sweep: the
+ * sweep's job is points, and this search's job is the one thing points must
+ * never be traded against.
+ *
+ * It does NOT optimize. The club it returns is the first one the seat order
+ * reaches, scored afterwards by the same `clubOf` as every other candidate, and
+ * it only ever replaces a club that was a seat short — which `better` already
+ * ranks below any complete club, at any total.
+ *
+ * `dupCard` is the pool entry the ✌️ Double Play buys twice, or −1. Allowance
+ * follows `doubled()`: a card the front office took supplies nothing more, and
+ * the Double Play adds one pick wherever it lands, so doubling the owner's card
+ * buys one roster seat off it and doubling any other card buys two.
+ *
+ * Seats are taken fewest-candidates-first, and the two upfront rejects below
+ * are what stand in for a node cap. They fire on every thin pool in the suite —
+ * a three-card fixture fails the allowance count, a `manager: null` pool has no
+ * dugout candidate, a pool of catchers has no outfielder — so the pools that
+ * reach the backtracking at all are pools where a complete club is plausible
+ * and usually immediate. */
+function completeClub(
+  items: Item[][],
+  skip: readonly number[],
+  dupCard: number,
+): Chosen[] | null {
+  const allowance = items.map(
+    (_, c) => (skip.includes(c) ? 0 : 1) + (c === dupCard ? 1 : 0),
+  );
+  if (allowance.reduce((a, b) => a + b, 0) < SEATS_FULL) return null;
+
+  const cands: Chosen[][] = CAPACITY.map(() => []);
+  for (let c = 0; c < items.length; c++) {
+    if (allowance[c] === 0) continue;
+    for (const item of items[c]) cands[item.type].push({ card: c, item });
+  }
+  // Distinct CARDS, not candidates: five catchers off one card are still one
+  // pick, so a type is unreachable whenever fewer cards than seats can supply
+  // it — EXCEPT the doubled card, which can seat two of a type by itself
+  // whenever it carries two candidates of that type (two same-type items off
+  // one card are two distinct humans: `cardItems` yields at most one item per
+  // eligible type per player). Without that exception this reject refused
+  // legal clubs whose ✌️ was the only way to fill a two-seat type. Counting
+  // candidates instead would send an infeasible pool the long way round for
+  // the same answer.
+  for (let t = 0; t < CAPACITY.length; t++) {
+    const supply = new Set(cands[t].map((x) => x.card));
+    const dupExtra =
+      dupCard >= 0 && cands[t].filter((x) => x.card === dupCard).length >= 2 ? 1 : 0;
+    if (supply.size + dupExtra < CAPACITY[t]) return null;
+  }
+
+  const order = CAPACITY.map((_, t) => t).sort(
+    (a, b) => cands[a].length - cands[b].length || a - b,
+  );
+  const used = new Set<string>();
+  const left = allowance.slice();
+  const chosen: Chosen[] = [];
+  // The two seats of a doubled type are filled in ascending candidate order, so
+  // one pair of men is offered once rather than once per ordering.
+  const seat = (oi: number, k: number, start: number): boolean => {
+    if (oi === order.length) return true;
+    const t = order[oi];
+    if (k === CAPACITY[t]) return seat(oi + 1, 0, 0);
+    const list = cands[t];
+    const rest = CAPACITY[t] - k - 1;
+    for (let i = start; i < list.length - rest; i++) {
+      const cand = list[i];
+      if (left[cand.card] === 0) continue;
+      const id = cand.item.playerId;
+      if (id !== null && used.has(id)) continue;
+      left[cand.card] -= 1;
+      if (id !== null) used.add(id);
+      chosen.push(cand);
+      if (seat(oi, k + 1, i + 1)) return true;
+      chosen.pop();
+      if (id !== null) used.delete(id);
+      left[cand.card] += 1;
+    }
+    return false;
+  };
+  return seat(0, 0, 0) ? [...chosen] : null;
+}
+
 const EMPTY: BestRoster = {
   picks: Array(8).fill(null),
   totalWar: 0,
@@ -868,17 +1035,28 @@ const EMPTY: BestRoster = {
   total: 0,
 };
 
-export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoster {
-  // One pool entry PER LANDING, duplicates included: the reel samples with
-  // replacement, so a card that lands twice really did offer two draws, and
-  // the player may have taken both (rule 2 still bars the same HUMAN
-  // twice). This used to dedupe by team|year on the premise that a repeat
-  // landing was one choice — false, and the cause of the one real 8-seat
-  // dream club: a player who drew off both landings built a club the
-  // deduped pool was a card short of fielding.
+/** The whole search over ONE pool, which is one card per landing. `bestRoster`
+ * below is what guarantees that: it hands this function a pool the rerolled
+ * landings have already been resolved out of, so every index here — `options`,
+ * `frontOffice`, `pair.owner`, `pair.park`, `dup` — still means one card and
+ * one pick, exactly as it did before landings existed.
+ *
+ * `noDouble` says the ✌️ Double Play is already spent OUTSIDE this function:
+ * `bestRoster`'s split-landing variant keeps a ⭐ Prime Time season AND its
+ * landed card in the pool, and the second pick that pair costs IS the Double
+ * Play. Every doubling pass below is skipped for such a pool — pass 3, the
+ * seat-recovery branches, and `completeClub`'s dup enumeration — because a
+ * pool that doubled a card on top would spend two Double Plays in one game. */
+function solveClub(cards: Card[], opts: BestClubOptions, noDouble = false): BestRoster {
+  // One entry per LANDING: a reel that lands twice on the same card spent two
+  // spins there and bought from it twice. NOT deduped by team|year — that was
+  // the old premise, that a repeat landing was one choice, and it was the cause
+  // of the one real 8-seat dream club: a player who drew off both landings
+  // built a club the deduped pool was a card short of fielding. Rule 2 still
+  // bars the same HUMAN twice, which is the constraint that actually applies.
   const pool: Card[] = [...cards];
   const frontOffice: boolean[] = pool.map(() => true);
-  const keys = new Set<string>(cards.map((c) => `${c.team}|${c.year}`));
+  const keys = new Set(pool.map((c) => `${c.team}|${c.year}`));
   for (const card of opts.offReel ?? []) {
     // ⭐ Prime deliberately reaches only cards the reel never landed
     // (engine's candidate gate), so this guard is for malformed callers
@@ -1038,8 +1216,11 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
       (a, b) =>
         b.s.best.seats - a.s.best.seats || b.s.best.total - a.s.best.total || a.i - b.i,
     );
+  // Shared across passes 2 and 3 — see `sweep`. Keyed by (dup, skip set,
+  // manager, λ), so a Dp is never read through another's entries.
+  const probeCache = new Map<string, Chosen[] | null>();
   for (const { s } of order.slice(0, REFINE_PAIRS)) {
-    const refined = sweep(dp, s.pair.budget, s.pair.skip, s.manager, true);
+    const refined = sweep(dp, s.pair.budget, s.pair.skip, s.manager, true, -1, probeCache);
     if (refined === null) continue;
     if (better(refined.best, s.best)) s.best = refined.best;
     note(refined.bestUnder);
@@ -1055,17 +1236,18 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
     (a, b) =>
       b.s.best.seats - a.s.best.seats || b.s.best.total - a.s.best.total || a.i - b.i,
   );
-  for (const { s } of orderRefined.slice(0, DOUBLE_PAIRS)) {
-    for (let x = 0; x < pool.length; x++) {
-      // Never the off-reel card: ⭐ Prime Time buys one named season, and
-      // doubling it would invent a second pick nobody was ever offered.
-      if (!frontOffice[x]) continue;
-      const out = sweep(doubled(x), s.pair.budget, s.pair.skip, s.manager, false, x);
-      if (out === null) continue;
-      if (better(out.best, s.best)) s.best = out.best;
-      note(out.bestUnder);
+  if (!noDouble)
+    for (const { s } of orderRefined.slice(0, DOUBLE_PAIRS)) {
+      for (let x = 0; x < pool.length; x++) {
+        // Never the off-reel card: ⭐ Prime Time buys one named season, and
+        // doubling it would invent a second pick nobody was ever offered.
+        if (!frontOffice[x]) continue;
+        const out = sweep(doubled(x), s.pair.budget, s.pair.skip, s.manager, false, x, probeCache);
+        if (out === null) continue;
+        if (better(out.best, s.best)) s.best = out.best;
+        note(out.bestUnder);
+      }
     }
-  }
 
   let winner = scored[0];
   for (const s of scored) if (better(s.best, winner.best)) winner = s;
@@ -1099,11 +1281,48 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
     // at one branch-and-bound per card, and it runs on games too thin to seat
     // nine off distinct cards — the case the header's "N + 1 short of 11" slack
     // describes.
-    if (winner.best.seats < SEATS_FULL) {
+    if (!noDouble && winner.best.seats < SEATS_FULL) {
       for (let x = 0; x < pool.length; x++) {
         if (!frontOffice[x] || x === firstDup) continue;
         winner.best = branch(x, winner.best);
         if (winner.best.seats >= SEATS_FULL) break;
+      }
+    }
+  }
+
+  // Last word on rule 6. Everything above ranks clubs; this only asks whether a
+  // complete one exists, and it asks every front office and every ✌️ Double
+  // Play rather than the one the ranking left on top. A club it finds is worth
+  // fewer points than the eight-seat club it displaces — that is the whole
+  // reason the eight-seat club won — and it is still the only one of the two
+  // the game would have let anybody finish.
+  //
+  // Off the common path entirely: a winner already holding nine seats never
+  // reaches this, so a finished classic game pays nothing for it.
+  if (winner.best.seats < SEATS_FULL) {
+    const dups = noDouble
+      ? [-1]
+      : [-1, ...pool.map((_, i) => i).filter((i) => frontOffice[i])];
+    // Feasibility reads the skip SET, so the two orderings of one card pair ask
+    // the same question; the second ordering pays only a lookup for it.
+    const infeasible = new Set<string>();
+    for (const { s } of orderRefined) {
+      if (winner.best.seats >= SEATS_FULL) break;
+      const key =
+        s.pair.skip.length === 2
+          ? `${Math.min(...s.pair.skip)}|${Math.max(...s.pair.skip)}`
+          : "-";
+      for (const d of dups) {
+        if (infeasible.has(`${key}|${d}`)) continue;
+        const club = completeClub(items, s.pair.skip, d);
+        if (club === null) {
+          infeasible.add(`${key}|${d}`);
+          continue;
+        }
+        const full = clubOf(club, s.pair.budget, d);
+        if (full.spend <= s.pair.budget) note(full);
+        winner = { pair: s.pair, best: full, manager: s.manager };
+        break;
       }
     }
   }
@@ -1160,3 +1379,222 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
     underBudgetTotal: underTotal(),
   };
 }
+
+/** Pools the landing enumeration will solve, at most. 🎟️ and 🚚 fire once a
+ * game each, so the two of them together are four pools, and a ⭐ split group
+ * multiplies by three — six covers either reroll alone beside a ⭐, and both
+ * rerolls without one. The cap was 8 when only rerolls bought pools, and
+ * across the 480 games of the 2026-08-13 remeasure the reroll product never
+ * exceeded 4, so the headroom above 6 was paying wall clock (each pool is a
+ * full solve, and the finale has one staged reveal to hide them all behind)
+ * for a cold-stove chain no game produced. Measured over 20 bot games per
+ * arm, the enumeration
+ * costs 2.8× the solves for 1.79× the wall clock — a pool holding one card per
+ * landing is a card or two shorter than the raw pool and solves cheaper, so the
+ * multiplier a four-pool game pays is nearer three than four.
+ *
+ * Over the cap, the reroll landings that bought the most pools are PINNED to
+ * the last card their group dealt — the card the reel left the player holding,
+ * so the pool is the season as played. The ⭐ split group is never pinned (its
+ * enumeration is the Prime rule itself), which means the cap is a budget for
+ * the REROLL product rather than a hard ceiling on solves: a split group of k
+ * landed cards runs k + 2 variants per surviving combination (k retained, one
+ * ⭐-only, one both-pay off the last card), so a lone rerolled-then-primed
+ * group can run the count past the cap by a couple of solves — bounded by the
+ * cold-stove chain length, and accepted rather than pinned because pinning it
+ * would pin the Prime rule. The pinning is logged rather than taken quietly,
+ * and it only ever takes options away, so the ceiling can read LOW when it
+ * binds and never high. */
+const MAX_LANDING_POOLS = 6;
+
+/** `better` for a finished club, on the same (seats, total) order — see the
+ * long note on `better` for why seat count dominates. */
+const betterRoster = (a: BestRoster, b: BestRoster): boolean =>
+  (a.dreamSeats ?? 0) !== (b.dreamSeats ?? 0)
+    ? (a.dreamSeats ?? 0) > (b.dreamSeats ?? 0)
+    : (a.total ?? 0) > (b.total ?? 0);
+
+/** One landing the reel spent more than one card on, and whether the ✌️ Double
+ * Play second pick this landing might take may come off a DIFFERENT card of the
+ * group than the first.
+ *
+ * `split` is a property OF THE GROUP rather than a rule of this file, because
+ * it is a fact about the mechanism that built the group and the mechanisms
+ * disagree. 🎟️ Season Ticket, 🚚 Relocate and the cold-stove respin all
+ * REPLACE the card under the player, who therefore only ever holds one of them:
+ * a doubled reroll landing spends both picks on the one card it kept, so
+ * `split` is false and enumerating a single retained card is what enforces it.
+ * ⭐ Prime Time is the same grouping with the opposite answer — `primeSign`
+ * spends a pick from the landing it stands on and reaches the off-reel season
+ * while the landed card is STILL held, so one landing can genuinely pay out a
+ * man from the landed card and another from the season Prime reached.
+ *
+ * A split group is built from `opts.offReelLandings` — the off-reel season
+ * joins the group of the landing whose pick bought it — and enumerated in the
+ * wrapper like everything else: per retained landed card, the landed card
+ * pays and the ⭐ season goes unbought; once, the ⭐ season pays and the
+ * landed card supplies nothing; and for the LAST card the group dealt only,
+ * BOTH pay — the ✌️ Double Play spent on this landing with its two picks
+ * split across the pair, so that variant's pool is solved with every other
+ * doubling barred (`noDouble`). Last card only because that is the card ⭐
+ * was really browsed from: every re-deal is refused once the spin's choice
+ * is spent, so a card the reroll abandoned was never held together with the
+ * ⭐ season and cannot share the ✌️ with it. */
+interface Landing {
+  cards: number[];
+  split: boolean;
+}
+
+/** THE DREAM CLUB. See the file header for the objective and every rule.
+ *
+ * This is rule 1's landing half and nothing else: it resolves each landing that
+ * cycled through more than one card down to a single retained card — or, for
+ * the ⭐ split group, one of its three payout variants — and hands every
+ * resulting pool to `solveClub`. A game that never rerolled and never primed
+ * has one card per landing already, so it takes the first branch below and
+ * reaches exactly the search it always did.
+ *
+ * An OUTER WRAPPER rather than a regrouping of the DP, because the DP indexes
+ * by card position everywhere — `options[c]`, `frontOffice[c]`, `pair.owner`,
+ * `pair.park`, `dup` — and a pool of one card per landing keeps every one of
+ * those meanings intact. It also settles the ✌️ Double Play question for a
+ * `split: false` group for free: the doubled card is a card, so such a landing
+ * spends both picks on the single card it retained.
+ *
+ * Deterministic like the rest of the file: groups in first-card order, cards
+ * within a group in pool order, an odometer over them, and strict improvement,
+ * so the first club found at a given (seats, total) is the one that survives. */
+export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoster {
+  const landings = opts.landings ?? [];
+  const groups = new Map<number, Landing>();
+  for (let i = 0; i < cards.length; i++) {
+    // A card with no landing id is its own landing. The synthetic id is
+    // NEGATIVE so it can never collide with a real `spinCount`: a save written
+    // before the field keeps its fieldless entries and then goes on playing, so
+    // one array holds both kinds, and an index-shaped synthetic would merge an
+    // old entry with the landing that happens to carry its number.
+    const id = landings[i] ?? -1 - i;
+    const g = groups.get(id);
+    // A landed-card id names a reroll landing, and a reroll hands the player
+    // one card at a time. ⭐ Prime Time is the mechanism that groups cards the
+    // player holds AT ONCE, and it joins below through `offReelLandings`.
+    if (g === undefined) groups.set(id, { cards: [i], split: false });
+    else g.cards.push(i);
+  }
+
+  // ⭐ Prime Time's off-reel season joins the landing whose pick bought it —
+  // `primeSign` spends that landing's choice — making it a split group. ⭐
+  // fires once a game, so at most one group ever splits; an off-reel entry
+  // with no id, or an id no landed card carries, rides free the way it always
+  // did, which is what an old save can honestly claim.
+  const offReel = opts.offReel ?? [];
+  const offIds = opts.offReelLandings ?? [];
+  let split: Landing | null = null;
+  let splitOff = -1;
+  for (let j = 0; j < offReel.length && split === null; j++) {
+    const id = offIds[j];
+    if (id === undefined) continue;
+    const g = groups.get(id);
+    if (g === undefined) continue;
+    g.split = true;
+    split = g;
+    splitOff = j;
+  }
+
+  const multi = [...groups.values()].filter((g) => g.cards.length > 1);
+  if (multi.length === 0 && split === null) return solveClub(cards, opts);
+
+  // Pin the biggest groups first: they are the ones buying the most pools, so
+  // pinning them keeps the most of the enumeration alive per landing given up.
+  // Never the split group — its enumeration is the ⭐ rule itself, and its
+  // variants are the cheap ones (one pool solves without the doubling pass,
+  // one is a card smaller), so a reroll group is always the better sacrifice.
+  const drop = new Set<number>();
+  const pinned: Landing[] = [];
+  const costliest = [...multi]
+    .filter((g) => g !== split)
+    .sort((a, b) => b.cards.length - a.cards.length || a.cards[0] - b.cards[0]);
+  let pools = multi.reduce((n, g) => n * g.cards.length, 1);
+  const splitFactor = split === null ? 1 : 3;
+  while (pools * splitFactor > MAX_LANDING_POOLS && costliest.length > 0) {
+    const g = costliest.shift()!;
+    pools /= g.cards.length;
+    pinned.push(g);
+    for (const i of g.cards.slice(0, -1)) drop.add(i);
+  }
+  if (pinned.length > 0)
+    console.warn(
+      "hot stove: dream solver pinned rerolled landings to the card played, " +
+        `over the ${MAX_LANDING_POOLS}-pool cap:`,
+      pinned.map((g) =>
+        g.cards.slice(0, -1).map((i) => `${cards[i].team}_${cards[i].year}`).join("/"),
+      ),
+    );
+
+  const open = multi.filter((g) => !pinned.includes(g));
+  let best: BestRoster | null = null;
+  // `underBudgetTotal` rides along with the club that won rather than being
+  // maxed across pools: it is the best under-cap total among the clubs THIS
+  // club was chosen from, and a figure lifted out of a losing pool could
+  // exceed the winner's own total, which is a thing it is never allowed to do.
+  const consider = (club: BestRoster): void => {
+    if (best === null || betterRoster(club, best)) best = club;
+  };
+  const solveOne = (skip: Set<number>, off: Card[], noDouble: boolean): void =>
+    consider(
+      solveClub(
+        cards.filter((_, i) => !skip.has(i)),
+        off === offReel ? opts : { ...opts, offReel: off },
+        noDouble,
+      ),
+    );
+  for (let n = 0; n < pools; n++) {
+    const skip = new Set<number>(drop);
+    let splitKeep = -1; // retained landed card of the split group, this pool
+    let splitFirst = true; // first retained choice — dedups the ⭐-only variant
+    let rest = n;
+    for (const g of open) {
+      const keep = rest % g.cards.length;
+      rest = Math.floor(rest / g.cards.length);
+      for (let j = 0; j < g.cards.length; j++) if (j !== keep) skip.add(g.cards[j]);
+      if (g === split) {
+        splitKeep = g.cards[keep];
+        splitFirst = keep === 0;
+      }
+    }
+    if (split === null) {
+      solveOne(skip, offReel, false);
+      continue;
+    }
+    // A split group of one landed card never enters `open`; its one retained
+    // choice is that card.
+    if (splitKeep < 0) splitKeep = split.cards[split.cards.length - 1];
+    // (a) The landed card keeps the landing's pick; the ⭐ season goes unbought.
+    solveOne(skip, offReel.filter((_, j) => j !== splitOff), false);
+    // (b) BOTH pay out — the ✌️ Double Play spent here, split across the pair,
+    //     so no card in this pool may double on top of it. ONLY with the card
+    //     ⭐ was really reached from, the LAST card the group dealt: every
+    //     re-deal is refused once the spin's choice is spent (the engine's
+    //     choicesUsed gates), so Prime always fires from the card the reel
+    //     left the player holding — a split with a card the reroll abandoned
+    //     would pair the ⭐ season with a card it could never have been
+    //     browsed from.
+    if (splitKeep === split.cards[split.cards.length - 1])
+      solveOne(skip, offReel, true);
+    // (c) The ⭐ season is the landing's one pick; the landed card supplies
+    //     nothing. Once every landed card of the group is dropped the retained
+    //     choice no longer matters, so this runs once per odometer family.
+    if (splitFirst) {
+      const s2 = new Set(skip);
+      s2.add(splitKeep);
+      solveOne(s2, offReel, false);
+    }
+  }
+  return best!;
+}
+/** Test-only handles. `completeClub` is rule 6's backstop, and the pools where
+ * its upfront feasibility rejects decide anything are exactly the pools the
+ * heuristic passes already solve on their own through `bestRoster` — so the
+ * invariant those rejects must respect is pinned at this level instead. Not
+ * public API; nothing outside the tests may import it. */
+export const _internals = { cardItems, completeClub };

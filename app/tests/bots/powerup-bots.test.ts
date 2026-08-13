@@ -68,11 +68,20 @@ function summarize(name: string, rs: GameResult[]): string {
 describe("powerup bot study", () => {
   it(
     `plays ${N} seeded games per bot through the real engine`,
-    // 3 bots × 400 finales runs the dream solver 1,200 times at ~0.4s each
-    // (bestroster's λ grid + oracle-tuned shortlists) ≈ 550s measured on an
-    // M-series laptop, suite otherwise idle; BOT_ABLATIONS=1 triples the
-    // games. The margin is for CI's slower runners, for this file sharing
-    // cores with the rest of the suite, and for opt-in ablation runs.
+    // 3 bots × 400 finales runs the dream solver 1,200 times ≈ 800s measured
+    // on an M-series laptop, suite otherwise idle (2026-08-13, with landing
+    // grouping, the ⭐ split enumeration, and bestroster's probe cache all
+    // in); BOT_ABLATIONS=1 triples the games. The margin is for CI's slower
+    // runners, for this file sharing cores with the rest of the suite, and
+    // for opt-in ablation runs.
+    //
+    // A game that rerolled or primed costs more than one solve: bestroster
+    // enumerates one pool per retained card per landing, plus three variants
+    // for a ⭐ split landing, and the powerup bots play 🎟️, 🚚 AND ⭐ most
+    // games. Measured at 20 games/bot pre-⭐, that was 2.8× the solves for
+    // 1.79× the wall clock — a pool with one card per landing is a card or
+    // two smaller than the raw pool and solves cheaper, and a split pool
+    // skips the doubling pass or drops a card.
     { timeout: 1_800_000 },
     async () => {
       const d = loadData();

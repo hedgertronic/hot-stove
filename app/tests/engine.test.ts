@@ -1793,9 +1793,12 @@ describe("mid-spin fetch failure", () => {
     g.signPlayer(g.card!.players[0]);
     g.spin();
     await g.land();
+    // DISTINCT `spin` ids are the point: two landings on one card are two
+    // landings, not one rerolled landing's two cards. A reroll shares the id,
+    // which is what makes the group share a single pick.
     expect(g.seen).toEqual([
-      { team: "SEA", year: 1995 },
-      { team: "SEA", year: 1995 },
+      { team: "SEA", year: 1995, spin: 1 },
+      { team: "SEA", year: 1995, spin: 2 },
     ]);
   });
 });

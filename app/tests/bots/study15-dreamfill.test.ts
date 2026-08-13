@@ -33,9 +33,15 @@
  * the same solver.
  *
  * 🔁 Trade Deadline is unmodeled and cannot move the ceiling. The 🎟️/🚚
- * rerolls are a KNOWN GAP in the other direction: the abandoned card stays in
- * `seen`, so the solver drafts from both cards of a re-deal and the ceiling is
- * inflated on any game that rerolled (bestroster's header carries the fix).
+ * rerolls and the cold-stove respin ARE modeled now: both cards of a re-deal
+ * stay in the pool and the landing pays out at most one of them, so a game that
+ * rerolled no longer draws a pick off each card it cycled through.
+ *
+ * ⭐ Prime Time is charged the pick it spends: the off-reel season shares a
+ * split landing group with the card the reel left under it, and both pay only
+ * when the ✌️ Double Play is spent there (bestroster's rule 1). The old
+ * free-card accounting — 3.2 points loose on one recorded game — survives
+ * only for saves written before the landing was recorded.
  *
  * Run: BOT_STUDIES=1 npx vitest run tests/bots/study15-dreamfill.test.ts
  * (BOT_GAMES=<n>, default 500) */

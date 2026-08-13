@@ -146,12 +146,25 @@
     // the landed card comes from the game stream and keeps its honest odds.
     // Seeded from the card on screen, so the first tick can't echo it either.
     // The retry cap is theater insurance: pool-sized streaks can't happen.
+    // The LANDING card's franchise is barred from every tick too (owner
+    // nitpick, 2026-08-13): the tick before the land is adjacent to the real
+    // card, and Royals 1989 flashing right before Royals 2005 lands reads as
+    // the same stutter the prev checks exist to prevent. Barred from all
+    // ticks rather than the last because the flicker cannot know which tick
+    // a throttled chain ends on — and a mid-reel echo of the landing club is
+    // a spoiler besides.
+    const landingFranchise = game.pendingFranchise;
     let prevYear = game.card?.year;
     let prevFranchise = game.card?.franchise;
     const step = () => {
       if (game.phase !== "spinning" || !current()) return;
       let e = cosmetic.pick(pool);
-      for (let tries = 0; (e.year === prevYear || e.franchise === prevFranchise) && tries < 12; tries++)
+      for (
+        let tries = 0;
+        (e.year === prevYear || e.franchise === prevFranchise || e.franchise === landingFranchise) &&
+        tries < 12;
+        tries++
+      )
         e = cosmetic.pick(pool);
       prevYear = e.year;
       prevFranchise = e.franchise;

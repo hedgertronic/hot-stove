@@ -12,8 +12,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
-import { bestRoster } from "../src/lib/bestroster";
+import { describe, expect, it, vi } from "vitest";
+import { _internals, bestRoster } from "../src/lib/bestroster";
 import {
   GAMES,
   MANAGER_PER_NET_WIN,
@@ -806,6 +806,138 @@ describe("bestRoster off-reel seasons (⭐ Prime Time)", () => {
     expect(best.park?.team).not.toBe("OFF");
     expect(best.budget).toBeLessThan(999);
   });
+
+  /** The ⭐ pick's real cost: `primeSign` spends the choice of the landing it
+   * stands on, so the off-reel season and the landed card share one pick —
+   * unless the ✌️ Double Play is spent on that landing, whose two picks may
+   * then split across the pair (and nothing else may double). The tie arrives
+   * as `offReelLandings`, the landing id of the spin that paid. */
+  describe("charged the landing it was bought from", () => {
+    // Landing 3 holds a card with TWO strong players; landing 4 one. The ⭐
+    // season (12 WAR) was bought with landing 3's choice.
+    const pool = (): Card[] =>
+      multiCards(
+        [
+          [player({ pos: "C", posG: C, war: 9 }), player({ pos: "SS", posG: IF, war: 9 })],
+          [player({ pos: "CF", posG: OF, war: 8 })],
+        ],
+        { manager: null },
+      );
+    const prime = (): Card =>
+      card([player({ pos: "RP", posG: NONE, war: 12, cost: 8, id: "prime" })], {
+        team: "OFF", franchise: "OFF", name: "Off Reel", year: 1955, manager: null,
+      });
+
+    it("pays two landings and a ✌️ at most three items, ⭐ included", () => {
+      const best = bestRoster(pool(), {
+        fixedBudgetM: HUGE,
+        landings: [3, 4],
+        offReel: [prime()],
+        offReelLandings: [3],
+      });
+      // The best three: one 9-WAR man off the landed card, the ⭐ 12, and the
+      // CF — the ✌️ spent on landing 3, split across its pair.
+      const picks = best.picks.filter((p) => p !== null);
+      expect(picks).toHaveLength(3);
+      expect(picks.some((p) => p!.id === "prime")).toBe(true);
+      expect(picks.filter((p) => p!.team === "T0")).toHaveLength(1);
+      expect(picks.some((p) => p!.team === "T1")).toBe(true);
+    });
+
+    it("still rides free when the tie is unknown (an old save)", () => {
+      // No `offReelLandings`: the pre-field accounting, one item loose. Kept
+      // deliberately — a save that never recorded the landing cannot say which
+      // card shares the pick, and reading the ceiling high is the safe side.
+      const best = bestRoster(pool(), {
+        fixedBudgetM: HUGE,
+        landings: [3, 4],
+        offReel: [prime()],
+      });
+      expect(best.picks.filter((p) => p !== null)).toHaveLength(4);
+    });
+
+    it("spends the whole pick on the ⭐ season when the landed card is weak", () => {
+      // The landed half of the pair carries one 2-WAR man; the ✌️ is worth
+      // more doubling the OTHER landing's card, so the split landing's one
+      // pick goes to the ⭐ season and the landed card pays nothing.
+      const cards = multiCards(
+        [
+          [player({ pos: "C", posG: C, war: 2 })],
+          [player({ pos: "CF", posG: OF, war: 8 }), player({ pos: "SS", posG: IF, war: 8 })],
+        ],
+        { manager: null },
+      );
+      const best = bestRoster(cards, {
+        fixedBudgetM: HUGE,
+        landings: [3, 4],
+        offReel: [prime()],
+        offReelLandings: [3],
+      });
+      const picks = best.picks.filter((p) => p !== null);
+      expect(picks).toHaveLength(3);
+      expect(picks.some((p) => p!.id === "prime")).toBe(true);
+      expect(picks.filter((p) => p!.team === "T1")).toHaveLength(2); // ✌️ doubled T1
+      expect(picks.some((p) => p!.team === "T0")).toBe(false);
+    });
+
+    it("shares a pick with the card the reroll left in hand", () => {
+      // Landing 3 was itself rerolled (two landed cards) before ⭐ reached the
+      // off-reel season: the group is three cards, one pick — two with the ✌️
+      // split, and the split may only ride the card the reel left the player
+      // holding, since ⭐ was browsed from it.
+      const cards = multiCards(
+        [
+          [player({ pos: "C", posG: C, war: 3 })],
+          [player({ pos: "SS", posG: IF, war: 9 })],
+          [player({ pos: "CF", posG: OF, war: 8 })],
+        ],
+        { manager: null },
+      );
+      const best = bestRoster(cards, {
+        fixedBudgetM: HUGE,
+        landings: [3, 3, 4],
+        offReel: [prime()],
+        offReelLandings: [3],
+      });
+      // Best: ✌️ split on landing 3 — SS (the better retained card) + ⭐ 12 —
+      // plus the CF: three items off two landings and the ✌️.
+      const picks = best.picks.filter((p) => p !== null);
+      expect(picks).toHaveLength(3);
+      expect(picks.some((p) => p!.id === "prime")).toBe(true);
+      expect(picks.some((p) => p!.team === "T1")).toBe(true);
+      expect(picks.some((p) => p!.team === "T0")).toBe(false);
+    });
+
+    it("never splits the ✌️ with the card the reroll ABANDONED", () => {
+      // The abandoned card is the strong one this time. ⭐ was browsed from
+      // the weak card the reel left in hand, so abandoned-card + ⭐ is a pair
+      // nobody ever held at once: rerolls are refused after the spin's choice
+      // is spent, and the ⭐ pick IS that choice. The solver may still keep
+      // the abandoned card WITHOUT the ⭐ season (the reroll counterfactual),
+      // but the split rides the played card only.
+      const cards = multiCards(
+        [
+          [player({ pos: "SS", posG: IF, war: 9 })], // abandoned
+          [player({ pos: "C", posG: C, war: 2 })], // played; ⭐ spent from here
+          [player({ pos: "CF", posG: OF, war: 8 })],
+        ],
+        { manager: null },
+      );
+      const best = bestRoster(cards, {
+        fixedBudgetM: HUGE,
+        landings: [3, 3, 4],
+        offReel: [prime()],
+        offReelLandings: [3],
+      });
+      // Abandoned SS 9 + ⭐ 12 + CF 8 would score 29; the legal best is the
+      // played C 2 + ⭐ 12 + CF 8 at 22, and that is what must print.
+      const picks = best.picks.filter((p) => p !== null);
+      expect(picks).toHaveLength(3);
+      expect(picks.some((p) => p!.id === "prime")).toBe(true);
+      expect(picks.some((p) => p!.team === "T1")).toBe(true);
+      expect(picks.some((p) => p!.team === "T0")).toBe(false);
+    });
+  });
 });
 
 describe("bestRoster leaves 🏠 Homegrown unmodeled on purpose", () => {
@@ -1082,5 +1214,367 @@ describe("bestRoster fills every seat, on the pools that left one open", () => {
     expect(best.manager).not.toBeNull();
     expect(doubledCards(best)).toBe(1);
     expect(best.picks.filter((p) => p?.id === "twoSeasons")).toHaveLength(1);
+  });
+
+  /** Ten cards on the classic bank, holding exactly one complete club — the
+   * pool the sweep alone reads as a seat short.
+   *
+   * Cards 7 and 8 carry no qualified player and no skipper, so they are the
+   * front office and nothing else. That leaves eight cards and the ✌️ Double
+   * Play for nine seats, so every remaining card supplies exactly one thing and
+   * one of them supplies two. Five cards carry a man who can take a position
+   * seat, against the five position seats (C, IF, IF, OF, FLEX), so each of
+   * those five is spoken for; the only catcher is card 4's, the two infielders
+   * are cards 5 and 9, and cards 1 and 2 take outfield and FLEX. Cards 3 and 6
+   * are the rotation. The dugout is therefore card 0's, and card 4 is doubled
+   * for its reliever — that is the club, and it is the only one.
+   *
+   * What hides it from the sweep is card 0's reliever, who is card 1's
+   * outfielder in another season. The relaxed DP seats him twice, `repair`
+   * vacates the second seating and has nothing else on that card to refill
+   * with, and the eight-seat club that falls out spends the Double Play on
+   * card 0 for owner AND skipper. That club is the one the second half of the
+   * test below reconstructs, and it scores 53.5 against the complete club's
+   * 37.5 — sixteen points HIGHER with the reliever's seat drawn empty, which is
+   * why no amount of point-seeking reaches the ninth seat. Only asking whether
+   * a complete club exists reaches it. */
+  const oneClubPool = (barrenSkippers: boolean): Card[] => {
+    const seat = (over: Partial<CardPlayer>, war: number): CardPlayer =>
+      player({ cost: 20, war, ...over });
+    return multiCards(
+      [
+        [seat({ pos: "RP", posG: NONE, id: "repeated" }, 4)],
+        [seat({ pos: "CF", posG: OF, id: "repeated" }, 8)],
+        [seat({ pos: "CF", posG: OF }, 7)],
+        [seat({ pos: "SP", posG: NONE }, 6)],
+        [seat({ pos: "RP", posG: NONE }, 3), seat({ pos: "C", posG: C }, 5)],
+        [seat({ pos: "SP/1B", posG: IF }, 6.5)],
+        [seat({ pos: "SP", posG: NONE }, 5.5)],
+        [],
+        [],
+        [seat({ pos: "SS", posG: IF }, 7.5)],
+      ],
+      // A .500 skipper on every card, so the dugout is worth the same wherever
+      // it comes from and the totals below are the roster's alone.
+      { budget: 90, stadiumMult: 1, wins: 81, losses: 81 },
+    ).map((c, i) =>
+      i === 7 || i === 8 ? { ...c, manager: barrenSkippers ? c.manager : null } : c,
+    );
+  };
+
+  it("finds the one complete club in a pool the sweep reads a seat short", () => {
+    const best = bestRoster(oneClubPool(false));
+    expect(best.dreamSeats).toBe(9);
+    expect(best.picks.filter((p) => p === null)).toHaveLength(0);
+    expect(best.manager).not.toBeNull();
+    expect(perType(best)).toEqual([1, 2, 1, 1, 2, 1]);
+    // The club described above, and the rules it holds: one card doubled, the
+    // repeated human seated once.
+    expect(doubledCards(best)).toBe(1);
+    expect(best.picks.filter((p) => p?.id === "repeated")).toHaveLength(1);
+
+    // And it really did give up points for the seat. Take card 4's reliever
+    // away and nine seats become unreachable, so the same eight-seat club is
+    // the honest ceiling for that pool — and it outscores the complete club
+    // this pool prints.
+    const eight = bestRoster(
+      oneClubPool(false).map((c, i) =>
+        i === 4 ? { ...c, players: c.players.filter((p) => p.pos !== "RP") } : c,
+      ),
+    );
+    expect(eight.dreamSeats).toBe(8);
+    expect(best.total!).toBeLessThan(eight.total!);
+  });
+
+  it("leaves a pool that already solves complete exactly as the sweep solved it", () => {
+    // The same ten cards with a skipper back on the two barren ones. The dugout
+    // no longer competes for a card that carries a bat, the sweep reaches nine
+    // seats on its own, and the feasibility search never runs. These are the
+    // sweep's own numbers, unchanged by the fallback's existence — a fallback
+    // that fired here would print the first legal club it stumbled on instead
+    // of the best one, and this total would fall.
+    const best = bestRoster(oneClubPool(true));
+    expect(best.dreamSeats).toBe(9);
+    expect(best.picks.filter((p) => p === null)).toHaveLength(0);
+    expect(best.total).toBe(37.5);
+    expect(best.spend).toBe(160);
+    expect(best.totalWar).toBeCloseTo(48.5, 1);
+  });
+});
+
+/** Rule 1's landing half: 🎟️ Season Ticket, 🚚 Relocate and the cold-stove
+ * respin re-deal the card a landing is standing on, so one landing can leave
+ * two cards behind in the pool, and one pick is all it ever bought.
+ *
+ * These say it in solver terms — a pool plus `opts.landings`. What makes a real
+ * game produce that pair of arguments is engine work, and reroll-landings
+ * tests it through each of the three mechanisms. */
+describe("bestRoster on a landing that cycled through more than one card", () => {
+  /** Every card the club draws on, repeats included: roster seats, the skipper,
+   * the OWNER and the BALLPARK. The front office costs cards too (rule 4), so a
+   * landing test counting only `picks` would pass while the ballpark quietly
+   * came off the card the reroll abandoned. */
+  const clubCards = (best: ReturnType<typeof bestRoster>): string[] => {
+    const keys = best.picks.filter((p) => p !== null).map((p) => `${p!.team}_${p!.year}`);
+    if (best.manager) keys.push(`${best.manager.team}_${best.manager.year}`);
+    if (best.owner) keys.push(`${best.owner.team}_${best.owner.year}`);
+    if (best.park) keys.push(`${best.park.team}_${best.park.year}`);
+    return keys;
+  };
+
+  /** Three cards, one man each, no skipper: the shape a reroll leaves behind
+   * when the first two cards are the two sides of one landing. */
+  const rerolled = (): Card[] =>
+    multiCards(
+      [
+        [player({ pos: "C", posG: C, war: 9 })],
+        [player({ pos: "SS", posG: IF, war: 9 })],
+        [player({ pos: "CF", posG: OF, war: 8 })],
+      ],
+      { manager: null },
+    );
+
+  it("buys one card off a rerolled landing, not one off each", () => {
+    const cards = rerolled();
+    // Landing 7 was rerolled; landing 8 is the next spin. The ids are the
+    // engine's spinCount, which is why they are neither zero-based nor dense.
+    const best = bestRoster(cards, { fixedBudgetM: HUGE, landings: [7, 7, 8] });
+    expect(clubCards(best)).toHaveLength(2);
+    expect(clubCards(best)).toContain("T2_1982");
+    expect(clubCards(best).filter((k) => k === "T0_1980" || k === "T1_1981")).toHaveLength(1);
+
+    // The same pool with the landing unsaid is the bug this rule closes: two
+    // landings' worth of picks charged to a season that took one.
+    expect(clubCards(bestRoster(cards, { fixedBudgetM: HUGE }))).toHaveLength(3);
+  });
+
+  it("keeps the abandoned card out of the front office too", () => {
+    // The classic bank is where a rerolled landing has a second way to pay out
+    // twice: a man off the card kept and the BALLPARK off the card abandoned.
+    // Five cards so the front office does not eat the pool — owner, ballpark and
+    // two roster seats — and the rule has to hold across all four.
+    const best = bestRoster(
+      multiCards(
+        [
+          [player({ pos: "C", posG: C, war: 9 })],
+          [player({ pos: "SS", posG: IF, war: 9 })],
+          [player({ pos: "CF", posG: OF, war: 8 })],
+          [player({ pos: "SP", posG: NONE, war: 7 })],
+          [player({ pos: "RP", posG: NONE, war: 6 })],
+        ],
+        { manager: null },
+      ),
+      { landings: [9, 9, 10, 11, 12] },
+    );
+    expect(best.owner).not.toBeNull();
+    expect(best.park).not.toBeNull();
+    // One CARD of the landing, counted distinctly — the club really does draw on
+    // the landing, and it may draw twice, because spending the ✌️ there is two
+    // things off one card and legal.
+    const group = clubCards(best).filter((k) => k === "T0_1980" || k === "T1_1981");
+    expect(group.length).toBeGreaterThan(0);
+    expect(new Set(group).size).toBe(1);
+  });
+
+  it("takes both ✌️ Double Play picks off the SAME card of the landing", () => {
+    // The player held one card at a time on this landing, so a second pick
+    // bought there is a second man off whichever card was in hand — never one
+    // from the card kept and one from the card abandoned.
+    const best = bestRoster(
+      multiCards(
+        [
+          [
+            player({ pos: "C", posG: C, war: 9 }),
+            player({ pos: "SS", posG: IF, war: 9 }),
+          ],
+          [
+            player({ pos: "CF", posG: OF, war: 9 }),
+            player({ pos: "RP", posG: NONE, war: 9 }),
+          ],
+          [player({ pos: "1B", posG: IF, war: 1 })],
+        ],
+        { manager: null },
+      ),
+      { fixedBudgetM: HUGE, landings: [4, 4, 5] },
+    );
+    // Three seats: one landing's card doubled, plus the other landing's man.
+    const group = clubCards(best).filter((k) => k === "T0_1980" || k === "T1_1981");
+    expect(best.dreamSeats).toBe(3);
+    expect(group).toHaveLength(2);
+    expect(new Set(group).size).toBe(1);
+  });
+
+  it("still drafts off the card the reroll walked away from", () => {
+    // The counterfactual the enumeration exists to ask: the player rerolled a
+    // 12-win catcher into a 1-win one, and the ceiling is entitled to say so.
+    // Dropping the abandoned card instead of grouping it would lose this.
+    const best = bestRoster(
+      multiCards(
+        [
+          [player({ pos: "C", posG: C, war: 12 })],
+          [player({ pos: "C", posG: C, war: 1 })],
+          [player({ pos: "SS", posG: IF, war: 5 })],
+        ],
+        { manager: null },
+      ),
+      { fixedBudgetM: HUGE, landings: [3, 3, 4] },
+    );
+    expect(clubCards(best)).toEqual(expect.arrayContaining(["T0_1980", "T2_1982"]));
+    expect(clubCards(best)).not.toContain("T1_1981");
+    expect(best.picks[0]?.war).toBe(12);
+  });
+
+  it("pays a card the reel landed on TWICE for both landings", () => {
+    // The mirror image of a reroll, and the whole reason the key is the landing
+    // id rather than the team-season. Two landings on one card spent two spins
+    // there and bought twice; one landing that cycled through two cards spent
+    // one spin and bought once. A key on team and year cannot tell those apart
+    // and would rob the first to fix the second.
+    // Three men in three slot types, because ONE SEASON PER HUMAN is what
+    // bounds this: a landing buys a man, not a copy of the card, so the payoff
+    // for landing twice can only show on a card deep enough to seat a third.
+    const twice = card(
+      [
+        player({ pos: "C", posG: C, war: 9 }),
+        player({ pos: "SS", posG: IF, war: 8 }),
+        player({ pos: "CF", posG: OF, war: 7 }),
+      ],
+      { team: "T0", franchise: "T0", name: "Team 0", year: 1980, manager: null },
+    );
+    const once = bestRoster([twice], { fixedBudgetM: HUGE, landings: [1] });
+    const repeat = bestRoster([twice, twice], { fixedBudgetM: HUGE, landings: [1, 2] });
+    const reroll = bestRoster([twice, twice], { fixedBudgetM: HUGE, landings: [1, 1] });
+    // Two landings buy a seat the single landing could not reach.
+    expect(repeat.dreamSeats).toBeGreaterThan(once.dreamSeats!);
+    // One landing buys exactly what one landing buys, however many cards it
+    // cycled through on the way.
+    expect(reroll.dreamSeats).toBe(once.dreamSeats);
+  });
+
+  it("reads a save's fieldless entries as one landing each", () => {
+    // Old saves carry `seen` entries written before the landing id existed. An
+    // entry without one is its own landing, which is what the solver assumed
+    // for the whole life of those saves.
+    const cards = rerolled();
+    expect(
+      bestRoster(cards, { fixedBudgetM: HUGE, landings: [undefined, undefined, undefined] }),
+    ).toEqual(bestRoster(cards, { fixedBudgetM: HUGE }));
+  });
+
+  it("keeps a fieldless entry out of a real landing's group", () => {
+    // A restored save keeps its fieldless entries AND goes on playing, so one
+    // `seen` array holds both kinds. The id this file invents for a fieldless
+    // entry is negative for exactly that reason: were it the card's index,
+    // index 0 here would merge with the landing that really is numbered 0, and
+    // a season would silently lose a pick with no reroll anywhere in it.
+    const cards = rerolled();
+    expect(
+      clubCards(bestRoster(cards, { fixedBudgetM: HUGE, landings: [undefined, undefined, 0] })),
+    ).toHaveLength(3);
+  });
+
+  it("pins landings to the card played once the pool count passes the cap, and says so", () => {
+    // Four rerolled landings ask for 2⁴ = 16 pools against a cap of 6, so two
+    // landings are pinned to the last card of their groups — the card the reel
+    // left the player holding. Ties on group size break on the first card, so
+    // the pinned landings are the first two, and their 12-win catcher and
+    // 9-win shortstop are the picks the cap costs. That direction is the whole
+    // safety of the cap: a pinned landing can only make the ceiling read LOW,
+    // never high.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const best = bestRoster(
+      multiCards(
+        [
+          [player({ pos: "C", posG: C, war: 12 })],
+          [player({ pos: "C", posG: C, war: 1 })],
+          [player({ pos: "SS", posG: IF, war: 9 })],
+          [player({ pos: "SS", posG: IF, war: 1 })],
+          [player({ pos: "CF", posG: OF, war: 9 })],
+          [player({ pos: "CF", posG: OF, war: 1 })],
+          [player({ pos: "SP", posG: NONE, war: 9 })],
+          [player({ pos: "SP", posG: NONE, war: 1 })],
+        ],
+        { manager: null },
+      ),
+      { fixedBudgetM: HUGE, landings: [1, 1, 2, 2, 3, 3, 4, 4] },
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][1]).toEqual(["T0_1980", "T2_1982"]);
+    warn.mockRestore();
+    // One card per landing still, and the two landings that kept their
+    // enumeration both took the better card.
+    expect(clubCards(best)).toHaveLength(4);
+    expect(best.picks[0]?.war).toBe(1);
+    expect(best.totalWar).toBeCloseTo(1 + 1 + 9 + 9, 1);
+  });
+
+  it("leaves a game that never rerolled bit-identical", () => {
+    // A real 13-card pool rather than a fixture, because "unchanged" has to
+    // mean the whole answer — every seat, the front office, the totals — and a
+    // three-card pool exercises almost none of the search that produces them.
+    const CARD_DIR = path.resolve(
+      fileURLToPath(new URL(".", import.meta.url)),
+      "../..",
+      "data",
+      "cards",
+    );
+    const pool = [
+      "COL_2018", "KCR_2002", "TEX_2002", "NYY_2007", "DET_2014", "ARI_2000", "ARI_2006",
+      "PIT_1986", "CHC_1991", "MON_1989", "PIT_2018", "CIN_1989", "KCR_1989",
+    ].map(
+      (key) => JSON.parse(fs.readFileSync(path.join(CARD_DIR, `${key}.json`), "utf8")) as Card,
+    );
+    const plain = bestRoster(pool);
+    expect(bestRoster(pool, { landings: pool.map((_, i) => 4 + i) })).toEqual(plain);
+  });
+});
+/** Rule 6's backstop, at its own level: `completeClub` is the exact search
+ * that answers "does ANY complete club exist here", and its upfront
+ * feasibility rejects must never refuse a club the seat search below them
+ * would have found. Tested through `_internals` because the pools where these
+ * rejects decide anything are exactly the pools the heuristic passes already
+ * solve through `bestRoster` on their own. */
+describe("completeClub feasibility rejects", () => {
+  /** Eight cards, nine seats: the ✌️ must double SOMETHING, and the only two
+   * infielders in the pool live together on one card — a legal club exists
+   * only by doubling it. */
+  const pool = (): Card[] => [
+    card(
+      [
+        player({ pos: "SS", posG: IF, war: 5 }),
+        player({ pos: "2B", posG: IF, war: 4 }),
+      ],
+      { team: "X", franchise: "X", name: "Both Infielders", year: 1990, manager: null },
+    ),
+    ...multiCards(
+      [
+        [player({ pos: "C", posG: C, war: 3 })],
+        [player({ pos: "CF", posG: OF, war: 3 })],
+        [player({ pos: "DH", posG: NONE, war: 3 })],
+        [player({ pos: "SP", posG: NONE, war: 3 })],
+        [player({ pos: "SP", posG: NONE, war: 3 })],
+        [player({ pos: "RP", posG: NONE, war: 3 })],
+      ],
+      { manager: null },
+    ),
+    card([], { team: "M", franchise: "M", name: "Skipper Only", year: 1991 }),
+  ];
+
+  it("seats two of a type off the one DOUBLED card that carries both", () => {
+    const items = pool().map(_internals.cardItems);
+    const club = _internals.completeClub(items, [], 0);
+    expect(club).not.toBeNull();
+    expect(club!).toHaveLength(9);
+    // Both IF seats really did come off the doubled card.
+    expect(club!.filter((c) => c.card === 0)).toHaveLength(2);
+  });
+
+  it("still refuses the pool when no ✌️ makes it whole", () => {
+    // Undoubled, the same pool is genuinely a seat short: one card cannot
+    // supply two picks without the ✌️, and nothing else carries an infielder.
+    const items = pool().map(_internals.cardItems);
+    expect(_internals.completeClub(items, [], -1)).toBeNull();
+    // Doubling a card that does NOT hold the pair is no help either.
+    expect(_internals.completeClub(items, [], 1)).toBeNull();
   });
 });

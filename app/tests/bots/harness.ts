@@ -1069,20 +1069,38 @@ export async function playGame(
   // inputs, same options — the engine assembles the off-reel pool the same way
   // (a ⭐ Prime Time signing's card, narrowed to that one player).
   const offReel: Card[] = [];
+  // The landing whose pick paid each ⭐ season, off the signing/hire exactly
+  // as the engine reads it — without this the replay would measure the old
+  // free-card Prime accounting, a solver the game no longer ships.
+  const offReelLandings: (number | undefined)[] = [];
   for (const s of g.slots) {
     if (!s || seenKeys.has(`${s.team}|${s.year}`)) continue;
     const c = d.cards.get(`${s.team}_${s.year}`);
-    if (c) offReel.push({ ...c, players: c.players.filter((p) => p.id === s.id), manager: null });
+    if (c) {
+      offReel.push({ ...c, players: c.players.filter((p) => p.id === s.id), manager: null });
+      offReelLandings.push(s.spin);
+    }
   }
   if (g.manager && !seenKeys.has(`${g.manager.team}|${g.manager.year}`)) {
     const c = d.cards.get(`${g.manager.team}_${g.manager.year}`);
-    if (c) offReel.push({ ...c, players: [] });
+    if (c) {
+      offReel.push({ ...c, players: [] });
+      offReelLandings.push(g.manager.spin);
+    }
   }
-  const pool = g.seen.map((s) => d.cards.get(`${s.team}_${s.year}`)!).filter(Boolean);
+  // The landings array is indexed against the pool, so the two are narrowed
+  // together: a card the corpus no longer carries has to leave both or the
+  // landing ids slide onto the wrong cards.
+  const landed = g.seen.filter((s) => d.cards.has(`${s.team}_${s.year}`));
+  const pool = landed.map((s) => d.cards.get(`${s.team}_${s.year}`)!);
   const t0 = performance.now();
   const solved = bestRoster(pool, {
     fixedBudgetM: g.fixedCap ? g.effectiveBudget : null,
     offReel,
+    offReelLandings,
+    // A 🎟️/🚚/cold-stove landing's two cards are one landing here too. Without
+    // it this replay would measure a solver the game does not ship.
+    landings: landed.map((s) => s.spin),
   });
   const solveMs = performance.now() - t0;
   inspect?.(g);

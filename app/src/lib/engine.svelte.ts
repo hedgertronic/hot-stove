@@ -120,6 +120,14 @@ export interface Signed {
    * written before the field restores as no medal rather than as an unknown
    * that pads the tally. */
   wbc?: number;
+  /** The landing (`spinCount`) whose choice paid for this signing — recorded
+   * ONLY by ⭐ Prime Time, whose season never enters `seen` and so needs its
+   * own tie back to the landing that bought it. The dream solver reads it
+   * (`offReelLandings`) to group the off-reel season with the landed card it
+   * shares a pick with. Optional: ordinary signings never set it, and a save
+   * written before the field restores as an untied off-reel season, which can
+   * only read the ceiling high, never low. */
+  spin?: number;
 }
 
 export interface OwnerPick {
@@ -154,6 +162,9 @@ export interface ManagerPick {
    * seats 🏛️ counts, so it is stored here rather than re-derived at the finale.
    * Optional on the same terms as `moty`. */
   hof?: boolean;
+  /** The landing whose choice paid for this hire — recorded ONLY by a ⭐ Prime
+   * Time special hire, on the same terms as `Signed.spin`. */
+  spin?: number;
 }
 
 /** The dream club's skipper, solved jointly with its roster — the manager
@@ -430,7 +441,7 @@ export interface StoredFinale {
   seed: number;
   config: GameConfig;
   spinCount: number;
-  seen: { team: string; year: number }[];
+  seen: { team: string; year: number; spin?: number }[];
   slots: (Signed | null)[];
   owner: OwnerPick | null;
   stadium: StadiumPick | null;
@@ -704,8 +715,30 @@ export class Game {
   spinEpoch = $state(0);
   /** Every LANDING this game has made — the scouting yardstick. One entry per
    * landing, duplicates included: the reel samples with replacement, and a
-   * repeat landing is a second real draw the dream pool must carry. */
-  seen = $state<{ team: string; year: number }[]>([]);
+   * repeat landing is a second real draw the dream pool must carry.
+   *
+   * `spin` is the landing the card arrived on, and it is `spinCount` because
+   * 🎟️ Season Ticket, 🚚 Relocate and the cold-stove respin each decrement that
+   * counter before they re-deal (same spin, new card), so every card one
+   * landing cycled through carries the same value. The dream solver needs it:
+   * `land()` has already pushed the abandoned card in here by the time a
+   * re-deal runs, and without the id the solver reads that card and its
+   * replacement as two landings and drafts a pick from each — one pick more
+   * than the player was ever offered. It stays on the abandoned card rather
+   * than being deleted because "should you have kept the original?" is a real
+   * comparison the ceiling is entitled to make.
+   *
+   * `spinCount` and not the team-season is the key, because the two ways this
+   * array repeats a card are opposite facts. A REROLL leaves two cards on ONE
+   * landing and they must share a pick; a REPEAT LANDING is the same card across
+   * TWO landings and each keeps its own pick. Only the landing id tells them
+   * apart — a key on team and year would collapse the second into the first and
+   * charge a season for a pick it really made.
+   *
+   * Optional, so a save written before the field restores as-is: an entry
+   * without it is its own landing, which is exactly what the solver assumed
+   * before landings existed. */
+  seen = $state<{ team: string; year: number; spin?: number }[]>([]);
   /** Sign-time slot ambiguity: rail becomes a slot picker for this player. */
   slotPick = $state<string | null>(null);
   /** TD release picker: rail cells the incoming player could replace. */
@@ -741,6 +774,14 @@ export class Game {
 
   private pendingCard: Promise<Card> | null = null;
   private pendingEntry: IndexEntry | null = null;
+  /** Franchise of the card this spin will land on. SpinBanner's cosmetic
+   * flicker reads it so no fake tick shows the club the reel is about to land
+   * on (owner nitpick, 2026-08-13: Royals 1989 flashing right before Royals
+   * 2005 lands reads as a stutter, not a spin). Cosmetics only — the landed
+   * card itself still comes from the game stream at its honest odds. */
+  get pendingFranchise(): string | null {
+    return this.pendingEntry?.franchise ?? null;
+  }
 
   /** Signature of the LAST COMMITTED action — set in each action method just
    * before `snapshot()` where the card, player, and slot are fully resolved,
@@ -1288,14 +1329,20 @@ export class Game {
     this.choicesUsed = 0;
     // One entry PER LANDING, duplicates included: the reel samples with
     // replacement, and a second landing on the same card is a second real
-    // draw — the player may sign off both. The dream-team pool is built
-    // from this list, so recording the repeat is what lets the solver
-    // field the club the market genuinely offered (it used to dedupe here
-    // AND in bestroster, and a player who drew off both landings built a
-    // club the ceiling could not — the owner's 8-seat dream team). Undo
-    // rewinds this list wholesale via the snapshot, so an undone spin
-    // never double-counts its re-landing.
-    this.seen = [...this.seen, { team: this.card.team, year: this.card.year }];
+    // draw — the player may sign off both. The dream-team pool is built from
+    // this list, so recording the repeat is what lets the solver field the club
+    // the market genuinely offered (it used to dedupe here AND in bestroster,
+    // and a player who drew off both landings built a club the ceiling could
+    // not — the owner's 8-seat dream team). Undo rewinds this list wholesale
+    // via the snapshot, so an undone spin never double-counts its re-landing.
+    //
+    // `spin` separates the two ways this list repeats a card: two landings on
+    // one card carry different ids and keep a pick each, while a 🎟️/🚚/
+    // cold-stove re-deal leaves two cards on ONE id that share a single pick.
+    this.seen = [
+      ...this.seen,
+      { team: this.card.team, year: this.card.year, spin: this.spinCount },
+    ];
     this.clearTransients();
     this.save();
   }
@@ -1721,7 +1768,12 @@ export class Game {
     this.actionSig = `${trade ? "swap" : "sign"}|${p.id}|${team}|${year}|${idx}`;
     this.snapshot();
     const discounted = this.primeDiscountEligible(p, card.franchise);
-    this.slots[idx] = this.makeSigned(card, p, this.primePriceFor(p, card.franchise), discounted);
+    // `spin` ties the off-reel season to the landing whose choice pays for it
+    // (consumeChoice below) — the dream solver's ⭐ split-landing group.
+    this.slots[idx] = {
+      ...this.makeSigned(card, p, this.primePriceFor(p, card.franchise), discounted),
+      spin: this.spinCount,
+    };
     if (discounted) this.spendPowerup("hometown");
     this.spendPowerup("prime");
     if (trade) this.spendPowerup("tradeDeadline");
@@ -1799,6 +1851,8 @@ export class Game {
       pen: idx?.pen === true,
       moty: entry.moty === true,
       hof: entry.hof === true,
+      // Same tie as commitPrime's: the landing whose choice pays for this hire.
+      spin: this.spinCount,
     };
     this.spendPowerup("prime");
     this.primeSpecial = null;
@@ -2286,26 +2340,30 @@ export class Game {
   /** Seasons this club holds that the reel never landed on — ⭐ Prime Time is
    * the only way to reach one. Each comes back narrowed to the single item the
    * powerup actually bought, so the dream solver can match what the player did
-   * without inheriting a whole card nobody ever saw. */
-  private async offReelCards(): Promise<Card[]> {
+   * without inheriting a whole card nobody ever saw. `spin` is the landing
+   * whose choice paid the Prime pick (recorded on the signing / the hire), so
+   * the solver can group the season with the landed card it shares a pick
+   * with; undefined on a save written before the field was recorded. */
+  private async offReelCards(): Promise<{ card: Card; spin: number | undefined }[]> {
     const seen = new Set(this.seen.map((s) => `${s.team}|${s.year}`));
-    const wanted = new Map<string, { team: string; year: number; players: Set<string>; manager: boolean }>();
-    const want = (team: string, year: number) => {
+    const wanted = new Map<string, { team: string; year: number; players: Set<string>; manager: boolean; spin: number | undefined }>();
+    const want = (team: string, year: number, spin: number | undefined) => {
       const key = `${team}|${year}`;
       if (seen.has(key)) return null;
       let entry = wanted.get(key);
       if (!entry) {
-        entry = { team, year, players: new Set(), manager: false };
+        entry = { team, year, players: new Set(), manager: false, spin };
         wanted.set(key, entry);
       }
+      if (entry.spin === undefined) entry.spin = spin;
       return entry;
     };
     for (const s of this.slots) {
       if (!s) continue;
-      want(s.team, s.year)?.players.add(s.id);
+      want(s.team, s.year, s.spin)?.players.add(s.id);
     }
     if (this.manager) {
-      const e = want(this.manager.team, this.manager.year);
+      const e = want(this.manager.team, this.manager.year, this.manager.spin);
       if (e) e.manager = true;
     }
     // One card that won't load must not cost the whole yardstick: the pool of
@@ -2315,16 +2373,19 @@ export class Game {
         try {
           const card = await loadCard(w.team, w.year);
           return {
-            ...card,
-            players: card.players.filter((p) => w.players.has(p.id)),
-            manager: w.manager ? card.manager : null,
+            card: {
+              ...card,
+              players: card.players.filter((p) => w.players.has(p.id)),
+              manager: w.manager ? card.manager : null,
+            },
+            spin: w.spin,
           };
         } catch {
           return null;
         }
       }),
     );
-    return loaded.filter((c): c is Card => c !== null);
+    return loaded.filter((c): c is { card: Card; spin: number | undefined } => c !== null);
   }
 
   /** The player quit while this game was live. One-way: checked by the async
@@ -2361,11 +2422,19 @@ export class Game {
       const cards = await Promise.all(
         this.seen.map((s) => loadCard(s.team, s.year)),
       );
+      const offReel = await this.offReelCards();
       best = bestRoster(cards, {
         // Moneyball / Blank Check hand out the cap, so the dream club has no
         // owner or ballpark to solve for.
         fixedBudgetM: this.fixedCap ? this.effectiveBudget : null,
-        offReel: await this.offReelCards(),
+        offReel: offReel.map((o) => o.card),
+        // The landing whose choice each ⭐ season cost — what groups it with
+        // the landed card it shares a pick with (bestroster's split landing).
+        offReelLandings: offReel.map((o) => o.spin),
+        // Indexed the same as `cards`, because both are mapped off `seen` in
+        // its own order. This is what tells the solver that a 🎟️/🚚/cold-stove
+        // re-deal left two cards behind one landing (see `seen`).
+        landings: this.seen.map((s) => s.spin),
       });
       bestManager = best.manager ?? null;
     } catch {

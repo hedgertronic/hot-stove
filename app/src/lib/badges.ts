@@ -1487,8 +1487,15 @@ export const BADGES: BadgeDef[] = [
   /* The peak of the goal axis: outscoring the solver's own theoretical
    * ceiling, not merely the dream team it printed. The ceiling is the best
    * the solver can find given the cards in play; exceeding it requires that
-   * the cards contain something the solver's model missed — most commonly a
-   * Double Play pairing that lets one dominant card fill two seats.
+   * the cards contain something the solver's model missed. The mechanic that
+   * has actually done it is 🏠 Homegrown, and the omission is deliberate: the
+   * discount frees cap the club re-spends, and bestroster leaves it unmodeled
+   * precisely so this badge stays reachable (its header prices the trade).
+   * Two measurements, both pointing one way and neither large: modeling 🏠 took
+   * 800 games from 4 beats to 0 (2026-08-12), and over 480 games with it
+   * unmodeled the only 2 beats were both 🏠 seasons while the 🏠-off control arm
+   * scored none (2026-08-13). NOT ✌️ Double Play — the solver models and spends
+   * its own, so that path is closed.
    *
    * `secret` for 👑's reason: the reward is the discovery, not the target.
    * Named OUTSCOUTED rather than anything money-flavored: "moneyball" is
