@@ -1,6 +1,19 @@
 # hotstove.io migration plan
 
-Status: phase 1 built on branch `io-domain`. Phases 2 and 3 unbuilt.
+Status: phase 1 DEPLOYED 2026-08-13 from branch `io-domain` (worker version
+`db36446a-ca12-4ec5-99ff-2a2111004954`; the version it replaced, and so the
+rollback target, is `67ec899f-3fa1-44a6-90f8-82cf4c9f90b3`). Phases 2 and 3
+unbuilt.
+
+Rolling the worker back does NOT detach routes — those are zone config, not part
+of a version — so a rollback leaves `hotstove.io/*` pointing at an older script
+rather than at nothing. Removing the routes is a separate step.
+
+All 15 live route checks passed after deploy. Two apex checks returned 522 on the
+first run and passed on every run after: a 522 means Cloudflare reached for the
+origin, which on this zone is a black-hole `AAAA` on `100::`, so it is the
+signature of an edge colo that does not have the new route yet. Expect it for a
+few minutes after any route change here, and re-probe before believing it.
 
 The game moves its canonical home from `hedgertronic.com/games/hot-stove/` to
 `hotstove.io`, registered 2026-08-13 at Cloudflare Registrar (zone
@@ -342,7 +355,16 @@ keep.
 - GA4: measurement ID `G-35RY8Y6Q5V` is hardcoded (`index.html:149`), so creating
   a data stream changes nothing by itself. Keeping the existing ID keeps the data
   series continuous; `hotstove.io` needs adding to that stream's configuration,
-  and `hedgertronic.com` to unwanted referrals, or the redirect makes the old
-  site look like a top referrer. `analytics.ts:8`'s comment describing path-based
-  separation is already stale for root-host traffic.
-- `.github/workflows/deploy.yml` — confirm no smoke test pins the old URL.
+  and `hedgertronic.com` to unwanted referrals, or the move makes the old site
+  look like a top referrer. Report filters that separate the game from the main
+  site must key on hostname, not page path — `/` is now the game on one host and
+  the site's front page on the other. No code change is needed: `analytics.ts`
+  reads only `location.hostname` and `location.search`, and the gtag config
+  leaves `cookie_domain` at `auto`, which re-keys the cookie per registrable
+  domain on its own.
+- `tools/probe_routes.py` checks the live route matrix and is not wired into
+  `deploy.yml`. Routes attach outside the bundle, so no unit test can see them
+  and CI does not check them. Run it by hand after any change to `routes` in
+  `wrangler.jsonc`:
+
+      uv run --with requests python tools/probe_routes.py
