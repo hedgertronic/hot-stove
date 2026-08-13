@@ -1,10 +1,13 @@
 {
-  // Cloudflare Workers static-assets deploy. The dist/ bundle is served as
-  // assets; worker.js exists only to serve the same bundle under the
-  // /games/hot-stove prefix — a request that misses the asset manifest
-  // (every prefixed path does) falls through to the worker, which strips
-  // the prefix and refetches.
+  // Cloudflare Workers static-assets deploy. One bundle serves at two mount
+  // points: hotstove.io, the canonical home, where a request path is already
+  // an asset path; and hedgertronic.com/games/hot-stove, where every path
+  // carries a prefix that misses the asset manifest and worker.js strips it
+  // back before refetching. www.hotstove.io is routed only so the worker can
+  // 301 it at the apex — a hostname off the route list never reaches us.
   "routes": [
+    { "pattern": "hotstove.io/*", "zone_name": "hotstove.io" },
+    { "pattern": "www.hotstove.io/*", "zone_name": "hotstove.io" },
     { "pattern": "hedgertronic.com/games/hot-stove*", "zone_name": "hedgertronic.com" }
   ],
   "$schema": "node_modules/wrangler/config-schema.json",

@@ -90,19 +90,25 @@
          breaks when the card is drawn off-site. Scrapers key their image
          cache on the URL string itself, so the ?v= param is the only lever
          that refreshes an already-shared card — bump it in all three image
-         refs whenever og-image.png's art changes.
-         og:url and the canonical name the game's home at /games/hot-stove/;
-         the legacy /hot-stove/ path 301s here (Cloudflare redirect rule), so
-         pre-migration shares keep resolving and share counts stay merged. -->
-    <link rel="canonical" href="https://hedgertronic.com/games/hot-stove/" />
+         refs whenever og-image.png's art changes. A host change re-keys that
+         cache on its own — ?v= is the lever for art that changes underneath a
+         URL that stays put.
+         og:url, the canonical and the JSON-LD all name hotstove.io. The
+         hedgertronic.com/games/hot-stove mount serves this same bundle and so
+         ships these same tags: it names hotstove.io as canonical rather than
+         itself, which is what folds two live addresses into one share target
+         instead of splitting counts across them. The legacy /hot-stove/ path
+         still 301s to that mount (Cloudflare redirect rule), so the oldest
+         shares resolve in two hops. -->
+    <link rel="canonical" href="https://hotstove.io/" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://hedgertronic.com/games/hot-stove/" />
+    <meta property="og:url" content="https://hotstove.io/" />
     <meta property="og:title" content="Hot Stove" />
     <meta
       property="og:description"
       content="A free baseball drafting game. Spin for real team-seasons, sign players at their real salaries, and chase a perfect 162–0."
     />
-    <meta property="og:image" content="https://hedgertronic.com/games/hot-stove/og-image.png?v=3" />
+    <meta property="og:image" content="https://hotstove.io/og-image.png?v=3" />
     <!-- Width/height let Facebook draw the card on the FIRST share, before its
          scrape completes — on a launch, the first share is the one that spreads.
          The stated size is the PNG's actual pixels (a 3x render of the
@@ -118,7 +124,7 @@
       name="twitter:description"
       content="A free baseball drafting game. Spin for real team-seasons, sign players at their real salaries, and chase a perfect 162–0."
     />
-    <meta name="twitter:image" content="https://hedgertronic.com/games/hot-stove/og-image.png?v=3" />
+    <meta name="twitter:image" content="https://hotstove.io/og-image.png?v=3" />
     <meta name="twitter:image:alt" content="Hot Stove, a baseball roster-drafting game" />
     <!-- The short name, owner's call: the keyworded tab title read as SEO
          furniture. The query words ("baseball", "drafting game") ride in the
@@ -130,8 +136,8 @@
         "@context": "https://schema.org",
         "@type": "VideoGame",
         "name": "Hot Stove",
-        "url": "https://hedgertronic.com/games/hot-stove/",
-        "image": "https://hedgertronic.com/games/hot-stove/og-image.png?v=3",
+        "url": "https://hotstove.io/",
+        "image": "https://hotstove.io/og-image.png?v=3",
         "description": "A free browser baseball roster-drafting game. Each spin deals a random real team-season from 1985 to 2025. Sign a player at his real salary, or hire that year's manager, owner, or stadium. Fill nine seats, stay under payroll, and chase a perfect 162–0 season.",
         "genre": "Sports strategy",
         "playMode": "SinglePlayer",
