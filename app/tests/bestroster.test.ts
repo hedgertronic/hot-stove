@@ -806,6 +806,107 @@ describe("bestRoster off-reel seasons (⭐ Prime Time)", () => {
     expect(best.park?.team).not.toBe("OFF");
     expect(best.budget).toBeLessThan(999);
   });
+
+  /** The ⭐ pick's real cost: `primeSign` spends the choice of the landing it
+   * stands on, so the off-reel season and the landed card share one pick —
+   * unless the ✌️ Double Play is spent on that landing, whose two picks may
+   * then split across the pair (and nothing else may double). The tie arrives
+   * as `offReelLandings`, the landing id of the spin that paid. */
+  describe("charged the landing it was bought from", () => {
+    // Landing 3 holds a card with TWO strong players; landing 4 one. The ⭐
+    // season (12 WAR) was bought with landing 3's choice.
+    const pool = (): Card[] =>
+      multiCards(
+        [
+          [player({ pos: "C", posG: C, war: 9 }), player({ pos: "SS", posG: IF, war: 9 })],
+          [player({ pos: "CF", posG: OF, war: 8 })],
+        ],
+        { manager: null },
+      );
+    const prime = (): Card =>
+      card([player({ pos: "RP", posG: NONE, war: 12, cost: 8, id: "prime" })], {
+        team: "OFF", franchise: "OFF", name: "Off Reel", year: 1955, manager: null,
+      });
+
+    it("pays two landings and a ✌️ at most three items, ⭐ included", () => {
+      const best = bestRoster(pool(), {
+        fixedBudgetM: HUGE,
+        landings: [3, 4],
+        offReel: [prime()],
+        offReelLandings: [3],
+      });
+      // The best three: one 9-WAR man off the landed card, the ⭐ 12, and the
+      // CF — the ✌️ spent on landing 3, split across its pair.
+      const picks = best.picks.filter((p) => p !== null);
+      expect(picks).toHaveLength(3);
+      expect(picks.some((p) => p!.id === "prime")).toBe(true);
+      expect(picks.filter((p) => p!.team === "T0")).toHaveLength(1);
+      expect(picks.some((p) => p!.team === "T1")).toBe(true);
+    });
+
+    it("still rides free when the tie is unknown (an old save)", () => {
+      // No `offReelLandings`: the pre-field accounting, one item loose. Kept
+      // deliberately — a save that never recorded the landing cannot say which
+      // card shares the pick, and reading the ceiling high is the safe side.
+      const best = bestRoster(pool(), {
+        fixedBudgetM: HUGE,
+        landings: [3, 4],
+        offReel: [prime()],
+      });
+      expect(best.picks.filter((p) => p !== null)).toHaveLength(4);
+    });
+
+    it("spends the whole pick on the ⭐ season when the landed card is weak", () => {
+      // The landed half of the pair carries one 2-WAR man; the ✌️ is worth
+      // more doubling the OTHER landing's card, so the split landing's one
+      // pick goes to the ⭐ season and the landed card pays nothing.
+      const cards = multiCards(
+        [
+          [player({ pos: "C", posG: C, war: 2 })],
+          [player({ pos: "CF", posG: OF, war: 8 }), player({ pos: "SS", posG: IF, war: 8 })],
+        ],
+        { manager: null },
+      );
+      const best = bestRoster(cards, {
+        fixedBudgetM: HUGE,
+        landings: [3, 4],
+        offReel: [prime()],
+        offReelLandings: [3],
+      });
+      const picks = best.picks.filter((p) => p !== null);
+      expect(picks).toHaveLength(3);
+      expect(picks.some((p) => p!.id === "prime")).toBe(true);
+      expect(picks.filter((p) => p!.team === "T1")).toHaveLength(2); // ✌️ doubled T1
+      expect(picks.some((p) => p!.team === "T0")).toBe(false);
+    });
+
+    it("shares a pick with the card the reroll RETAINED, either retained card", () => {
+      // Landing 3 was itself rerolled (two landed cards) before ⭐ reached the
+      // off-reel season: the group is three cards, one pick — two with the ✌️
+      // split — and the enumeration still tries both retained cards.
+      const cards = multiCards(
+        [
+          [player({ pos: "C", posG: C, war: 3 })],
+          [player({ pos: "SS", posG: IF, war: 9 })],
+          [player({ pos: "CF", posG: OF, war: 8 })],
+        ],
+        { manager: null },
+      );
+      const best = bestRoster(cards, {
+        fixedBudgetM: HUGE,
+        landings: [3, 3, 4],
+        offReel: [prime()],
+        offReelLandings: [3],
+      });
+      // Best: ✌️ split on landing 3 — SS (the better retained card) + ⭐ 12 —
+      // plus the CF: three items off two landings and the ✌️.
+      const picks = best.picks.filter((p) => p !== null);
+      expect(picks).toHaveLength(3);
+      expect(picks.some((p) => p!.id === "prime")).toBe(true);
+      expect(picks.some((p) => p!.team === "T1")).toBe(true);
+      expect(picks.some((p) => p!.team === "T0")).toBe(false);
+    });
+  });
 });
 
 describe("bestRoster leaves 🏠 Homegrown unmodeled on purpose", () => {

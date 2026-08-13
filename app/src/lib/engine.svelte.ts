@@ -120,6 +120,14 @@ export interface Signed {
    * written before the field restores as no medal rather than as an unknown
    * that pads the tally. */
   wbc?: number;
+  /** The landing (`spinCount`) whose choice paid for this signing — recorded
+   * ONLY by ⭐ Prime Time, whose season never enters `seen` and so needs its
+   * own tie back to the landing that bought it. The dream solver reads it
+   * (`offReelLandings`) to group the off-reel season with the landed card it
+   * shares a pick with. Optional: ordinary signings never set it, and a save
+   * written before the field restores as an untied off-reel season, which can
+   * only read the ceiling high, never low. */
+  spin?: number;
 }
 
 export interface OwnerPick {
@@ -154,6 +162,9 @@ export interface ManagerPick {
    * seats 🏛️ counts, so it is stored here rather than re-derived at the finale.
    * Optional on the same terms as `moty`. */
   hof?: boolean;
+  /** The landing whose choice paid for this hire — recorded ONLY by a ⭐ Prime
+   * Time special hire, on the same terms as `Signed.spin`. */
+  spin?: number;
 }
 
 /** The dream club's skipper, solved jointly with its roster — the manager
@@ -1749,7 +1760,12 @@ export class Game {
     this.actionSig = `${trade ? "swap" : "sign"}|${p.id}|${team}|${year}|${idx}`;
     this.snapshot();
     const discounted = this.primeDiscountEligible(p, card.franchise);
-    this.slots[idx] = this.makeSigned(card, p, this.primePriceFor(p, card.franchise), discounted);
+    // `spin` ties the off-reel season to the landing whose choice pays for it
+    // (consumeChoice below) — the dream solver's ⭐ split-landing group.
+    this.slots[idx] = {
+      ...this.makeSigned(card, p, this.primePriceFor(p, card.franchise), discounted),
+      spin: this.spinCount,
+    };
     if (discounted) this.spendPowerup("hometown");
     this.spendPowerup("prime");
     if (trade) this.spendPowerup("tradeDeadline");
@@ -1827,6 +1843,8 @@ export class Game {
       pen: idx?.pen === true,
       moty: entry.moty === true,
       hof: entry.hof === true,
+      // Same tie as commitPrime's: the landing whose choice pays for this hire.
+      spin: this.spinCount,
     };
     this.spendPowerup("prime");
     this.primeSpecial = null;
@@ -2314,26 +2332,30 @@ export class Game {
   /** Seasons this club holds that the reel never landed on — ⭐ Prime Time is
    * the only way to reach one. Each comes back narrowed to the single item the
    * powerup actually bought, so the dream solver can match what the player did
-   * without inheriting a whole card nobody ever saw. */
-  private async offReelCards(): Promise<Card[]> {
+   * without inheriting a whole card nobody ever saw. `spin` is the landing
+   * whose choice paid the Prime pick (recorded on the signing / the hire), so
+   * the solver can group the season with the landed card it shares a pick
+   * with; undefined on a save written before the field was recorded. */
+  private async offReelCards(): Promise<{ card: Card; spin: number | undefined }[]> {
     const seen = new Set(this.seen.map((s) => `${s.team}|${s.year}`));
-    const wanted = new Map<string, { team: string; year: number; players: Set<string>; manager: boolean }>();
-    const want = (team: string, year: number) => {
+    const wanted = new Map<string, { team: string; year: number; players: Set<string>; manager: boolean; spin: number | undefined }>();
+    const want = (team: string, year: number, spin: number | undefined) => {
       const key = `${team}|${year}`;
       if (seen.has(key)) return null;
       let entry = wanted.get(key);
       if (!entry) {
-        entry = { team, year, players: new Set(), manager: false };
+        entry = { team, year, players: new Set(), manager: false, spin };
         wanted.set(key, entry);
       }
+      if (entry.spin === undefined) entry.spin = spin;
       return entry;
     };
     for (const s of this.slots) {
       if (!s) continue;
-      want(s.team, s.year)?.players.add(s.id);
+      want(s.team, s.year, s.spin)?.players.add(s.id);
     }
     if (this.manager) {
-      const e = want(this.manager.team, this.manager.year);
+      const e = want(this.manager.team, this.manager.year, this.manager.spin);
       if (e) e.manager = true;
     }
     // One card that won't load must not cost the whole yardstick: the pool of
@@ -2343,16 +2365,19 @@ export class Game {
         try {
           const card = await loadCard(w.team, w.year);
           return {
-            ...card,
-            players: card.players.filter((p) => w.players.has(p.id)),
-            manager: w.manager ? card.manager : null,
+            card: {
+              ...card,
+              players: card.players.filter((p) => w.players.has(p.id)),
+              manager: w.manager ? card.manager : null,
+            },
+            spin: w.spin,
           };
         } catch {
           return null;
         }
       }),
     );
-    return loaded.filter((c): c is Card => c !== null);
+    return loaded.filter((c): c is { card: Card; spin: number | undefined } => c !== null);
   }
 
   /** The player quit while this game was live. One-way: checked by the async
@@ -2389,11 +2414,15 @@ export class Game {
       const cards = await Promise.all(
         this.seen.map((s) => loadCard(s.team, s.year)),
       );
+      const offReel = await this.offReelCards();
       best = bestRoster(cards, {
         // Moneyball / Blank Check hand out the cap, so the dream club has no
         // owner or ballpark to solve for.
         fixedBudgetM: this.fixedCap ? this.effectiveBudget : null,
-        offReel: await this.offReelCards(),
+        offReel: offReel.map((o) => o.card),
+        // The landing whose choice each ⭐ season cost — what groups it with
+        // the landed card it shares a pick with (bestroster's split landing).
+        offReelLandings: offReel.map((o) => o.spin),
         // Indexed the same as `cards`, because both are mapped off `seen` in
         // its own order. This is what tells the solver that a 🎟️/🚚/cold-stove
         // re-deal left two cards behind one landing (see `seen`).
