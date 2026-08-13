@@ -774,6 +774,14 @@ export class Game {
 
   private pendingCard: Promise<Card> | null = null;
   private pendingEntry: IndexEntry | null = null;
+  /** Franchise of the card this spin will land on. SpinBanner's cosmetic
+   * flicker reads it so no fake tick shows the club the reel is about to land
+   * on (owner nitpick, 2026-08-13: Royals 1989 flashing right before Royals
+   * 2005 lands reads as a stutter, not a spin). Cosmetics only — the landed
+   * card itself still comes from the game stream at its honest odds. */
+  get pendingFranchise(): string | null {
+    return this.pendingEntry?.franchise ?? null;
+  }
 
   /** Signature of the LAST COMMITTED action — set in each action method just
    * before `snapshot()` where the card, player, and slot are fully resolved,
