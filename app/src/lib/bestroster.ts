@@ -117,6 +117,8 @@
  * pays and still pays for that reason: 2 beats, and BOTH were games that signed
  * a 🏠 season, while the 🏠-off control arm scored none. The omission is not
  * merely tolerated by the beat rate, it is where the beat rate comes from.
+ * Re-measured again the same day with ⭐ Prime Time charged its pick (480
+ * games): 1 beat, again a 🏠 game, again none in the control arm.
  *
  * Also not modeled: 🔁 Trade Deadline (re-choosing a seat is free to a solver
  * that chose with hindsight).
