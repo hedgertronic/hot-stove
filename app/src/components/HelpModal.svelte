@@ -108,7 +108,10 @@
     onclose: () => void;
     gameLog?: string | null;
     /** Re-runs the INSTRUCTS tour. Null wherever the tour has no board to
-     * point at (home screen, finale, cold stove), and the button hides. */
+     * point at (home screen, cold stove), and the replay pill grays out —
+     * it used to hide, but a control that comes and goes walks the ✕'s
+     * neighbourhood between opens (the undo pill's own argument for going
+     * flat instead of going away). */
     oninstructs?: (() => void) | null;
   } = $props();
 
@@ -433,7 +436,23 @@
   ><CornerPillArt glyph="bug" /></a>
 {/snippet}
 
-<Sheet {onclose} label="How to play" tall title="HOW TO PLAY" confirmLabel="GOT IT" {corner}>
+{#snippet cornerEnd()}
+  <!-- The tour's re-run, seated inboard of the ✕ in the family's twin pill
+       (owner call, 2026-08-14, superseding the body's REPLAY INSTRUCTS
+       chip): a play mark on the compact ground. Rendered always and
+       DISABLED off the board — grayed through the svg's color channels at
+       the undo pill's exact 65% mix, never element opacity. -->
+  <button
+    type="button"
+    class="replay"
+    disabled={oninstructs === null}
+    onclick={oninstructs}
+    aria-label="Replay the instructs tour"
+    title="Replay instructs"
+  ><CornerPillArt glyph="play" /></button>
+{/snippet}
+
+<Sheet {onclose} label="How to play" tall title="HOW TO PLAY" confirmLabel="GOT IT" {corner} {cornerEnd}>
 <!-- Every block below is a direct child of this one div, and the gaps between
      them are set by the rhythm rule in the style block rather than block by
      block. That is why the PayrollBox and SpecialRows specimens are wrapped:
@@ -441,14 +460,6 @@
      not one. A `{@render}` introduces no wrapper of its own, so the rows the
      snippet above draws are direct children like everything else. -->
 <div class="help">
-  <!-- The tour's re-run lives here, above every section: a reader who wants
-       the walkthrough instead of the manual should not have to scroll past
-       the manual to find it. -->
-  {#if oninstructs}
-    <button type="button" class="tourbtn chipbox" onclick={oninstructs}
-      ><span class="chiplbl">▶ REPLAY INSTRUCTS</span></button
-    >
-  {/if}
   <!-- OVERVIEW, not HOW TO PLAY: the sheet's own title already says that, and
        a first heading repeating it was a rule spent on nothing — but a bare
        list opening the sheet left the intro as the one unlabeled stretch on a
@@ -858,33 +869,49 @@
      one. The seat and pill groups need no wrapper of their own: `.rail`,
      `.picks`, `.pups` and `.pgrid` are this file's elements already, and they
      exist to arrange the child components inside them. */
-  /* The tour re-run, in the trophy case's fchip clothes (owner call: the
-     .btn size read heavy above the manual) — same 22px chip, 1.5px line,
-     9px caps — but ink on cardstock rather than the lens chips' dimmed
-     gray: this one is an action, not a filter state. */
-  .tourbtn {
-    --chip-h: 22px;
-    border: 1.5px solid var(--line);
+  /* The tour re-run, as the ✕'s inboard twin: the .report recipe restated
+     for a <button> host (font reset and zero padding are the button's own
+     defaults to undo; the <a> never had them). */
+  .replay {
+    flex: none;
+    border: 2px solid transparent;
     border-radius: 999px;
-    background: var(--card);
+    background: transparent;
     color: var(--ink);
-    padding-inline: 10px;
     font-family: inherit;
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.03em;
+    padding: 0;
+    width: 28px;
+    height: 22px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
+    position: relative;
     transition: transform 0.08s;
-    /* Centered as its own block: the chipbox recipe leaves the button
-       inline-flex, which margin auto cannot center. */
-    display: flex;
-    width: fit-content;
-    margin-inline: auto;
   }
-  .tourbtn:active {
+  .replay::after {
+    content: "";
+    position: absolute;
+    inset: -11px -8px;
+  }
+  .replay:active {
     transform: translateY(1.5px);
   }
-  .tourbtn:focus-visible {
+  /* Off the board (home screen, cold stove) the pill goes FLAT rather than
+     away — the undo pill's own trade, at its exact 65% channel mix over the
+     sheet's --ground: element opacity stays a constant 1, so Safari never
+     buffers the svg face (the .undo:disabled doctrine, whole). */
+  .replay:disabled {
+    --pill-fill: color-mix(in srgb, var(--card) 65%, var(--ground));
+    --pill-ring: color-mix(in srgb, var(--line) 65%, var(--ground));
+    color: color-mix(in srgb, var(--muted) 65%, var(--ground));
+    cursor: default;
+  }
+  .replay:disabled:active {
+    transform: none;
+  }
+  .replay:focus-visible {
     outline: 3px solid var(--blue);
     outline-offset: 2px;
   }

@@ -85,9 +85,10 @@ describe("badgeCase", () => {
     // round's pair) are both collectible, so they move both sides by two.
     // 🤿 FROM DOWN UNDER and 💐 ALWAYS THE BRIDESMAID are both collectible
     // (🤿 is secret, which hides a name, not a slot), so they move both
-    // sides by two more.
-    expect(COLLECTIBLE.length).toBe(68);
-    expect(BADGES.length).toBe(86);
+    // sides by two more. 🥁 SET THE TONE and 🤑 WORTH EVERY PENNY are both
+    // collectible, so they move both sides by two more.
+    expect(COLLECTIBLE.length).toBe(70);
+    expect(BADGES.length).toBe(88);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 

@@ -573,6 +573,16 @@ export class Game {
    * be taken already, and a club that had a skipper all along never left the
    * dugout empty however late it changed him. */
   managerHiredLast = $state(false);
+  /** 🧢→ the other end of the same order: the dugout filled FIRST, before a
+   * single player, owner or ballpark — the club built around its skipper,
+   * which is 🥁 SET THE TONE. A moment for `managerHiredLast`'s exact
+   * reason, written by the same two first-hire paths (`hireManager` and
+   * `applyPrimeSpecial`) and never by the Trade Deadline swap, whose chair
+   * was already taken. Powerups that fill no seat (🎟️/🚚 re-deals) leave
+   * the club empty, so a re-deal before the hire does not cost the badge:
+   * the question is what the club looked like walking in, not the log's
+   * first token. */
+  managerHiredFirst = $state(false);
   /** The Konami code was entered on a physical keyboard during this game.
    *
    * State on the Game rather than a module variable in App.svelte because it
@@ -950,6 +960,18 @@ export class Game {
     return (
       this.rosterFull &&
       (this.fixedCap || (this.owner !== null && this.stadium !== null))
+    );
+  }
+
+  /** No seat but the dugout is filled — `otherSeatsFull`'s mirror, read at
+   * the same moment by the same two hire paths. The fixed-cap banks have no
+   * owner or ballpark chair, so their null pair holds vacuously and the
+   * roster alone decides. */
+  get otherSeatsEmpty(): boolean {
+    return (
+      this.slots.every((s) => s === null) &&
+      this.owner === null &&
+      this.stadium === null
     );
   }
 
@@ -1492,6 +1514,21 @@ export class Game {
     return this.powerups.prime === "armed";
   }
 
+  /** Close the ⭐ career sheet WITHOUT disarming the pill (owner call,
+   * 2026-08-14, superseding the close-through-togglePrime wiring): backing
+   * out of one man's career is not thinking better of the powerup — the
+   * player armed ⭐ to browse the market's careers, and the sheet's ✕ puts
+   * them back in that browse, orange outline intact, ready to tap the next
+   * row. Disarming stays where a disarm is asked for: the pill's own tap
+   * (`togglePrime`'s armed branch), a committed pick, or `endSpin`. */
+  closePrimeSheet(): void {
+    this.abandonPrimeSlot();
+    this.primePick = null;
+    this.primeSpecial = null;
+    this.armVersion += 1;
+    this.save();
+  }
+
   /** 🏠 Homegrown arming toggle (the hometown discount): while armed, the
    * market filters to unsigned players who DEBUTED with this spin's
    * franchise, repriced to the flat HOMEGROWN_PRICE_M; every other row
@@ -1838,8 +1875,9 @@ export class Game {
     // moment: this pick can be the one that completes the club, and the
     // question is what the rest of the club looked like walking in. ⭐ Prime
     // Time is a first-hire path exactly like the FRONT OFFICE row above it, so
-    // both write the flag.
+    // both write the flag — and the flag's mirror.
     this.managerHiredLast = this.otherSeatsFull;
+    this.managerHiredFirst = this.otherSeatsEmpty;
     this.manager = {
       name: entry.mgr,
       wins: entry.w,
@@ -2182,9 +2220,10 @@ export class Game {
     if (c.manager == null) return;
     this.actionSig = `manager|${c.team}|${c.year}`;
     this.snapshot();
-    // The moment 🪑 THE INTERIM reads, recorded as it happens for the reason
-    // beside `managerHiredLast`.
+    // The moments 🪑 THE INTERIM and 🥁 SET THE TONE read, recorded as they
+    // happen for the reason beside `managerHiredLast`.
     this.managerHiredLast = this.otherSeatsFull;
+    this.managerHiredFirst = this.otherSeatsEmpty;
     this.manager = {
       name: c.manager,
       wins: c.wins,
@@ -2583,6 +2622,7 @@ export class Game {
       managerHof: this.manager?.hof === true,
       ownerLast: this.ownerHiredLast,
       managerLast: this.managerHiredLast,
+      managerFirst: this.managerHiredFirst,
       // The skipper's own net, never the club's stamp — 🪑 is a verdict on the
       // chair. Prorated, so the badges judge the same win term the ledger
       // prints. Absent dugout reads as zero, which is not under .500.
@@ -2849,7 +2889,11 @@ export class Game {
         // 🔁 pill, so P leaves it alone rather than narrowing the market.
         if (a.verb === "V" && this.powerups.tradeDeadline === "ready")
           this.toggleTradeDeadline();
-        this.togglePrime();
+        // Guarded like W's 🔁 toggle above: an undo token restores ⭐ to
+        // "armed", so an unconditional toggle here DISARMS it and the commit
+        // below refuses — the log then fails token parity and the whole
+        // replay dies on a legal game (the U-then-⭐ sequence).
+        if (this.powerups.prime === "ready") this.togglePrime();
         this.primeTapPlayer(listed);
         // The recorded seat is passed explicitly, which is what a two-way
         // season needs: at the tap it went to the rail's picker and the player
@@ -2862,7 +2906,9 @@ export class Game {
       case "Q": {
         const entry = this.index.cards[a.ci];
         if (!entry) return;
-        this.togglePrime();
+        // Guarded for P/V's reason: an undo can hand this token an
+        // already-armed ⭐.
+        if (this.powerups.prime === "ready") this.togglePrime();
         this.primeTapSpecial("manager");
         await this.applyPrimeSpecial(entry.team, entry.year);
         if (this.powerups.prime === "armed") this.togglePrime();
@@ -3096,6 +3142,7 @@ export class Game {
       stadium: this.stadium,
       manager: this.manager,
       managerHiredLast: this.managerHiredLast,
+      managerHiredFirst: this.managerHiredFirst,
       konami: this.konami,
       seedTyped: this.seedTyped,
       undoUsed: this.undoUsed,
@@ -3139,6 +3186,7 @@ export class Game {
     this.stadium = s.stadium;
     this.manager = s.manager;
     this.managerHiredLast = s.managerHiredLast === true;
+    this.managerHiredFirst = s.managerHiredFirst === true;
     this.powerups = s.powerups;
     this.choicesLeft = s.choicesLeft;
     this.choicesUsed = s.choicesUsed;

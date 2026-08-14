@@ -35,7 +35,7 @@ interface CardPlayerRow {
   name: string;
   pos: string;
   war: number;
-  /** Normalized salary in $M — the price 🪙 LEAGUE MINIMUM's floor is read
+  /** Normalized salary in $M — the price 🪙 BARGAIN BIN's floor is read
    * against, and the same field `costPaid` starts from before any discount. */
   cost: number;
   awards: string[];
@@ -508,7 +508,7 @@ describe("the gold ceiling the shape badges are written around", () => {
 });
 
 /** The three price facts the round-24 badges stand on. All three break the
- * same silent way the rungs do: 🪙 LEAGUE MINIMUM's $1.6M is a claim about
+ * same silent way the rungs do: 🪙 BARGAIN BIN's $1.6M is a claim about
  * what the cheapest season in a year actually costs, and 🚒 / 🧤 assume both
  * positions can be dealt at all. A regen that repriced the floor would leave
  * the arithmetic fine and the badge unreachable for a whole era. */

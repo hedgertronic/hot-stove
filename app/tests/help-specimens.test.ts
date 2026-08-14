@@ -314,9 +314,13 @@ describe("the help sheet is a diagram, not a control surface", () => {
     for (const b of specimens) expect(b).toContain("inert");
   });
 
-  it("leaves exactly two live buttons: the Sheet's own exits", () => {
+  it("leaves exactly three live buttons: the Sheet's exits and the replay pill", () => {
     const live = BUTTONS.filter((b) => !b.includes("inert"));
-    expect(live).toHaveLength(2); // the corner ✕ and GOT IT
+    expect(live).toHaveLength(3); // the corner ✕, the replay pill, GOT IT
+    // The replay pill is rendered always and DISABLED off the board — the
+    // grayed pill is the promise that the control exists, not a tab stop.
+    const replay = live.find((b) => b.includes("replay"));
+    expect(replay).toContain("disabled");
   });
 });
 

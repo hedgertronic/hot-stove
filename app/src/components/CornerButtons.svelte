@@ -112,6 +112,35 @@
   let undoArmed = $state(false);
   let undoTimer: ReturnType<typeof setTimeout> | undefined;
 
+  /** The close's settle — App.svelte's `quitSettling`, restated for this
+   * pill: a lapsed UNDO? hands the box back to the arrow face at once (the
+   * word leaves with the armed state) while the capsule keeps its orange and
+   * the width shrinks visibly into the right-anchored face. Cleared on the
+   * width transition's end or cancel; reduced motion skips the settle with
+   * the transition it rides. */
+  let undoSettling = $state(false);
+  const undoStill =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let undoWasArmed = false;
+  let undoSettleTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    if (undoArmed) {
+      clearTimeout(undoSettleTimer);
+      undoSettling = false;
+      undoWasArmed = true;
+    } else if (undoWasArmed) {
+      undoWasArmed = false;
+      if (!undoStill) {
+        undoSettling = true;
+        // The backstop for engines that never fire transitionend (App.svelte's
+        // quitSettleTimer, same 200ms past the 120ms motion).
+        undoSettleTimer = setTimeout(() => (undoSettling = false), 200);
+      }
+    }
+  });
+
   // stopPropagation for the pair's reason above: the pill sits over click
   // handling tied to the landed card, and the tap that rewinds a move must not
   // also reach the market it rewound.
@@ -257,10 +286,17 @@
   <button
     class="help undo chipbox"
     class:armed={undoArmed}
+    class:settling={undoSettling}
     class:pushed={pushed && !undoArmed}
     disabled={!game.canUndo}
     bind:this={undoEl}
     onclick={tapUndo}
+    ontransitionend={(e) => {
+      if (e.propertyName === "width") undoSettling = false;
+    }}
+    ontransitioncancel={(e) => {
+      if (e.propertyName === "width") undoSettling = false;
+    }}
     aria-label={undoArmed ? "Undo last move: tap again to confirm" : "Undo last move"}
     >{#if undoArmed}<span class="chiplbl">UNDO?</span>{:else}<CornerPillArt
         glyph="undo"
@@ -424,9 +460,9 @@
        paints under any positioned pill by default. */
     /* Width transitions alongside the pushed slide's margin so arming and
        lapsing read as one motion rather than a snap. QUIT? in App.svelte
-       does NOT transition width, so UNDO? animates slightly more — that is
-       the right tradeoff: the pill grows leftward into the wordmark, and an
-       animated expand reads gentler than a snap. color at the same 0.12s so
+       transitions width at this same 0.12s ease (owner call, 2026-08-14):
+       the armed word and the pushed neighbour's slide share one clock, so
+       neither pill ever laps the other mid-motion. color at the same 0.12s so
        the pushed ghost FADES through the channels (a paint-only fade — the
        capsule's fill/stroke carry the matching transition in
        CornerPillArt); transform at the house 0.08s so the press dip eases
@@ -453,9 +489,6 @@
      arithmetic uses QUIT?'s 56px ((56 + 4px gap − 32px anchor) = 27px push)
      and is unaffected by this pill's own armed width. */
   .undo.armed {
-    background: var(--orange-2);
-    color: var(--ink);
-    border-color: var(--orange-8);
     /* The armed word matches QUIT?'s 10.5px/0.04em — the powerup pills' own
        register (see App.svelte .quit.armed). */
     font-size: 10.5px;
@@ -465,6 +498,16 @@
        recipe's padding-block correction on non-trim engines. */
     padding-inline: 8px;
     z-index: 2;
+  }
+  /* The close's costume — App.svelte's .quit.settling, same split: the word
+     leaves with the armed state, the arrow face is back from frame one
+     (right-anchored on this box), and only the capsule keeps its orange
+     while the width shrinks visibly into it. */
+  .undo.settling,
+  .undo.armed {
+    background: var(--orange-2);
+    color: var(--ink);
+    border-color: var(--orange-8);
   }
   /* The tracking, given back — one 0.04em step rides after the final ?,
      seating the centered word a half-step left (app.css's .warchip .unit

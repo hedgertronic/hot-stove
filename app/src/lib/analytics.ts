@@ -5,15 +5,12 @@
  * point is what makes the three suppression guards unconditional: no caller
  * has to remember to check them, and no future event can slip past them.
  *
- * The measurement ID G-35RY8Y6Q5V belongs to the hedgertronic.com GA4
- * property. Hot Stove shares that property rather than owning a second one,
- * and it now answers on two hosts: hotstove.io, the canonical home, where the
- * game sits at the root path, and hedgertronic.com/games/hot-stove/, the
- * original mount. So HOSTNAME is what separates the game from the main site
- * in GA4, not page path — filter reports on hostname = hotstove.io, and treat
- * the /games/hot-stove/ path prefix as the main site's game sub-tree. Path
- * alone no longer distinguishes them: "/" is the game on one host and the
- * site's front page on the other.
+ * The measurement ID G-4HLN28H3S4 belongs to Hot Stove's dedicated GA4
+ * property. The game still answers on two hosts: hotstove.io, the canonical
+ * home where it sits at the root path, and hedgertronic.com/games/hot-stove/,
+ * the original mount. The separate property keeps its traffic and game events
+ * distinct from the hedgertronic.com homepage; use HOSTNAME when you need to
+ * distinguish the two game mounts inside Hot Stove reporting.
  *
  * No code here reads the path. Sending events from a second host needs no
  * change in this module: the gtag config in index.html leaves cookie_domain

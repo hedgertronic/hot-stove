@@ -126,10 +126,70 @@ for (const [name, engine] of Object.entries(engines)) {
   }, late);
   await page.goto(OLD, { waitUntil: "domcontentloaded" });
   await page.waitForURL(TARGET, { timeout: 20_000 });
+  // target-done reloads itself; wait for the app so the next goto cannot race
+  // that reload (WebKit surfaces the race as an interrupted navigation).
+  await page.waitForSelector(".playbtn", { timeout: 20_000 });
   const lateHistory = await page.evaluate(() => JSON.parse(localStorage.getItem("hotstove.history") ?? "[]"));
   if (JSON.stringify(lateHistory) !== JSON.stringify([...sourceRows, ...targetRows, late]))
     throw new Error(`${name}: late source play was lost or duplicated`);
 
+  // ---- the completion sweep (#remigrate) ----
+  // Simulate the two phase-2 defects at once: a source row the first pass
+  // never landed (injected mid-list, where a positional cursor cannot reach
+  // it) and archive doors that never crossed. The sweep must recover both,
+  // keep every row played since, and land in date order.
+  const recovered = { date: "2026-08-11", record: "87–75", total: 87 };
+  const door = (id) => ({
+    id,
+    v: 1,
+    seed: 7,
+    config: { difficulty: "standard", bank: "classic" },
+    spinCount: 9,
+    seen: [],
+    slots: [],
+    owner: null,
+    stadium: null,
+    manager: null,
+    finale: {
+      wins: 90, losses: 72, spend: 100, budget: 120, totalWar: 40, spinCount: 9, badges: [],
+      parts: { expectedWins: 90, managerWins: 0, budgetBonus: 1, awardPoints: 0, ringPoints: 0, scoutBonus: 0, luxuryTax: 0, total: 91 },
+    },
+  });
+  await page.goto(TARGET, { waitUntil: "domcontentloaded" });
+  await page.evaluate((row) => localStorage.setItem("hotstove.archive", JSON.stringify([row])), door("io-a"));
+  await page.goto(`${OLD}#stay`, { waitUntil: "domcontentloaded" });
+  await page.evaluate(
+    ({ row, doors }) => {
+      const history = JSON.parse(localStorage.getItem("hotstove.history") ?? "[]");
+      history.splice(1, 0, row);
+      localStorage.setItem("hotstove.history", JSON.stringify(history));
+      localStorage.setItem("hotstove.archive", JSON.stringify(doors));
+    },
+    { row: recovered, doors: [door("src-a"), door("src-b")] },
+  );
+  await page.goto(`${OLD}#remigrate`, { waitUntil: "domcontentloaded" });
+  // A hash-only goto is a same-document navigation and the boot script
+  // never re-runs; real players LOAD this URL. Reload to match.
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForURL(TARGET, { timeout: 20_000 });
+  await page.waitForSelector(".playbtn", { timeout: 20_000 });
+  const swept = await page.evaluate(() => ({
+    history: JSON.parse(localStorage.getItem("hotstove.history") ?? "[]"),
+    archive: JSON.parse(localStorage.getItem("hotstove.archive") ?? "[]").map((r) => r.id),
+    marker: JSON.parse(localStorage.getItem("hotstove.adopted") ?? "null"),
+    staging: localStorage.getItem("hotstove.migration.sweep"),
+  }));
+  // Date merge: recovered (08-11) slots in before the 08-12 quits; the .io
+  // game (08-13) and the late source game (08-14) keep their seats.
+  const expected = [sourceRows[0], recovered, sourceRows[1], sourceRows[2], ...targetRows, late];
+  if (JSON.stringify(swept.history) !== JSON.stringify(expected))
+    throw new Error(`${name}: the sweep did not recover and re-order the history`);
+  if (swept.marker?.historyCount !== 5)
+    throw new Error(`${name}: the sweep marker did not adopt the fresh count`);
+  if (JSON.stringify([...swept.archive].sort()) !== JSON.stringify(["io-a", "src-a", "src-b"]))
+    throw new Error(`${name}: the sweep did not union the archive doors`);
+  if (swept.staging !== null) throw new Error(`${name}: sweep staging survived completion`);
+
   await browser.close();
-  console.log(`${name}: migration, acknowledgment, forwarding, and late-source retry passed`);
+  console.log(`${name}: migration, acknowledgment, forwarding, late-source retry, and completion sweep passed`);
 }

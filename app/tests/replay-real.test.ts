@@ -59,4 +59,18 @@ describe("a real season round-trips through its shortcode", () => {
     // And the log the replay rebuilt is the log it was handed.
     expect(back!.debugLog()).toBe(code);
   }, 30_000);
+
+  /** A shipped share string a player actually minted (2026-08-14): its
+   * `U H H P…` run undoes past a ⭐ commit, which restores the pill to
+   * "armed" — the sequence the P/V/Q toggle guard in applyReplayAction
+   * exists for. Unguarded, the second P token disarmed the pill, the commit
+   * refused, and the whole replay returned null on a legal game. */
+  it("replays a shared game whose ⭐ commit follows an undo", async () => {
+    const d = loadData();
+    const code = "21Z0X05Qsc6-TloS03S27DMP7c05UHHP7c05S01W01Rb1OAS06S04S02S30";
+    const back = await replayShortcode(d.meta, d.index, d.owners, code);
+    expect(back).not.toBeNull();
+    expect(back!.phase).toBe("finale");
+    expect(back!.debugLog()).toBe(code);
+  }, 30_000);
 });

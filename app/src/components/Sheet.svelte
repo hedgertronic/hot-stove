@@ -54,6 +54,7 @@
     title = null,
     confirmLabel = null,
     corner = null,
+    cornerEnd = null,
     children,
   }: {
     onclose: () => void;
@@ -74,8 +75,19 @@
      * rebalances the title, whose optical centering pads against whichever
      * corners are occupied. */
     corner?: Snippet | null;
+    /** Optional control seated directly INBOARD of the ✕ — the help
+     * sheet's replay pill is the first tenant. Same 28px twin-pill contract
+     * as `corner`; the title's rebalance below counts it. */
+    cornerEnd?: Snippet | null;
     children: Snippet;
   } = $props();
+
+  /** The title's optical rebalance, generalized from the old binary `.solo`:
+   * every occupied seat takes its 28px pill + 6px gap = 34px off its side of
+   * the row, and the title pads its START by the right side's surplus so the
+   * ink stays centered in the sheet. The ✕ always holds one right seat;
+   * `cornerEnd` adds a second; `corner` credits the left. */
+  const rebalance = $derived((1 + (cornerEnd ? 1 : 0) - (corner ? 1 : 0)) * 34);
 
   const framed = $derived(confirmLabel !== null);
 
@@ -155,7 +167,8 @@
     {#if title !== null}
       <div class="head">
         {#if corner}{@render corner()}{/if}
-        <span class="title" class:solo={corner === null}>{title}</span>
+        <span class="title" style:--rebalance="{rebalance}px">{title}</span>
+        {#if cornerEnd}{@render cornerEnd()}{/if}
         <button class="x" onclick={onclose} aria-label="Close"><CornerPillArt glyph="close" /></button>
       </div>
     {/if}
@@ -272,11 +285,13 @@
        floor, a grid picker's top-right tile sits under the corner's target. */
     min-height: 26px;
   }
-  /* Optically centered against the corners rather than against the row: the
-     ✕ and its gap take 34px off the right, so with the left seat empty the
-     same 34px comes off the left (.solo). A corner tenant is the ✕'s twin
-     pill at the same 28px + 6px gap, so its presence balances the row by
-     itself and the padding stands down. */
+  /* Optically centered against the corners rather than against the row:
+     every occupied seat is the ✕'s twin pill at the same 28px + 6px gap, and
+     the script's `rebalance` hands this rule the right side's surplus in
+     34px steps (0 when the seats mirror, 34 for a bare ✕, 68 when the
+     replay pill doubles the right). The var rides ON TOP of the tracking
+     give-back below — a bare pixel padding would override it and un-center
+     the ink. */
   .title {
     flex: 1;
     text-align: center;
@@ -287,12 +302,7 @@
        step seats the ink a half-step left (app.css's .warchip .unit
        documents the leak). Orthogonal to the corner arithmetic above, which
        balances the BOX; this centers the ink inside it. */
-    padding-inline-start: 0.08em;
-  }
-  .title.solo {
-    /* The corner balance PLUS the give-back — a bare 34px would override
-       the start padding above and un-center the solo titles' ink. */
-    padding-left: calc(34px + 0.08em);
+    padding-inline-start: calc(var(--rebalance, 0px) + 0.08em);
   }
   /* The title's caps seat on their cap band where the engine can trim —
      line-box-centered they rode ~0.3–0.9px high (highest on WebKit), which

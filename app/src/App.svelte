@@ -370,6 +370,40 @@
    * the pill. Registered only while armed, and the arming tap can never trip
    * it: that tap's pointerdown fired before this effect installed the
    * listener. */
+  /** The close's settle (owner call, 2026-08-14, word dropped same day): a
+   * lapsed or answered QUIT? hands the box back to the ✕ face at once — the
+   * WORD leaving with the armed state, because a 56px word over a shrinking
+   * box overlapped the undo pill sliding home — while the capsule keeps its
+   * orange and the width rides its own 0.12s back to 28px, draining into
+   * the face (which sits on the anchor from frame one: CornerPillArt is
+   * right-anchored for exactly this). Cleared on the width transition's own
+   * end (or cancel), so the orange can never outlive the motion;
+   * reduced-motion readers skip it entirely — their width snaps, and
+   * app.css already killed the transition whose end would clear it. */
+  let quitSettling = $state(false);
+  const quitStill =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let quitWasArmed = false;
+  let quitSettleTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    if (quitArmed) {
+      clearTimeout(quitSettleTimer);
+      quitSettling = false;
+      quitWasArmed = true;
+    } else if (quitWasArmed) {
+      quitWasArmed = false;
+      if (!quitStill) {
+        quitSettling = true;
+        // The transition's own end event clears the settle at 120ms; this is
+        // the backstop for engines that never fire it (jsdom, or a transition
+        // Safari coalesces away), so the word can never outlive the motion.
+        quitSettleTimer = setTimeout(() => (quitSettling = false), 200);
+      }
+    }
+  });
+
   let quitEl = $state<HTMLButtonElement | undefined>();
   $effect(() => {
     if (!quitArmed) return;
@@ -584,9 +618,16 @@
     <button
       class="quit chipbox"
       class:armed={quitArmed}
+      class:settling={quitSettling}
       class:pushed={undoArmed}
       bind:this={quitEl}
       onclick={tapQuit}
+      ontransitionend={(e) => {
+        if (e.propertyName === "width") quitSettling = false;
+      }}
+      ontransitioncancel={(e) => {
+        if (e.propertyName === "width") quitSettling = false;
+      }}
       aria-label={quitArmed
         ? "Quit this game: tap again to confirm"
         : game.phase === "finale"
@@ -663,11 +704,14 @@
   {#if teamPickerOpen}
     <TeamPicker {game} {colors} onclose={() => (teamPickerOpen = false)} />
   {/if}
+  <!-- Closing a career sheet keeps ⭐ ARMED: the ✕ backs out of one man's
+       career, not out of the powerup — the player lands back in the armed
+       browse to tap another row. The pill's own tap is the disarm. -->
   {#if game.primePick !== null}
-    <PrimePicker {game} onclose={() => game?.togglePrime()} />
+    <PrimePicker {game} onclose={() => game?.closePrimeSheet()} />
   {/if}
   {#if game.primeSpecial !== null}
-    <SpecialPrimePicker {game} onclose={() => game?.togglePrime()} />
+    <SpecialPrimePicker {game} onclose={() => game?.closePrimeSheet()} />
   {/if}
 {/if}
 
@@ -854,8 +898,16 @@
        (see `.quit.pushed`), and the mark's stroke follows the host's color
        per frame — a paint-only fade, no compositor layer. The capsule's
        fill/stroke carry their own matching transition in CornerPillArt.
+       width at the undo pill's 0.12s ease (owner call, 2026-08-14,
+       superseding the round-39 snap): the armed QUIT? and the neighbour's
+       margin slide are ONE motion, so both ends of it run the same clock —
+       a 56px word landing in frame one while the undo pill was still 120ms
+       from its seat read as the ✕ lapping its own escort. width animates
+       through layout and repaints in place, the same channel argument as
+       the slide's margin — no compositor layer.
        app.css kills the transition for reduced-motion readers. */
     transition:
+      width 0.12s ease,
       transform 0.08s,
       color 0.12s ease;
   }
@@ -872,9 +924,6 @@
      the neighbour steps back for it (see `.pushed`), and the anchor never
      moves, so the ✕ is in the same place on every tap. */
   .quit.armed {
-    background: var(--orange-2);
-    color: var(--ink);
-    border-color: var(--orange-8);
     /* The armed WORD drops to the powerup pills' own 10.5px/0.04em register —
        at the glyphs' 12px it read as the largest pill text on the board. The
        resting ✕ keeps 12px: it is a glyph sized to its twins, not a label. */
@@ -888,6 +937,19 @@
        the other. */
     width: 56px;
     z-index: 2;
+  }
+  /* The close's costume: the ✕ face is back from frame one (the WORD leaves
+     with the armed state — it overlapped the undo pill sliding home), and
+     only the CAPSULE keeps its orange while the width rides its 0.12s back
+     to 28px, shrinking visibly into the resting face. The face is a whole
+     pill of its own (CornerPillArt draws capsule + mark, right-anchored on
+     this box), so it covers the orange where they coincide and the tail
+     drains away to its left. */
+  .quit.settling,
+  .quit.armed {
+    background: var(--orange-2);
+    color: var(--ink);
+    border-color: var(--orange-8);
   }
   /* The tracking, given back — one 0.04em step rides after the final ?,
      seating the centered word a half-step left (app.css's .warchip .unit

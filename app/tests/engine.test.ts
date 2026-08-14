@@ -2329,6 +2329,54 @@ describe("the manager hired last", () => {
   });
 });
 
+/** 🥁 SET THE TONE's moment: the dugout filled first. The mirror of the
+ * block above, recorded by the same two paths at the same instant. */
+describe("the manager hired first", () => {
+  it("starts false", () => {
+    expect(new Game(meta, index, owners, 42).managerHiredFirst).toBe(false);
+  });
+
+  it("records a hire made into an empty club", () => {
+    const g = landedGame(card([player({})]));
+    expect(g.otherSeatsEmpty).toBe(true);
+    g.hireManager();
+    expect(g.managerHiredFirst).toBe(true);
+  });
+
+  it("does not record a hire made after a signing", () => {
+    const g = landedGame(card([player({})]));
+    fillSlots(g, [0]);
+    expect(g.otherSeatsEmpty).toBe(false);
+    g.hireManager();
+    expect(g.managerHiredFirst).toBe(false);
+  });
+
+  it("does not record a hire made after the front office moved", () => {
+    const g = landedGame(card([player({})]));
+    g.owner = {
+      name: "x",
+      budget: 100,
+      franchise: "CHC",
+      year: 2016,
+      teamName: "Cubs",
+    };
+    expect(g.otherSeatsEmpty).toBe(false);
+    g.hireManager();
+    expect(g.managerHiredFirst).toBe(false);
+  });
+
+  it("round-trips through save and restore", async () => {
+    // The iOS tab-eviction path: the badge's moment has to outlive a reload
+    // (the `konami` argument), so it rides save() with everything else.
+    const g = landedGame(card([player({})]));
+    g.hireManager();
+    expect(g.managerHiredFirst).toBe(true);
+    g.save();
+    const back = await Game.restore(meta, index, owners);
+    expect(back?.managerHiredFirst).toBe(true);
+  });
+});
+
 /** Powerups in combination.
  *
  * The arming toggles were already permissive — nothing has ever stopped two

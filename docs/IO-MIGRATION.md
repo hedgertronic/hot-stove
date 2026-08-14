@@ -335,6 +335,40 @@ Not before the bridge has been live long enough for returning-player traffic on
 the old path to decay. Six months is the floor, and the bridge costs nothing to
 keep.
 
+## Phase 2.5 — the completion sweep (BUILT, round 40)
+
+Two defects surfaced after the phase 2 deployment, both reported as "half my
+last 50 games and my record book are grayed out on hotstove.io":
+
+1. `normalizeHistoryRow` rejected a WHOLE row when any optional field wore a
+   type an old build wrote differently, and `snapshotSource` dropped those rows
+   silently — a career could cross missing games and still report success. The
+   normalizer is now tolerant per field: a malformed optional field is not
+   copied, and the row survives.
+2. The archive (the ~5.4KB replay doors) got exactly one 48KB shot, newest rows
+   first, ever. Re-running `#remigrate` re-picked the same rows and changed
+   nothing.
+
+The sweep fixes both, and `#remigrate` on the old origin is its trigger: when
+`target-prepare` finds `initialComplete`, the session runs in sweep mode
+(`&s=1`). The source resends the WHOLE history from zero (chunked as before,
+staged on the target under `hotstove.migration.sweep`); on the done chunk the
+target identifies its previously adopted copies by a greedy in-order
+byte-for-byte match against the fresh list (both came out of the same
+normalizer; the advancing cursor keeps multiset semantics for identical quit
+rows) and keeps everything unmatched as .io play — nothing is ever dropped, so
+the sweep has no divergence failure — then merges the two ordered logs by
+date, source-first on ties. A late-source retry's rows, which the signature
+path appends after .io play, come back out in true chronological order this
+way; a prefix splice cannot represent that layout at all. Done chunks also
+carry the source's full
+archive id manifest; the target computes what it still wants (every per-combo
+record-book best in the log, then newest rows until the 50-row cap) and hops
+back with `&need=<ids>` until nothing is missing or a hop lands empty-handed.
+The merged archive is ordered by the log (oldest first) and trimmed with the
+record-book doors evicted last — the same protection `archiveGame`'s eviction
+now applies on every later finished game.
+
 ## Known limits, accepted
 
 1. The handoff fires only for players who arrive via the OLD url. Anyone who
@@ -375,16 +409,12 @@ keep.
   transfer to wait on.
 - `X-Robots-Tag: noindex` for the workers.dev hostname in `_headers`; it is
   currently indexable and now serves a full root-mounted copy of the game.
-- GA4: measurement ID `G-35RY8Y6Q5V` is hardcoded (`index.html:149`), so creating
-  a data stream changes nothing by itself. Keeping the existing ID keeps the data
-  series continuous; `hotstove.io` needs adding to that stream's configuration,
-  and `hedgertronic.com` to unwanted referrals, or the move makes the old site
-  look like a top referrer. Report filters that separate the game from the main
-  site must key on hostname, not page path — `/` is now the game on one host and
-  the site's front page on the other. No code change is needed: `analytics.ts`
-  reads only `location.hostname` and `location.search`, and the gtag config
-  leaves `cookie_domain` at `auto`, which re-keys the cookie per registrable
-  domain on its own.
+- GA4: the game runs on its own property, measurement ID `G-4HLN28H3S4`,
+  hardcoded in `index.html`. The dedicated property keeps game traffic and
+  events out of the hedgertronic.com series; `hedgertronic.com` still belongs
+  in unwanted referrals so the old mount does not show as a top referrer.
+  Inside the game's own reports, hostname distinguishes the two mounts —
+  `hotstove.io` at the root and `hedgertronic.com/games/hot-stove/`.
 - `tools/probe_routes.py` checks the live route matrix and is not wired into
   `deploy.yml`. Routes attach outside the bundle, so no unit test can see them
   and CI does not check them. Run it by hand after any change to `routes` in

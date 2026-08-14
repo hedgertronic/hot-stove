@@ -118,6 +118,10 @@ describe("what the cap must never cost", () => {
     const games = ARCHIVE_CAP + 12;
     for (let i = 0; i < games; i++) {
       logged(`g${i}`, {
+        // Rising totals so the combo best is always the NEWEST game: eviction
+        // spares a record-book best (the test below), and this test is about
+        // an ordinary old season aging out.
+        total: 100 + i,
         badges: [`badge${i}`],
         countries: [`Country ${i}`],
         countryPlayers: { [`Country ${i}`]: [`p${i}`] },
@@ -138,6 +142,24 @@ describe("what the cap must never cost", () => {
     expect(passport().map((s) => s.country)).toContain("Country 0");
     // Including the player it counted, which only the row can supply.
     expect(passport().find((s) => s.country === "Country 0")!.players).toBe(1);
+  });
+
+  it("evicts around a record-book best, so its door outlives the cap", () => {
+    // The oldest game is the combo best. The shelf names a career best
+    // forever (it is cut from the uncapped log), so its DOOR is the one
+    // aging-out a player actually notices — eviction takes the oldest
+    // non-best rows instead and the best keeps opening.
+    logged("g0", { total: 162 });
+    archiveGame(rec("g0"));
+    for (let i = 1; i < ARCHIVE_CAP + 12; i++) {
+      logged(`g${i}`, { total: 100 });
+      archiveGame(rec(`g${i}`));
+    }
+    const kept = loadArchive().map((r) => r.id);
+    expect(kept).toHaveLength(ARCHIVE_CAP);
+    expect(kept[0]).toBe("g0");
+    expect(kept).not.toContain("g1");
+    expect(kept.at(-1)).toBe(`g${ARCHIVE_CAP + 11}`);
   });
 
   it("never writes to the log's key at all", () => {

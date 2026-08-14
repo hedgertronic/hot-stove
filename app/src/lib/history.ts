@@ -262,7 +262,35 @@ export function loadArchive(): ArchivedFinale[] {
   }
 }
 
+/** The archive ids of the record book's best seasons — the highest-total row
+ * per (difficulty, bank) combo that still carries an id. The seasons sheet's
+ * shelf is cut from the UNSLICED log, so a career best never ages off the
+ * LIST; this set is what keeps its DOOR alive too (eviction below, and the
+ * migration sweep's archive selection).
+ *
+ * Grouped on the raw stored spellings rather than settings' canonical read,
+ * on purpose: a legacy-spelled combo groups separately and protects one more
+ * id, and protecting too many ids costs a little cap headroom where
+ * protecting too few grays a record-book door. Pre-bank rows fold their
+ * `moneyball` boolean in so the two spellings of that era share a group. */
+export function bestArchiveIds(history: HistoryEntry[]): Set<string> {
+  const best = new Map<string, { total: number; id: string }>();
+  for (const e of history) {
+    if (typeof e.total !== "number" || typeof e.id !== "string") continue;
+    const bank = e.bank ?? (e.moneyball === true ? "moneyball" : "");
+    const combo = `${e.difficulty ?? ""}|${bank}`;
+    const cur = best.get(combo);
+    if (!cur || e.total > cur.total) best.set(combo, { total: e.total, id: e.id });
+  }
+  return new Set([...best.values()].map((b) => b.id));
+}
+
 /** Archive one finished game, evicting the oldest once the cap is reached.
+ *
+ * The record book's best seasons are evicted LAST: the shelf keeps naming a
+ * career best forever, so its row losing the archive door is the one aging-out
+ * the player actually notices. Oldest unprotected rows go first; only a cap
+ * full of nothing but bests falls back to plain oldest-first.
  *
  * A quota failure evicts and retries rather than giving up on the first throw —
  * the same principle as the swallowed writes above, one step further. The
@@ -273,7 +301,18 @@ export function loadArchive(): ArchivedFinale[] {
  * this ran. */
 export function archiveGame(rec: ArchivedFinale): void {
   const rows = [...loadArchive(), rec];
-  if (rows.length > ARCHIVE_CAP) rows.splice(0, rows.length - ARCHIVE_CAP);
+  if (rows.length > ARCHIVE_CAP) {
+    const keep = bestArchiveIds(loadHistory());
+    let excess = rows.length - ARCHIVE_CAP;
+    for (let i = 0; i < rows.length && excess > 0; ) {
+      if (keep.has(rows[i].id)) i += 1;
+      else {
+        rows.splice(i, 1);
+        excess -= 1;
+      }
+    }
+    if (excess > 0) rows.splice(0, excess);
+  }
   while (rows.length > 0) {
     try {
       localStorage.setItem(ARCHIVE_KEY, JSON.stringify(rows));

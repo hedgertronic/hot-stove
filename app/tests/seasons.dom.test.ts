@@ -265,17 +265,18 @@ describe("the list caps where the doors stop", () => {
     ui.close();
   });
 
-  it("keeps a career best on the shelf after it ages out of the list", () => {
-    // The best season is the OLDEST — total 200 on g0 — and 54 later games
-    // push it past the cap. The list forgets it; the record book must not.
+  it("keeps a career best on the shelf, door and all, after it ages off the list", () => {
+    // The best season is the OLDEST — 162 on g0 — and 54 later games push it
+    // off the list. The list forgets it; the record book keeps it, and since
+    // round 40 eviction spares a combo best's archive row, its door still
+    // opens (archive.test.ts pins the eviction itself).
     season("g0", { total: 162 });
     for (let i = 1; i < 55; i++) season(`g${i}`, { total: 90 });
     const ui = open();
     expect(ui.rows()).toHaveLength(ARCHIVE_CAP);
     expect(ui.shelf()).toHaveLength(1);
     expect(ui.shelf()[0].querySelector(".rec")!.textContent).toBe("162–0");
-    // Aged out of the archive, so the shelf row is a record, not a door.
-    expect(ui.shelf()[0].disabled).toBe(true);
+    expect(ui.shelf()[0].disabled).toBe(false);
     ui.close();
   });
 

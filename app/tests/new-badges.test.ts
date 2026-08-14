@@ -601,7 +601,7 @@ describe("🚒 THE FIREMAN and 🧤 THE FIELD GENERAL", () => {
   });
 });
 
-describe("🪙 LEAGUE MINIMUM", () => {
+describe("🪙 BARGAIN BIN", () => {
   const at = (prices: number[]) =>
     earnedBadges(
       f({
@@ -713,6 +713,49 @@ describe("💳 THE BILL CAME DUE", () => {
   });
 });
 
+describe("🥁 SET THE TONE", () => {
+  it("fires on a first-pick skipper", () => {
+    expect(earnedBadges(f({ managerFirst: true }))).toContain("tonesetter");
+  });
+
+  it("spares a skipper hired mid-build", () => {
+    expect(earnedBadges(f({ managerFirst: false }))).not.toContain("tonesetter");
+  });
+
+  it("cannot fire on facts assembled before the field existed", () => {
+    // BASE carries no managerFirst; absent reads as "not first" — the
+    // fail-safe direction every optional fact takes.
+    expect(earnedBadges(f())).not.toContain("tonesetter");
+  });
+});
+
+describe("🤑 WORTH EVERY PENNY", () => {
+  it("fires on a gold stamp past the cap", () => {
+    // total 156 stamps 156–6, the elite band the finale prints gold.
+    expect(
+      earnedBadges(f({ total: 156, spendM: 150, budgetM: 140 })),
+    ).toContain("worthit");
+  });
+
+  it("spares a gold stamp under the cap", () => {
+    expect(
+      earnedBadges(f({ total: 156, spendM: 130, budgetM: 140 })),
+    ).not.toContain("worthit");
+  });
+
+  it("spares the cap exactly — 💳's own strict gate, no tax at the line", () => {
+    expect(
+      earnedBadges(f({ total: 156, spendM: 140, budgetM: 140 })),
+    ).not.toContain("worthit");
+  });
+
+  it("spares a taxed club whose stamp fell short of gold", () => {
+    expect(
+      earnedBadges(f({ total: 150, spendM: 150, budgetM: 140 })),
+    ).not.toContain("worthit");
+  });
+});
+
 describe("every new badge resolves to a definition", () => {
   it("has a table entry for each key the triggers above emit", () => {
     for (const key of [
@@ -727,6 +770,8 @@ describe("every new badge resolves to a definition", () => {
       "minimum",
       "taxed",
       "outscouted",
+      "tonesetter",
+      "worthit",
     ]) {
       expect(BADGE_BY_KEY[key], `${key} is undefined`).toBeDefined();
     }

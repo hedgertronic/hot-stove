@@ -975,11 +975,13 @@
     margin-top: 20px;
   }
   /* Two cards side by side: GAMES narrower (global log count), BEST wider
-     (punched-combo best season). The grid mirrors the old btable proportions
-     so the visual weight of the two zones stays the same. */
+     (punched-combo best season). 1fr:2fr, sized to the ink rather than the
+     old btable's 1fr:3fr — at 3fr the record floated in a track three times
+     its width while the GAMES numeral nearly filled its own, and the side
+     whitespace read as two different paddings on identically padded cards. */
   .books {
     display: grid;
-    grid-template-columns: minmax(44px, 1fr) 3fr;
+    grid-template-columns: minmax(44px, 1fr) 2fr;
     gap: 9px;
   }
   /* Each card is a control: cardstock on the structural line, pressed by the

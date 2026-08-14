@@ -31,14 +31,14 @@
    * tuned ink scale.
    *
    * PAINTED INK sits on two grounds (owner call): the compact marks — ✕, ?,
-   * funnel — paint 8.0px tall, and the pictorial marks — trophy, undo,
-   * bug — paint 10.0px. Painted = (ink height + stroke) × nested scale;
+   * funnel, play — paint 8.0px tall, and the pictorial marks — trophy, undo,
+   * bug, moon, sun — paint 10.0px. Painted = (ink height + stroke) × nested scale;
    * each path is drawn (or was rescaled about its ink center) to land on
    * its ground, with the viewBox origin recentered where the center moved. */
   let {
     glyph,
   }: {
-    glyph: "close" | "help" | "trophy" | "undo" | "filter" | "bug" | "moon" | "sun";
+    glyph: "close" | "help" | "trophy" | "undo" | "filter" | "bug" | "moon" | "sun" | "play";
   } = $props();
 
   /** THE family-wide optical seat, and the only number allowed to become
@@ -155,6 +155,29 @@
         d="M11.44 7.54h0.83M3.64 7.54H2.81M7.54 3.64V2.81M7.54 11.44v0.83M10.3 4.78l0.58-0.58M4.78 10.3l-0.58 0.58M10.3 10.3l0.58 0.58M4.78 4.78l-0.58-0.58"
       /></svg
     >
+  {:else if glyph === "play"}
+    <!-- The replay-instructs pill's mark: a play triangle, outlined in the
+         family's line-art voice. A transport control like the ✕, so it sits
+         on the compact 8.0px ground at the control stroke: ink runs
+         3.49..10.51 (the ✕'s exact vertical extent), width at the
+         equilateral ratio, bbox center (7, 7).
+
+         The origin's x carries a −0.5 OPTICAL step past the ✕'s bbox
+         recentering (owner read the bbox-centered mark as seated left): a
+         right-pointing triangle's mass sits at its centroid, 1.01 units left
+         of the bbox center, so the ink rides half that gap right — the
+         midpoint of the two centers, the same split MARK_DY's doctrine
+         reserves for the vertical. Horizontal seats are per-glyph by design
+         (every origin here is one); only the vertical is family-wide. -->
+    <svg
+      x="7"
+      y={4 + MARK_DY}
+      width="14"
+      height="14"
+      viewBox="-1.038 -0.538 15.077 15.077"
+      overflow="visible"
+      stroke-width="1.6"><path d="M3.96 3.49L10.04 7L3.96 10.51Z" /></svg
+    >
   {:else if glyph === "filter"}
     <svg
       x="7"
@@ -189,10 +212,19 @@
     /* Pinned over the host's BORDER box plus the 2-unit air margin: every
        host keeps a 2px (now transparent) resting border, so the padding box
        this absolute child anchors to sits 2px inside the pill's 28×22 —
-       inset −4 reaches 2px past the border box on every side, matching the
-       viewBox's −2..30/−2..24 so one svg unit stays one CSS px. */
+       the −4px offsets reach 2px past the border box on every side, matching
+       the viewBox's −2..30/−2..24 so one svg unit stays one CSS px.
+
+       Anchored to the RIGHT edge, not the left (owner call, 2026-08-14): at
+       rest every host is 28px wide and the two anchors are the same pixel,
+       but the quit/undo pills' close SETTLE shrinks the host from its armed
+       width while this face is already mounted — right-anchored, the face
+       sits on the pill's anchor from frame one and the armed capsule shrinks
+       into it, instead of the face mounting at the wide box's far side and
+       riding the shrink home. */
     position: absolute;
-    inset: -4px;
+    top: -4px;
+    right: -4px;
     width: 32px;
     height: 26px;
     display: block;

@@ -1,4 +1,10 @@
-import { ARCHIVE_CAP, FINALE_VERSION, renderableFinale } from "./history";
+import {
+  ARCHIVE_CAP,
+  FINALE_VERSION,
+  bestArchiveIds,
+  renderableFinale,
+  type HistoryEntry,
+} from "./history";
 
 const SOURCE_ORIGIN = "https://hedgertronic.com";
 const SOURCE_URL = `${SOURCE_ORIGIN}/games/hot-stove/`;
@@ -17,6 +23,9 @@ const JOURNAL_KEY = "hotstove.adopting";
 const TARGET_PENDING_KEY = "hotstove.migration.pending";
 const SOURCE_PENDING_KEY = "hotstove.migration.source-pending";
 const SOURCE_COMPLETE_KEY = "hotstove.migrated";
+/** Scratch rows accumulated by an in-flight completion sweep (below). Target
+ * origin only; removed by the sweep's final commit and by target-prepare. */
+const SWEEP_KEY = "hotstove.migration.sweep";
 const PLAYER_KEYS = [
   HISTORY_KEY,
   ARCHIVE_KEY,
@@ -27,7 +36,7 @@ const PLAYER_KEYS = [
   CUES_KEY,
   THEME_KEY,
 ] as const;
-const MIGRATION_WRITE_KEYS = new Set<string>([...PLAYER_KEYS, ADOPTED_KEY]);
+const MIGRATION_WRITE_KEYS = new Set<string>([...PLAYER_KEYS, ADOPTED_KEY, SWEEP_KEY]);
 
 export const MIGRATION_FRAGMENT_BUDGET = 48 * 1024;
 export const MIGRATION_EXPANDED_LIMIT = 1024 * 1024;
@@ -82,6 +91,16 @@ export interface MigrationPayload extends SmallState {
   nonce: string;
   source: typeof SOURCE_ORIGIN;
   history: HistoryChunk;
+  /** A COMPLETION SWEEP chunk (phase 2.5). The initial migration's positional
+   * cursor assumes the source list never grows in the middle — true while the
+   * normalizer's tolerance is fixed, false the day it widens and previously
+   * dropped rows reappear between rows already sent. A sweep therefore
+   * resends the WHOLE source history from zero and the target splices it over
+   * the prefix it adopted the first time, instead of appending. */
+  sweep?: true;
+  /** Every archive id the source still holds, sent on a sweep's done chunks so
+   * the target can ask for the rows the 48KB budget cut (`&need=` hops). */
+  archiveIds?: string[];
 }
 
 interface AdoptedMarker {
@@ -146,47 +165,36 @@ function readJSON(storage: StorageLike, key: string): unknown {
 }
 
 /** Copies only fields understood by current history readers. Identical rows
- * remain identical and remain separate: multiplicity is player data here. */
+ * remain identical and remain separate: multiplicity is player data here.
+ *
+ * TOLERANT PER FIELD, not per row (the round-40 completion-sweep lesson): the
+ * first shipped version returned null for the WHOLE row when any optional
+ * field wore the wrong type, and `snapshotSource` dropped those rows with no
+ * error — a career could cross the origin missing the games an old build
+ * spelled oddly, and the migration still reported success. A malformed
+ * optional field is now simply not copied: the game stays counted, and at
+ * worst loses the one field that could not be read. Only a row that is not a
+ * plain object at all is no row (loadHistory's own line). The date is kept as
+ * whatever string it holds, truncated rather than disqualifying — a row whose
+ * date an old build overwrote is still a game. */
 export function normalizeHistoryRow(value: unknown): Record<string, unknown> | null {
-  if (!plain(value) || !boundedString(value.date, 32)) return null;
-  const row: Record<string, unknown> = { date: value.date };
+  if (!plain(value)) return null;
+  const row: Record<string, unknown> = {
+    date: typeof value.date === "string" ? value.date.slice(0, 32) : "",
+  };
   for (const key of ["id", "record", "difficulty", "bank"])
-    if (value[key] !== undefined) {
-      if (!boundedString(value[key], 128)) return null;
-      row[key] = value[key];
-    }
+    if (boundedString(value[key], 128)) row[key] = value[key];
   for (const key of ["total", "spins", "seed", "v"])
-    if (value[key] !== undefined) {
-      if (!finite(value[key])) return null;
-      row[key] = value[key];
-    }
-  if (value.moneyball !== undefined) {
-    if (typeof value.moneyball !== "boolean") return null;
-    row.moneyball = value.moneyball;
-  }
+    if (finite(value[key])) row[key] = value[key];
+  if (typeof value.moneyball === "boolean") row.moneyball = value.moneyball;
   for (const key of ["badges", "countries"] as const)
-    if (value[key] !== undefined) {
-      if (
-        !Array.isArray(value[key]) ||
-        value[key].length > 256 ||
-        !value[key].every((item) => boundedString(item, 128))
-      )
-        return null;
-      row[key] = [...value[key]];
-    }
-  if (value.countryPlayers !== undefined) {
-    if (!plain(value.countryPlayers) || Object.keys(value.countryPlayers).length > 256) return null;
+    if (Array.isArray(value[key]))
+      row[key] = value[key].filter((item) => boundedString(item, 128)).slice(0, 256);
+  if (plain(value.countryPlayers)) {
     const players: Record<string, string[]> = {};
-    for (const [country, ids] of Object.entries(value.countryPlayers)) {
-      if (
-        !boundedString(country, 128) ||
-        !Array.isArray(ids) ||
-        ids.length > 256 ||
-        !ids.every((id) => boundedString(id, 128))
-      )
-        return null;
-      players[country] = [...ids];
-    }
+    for (const [country, ids] of Object.entries(value.countryPlayers).slice(0, 256))
+      if (boundedString(country, 128) && Array.isArray(ids))
+        players[country] = ids.filter((id) => boundedString(id, 128)).slice(0, 256);
     row.countryPlayers = players;
   }
   return row;
@@ -401,7 +409,12 @@ function parsePayload(value: unknown): MigrationPayload {
     throw new Error("Migration history range is invalid");
   const historyRows = rows.map(normalizeHistoryRow);
   if (historyRows.some((row) => row === null)) throw new Error("Migration history contains an invalid row");
-  if (!done && ["archive", "current", "finale", "finaleOpen", "settings", "cues", "theme"].some((key) => key in value))
+  if (
+    !done &&
+    ["archive", "archiveIds", "current", "finale", "finaleOpen", "settings", "cues", "theme"].some(
+      (key) => key in value,
+    )
+  )
     throw new Error("Non-final migration chunk contains final state");
   const payload: MigrationPayload = {
     v: 1,
@@ -415,6 +428,20 @@ function parsePayload(value: unknown): MigrationPayload {
       rows: historyRows as Record<string, unknown>[],
     },
   };
+  if ("sweep" in value) {
+    if (value.sweep !== true) throw new Error("Migration sweep flag is invalid");
+    payload.sweep = true;
+  }
+  if ("archiveIds" in value) {
+    if (
+      payload.sweep !== true ||
+      !Array.isArray(value.archiveIds) ||
+      value.archiveIds.length > ARCHIVE_CAP ||
+      !value.archiveIds.every((id) => boundedString(id, 128))
+    )
+      throw new Error("Migration archive manifest is invalid");
+    payload.archiveIds = [...value.archiveIds];
+  }
   if ("archive" in value) {
     if (!Array.isArray(value.archive) || value.archive.length > ARCHIVE_CAP || !value.archive.every(validArchive))
       throw new Error("Migration archive is invalid");
@@ -475,30 +502,54 @@ async function fits(payload: MigrationPayload): Promise<{ encoded: string; fits:
 }
 
 /** Packs a contiguous history prefix. Final state is sent only with a `done`
- * chunk, so a large career can cross in several bounded first-party hops. */
+ * chunk, so a large career can cross in several bounded first-party hops.
+ *
+ * Sweep mode (`opts.sweep`) marks every chunk, and on done chunks it swaps
+ * the archive selection from "newest that fit" to "exactly what the target
+ * said it is missing" (`opts.need`, newest-first within the list), plus the
+ * full id manifest the target computes the next `need` from. */
 export async function buildSourceTransfer(
   storage: StorageLike,
   nonce: string,
   cursor: number,
+  opts: { sweep?: boolean; need?: string[] } = {},
 ): Promise<{ encoded: string; payload: MigrationPayload }> {
   const snapshot = snapshotSource(storage);
   if (!Number.isSafeInteger(cursor) || cursor < 0 || cursor > snapshot.history.length)
     throw new Error("The legacy history changed during migration");
 
+  const sweepMark: { sweep?: true } = opts.sweep ? { sweep: true } : {};
+  const doneExtras: Partial<MigrationPayload> = opts.sweep
+    ? { archiveIds: (snapshot.archive ?? []).map((row) => row.id as string) }
+    : {};
+  const needSet = new Set(opts.need ?? []);
+  const pool = opts.sweep
+    ? (snapshot.archive ?? []).filter((row) => needSet.has(row.id as string))
+    : (snapshot.archive ?? []);
+
   const remaining = snapshot.history.length - cursor;
-  const fullWithoutArchive = payloadFor(snapshot, nonce, cursor, snapshot.history.length, true);
+  const fullWithoutArchive: MigrationPayload = {
+    ...payloadFor(snapshot, nonce, cursor, snapshot.history.length, true),
+    ...sweepMark,
+    ...doneExtras,
+  };
   const full =
     remaining <= MAX_HISTORY_ROWS_PER_PAYLOAD
       ? await fits(fullWithoutArchive)
       : { encoded: "", fits: false };
   if (full.fits) {
     let low = 0;
-    let high = snapshot.archive?.length ?? 0;
+    let high = pool.length;
     let best = { encoded: full.encoded, payload: fullWithoutArchive };
     while (low <= high) {
       const count = Math.floor((low + high) / 2);
-      const archive = snapshot.archive?.slice(-count) ?? [];
-      const candidate = payloadFor(snapshot, nonce, cursor, snapshot.history.length, true, archive);
+      // `slice(-0)` is `slice(0)` — the whole array — so zero is spelled out.
+      const archive = count === 0 ? [] : pool.slice(-count);
+      const candidate: MigrationPayload = {
+        ...payloadFor(snapshot, nonce, cursor, snapshot.history.length, true, archive),
+        ...sweepMark,
+        ...doneExtras,
+      };
       const packed = await fits(candidate);
       if (packed.fits) {
         best = { encoded: packed.encoded, payload: candidate };
@@ -516,7 +567,10 @@ export async function buildSourceTransfer(
   let best: { encoded: string; payload: MigrationPayload } | null = null;
   while (low <= high) {
     const end = Math.floor((low + high) / 2);
-    const candidate = payloadFor(snapshot, nonce, cursor, end, false);
+    const candidate: MigrationPayload = {
+      ...payloadFor(snapshot, nonce, cursor, end, false),
+      ...sweepMark,
+    };
     const packed = await fits(candidate);
     if (packed.fits) {
       best = { encoded: packed.encoded, payload: candidate };
@@ -606,9 +660,253 @@ function mergeCues(source: Record<string, unknown>, target: unknown): Record<str
   };
 }
 
+/** The singular keys' merge, shared by the initial adoption and the sweep:
+ * ownership (`marker.owned`) decides whether the source may still write each
+ * one, so a value the player changed on .io is never overwritten. */
+function planSingulars(
+  storage: StorageLike,
+  payload: MigrationPayload,
+  nextOwned: NonNullable<AdoptedMarker["owned"]>,
+  operations: WriteOperation[],
+  archive: Record<string, unknown>[],
+): void {
+  const mergeSingular = (
+    key: string,
+    ownerKey: "current" | "settings" | "theme",
+    sourceValue: string | undefined,
+  ) => {
+    const targetValue = storage.getItem(key);
+    const ownedValue = nextOwned[ownerKey];
+    const sourceStillOwns = targetValue === null || (ownedValue !== undefined && targetValue === ownedValue);
+    if (sourceValue !== undefined && sourceStillOwns) {
+      const op = operation(storage, key, sourceValue);
+      if (op) operations.push(op);
+      nextOwned[ownerKey] = sourceValue;
+    } else if (sourceValue === undefined && ownedValue !== undefined && targetValue === ownedValue) {
+      const op = operation(storage, key, null);
+      if (op) operations.push(op);
+      delete nextOwned[ownerKey];
+    } else if (!sourceStillOwns) delete nextOwned[ownerKey];
+  };
+  mergeSingular(SAVE_KEY, "current", payload.current ? stringify(payload.current) : undefined);
+
+  const targetFinale = storage.getItem(FINALE_KEY);
+  const targetOpen = storage.getItem(FINALE_OPEN_KEY);
+  const ownedFinale = nextOwned.finale;
+  const ownedOpen = nextOwned.finaleOpen;
+  const sourceOwnsFinale =
+    (targetFinale === null && targetOpen === null) ||
+    (ownedFinale !== undefined && targetFinale === ownedFinale && targetOpen === (ownedOpen ?? null));
+  if (sourceOwnsFinale) {
+    const sourceFinale = payload.finale ? stringify(payload.finale) : null;
+    const requestedOpen = payload.finaleOpen;
+    const sourceOpen =
+      requestedOpen === "1" ||
+      (requestedOpen?.startsWith("a:") && archive.some((row) => row.id === requestedOpen.slice(2)))
+        ? requestedOpen
+        : null;
+    for (const op of [
+      operation(storage, FINALE_KEY, sourceFinale),
+      operation(storage, FINALE_OPEN_KEY, sourceFinale ? sourceOpen : null),
+    ])
+      if (op) operations.push(op);
+    if (sourceFinale) {
+      nextOwned.finale = sourceFinale;
+      nextOwned.finaleOpen = sourceOpen;
+    } else {
+      delete nextOwned.finale;
+      delete nextOwned.finaleOpen;
+    }
+  } else {
+    delete nextOwned.finale;
+    delete nextOwned.finaleOpen;
+  }
+
+  mergeSingular(SETTINGS_KEY, "settings", payload.settings ? stringify(payload.settings) : undefined);
+  if (payload.cues) {
+    const op = operation(storage, CUES_KEY, stringify(mergeCues(payload.cues, readJSON(storage, CUES_KEY))));
+    if (op) operations.push(op);
+  }
+  mergeSingular(THEME_KEY, "theme", payload.theme);
+}
+
+/** Chronological order plus the record book's doors: rows sort by their log
+ * row's position (oldest first, the order `archiveGame` expects so its
+ * front-eviction drops the oldest), unknown ids sort oldest; over the cap,
+ * the oldest rows that are not a combo best go first. */
+function trimArchive(
+  rows: Record<string, unknown>[],
+  history: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  const position = new Map<string, number>();
+  history.forEach((row, index) => {
+    if (typeof row.id === "string" && !position.has(row.id)) position.set(row.id, index);
+  });
+  const at = (row: Record<string, unknown>) => position.get(row.id as string) ?? -1;
+  const ordered = [...rows].sort((a, b) => at(a) - at(b));
+  if (ordered.length <= ARCHIVE_CAP) return ordered;
+  const keep = bestArchiveIds(history as unknown as HistoryEntry[]);
+  let excess = ordered.length - ARCHIVE_CAP;
+  const trimmed: Record<string, unknown>[] = [];
+  for (const row of ordered) {
+    if (excess > 0 && !keep.has(row.id as string)) excess -= 1;
+    else trimmed.push(row);
+  }
+  return trimmed.slice(Math.max(0, trimmed.length - ARCHIVE_CAP));
+}
+
+/** The staging rows an in-flight sweep has landed so far — the sweep's own
+ * cursor. Invalid staging reads as none, which restarts the sweep cleanly. */
+export function sweepRows(storage: StorageLike): Record<string, unknown>[] {
+  const value = readJSON(storage, SWEEP_KEY);
+  return Array.isArray(value) ? value.filter(plain) : [];
+}
+
+/** The archive ids the target still wants from the source, given a sweep done
+ * chunk's manifest: every combo best in the log, then the newest rows until
+ * the cap is spent — minus what is already here. */
+export function missingArchiveIds(storage: StorageLike, manifest: string[]): string[] {
+  const history = existingArray(storage, HISTORY_KEY);
+  const present = new Set(
+    existingArray(storage, ARCHIVE_KEY)
+      .filter(validArchive)
+      .map((row) => row.id as string),
+  );
+  const position = new Map<string, number>();
+  history.forEach((row, index) => {
+    if (typeof row.id === "string" && !position.has(row.id)) position.set(row.id, index);
+  });
+  const candidates = [...new Set([...present, ...manifest])];
+  const keep = bestArchiveIds(history as unknown as HistoryEntry[]);
+  const wanted = new Set<string>([...keep].filter((id) => candidates.includes(id)));
+  const newestFirst = candidates.sort(
+    (a, b) => (position.get(b) ?? -1) - (position.get(a) ?? -1),
+  );
+  for (const id of newestFirst) {
+    if (wanted.size >= ARCHIVE_CAP) break;
+    wanted.add(id);
+  }
+  return [...wanted].filter((id) => !present.has(id));
+}
+
+/** The completion sweep's merge: the fresh source history replaces the prefix
+ * the initial migration adopted (after verifying that prefix survives inside
+ * the fresh list — anything else means the legacy log diverged and nothing is
+ * touched), every row played on this origin since keeps its seat after it,
+ * and the archive unions by id under `trimArchive`'s order and cap. */
+function planSweepAdoption(storage: StorageLike, payload: MigrationPayload): WriteOperation[] {
+  const marker = readMarker(storage);
+  if (!marker.initialComplete)
+    throw new Error("A completion sweep needs a completed migration to complete");
+  const nextOwned = { ...(marker.owned ?? {}) };
+  const staged = sweepRows(storage);
+  const operations: WriteOperation[] = [];
+
+  // A need-only hop after the history already swept: an empty done chunk
+  // whose total matches the marker carries archive rows and nothing else, so
+  // the gap arithmetic (whose staging was cleared by the sweep's own commit)
+  // does not apply to it.
+  const alreadySwept =
+    payload.history.done &&
+    payload.history.rows.length === 0 &&
+    payload.history.start === payload.history.total &&
+    payload.history.total === marker.historyCount;
+
+  if (!alreadySwept && payload.history.start > staged.length)
+    throw new Error("Migration history has a gap");
+  const overlap = Math.max(0, staged.length - payload.history.start);
+  const incoming = alreadySwept ? [] : payload.history.rows.slice(overlap);
+
+  if (!payload.history.done) {
+    const op = operation(storage, SWEEP_KEY, stringify([...staged, ...incoming]));
+    if (op) operations.push(op);
+    return operations;
+  }
+
+  const fresh = [...staged, ...incoming];
+  const targetHistory = existingArray(storage, HISTORY_KEY);
+  let nextHistory = targetHistory;
+  let nextCount = marker.historyCount;
+  if (!alreadySwept) {
+    // Which target rows are the source's own earlier copies? There is no
+    // provenance marker, and after a late-source retry they are not a prefix
+    // either (that retry APPENDS, so source rows sit both before and after
+    // .io play). A greedy in-order match answers it byte-for-byte: every row
+    // the first pass landed came out of this same normalizer, so it equals
+    // its fresh twin exactly, and matching against an advancing cursor keeps
+    // multiset semantics — two identical quit rows only both match if the
+    // fresh list holds two. Whatever does not match was played HERE and is
+    // kept whole; nothing is ever dropped, which is what lets the sweep have
+    // no divergence failure at all.
+    const freshTexts = fresh.map(stringify);
+    let cursor = 0;
+    const targetOnly: Record<string, unknown>[] = [];
+    for (const row of targetHistory) {
+      const text = stringify(row);
+      let found = -1;
+      for (let i = cursor; i < freshTexts.length; i += 1)
+        if (freshTexts[i] === text) {
+          found = i;
+          break;
+        }
+      if (found === -1) targetOnly.push(row);
+      else cursor = found + 1;
+    }
+    // Chronological merge of two internally ordered lists (both are
+    // append-only logs). Dates are day-grained, so ties take the source row
+    // first — the elder log on any shared day.
+    const merged: Record<string, unknown>[] = [];
+    let i = 0;
+    let j = 0;
+    while (i < fresh.length || j < targetOnly.length) {
+      if (
+        j >= targetOnly.length ||
+        (i < fresh.length &&
+          String(fresh[i].date ?? "") <= String(targetOnly[j].date ?? ""))
+      ) {
+        merged.push(fresh[i]);
+        i += 1;
+      } else {
+        merged.push(targetOnly[j]);
+        j += 1;
+      }
+    }
+    nextHistory = merged;
+    nextCount = fresh.length;
+    const op = operation(storage, HISTORY_KEY, stringify(nextHistory));
+    if (op) operations.push(op);
+  }
+  const stagedOp = operation(storage, SWEEP_KEY, null);
+  if (stagedOp) operations.push(stagedOp);
+
+  const targetArchive = existingArray(storage, ARCHIVE_KEY).filter(validArchive);
+  const seen = new Set(targetArchive.map((row) => row.id as string));
+  const merged = [
+    ...targetArchive,
+    ...(payload.archive ?? []).filter((row) => !seen.has(row.id as string)),
+  ];
+  const archive = trimArchive(merged, nextHistory);
+  const archiveOp = operation(storage, ARCHIVE_KEY, stringify(archive));
+  if (archiveOp) operations.push(archiveOp);
+
+  planSingulars(storage, payload, nextOwned, operations, archive);
+
+  const nextMarker: AdoptedMarker = {
+    v: 1,
+    source: SOURCE_ORIGIN,
+    historyCount: nextCount,
+    initialComplete: true,
+    ...(Object.keys(nextOwned).length ? { owned: nextOwned } : {}),
+  };
+  const markerOp = operation(storage, ADOPTED_KEY, stringify(nextMarker));
+  if (markerOp) operations.push(markerOp);
+  return operations;
+}
+
 /** Pure merge planning: marker is last, so it never claims a data write that
  * the write-ahead journal has not verified. */
 export function planAdoption(storage: StorageLike, payload: MigrationPayload): WriteOperation[] {
+  if (payload.sweep === true) return planSweepAdoption(storage, payload);
   const marker = readMarker(storage);
   const nextOwned = { ...(marker.owned ?? {}) };
   if (payload.history.start > marker.historyCount)
@@ -650,64 +948,7 @@ export function planAdoption(storage: StorageLike, payload: MigrationPayload): W
       if (op) operations.push(op);
     }
 
-    const mergeSingular = (
-      key: string,
-      ownerKey: "current" | "settings" | "theme",
-      sourceValue: string | undefined,
-    ) => {
-      const targetValue = storage.getItem(key);
-      const ownedValue = nextOwned[ownerKey];
-      const sourceStillOwns = targetValue === null || (ownedValue !== undefined && targetValue === ownedValue);
-      if (sourceValue !== undefined && sourceStillOwns) {
-        const op = operation(storage, key, sourceValue);
-        if (op) operations.push(op);
-        nextOwned[ownerKey] = sourceValue;
-      } else if (sourceValue === undefined && ownedValue !== undefined && targetValue === ownedValue) {
-        const op = operation(storage, key, null);
-        if (op) operations.push(op);
-        delete nextOwned[ownerKey];
-      } else if (!sourceStillOwns) delete nextOwned[ownerKey];
-    };
-    mergeSingular(SAVE_KEY, "current", payload.current ? stringify(payload.current) : undefined);
-
-    const targetFinale = storage.getItem(FINALE_KEY);
-    const targetOpen = storage.getItem(FINALE_OPEN_KEY);
-    const ownedFinale = nextOwned.finale;
-    const ownedOpen = nextOwned.finaleOpen;
-    const sourceOwnsFinale =
-      (targetFinale === null && targetOpen === null) ||
-      (ownedFinale !== undefined && targetFinale === ownedFinale && targetOpen === (ownedOpen ?? null));
-    if (sourceOwnsFinale) {
-      const sourceFinale = payload.finale ? stringify(payload.finale) : null;
-      const requestedOpen = payload.finaleOpen;
-      const sourceOpen =
-        requestedOpen === "1" ||
-        (requestedOpen?.startsWith("a:") && archive.some((row) => row.id === requestedOpen.slice(2)))
-          ? requestedOpen
-          : null;
-      for (const op of [
-        operation(storage, FINALE_KEY, sourceFinale),
-        operation(storage, FINALE_OPEN_KEY, sourceFinale ? sourceOpen : null),
-      ])
-        if (op) operations.push(op);
-      if (sourceFinale) {
-        nextOwned.finale = sourceFinale;
-        nextOwned.finaleOpen = sourceOpen;
-      } else {
-        delete nextOwned.finale;
-        delete nextOwned.finaleOpen;
-      }
-    } else {
-      delete nextOwned.finale;
-      delete nextOwned.finaleOpen;
-    }
-
-    mergeSingular(SETTINGS_KEY, "settings", payload.settings ? stringify(payload.settings) : undefined);
-    if (payload.cues) {
-      const op = operation(storage, CUES_KEY, stringify(mergeCues(payload.cues, readJSON(storage, CUES_KEY))));
-      if (op) operations.push(op);
-    }
-    mergeSingular(THEME_KEY, "theme", payload.theme);
+    planSingulars(storage, payload, nextOwned, operations, archive);
   }
 
   const nextMarker: AdoptedMarker = {
@@ -855,14 +1096,26 @@ async function executeMigration(bootstrap: MigrationBootstrap): Promise<void> {
       if (readPendingNonce(localStorage, TARGET_PENDING_KEY) !== nonce)
         throw new Error("Could not start a verified migration session");
       const marker = readMarker(localStorage);
+      // A completed migration re-entered (the #remigrate hatch) runs as a
+      // COMPLETION SWEEP: the whole legacy history again from zero, spliced
+      // over the adopted prefix, then the archive rows the first pass's one
+      // 48KB shot cut. Stale staging from an aborted sweep restarts clean.
+      if (marker.initialComplete) {
+        localStorage.removeItem(SWEEP_KEY);
+        return replace(`${SOURCE_URL}#export=${encodeURIComponent(nonce)}&h=0&s=1`);
+      }
       return replace(`${SOURCE_URL}#export=${encodeURIComponent(nonce)}&h=${marker.historyCount}`);
     }
     case "legacy-export": {
       const nonce = requireNonce(hashParams.get("export"));
       const cursor = Number(hashParams.get("h"));
       if (!Number.isSafeInteger(cursor) || cursor < 0) throw new Error("Migration cursor is invalid");
+      const sweep = hashParams.get("s") === "1";
+      const rawNeed = hashParams.get("need");
+      const need = rawNeed ? rawNeed.split(",").filter((id) => /^[\w-]{1,128}$/.test(id)) : [];
+      if (need.length > ARCHIVE_CAP) throw new Error("Migration archive request is invalid");
       localStorage.setItem(SOURCE_PENDING_KEY, stringify({ v: 1, nonce, at: Date.now() }));
-      const transfer = await buildSourceTransfer(localStorage, nonce, cursor);
+      const transfer = await buildSourceTransfer(localStorage, nonce, cursor, { sweep, need });
       const theme = transfer.payload.theme ? `&t=${transfer.payload.theme}` : "";
       return replace(
         `${TARGET_ORIGIN}/#adopt=${encodeURIComponent(transfer.encoded)}&n=${encodeURIComponent(nonce)}${theme}`,
@@ -877,6 +1130,24 @@ async function executeMigration(bootstrap: MigrationBootstrap): Promise<void> {
       const payload = await decodeMigrationPayload(encoded);
       if (payload.nonce !== nonce) throw new Error("Migration payload belongs to another session");
       const marker = await commitAdoption(localStorage, payload);
+      if (payload.sweep === true) {
+        if (!payload.history.done)
+          return replace(
+            `${SOURCE_URL}#export=${encodeURIComponent(nonce)}&h=${sweepRows(localStorage).length}&s=1`,
+          );
+        // Done chunks carry the source's archive manifest; keep hopping for
+        // the rows the budget cut, as long as each hop still lands one — an
+        // empty-handed response ends the loop rather than repeating it, so a
+        // single oversized row can never spin the two origins forever.
+        const missing = missingArchiveIds(localStorage, payload.archiveIds ?? []);
+        const emptyHanded =
+          payload.history.start === payload.history.end && !(payload.archive?.length ?? 0);
+        if (missing.length && !emptyHanded)
+          return replace(
+            `${SOURCE_URL}#export=${encodeURIComponent(nonce)}&h=${payload.history.total}&s=1&need=${encodeURIComponent(missing.join(","))}`,
+          );
+        return replace(`${SOURCE_URL}#complete=${encodeURIComponent(nonce)}`);
+      }
       if (payload.history.done)
         return replace(`${SOURCE_URL}#complete=${encodeURIComponent(nonce)}`);
       return replace(`${SOURCE_URL}#export=${encodeURIComponent(nonce)}&h=${marker.historyCount}`);

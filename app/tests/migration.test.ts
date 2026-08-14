@@ -5,6 +5,7 @@ import {
   commitAdoption,
   decodeMigrationPayload,
   encodeMigrationPayload,
+  missingArchiveIds,
   normalizeHistoryRow,
   planAdoption,
   type MigrationPayload,
@@ -396,5 +397,212 @@ describe("payload boundary", () => {
     expect(first.payload.history.end).toBeGreaterThan(0);
     expect(first.payload.history.end).toBeLessThan(rows.length);
     expect(first.payload.history.done).toBe(false);
+  });
+});
+
+/* ---------- the completion sweep (phase 2.5) ---------- */
+
+describe("the completion sweep", () => {
+  const NONCE = "12345678-1234-4234-8234-123456789abc";
+  const marker = (historyCount: number, initialComplete = true) =>
+    JSON.stringify({
+      v: 1,
+      source: "https://hedgertronic.com",
+      historyCount,
+      initialComplete,
+    });
+
+  it("splices recovered legacy rows over the adopted prefix, keeping .io play", async () => {
+    const storage = new MemoryStorage();
+    const a = row("a", { total: 1 });
+    const b = row("b", { total: 2 });
+    const c = row("c", { total: 3 });
+    const io = row("io", { total: 9 });
+    // The first pass landed only a and c (b was rejected by the old
+    // normalizer); a game has since been played on .io.
+    storage.setItem("hotstove.history", JSON.stringify([a, c, io]));
+    storage.setItem("hotstove.adopted", marker(2));
+
+    await commitAdoption(storage, payload([a, b, c], { sweep: true, archiveIds: [] }));
+
+    expect(parsed(storage, "hotstove.history")).toEqual([a, b, c, io]);
+    const m = parsed(storage, "hotstove.adopted") as { historyCount: number };
+    expect(m.historyCount).toBe(3);
+    expect(storage.getItem("hotstove.migration.sweep")).toBeNull();
+  });
+
+  it("keeps a target row the fresh list does not contain, wherever it sits", async () => {
+    // z landed inside the adopted range but has no fresh twin (the row shape
+    // no target build ever wrote — or simply an .io game between two source
+    // eras, the late-source-retry layout). The greedy match keeps it: the
+    // sweep has no divergence failure because it never drops anything.
+    const storage = new MemoryStorage();
+    storage.setItem(
+      "hotstove.history",
+      JSON.stringify([row("a", { total: 1 }), row("z", { total: 7 })]),
+    );
+    storage.setItem("hotstove.adopted", marker(2));
+
+    await commitAdoption(
+      storage,
+      payload([row("a", { total: 1 }), row("b", { total: 2 })], { sweep: true }),
+    );
+    expect(parsed(storage, "hotstove.history")).toEqual([
+      row("a", { total: 1 }),
+      row("b", { total: 2 }),
+      row("z", { total: 7 }),
+    ]);
+  });
+
+  it("re-interleaves a late-source retry into true date order", async () => {
+    // After the initial migration, play continued on BOTH origins: t0 on .io,
+    // then `late` back on the source, which the signature retry appended
+    // AFTER t0. The adopted source rows are no longer a prefix — the exact
+    // layout that rules out prefix-splicing — and the sweep's date merge
+    // puts the recovered row and the retry row back in chronological order.
+    const storage = new MemoryStorage();
+    const s0 = { ...row("s0", { total: 1 }), date: "2026-08-11" };
+    const mid = { ...row("mid", { total: 2 }), date: "2026-08-12" };
+    const t0 = { ...row("t0", { total: 9 }), date: "2026-08-13" };
+    const late = { ...row("late", { total: 3 }), date: "2026-08-14" };
+    storage.setItem("hotstove.history", JSON.stringify([s0, t0, late]));
+    storage.setItem("hotstove.adopted", marker(2));
+
+    await commitAdoption(storage, payload([s0, mid, late], { sweep: true }));
+    expect(parsed(storage, "hotstove.history")).toEqual([s0, mid, t0, late]);
+    const m = parsed(storage, "hotstove.adopted") as { historyCount: number };
+    expect(m.historyCount).toBe(3);
+  });
+
+  it("refuses to sweep before the initial migration completed", async () => {
+    const storage = new MemoryStorage();
+    storage.setItem("hotstove.adopted", marker(0, false));
+    await expect(
+      commitAdoption(storage, payload([row("a")], { sweep: true })),
+    ).rejects.toThrow(/completed migration/);
+  });
+
+  it("stages non-final sweep chunks without touching the log", async () => {
+    const storage = new MemoryStorage();
+    const a = row("a", { total: 1 });
+    const b = row("b", { total: 2 });
+    const io = row("io", { total: 9 });
+    storage.setItem("hotstove.history", JSON.stringify([a, io]));
+    storage.setItem("hotstove.adopted", marker(1));
+
+    await commitAdoption(storage, payload([a], { sweep: true, total: 2, done: false }));
+    expect(parsed(storage, "hotstove.history")).toEqual([a, io]);
+    expect(parsed(storage, "hotstove.migration.sweep")).toEqual([a]);
+
+    await commitAdoption(storage, payload([b], { sweep: true, start: 1, total: 2, done: true }));
+    expect(parsed(storage, "hotstove.history")).toEqual([a, b, io]);
+    expect(storage.getItem("hotstove.migration.sweep")).toBeNull();
+  });
+
+  it("merges need-hop archive rows after the history already swept", async () => {
+    const storage = new MemoryStorage();
+    const a = row("a", { total: 1, id: "g1" });
+    storage.setItem("hotstove.history", JSON.stringify([a]));
+    storage.setItem("hotstove.adopted", marker(1));
+
+    await commitAdoption(
+      storage,
+      payload([], {
+        sweep: true,
+        start: 1,
+        total: 1,
+        done: true,
+        archive: [finale("g1")],
+        archiveIds: ["g1"],
+      }),
+    );
+    expect(parsed(storage, "hotstove.history")).toEqual([a]);
+    const archive = parsed(storage, "hotstove.archive") as { id: string }[];
+    expect(archive.map((r) => r.id)).toEqual(["g1"]);
+  });
+
+  it("orders the merged archive by the log and keeps record-book doors under the cap", async () => {
+    const storage = new MemoryStorage();
+    // 53 scored games: the oldest ("best") is the combo best; two .io games
+    // are the newest and already archived here.
+    const history = [
+      row("best", { total: 160, id: "best", difficulty: "standard", bank: "classic" }),
+      ...Array.from({ length: 50 }, (_, i) =>
+        row(`old-${i}`, { total: 100 + i * 0.1, id: `old-${i}`, difficulty: "standard", bank: "classic" }),
+      ),
+      row("io-1", { total: 120, id: "io-1", difficulty: "standard", bank: "classic" }),
+      row("io-2", { total: 121, id: "io-2", difficulty: "standard", bank: "classic" }),
+    ];
+    storage.setItem("hotstove.history", JSON.stringify(history));
+    storage.setItem("hotstove.adopted", JSON.stringify({
+      v: 1,
+      source: "https://hedgertronic.com",
+      historyCount: 53,
+      initialComplete: true,
+    }));
+    storage.setItem("hotstove.archive", JSON.stringify([finale("io-1"), finale("io-2")]));
+
+    await commitAdoption(
+      storage,
+      payload([], {
+        sweep: true,
+        start: 53,
+        total: 53,
+        done: true,
+        archive: [finale("best"), ...Array.from({ length: 49 }, (_, i) => finale(`old-${i}`))],
+        archiveIds: ["best", ...Array.from({ length: 49 }, (_, i) => `old-${i}`)],
+      }),
+    );
+    const ids = (parsed(storage, "hotstove.archive") as { id: string }[]).map((r) => r.id);
+    expect(ids).toHaveLength(50);
+    // The best's door survives the cap even as the oldest row…
+    expect(ids[0]).toBe("best");
+    // …the two oldest non-best rows are the ones evicted, and the order is
+    // the log's own (oldest first, .io newest at the tail).
+    expect(ids).not.toContain("old-0");
+    expect(ids).not.toContain("old-1");
+    expect(ids.slice(-2)).toEqual(["io-1", "io-2"]);
+  });
+
+  it("computes the missing archive ids the loop asks for", () => {
+    const storage = new MemoryStorage();
+    const history = [
+      row("best", { total: 160, id: "best", difficulty: "standard", bank: "classic" }),
+      row("mid", { total: 100, id: "mid", difficulty: "standard", bank: "classic" }),
+      row("new", { total: 110, id: "new", difficulty: "standard", bank: "classic" }),
+    ];
+    storage.setItem("hotstove.history", JSON.stringify(history));
+    storage.setItem("hotstove.archive", JSON.stringify([finale("new")]));
+    expect(missingArchiveIds(storage, ["best", "mid", "new"]).sort()).toEqual(["best", "mid"]);
+  });
+
+  it("marks sweep transfers and answers a need list with exactly those rows", async () => {
+    const storage = new MemoryStorage();
+    storage.setItem("hotstove.history", JSON.stringify([row("a", { total: 1, id: "g1" })]));
+    storage.setItem(
+      "hotstove.archive",
+      JSON.stringify([finale("g1"), finale("g2"), finale("g3")]),
+    );
+    const transfer = await buildSourceTransfer(storage, NONCE, 0, { sweep: true, need: ["g2"] });
+    expect(transfer.payload.sweep).toBe(true);
+    expect(transfer.payload.archiveIds).toEqual(["g1", "g2", "g3"]);
+    expect((transfer.payload.archive ?? []).map((r) => r.id)).toEqual(["g2"]);
+    // And the encoded form round-trips with both sweep fields intact.
+    const back = await decodeMigrationPayload(transfer.encoded);
+    expect(back.sweep).toBe(true);
+    expect(back.archiveIds).toEqual(["g1", "g2", "g3"]);
+  });
+});
+
+describe("field-tolerant history normalization", () => {
+  it("keeps a row whose optional field an old build corrupted", () => {
+    expect(normalizeHistoryRow({ date: "2026-01-01", total: 5, seed: "oops" })).toEqual({
+      date: "2026-01-01",
+      total: 5,
+    });
+  });
+
+  it("keeps a scored row whose date is missing", () => {
+    expect(normalizeHistoryRow({ total: 5 })).toEqual({ date: "", total: 5 });
   });
 });

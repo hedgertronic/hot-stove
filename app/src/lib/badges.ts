@@ -367,6 +367,16 @@ export interface BadgeFacts {
    *
    * Optional for the `age` reason. */
   managerLast?: boolean;
+  /** The skipper was hired FIRST — the dugout filled while every other seat
+   * (the roster plus, in Open Market, the owner and the ballpark) stood
+   * empty. `managerLast`'s mirror, written by the same two first-hire paths
+   * at the same moment and never by the Trade Deadline swap. Re-deals
+   * (🎟️/🚚) fill no seat, so a re-dealt reel ahead of the hire leaves the
+   * claim intact: the question is what the club looked like walking in, not
+   * the log's first token.
+   *
+   * Optional for the `age` reason. */
+  managerFirst?: boolean;
   /** The Konami code was entered on a physical keyboard during this game.
    *
    * Optional for the `age` reason: a save written before the field existed
@@ -602,7 +612,7 @@ const FRANCHISE_SHARE = 0.5;
  * than a click — the WAR ladder's top tier. */
 const HOMEGROWN_WAR = 8.0;
 
-/** 🪙 LEAGUE MINIMUM's price, and how many seats have to carry it.
+/** 🪙 BARGAIN BIN's price, and how many seats have to carry it.
  *
  * The price is the league minimum this card set actually has, and it is
  * era-shaped rather than flat. Measured off `cost` in data/cards: the cheapest
@@ -1852,6 +1862,37 @@ export const BADGES: BadgeDef[] = [
     freq: null,
     how: "A gold record with a below-replacement player on the club.",
   },
+  /* 🎒's ledger-side sibling, and 💳 THE BILL CAME DUE's happy ending: the
+   * club went past the cap, paid the tax on every dollar over, and the record
+   * the finale stamped held gold anyway. Both facts are the finale's own —
+   * the tier comes off the stamped total, and the tax has already been paid
+   * out of that number before the tier is read, so this is gold DESPITE the
+   * bill by construction, never gold that the bill later ate (💳 owns that
+   * season, and the two cannot co-fire: 💳 requires the stamp to have LOST a
+   * rung the baseline held, this requires the stamp to hold the top one).
+   *
+   * It rides `roster`, 🕶️ FLYING BLIND's argument restated: `payroll` is an
+   * exclusive axis about the SHAPE of the spend, and this badge is supposed
+   * to stack with whatever shape the ledger took — 🚜 MORTGAGED THE FARM
+   * beside it is the best possible version of the story.
+   *
+   * `freq: null`, 💳's population argument: the reference arm treats the cap
+   * as a hard feasibility gate and almost never busts a payroll, so a
+   * measured rate would describe the arm's solvency policy rather than the
+   * badge. `rare` is the judgment tier: gold alone stamps 4.2% of strong-play
+   * games, and the tax gate cuts that population to the slice that overspent
+   * and got away with it. Named rather than `secret` — a player staring at an
+   * over-cap ledger deserves the direction that gold is still worth chasing. */
+  {
+    key: "worthit",
+    emoji: "🤑",
+    label: "WORTH EVERY PENNY",
+    name: "Worth Every Penny",
+    rarity: "rare",
+    axis: "roster",
+    freq: null,
+    how: "A gold record with a payroll past the cap.",
+  },
   /* The name COOPERSTOWN CLASS moves to the badge that means it literally, and
    * the award-points badge it moves off keeps its KEY.
    *
@@ -2102,6 +2143,32 @@ export const BADGES: BadgeDef[] = [
     freq: 8.63,
     how: "Your skipper was worth more wins than any player on the roster.",
   },
+  /* The dugout filled FIRST — 🪑's opposite number on the same clock. The
+   * club that opens with its skipper spends spin one on the chair every
+   * full-club plan shops for last, which is a statement about how the club
+   * gets built rather than a leftover.
+   *
+   * It reads a MOMENT, exactly as 🪑 below does and for the same reason: at
+   * the finale a full club looks the same whichever order the seats filled,
+   * so the engine records the club's shape as the hire happens — the note
+   * beside `managerHiredFirst` carries which paths write it, and why a
+   * 🎟️/🚚 re-deal ahead of the hire costs nothing (re-deals fill no seat).
+   *
+   * `freq: null` for 🪑's reason: when to take the manager IS each bot arm's
+   * front-office policy, so a measured rate would describe the arm's
+   * patience rather than the badge's difficulty. `uncommon` is a judgment
+   * tier on the same argument as 🕶️'s `rare`, one step down: this is one
+   * deliberate pick, not a whole blind build. */
+  {
+    key: "tonesetter",
+    emoji: "🥁",
+    label: "SET THE TONE",
+    name: "Set the Tone",
+    rarity: "uncommon",
+    axis: "roster",
+    freq: null,
+    how: "Hired your skipper before filling any other seat.",
+  },
   /* 🧢's opposite number, and the dugout's version of the gamble 🕶️ names on
    * the payroll. The club is built, every other seat is filled, and the last
    * spin has to produce a skipper out of whatever card the reel deals — so
@@ -2339,11 +2406,20 @@ export const BADGES: BadgeDef[] = [
     freq: 0.3,
     how: "Rostered a player worth less than 0.0 WAR.",
   },
+  /* Relabeled from LEAGUE MINIMUM (owner call, 2026-08-14): the trigger
+   * accepts $1.6M-or-less seasons that are cheap without being AT the floor
+   * (the $1.6M note below), so "league minimum" promised more precision than
+   * the gate holds. "Pre-arb" is the baseball word for exactly this
+   * population — men playing on cheap early-career contracts — and it makes
+   * the claim the trigger keeps. PINCHED EVERY PENNY was the other candidate
+   * register and 🧮 already wears it. The KEY and the 🪙 stay: history.ts
+   * stores keys, so a key is a claim about what a player already earned
+   * (🎖️ HARDWARE STORE's rule), and shares emit the emoji alone. */
   {
     key: "minimum",
     emoji: "🪙",
-    label: "LEAGUE MINIMUM",
-    name: "League Minimum",
+    label: "BARGAIN BIN",
+    name: "Bargain Bin",
     rarity: "uncommon",
     axis: "roster",
     freq: 10.22,
@@ -3160,6 +3236,11 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // is the same feat.
   if (recordFromTotal(f.total).tier === "elite" && roster.some((p) => p.war < 0))
     out.push("carried");
+  // 🤑 — both facts off the finale's own numbers: the stamped tier (the tax
+  // already paid inside it) and the ledger the tax was read from. Strict `>`
+  // matches 💳's gate: at the cap exactly there is no tax and no story.
+  if (recordFromTotal(f.total).tier === "elite" && f.spendM > f.budgetM)
+    out.push("worthit");
   if (f.awardPoints >= COOPERSTOWN_PTS) out.push("cooperstown");
   // The skipper's chair is one of the four seats, and it is counted the same
   // way a player is. `=== true` rather than a truthiness test because both
@@ -3227,6 +3308,10 @@ export function earnedBadges(f: BadgeFacts): string[] {
   // record read as .500 exactly, which withholds the badge — the fail-safe
   // direction for an optional fact.
   if (f.managerLast === true && (f.managerNetWins ?? 0) < 0) out.push("interim");
+  // 🥁 — the recorded moment alone: the dugout filled while every other seat
+  // stood empty. `=== true` so a fact set from before the field existed
+  // fails safe, the optional-facts rule.
+  if (f.managerFirst === true) out.push("tonesetter");
   // Pete Rose is the only person in the dataset who managed and played the same
   // season (CIN 1985 and 1986), but the trigger deliberately does not name him:
   // it asks whether YOUR skipper is on YOUR roster, which is a decision made

@@ -10,6 +10,8 @@
     type CaseFilter,
     type PassportItem,
   } from "../lib/settings";
+  import { slide } from "svelte/transition";
+  import { quintOut } from "svelte/easing";
   import { balancewrap } from "../lib/balancewrap";
   import BadgePill from "./BadgePill.svelte";
   import CornerPillArt from "./CornerPillArt.svelte";
@@ -69,6 +71,17 @@
    * does NOT clear the lens (a deliberate pair: the funnel pill tints ink
    * while any lens is live, so a filtered board is never silently filtered). */
   let filtersOpen = $state(false);
+  /** The lens board's open/close, at grow()'s 240ms/quintOut (RosterRail) —
+   * the panel is in flow, so the move shifts the whole board below it, and a
+   * slide animates the same layout channels the corner pills' margin slides
+   * ride (height and padding repaint in place, no compositor layer; the
+   * round-37 channel doctrine bans opacity, and `slide` carries none).
+   * Bidirectional so the close plays the same film backwards. Reduced motion
+   * runs it at zero — grow()'s own courtesy, ahead of app.css's blanket. */
+  const lensStill =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const allOn = $derived(picked.length === ALL_KEYS.length);
   function toggleLens(k: LensKey) {
     picked = picked.includes(k) ? picked.filter((x) => x !== k) : [...picked, k];
@@ -274,7 +287,12 @@
          they dress as pills. Rendered only while the corner funnel holds it
          open. -->
     {#if filtersOpen}
-    <div class="filters" role="group" aria-label="Filter collectibles by mode">
+    <div
+      class="filters"
+      role="group"
+      aria-label="Filter collectibles by mode"
+      transition:slide={{ duration: lensStill ? 0 : 240, easing: quintOut }}
+    >
       <div class="frow">
         <button type="button" class="fall" onclick={() => (picked = [...ALL_KEYS])}>ALL</button>
         {#each DIFF_ROW as f (f.key)}
