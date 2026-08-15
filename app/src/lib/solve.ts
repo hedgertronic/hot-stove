@@ -68,6 +68,15 @@ export async function solveBestRoster(
   // because the pools are the same size and all of them have to finish.
   const cores = navigator.hardwareConcurrency ?? 4;
   const lanes = Math.min(tasks.length, Math.max(2, cores - 1));
+  const started = Date.now();
   await Promise.all(Array.from({ length: lanes }, lane));
+  // Dev-only, and it is the seam's one honest number on a device this session
+  // cannot drive: the browser reports its own solve rather than a harness
+  // reporting it for them.
+  if (import.meta.env.DEV)
+    console.log(
+      `[hot stove] dream solve ${Date.now() - started}ms · ${tasks.length} pools · ` +
+        `${lanes} lanes · ${cores} cores`,
+    );
   return reduceBest(results);
 }
