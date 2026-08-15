@@ -253,8 +253,23 @@ describe("review fixes: the finalization window", () => {
     expect(solve).toContain('signal.addEventListener("abort", stop, { once: true })');
     expect(solve).toContain('signal.removeEventListener("abort", stop)');
     expect(solve).toContain("worker.terminate()");
-    // The lane must not start another pool once the game is abandoned.
-    expect(solve).toContain("while (!signal.aborted && next < tasks.length)");
+    // The relay onto the fan-out's own controller comes off the Game's signal
+    // too — it is the listener that would hold this solve's whole closure.
+    expect(solve).toContain('signal.removeEventListener("abort", relay)');
+    // No lane starts another pool once the fan-out is stopped, whether the
+    // player quit or a peer pool failed.
+    expect(solve).toContain("while (!stop.signal.aborted && next < tasks.length)");
+  });
+
+  // A solve that fails is not allowed to become a wrong finale: `best` reaching
+  // the finale as null means no dream club, no ceiling and zero scouting hits,
+  // which is a SCORE, not a slower screen. The worker path falling over
+  // (blocked by CSP, a 404'd chunk, a throw inside the solver) drops to the
+  // main thread instead. A quit is the one failure with nothing to salvage.
+  it("a failed solve falls back to the main thread rather than shipping a null yardstick", () => {
+    const solve = read("lib/solve.ts");
+    expect(solve).toMatch(/if \(signal\.aborted\) throw e;/);
+    expect(solve).toMatch(/return bestRoster\(cards, opts\);[\s\S]{0,80}} finally {/);
   });
 
   // The solve runs in a worker so the board can keep the landing thunk going

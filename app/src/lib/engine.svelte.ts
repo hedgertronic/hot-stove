@@ -2481,6 +2481,11 @@ export class Game {
     // otherwise still be true, and a rewind taken inside it would have this
     // method finish a game that no longer exists.
     this.undoPoint = null;
+    // Armed before the frames below, not after them: a quit taken in that
+    // window would otherwise find no controller to abort, and the solve would
+    // start anyway, into a game that no longer exists.
+    const stop = new AbortController();
+    this.solveStop = stop;
     // Two committed frames before the solve, not zero: the club-completing
     // signing is painting right now — the man thunking into his chair — and
     // starting the solve costs the main thread a worker spawn and a
@@ -2509,8 +2514,6 @@ export class Game {
     let best: BestRoster | null = null;
     let bestManager: BestManager | null = null;
     const solveStart = Date.now();
-    const stop = new AbortController();
-    this.solveStop = stop;
     try {
       const cards = await Promise.all(
         this.seen.map((s) => loadCard(s.team, s.year)),
@@ -2533,8 +2536,12 @@ export class Game {
       }, stop.signal);
       bestManager = best.manager ?? null;
     } catch {
-      /* offline mid-game, or a quit that stopped the workers: finish without
-         the yardstick — an abandoned game is dropped below regardless */
+      /* The cards themselves could not be loaded — offline mid-game — or the
+         player quit and the workers were stopped. Either way the season
+         finishes without its yardstick: no dream club, no ceiling, no
+         scouting hits. A solve that merely failed does NOT land here; solve.ts
+         falls back to the main thread rather than let a wrong finale through,
+         and only an abandoned game rethrows. */
     } finally {
       this.solveStop = null;
     }
