@@ -104,10 +104,36 @@ export async function forgeEndgame(
   // signed nothing) — the solve's cost scales with the cards it saw, and the
   // point of this screen is the real pause. Warm-loaded like play would have:
   // finishGame's own loads then hit the memo and cost nothing.
+  //
+  // REROLLED landings, not plain ones, for the last of them. A 🎟️ / 🚚 re-deal
+  // leaves two cards behind one landing, and the solver answers that by solving
+  // a separate pool per retained card — six pools for these two groups, which
+  // is what nearly every real finished game costs. A screen padded with plain
+  // landings solves ONE pool and shows a seam six times cheaper than the one
+  // players get. `seen` is written the way a re-deal writes it: same spin id,
+  // one entry per card dealt.
   while (g.seen.length < TARGET_LANDINGS - 1) {
-    const { e, card } = await land();
-    void card;
+    const { e } = await land();
     record(e);
+  }
+  // Two of those landings become re-deals: extra cards dealt onto a landing
+  // already recorded, which is exactly the row a 🎟️ / 🚚 writes. Group sizes
+  // 3 and 2 multiply out to the six pools nearly every real finished game
+  // costs.
+  // Both landings are chosen BEFORE any card is added: the additions grow
+  // `seen`, so an index taken after the first group would point into it.
+  // `spin` is optional on a seen entry — an old save can carry entries written
+  // before the field existed — but every entry this forge records sets it.
+  const spinAt = (back: number): number => g.seen[g.seen.length - back].spin!;
+  const regroup: [number, number][] = [
+    [spinAt(1), 2],
+    [spinAt(2), 1],
+  ];
+  for (const [spin, extra] of regroup) {
+    for (let i = 0; i < extra; i++) {
+      const { e } = await land();
+      g.seen.push({ team: e.team, year: e.year, spin });
+    }
   }
 
   // The final landing, left for the reviewer: any open row completes the club.
@@ -116,6 +142,8 @@ export async function forgeEndgame(
   g.phase = "landed";
   g.choicesLeft = 1;
   record(e);
-  g.spinCount = g.seen.length;
+  // Spins, not cards: the rerolled landings above dealt several cards each,
+  // and a re-deal costs no extra spin.
+  g.spinCount = new Set(g.seen.map((s) => s.spin)).size;
   return g;
 }

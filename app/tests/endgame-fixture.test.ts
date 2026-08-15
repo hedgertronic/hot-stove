@@ -6,6 +6,8 @@
  * and the whole run inert (a dev screen must never write the player's
  * storage). */
 import { describe, expect, it, vi } from "vitest";
+import { landingPools } from "../src/lib/bestroster";
+import { loadCard } from "../src/lib/data";
 import { forgeEndgame } from "../src/lab/endgame";
 import { loadData } from "./bots/harness";
 
@@ -28,8 +30,14 @@ describe("the ?endgame dev fixture", () => {
     expect(g.config.bank).toBe("classic");
     // The pause under review is the real one: a full season's worth of
     // landings for the dream solve to chew on.
-    expect(g.seen.length).toBe(13);
+    expect(g.seen.length).toBe(16);
+    // Fewer spins than cards: two of the landings were re-dealt, which is what
+    // makes this a six-pool solve — the shape nearly every real game finishes
+    // in, and six times the work a plain-landing screen would show.
     expect(g.spinCount).toBe(13);
+    expect(landingPools(await Promise.all(
+      g.seen.map((s) => loadCard(s.team, s.year)),
+    ), { landings: g.seen.map((s) => s.spin) })).toHaveLength(6);
 
     // The reviewer's tap: at least one open row on the final card, and
     // signing it completes the club and runs the whole finish for real.
