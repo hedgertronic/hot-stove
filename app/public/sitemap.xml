@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- One URL, because the game is one URL: every route the player reaches is a
+     fragment or client-side state under the apex. The legacy mount serves this
+     same file, which names hotstove.io on purpose — the canonical link element
+     says the same thing, and a sitemap that disagreed with it would be noise. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://hotstove.io/</loc>
+    <lastmod>2026-08-15</lastmod>
+  </url>
+</urlset>

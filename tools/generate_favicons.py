@@ -6,8 +6,14 @@ The browser favicons use the bare flame on transparency. The Apple touch icon
 uses the full boiler on opaque ivory; iOS may composite transparent icons onto
 black, so its tile must be opaque. All exports render at 8x and ask Chromium to
 emit CSS-sized pixels for clean small cuts.
+
+favicon.ico wraps the two PNGs this script just wrote, unmodified. Safari asks
+for /favicon.ico by path whatever the markup declares, and a 404 there is a
+result it will cache; the SVG alone is not enough even though Safari 15.4+ can
+render one.
 """
 
+import struct
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -73,3 +79,19 @@ with sync_playwright() as p:
     page.screenshot(path=str(OUT / "apple-touch-icon.png"), scale="css")
     print("apple-touch-icon.png: 180x180 boiler on ivory (rendered at 8x)")
     browser.close()
+
+# An .ico is a directory of images; since Vista each entry may hold a whole PNG
+# rather than a BMP, so the two cuts above go in verbatim — no resample, no
+# second encoder, nothing that could drift from what the PNG links serve.
+sizes = [(16, "favicon-16.png"), (32, "favicon-32.png")]
+images = [(tile, (OUT / name).read_bytes()) for tile, name in sizes]
+offset = 6 + 16 * len(images)
+directory, payload = b"", b""
+for tile, blob in images:
+    directory += struct.pack("<BBBBHHII", tile, tile, 0, 0, 1, 32, len(blob), offset)
+    payload += blob
+    offset += len(blob)
+(OUT / "favicon.ico").write_bytes(
+    struct.pack("<HHH", 0, 1, len(images)) + directory + payload
+)
+print(f"favicon.ico: {', '.join(f'{t}x{t}' for t, _ in images)} (PNG-in-ICO, byte-identical)")

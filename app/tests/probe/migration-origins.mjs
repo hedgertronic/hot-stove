@@ -111,8 +111,22 @@ for (const [name, engine] of Object.entries(engines)) {
   const sourceMark = await page.evaluate(() => JSON.parse(localStorage.getItem("hotstove.migrated") ?? "null"));
   if (sourceMark?.target !== TARGET.slice(0, -1) || typeof sourceMark?.signature !== "string")
     throw new Error(`${name}: source completion was not acknowledged`);
+  // index.html forwards an acknowledged browser from its head script, so the
+  // hop does not DEPEND on the source bundle even though the preload scanner
+  // still requests it. Refuse to serve that bundle and the forward must still
+  // land: before the hoist it could not, because only runMigration() called
+  // replace. A timeout here means the fast path regressed into waiting on
+  // lib/migration.ts.
+  const starveSourceModule = (route) => {
+    const url = route.request().url();
+    if (url.startsWith(OLD) && /\.js(\?|$)/.test(url)) return route.abort();
+    return serve(route);
+  };
+  await page.route("**/*", starveSourceModule);
   await page.goto(OLD, { waitUntil: "domcontentloaded" });
   await page.waitForURL(TARGET, { timeout: 20_000 });
+  await page.unroute("**/*", starveSourceModule);
+  await page.waitForSelector(".playbtn", { timeout: 20_000 });
 
   // If a pre-migration tab changed the source store after acknowledgment, the
   // signature makes the next old visit re-run the invisible handoff. Only the

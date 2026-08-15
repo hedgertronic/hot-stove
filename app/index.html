@@ -32,6 +32,21 @@
             moved = mark && mark.v === 1 && mark.target === "https://hotstove.io" && mark.signature === (sig >>> 0).toString(16).padStart(8, "0");
           } catch (e) {}
           mode = p.has("remigrate") ? "legacy-start" : moved ? "legacy-forward" : "legacy-start";
+          // A browser that already handed its record book over needs one
+          // string, not the bundle. Forwarding HERE starts the navigation as
+          // soon as the head parses, instead of after ~115KB gzipped of module
+          // downloads, parses, and runs purely to call the same replace. The
+          // preload scanner still REQUESTS the bundle — nothing in a document
+          // can unsend that — but the hop no longer waits on it. The flag is
+          // set first so the analytics block below still sees a migration
+          // document and emits no pageview. lib/migration.ts keeps its own
+          // legacy-forward case for the browser that runs the module anyway;
+          // it replaces to the same URL, which is a no-op.
+          if (mode === "legacy-forward") {
+            window.__HOTSTOVE_MIGRATION__ = { mode: mode, hash: location.hash };
+            location.replace("https://hotstove.io/");
+            return;
+          }
         } else if (apex && p.has("prepare")) mode = "target-prepare";
         else if (apex && p.has("adopt")) mode = "target-adopt";
         else if (apex && p.has("done")) mode = "target-done";
@@ -113,7 +128,13 @@
     <meta name="apple-mobile-web-app-title" content="Hot Stove" />
     <!-- The static flame SVG serves Chromium and Firefox; Safari falls
          through to the flame PNGs, which carry the same yellow-5/orange-8
-         art. The touch icon is the boiler on ivory. -->
+         art. The touch icon is the boiler on ivory.
+         favicon.ico is FIRST and holds those same two PNG cuts. Safari
+         requests /favicon.ico by path no matter what this markup says, and it
+         caches the 404 it used to get there — which outlives a deploy and is
+         why the tab could come up blank while every declared file returned
+         200. An SVG-capable browser still picks the SVG on the next line. -->
+    <link rel="icon" href="favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="icon" type="image/png" href="favicon-32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="favicon-16.png" sizes="16x16" />

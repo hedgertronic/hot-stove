@@ -335,6 +335,94 @@ Not before the bridge has been live long enough for returning-player traffic on
 the old path to decay. Six months is the floor, and the bridge costs nothing to
 keep.
 
+### What the 301 costs, stated once
+
+A 301 is issued by the edge, so the legacy document never executes. That is the
+entire objection: `hedgertronic.com` localStorage is readable only by JS running
+on `hedgertronic.com`, so the redirect and the handoff are mutually exclusive by
+construction. There is no expression that exempts the escape hatches, either —
+`#stay` and `#remigrate` are **fragments, and fragments are never transmitted**.
+The edge sees `GET /games/hot-stove/` and nothing more. Worse, per RFC 7231 a
+`Location` without its own fragment inherits the request's, so `#remigrate`
+would arrive at `hotstove.io/#remigrate`, where the boot switch knows only
+`prepare`, `adopt` and `done`, and be ignored in silence.
+
+Moving them to query strings is not the workaround it looks like. The protocol
+puts payloads in fragments precisely so that a 48KB packed record book never
+reaches an access log; `?adopt=` would write every player's save into
+Cloudflare's and GitHub's.
+
+**But the rule is a toggle, not a door.** It lives in zone config, not in
+shipped HTML, so recovery for a specific player is: disable the rule, have them
+load the legacy URL once, re-enable. `enabled` is a boolean on the rule. Nothing
+about the 301 destroys data on its own — it only makes it unreachable while the
+rule is on.
+
+### What actually destroys the data, and why waiting is not the safe choice
+
+WebKit deletes all script-writable storage after **seven days of Safari use
+without user interaction with the site**
+(<https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/>).
+For a browser game that is most of the mobile audience. Home-screen web apps are
+exempt — they run their own day counter — but a plain Safari tab is not.
+
+So the un-drained population evaporates on a rolling seven-day timer regardless
+of what this project does. Elapsed time is not a safety margin for phase 3; it
+is the interval over which the thing being protected disappears. The only action
+that preserves a record book is getting that browser onto the legacy URL soon.
+
+Two facts make the exposure small and shrinking:
+
+- **It froze at launch.** Every player who arrives after 2026-08-16 lands on
+  `hotstove.io` and never writes legacy-origin storage. The at-risk set can only
+  shrink.
+- **Nothing links to the legacy path any more.** `hedgertronic.com` surfaces
+  the game from a Games card under "In the Lab", driven by
+  `data/lab-games.json` in the `hedgertronic.github.io` repo — not from an
+  `href` in any HTML file, which is why a first grep for one found nothing and
+  wrongly concluded no link existed. That card pointed at
+  `hedgertronic.com/games/hot-stove/` until 2026-08-15, when launch repointed
+  it at `https://hotstove.io/`. Note what that costs: the card used to be a
+  DRAIN path, quietly migrating anyone who clicked it. It no longer is, which
+  is what makes the beta-tester message below load-bearing rather than
+  belt-and-braces. Remaining legacy traffic is bookmarks, shares and QR codes.
+
+### The one-week runbook
+
+Do these in order. Steps 1–2 are the ones with a deadline.
+
+1. **Message the beta testers — this week, not in a month.** One line: *"Open
+   your old Hot Stove link once before you play on hotstove.io, so your record
+   book comes with you."* This is the whole mitigation. It is urgent because of
+   the seven-day cap, not because of phase 3.
+2. **Confirm the fast path in the wild.** Load
+   `https://hedgertronic.com/games/hot-stove/` on a browser that has already
+   migrated; it should land on `hotstove.io` without the game ever painting on
+   the old origin. Covered by `npm run test:migration:browsers`, but eyeball it
+   once on real iOS Safari.
+3. **Read the legacy path's traffic before deciding.** In GA4 property
+   `549950974`, segment by `hostName`. Legacy migration hops emit **no**
+   pageview by design, so this measures `#stay` sessions and the un-migrated
+   arrival rate, not the total. Cloudflare GraphQL
+   `httpRequestsAdaptiveGroups` filtered on `clientRequestPath` is the honest
+   count; it caps at a 1-day window on the free plan.
+4. **Leave the bridge up.** It costs nothing, and after the seven-day cap the
+   difference between "the redirect blocked me" and "I never came back" is
+   nil for anyone who has been away. Revisit at the six-month floor above.
+5. **When it is finally time**, create the redirect rule in
+   `http_request_dynamic_redirect` on zone
+   `69d1d4586357f791b1e6cf324c2a6801`, preserving the query string and matching
+   the same shape the existing `/hot-stove/*` rule uses. Do **not** repoint that
+   existing rule at `hotstove.io` in the same change — it must keep landing on
+   the legacy origin until the bridge itself is retired, or it skips the handoff
+   for everyone who still uses the older link.
+
+### Rollback
+
+Set `enabled: false` on the redirect rule. The bridge resumes on the next
+request; there is no cache to purge, because the legacy document already sends
+`cache-control: max-age=0, must-revalidate`.
+
 ## Phase 2.5 — the completion sweep (BUILT, round 40)
 
 Two defects surfaced after the phase 2 deployment, both reported as "half my
@@ -381,6 +469,11 @@ now applies on every later finished game.
    the log, which merges.
 3. Very old archive rows may not survive a heavy player's budget. The record book
    and badge tallies do.
+4. The source store has a shelf life the handoff cannot extend. Safari deletes
+   all script-writable storage after seven days of browser use without user
+   interaction with the site, so a beta tester who does not return inside that
+   window has nothing left to migrate — no phase-3 decision affects this, and
+   waiting makes it worse rather than safer. See phase 3.
 
 ## Tests phase 2 must carry
 
