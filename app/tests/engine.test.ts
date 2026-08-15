@@ -1170,10 +1170,11 @@ describe("completion and the hunt", () => {
     expect(g.finale).not.toBe(null);
   });
 
-  /** The window the TAKING THE FIELD interstitial covers: the phase sits on
-   * "landed" from the club-completing tap until the dream solve resolves,
-   * and `solving` is the one signal that window is open. */
-  it("the club-completing move raises `solving` until the finale is written", async () => {
+  /** `solving` marks the dream solve's own window: up from the club-completing
+   * tap, down when the solve returns — which is BEFORE the finale, because the
+   * finale also waits out the landing beat. App.svelte reads exactly this to
+   * decide whether a solve outran the beat and needs a card over its tail. */
+  it("the club-completing move raises `solving` until the solve returns", async () => {
     const g = new Game(meta, index, owners, 42, {
       difficulty: "standard",
       bank: "moneyball",
@@ -1186,8 +1187,8 @@ describe("completion and the hunt", () => {
     g.hireManager();
     expect(g.solving).toBe(true);
     expect(g.phase).toBe("landed");
+    await vi.waitFor(() => expect(g.solving).toBe(false));
     await vi.waitFor(() => expect(g.phase).toBe("finale"));
-    expect(g.solving).toBe(false);
   });
 
   it("a quit taken during the solve lowers `solving` without a finale", async () => {

@@ -3,7 +3,7 @@
  * seed). The displayed record is deterministic (rounded expected wins). */
 import { track } from "./analytics";
 import { earnedBadges } from "./badges";
-import { bestRoster, type BestRoster } from "./bestroster";
+import { type BestRoster } from "./bestroster";
 import { loadCard, loadPlayers, loadSpecials, ownerFor } from "./data";
 import { eligibleTypes, isTwoWay } from "./eligibility";
 import { localDateStamp, recordFromTotal, type WarTier } from "./format";
@@ -31,6 +31,7 @@ import {
   round1,
   score,
 } from "./scoring";
+import { solveBestRoster } from "./solve";
 import { SLOT_TYPES } from "./types";
 import type {
   Card,
@@ -425,6 +426,13 @@ const SAVE_VERSION = 6;
  * unchanged by any of it. */
 const FINALE_KEY = "hotstove.finale";
 const FINALE_OPEN_KEY = "hotstove.finale.open";
+
+/** How long the finale waits behind the club-completing signing: the length of
+ * RailSeat's `seat-land` thunk, the last thing the player did. Held here
+ * rather than read off the DOM because the wait has to hold for readers whose
+ * reduced-motion setting removes that animation entirely — for them it is a
+ * beat, not an animation. Keep in step with `seat-land`'s duration. */
+export const LANDING_BEAT_MS = 450;
 
 /** Everything the finale screen reads off a Game, plus the result itself.
  *
@@ -2440,10 +2448,12 @@ export class Game {
    * and "tokens exhausted" arrives one `await` before `finale` is written. */
   private finishing: Promise<void> | null = null;
   /** The dream solve is running: true from the club-completing `endSpin`
-   * until `finishGame` writes the finale (or abandons). `phase` sits on
-   * "landed" for that whole window — the solve is synchronous main-thread
-   * work, so without this flag the board reads as frozen. App.svelte draws
-   * the TAKING THE FIELD interstitial off it. */
+   * until the solve returns (or the game is abandoned). The solve runs in a
+   * worker and the board stays live under it, so this is not a freeze flag —
+   * it is how App.svelte tells a solve that outlasted the landing beat, and
+   * needs a card over its tail, from one that finished inside it. `phase`
+   * sits on "landed" for the whole window and a little past it, until the
+   * beat is paid. */
   solving = $state(false);
   abandon(): void {
     this.abandoned = true;
@@ -2456,13 +2466,16 @@ export class Game {
     // otherwise still be true, and a rewind taken inside it would have this
     // method finish a game that no longer exists.
     this.undoPoint = null;
-    // Two committed frames before the solve, not zero: `bestRoster` below
-    // blocks the main thread for its whole run, so the interstitial keyed off
-    // `solving` has to PAINT first — one rAF runs before the next paint, the
-    // second proves that paint committed. Raced against a timeout because a
-    // tab hidden right after the final tap gets no frames, and the finalize
-    // would otherwise stall until the tab is visible again. Feature-checked:
-    // the bot harness runs this in Node, where there is no frame at all.
+    // Two committed frames before the solve, not zero: the club-completing
+    // signing is painting right now — the man thunking into his chair — and
+    // starting the solve costs the main thread a worker spawn and a
+    // structured clone of every card the season saw. One rAF runs before the
+    // next paint, the second proves that paint committed, so that cost lands
+    // after the thunk's first frame rather than inside it. Raced against a
+    // timeout because a tab hidden right after the final tap gets no frames,
+    // and the finalize would otherwise stall until the tab is visible again.
+    // Feature-checked: the bot harness runs this in Node, where there is no
+    // frame at all.
     if (typeof requestAnimationFrame === "function") {
       const frame = () =>
         new Promise<void>((r) => {
@@ -2480,12 +2493,15 @@ export class Game {
     // dream team for cards (bestroster.ts carries the full rules).
     let best: BestRoster | null = null;
     let bestManager: BestManager | null = null;
+    const solveStart = Date.now();
     try {
       const cards = await Promise.all(
         this.seen.map((s) => loadCard(s.team, s.year)),
       );
       const offReel = await this.offReelCards();
-      best = bestRoster(cards, {
+      // Off the main thread (solve.ts): the board is mid-thunk and stays live
+      // through the whole solve.
+      best = await solveBestRoster(cards, {
         // Moneyball / Blank Check hand out the cap, so the dream club has no
         // owner or ballpark to solve for.
         fixedBudgetM: this.fixedCap ? this.effectiveBudget : null,
@@ -2502,13 +2518,29 @@ export class Game {
     } catch {
       /* offline mid-game: finish without the yardstick */
     }
+    // Dropped the moment the SOLVE is done, not when the finale opens: the
+    // beat below is the last signing's, not the solver's, and the cover
+    // App.svelte raises for a solve that outlives the beat has to be able to
+    // tell those two windows apart.
+    this.solving = false;
+    // The last signing's own beat, before the finale takes the screen: the man
+    // is thunking into his chair (RailSeat's seat-land, 450ms) and that landing
+    // is what the club-completing tap earned. A desktop solve finishes inside
+    // it and would otherwise cut it off mid-bounce. Reduced-motion readers get
+    // no thunk — app.css stills it — and keep this window as a pause, which is
+    // the beat itself, not the motion.
+    //
+    // Browser-only, checked the same way the frames above are: the bot harness
+    // finishes thousands of seasons in Node, where this would be dead time and
+    // there is no chair to watch.
+    if (typeof requestAnimationFrame === "function") {
+      const left = LANDING_BEAT_MS - (Date.now() - solveStart);
+      if (left > 0) await new Promise((r) => setTimeout(r, left));
+    }
     // Every await is behind us. If the player quit during them, the game this
     // method was finishing no longer exists — writing its finale now would
     // file a completed season AND a quit for the same run.
-    if (this.abandoned) {
-      this.solving = false;
-      return;
-    }
+    if (this.abandoned) return;
     const playerHits =
       best?.picks.filter(
         (b) =>
@@ -2734,7 +2766,6 @@ export class Game {
       beatCeiling,
     };
     this.phase = "finale";
-    this.solving = false;
     // The id tying this season's log row to its archive record. Minted here,
     // once, and handed to both writers: the row is what the seasons list draws
     // and the record is what it opens, so a row pointing at nothing would be a

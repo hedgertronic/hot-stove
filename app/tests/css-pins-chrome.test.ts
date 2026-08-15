@@ -239,10 +239,20 @@ describe("review fixes: the finalization window", () => {
   });
 
   it("a quit during the dream solve stands the finalizer down", () => {
-    expect(engine).toMatch(
-      /if \(this\.abandoned\) \{\n\s+this\.solving = false;\n\s+return;\n\s+\}/,
-    );
+    expect(engine).toMatch(/if \(this\.abandoned\) return;/);
     expect(read("App.svelte")).toContain("game?.abandon();");
+  });
+
+  // The solve runs in a worker so the board can keep the landing thunk going
+  // under it. What that costs is a structured clone of the club that comes
+  // back, so nothing downstream may compare a solved pick by IDENTITY — the
+  // hit test is by id/team/year, and this pins it.
+  it("the dream solve runs off the main thread, and its picks compare by field", () => {
+    expect(engine).toContain("await solveBestRoster(cards, {");
+    expect(engine).not.toContain("bestRoster(cards, {");
+    expect(engine).toMatch(
+      /p\.id === b\.id && p\.year === b\.year && p\.team === b\.team/,
+    );
   });
 });
 

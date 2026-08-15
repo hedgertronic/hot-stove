@@ -1,12 +1,12 @@
 /** Dev-only (?endgame): a REAL-data Game forged to one signing from complete,
- * so the last-tap → TAKING THE FIELD → finale seam is reviewable on demand
+ * so the last-tap → landing thunk → finale seam is reviewable on demand
  * without playing a full season.
  *
  * Unlike the lab's stub-data galleries this walks the live engine with the
  * shipped cards: seven seats are filled through `signPlayer` itself (so every
  * eligibility, price, and floor rule really held), the skipper through
  * `hireManager`, and `seen` carries real landings — the dream solve the
- * interstitial covers is therefore the real ~13-card solve, not a trivial
+ * seam plays over is therefore the real ~13-card solve, not a trivial
  * empty one. The FLEX seat is the one left open on purpose: every position
  * player fits it, so the final card is a free pick.
  *

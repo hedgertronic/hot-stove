@@ -20,6 +20,7 @@
   import { loadColors, loadIndex, loadMeta, loadOwners } from "./lib/data";
   import {
     Game,
+    LANDING_BEAT_MS,
     claimFinale,
     clearStoredFinale,
     releaseFinale,
@@ -437,32 +438,47 @@
     return () => window.removeEventListener("pointerdown", away, true);
   });
 
-  /* ---- the TAKING THE FIELD interstitial ----
+  /* ---- TAKING THE FIELD: the cover for a slow solve's tail ----
    *
-   * The dream solve is synchronous main-thread work (~350ms desktop, a
-   * second-plus on a phone) that runs between the club-completing tap and
-   * `phase = "finale"` — a window in which the board otherwise reads as
-   * frozen. `game.solving` opens this card over it; a minimum hold closes
-   * it. The hold exists because the solve's duration is device-dependent:
-   * without it the card strobes on a fast machine and the fade lands
-   * mid-solve on a slow one. The engine paints the card before it starts
-   * the solve (finishGame yields two committed frames), and the card's own
-   * motion is transform/opacity only, which the compositor keeps ticking
-   * while the main thread is blocked — the only kind of animation that can.
+   * The club-completing tap earns a landing: the man thunks into his chair
+   * while the dream solve runs in its worker, and the engine holds the finale
+   * back for that beat (LANDING_BEAT_MS). Measured against the ?endgame
+   * forge's 13-card Open Market solve, that beat covers the whole solve on a
+   * desktop (~140ms) but not on a phone (~770ms at 4x CPU throttle, ~1.65s at
+   * 8x). This card covers what is left over on those devices, and never
+   * appears at all on the ones where the beat was enough.
    *
-   * Reduced motion keeps the hold: the hold is a pause, not motion, and a
-   * sub-100ms flash of a full-screen card is exactly the jolt that setting
-   * asks to avoid. app.css already stills the flicker and the fade. */
-  const FIELD_HOLD_MS = 900;
+   * The grace is why a card is raised at all rather than the beat simply
+   * running long: a solve that overruns by a little is better absorbed as a
+   * slightly longer pause on a live board than as a full-screen card that
+   * flashes and leaves. Past the grace the overrun is long enough to read as
+   * the game having stalled, and the card is the answer to that.
+   *
+   * The floor is the same argument from the other end — once the card is up
+   * it stays up long enough to be read, so a solve landing just after it
+   * appears cannot strobe it.
+   *
+   * Reduced motion: app.css stills the thunk, so those readers spend the beat
+   * on a still board, and this card (fades stilled, per `quitStill`) cuts in
+   * and out. Both are pauses, which is what that setting asks for. */
+  const FIELD_GRACE_MS = 150;
+  const FIELD_FLOOR_MS = 600;
   let fieldOpen = $state(false);
   let fieldUntil = 0;
   let fieldTimer: ReturnType<typeof setTimeout> | undefined;
   $effect(() => {
     if (game?.solving) {
       clearTimeout(fieldTimer);
-      fieldOpen = true;
-      fieldUntil = Date.now() + FIELD_HOLD_MS;
-    } else if (fieldOpen) {
+      const wait = setTimeout(() => {
+        // Re-read rather than trust the schedule: the solve usually lands
+        // inside the beat and there is nothing here to cover.
+        if (!game?.solving) return;
+        fieldOpen = true;
+        fieldUntil = Date.now() + FIELD_FLOOR_MS;
+      }, LANDING_BEAT_MS + FIELD_GRACE_MS);
+      return () => clearTimeout(wait);
+    }
+    if (fieldOpen) {
       const left = fieldUntil - Date.now();
       if (left <= 0) fieldOpen = false;
       else fieldTimer = setTimeout(() => (fieldOpen = false), left);
@@ -766,15 +782,13 @@
   {#if game.primeSpecial !== null}
     <SpecialPrimePicker {game} onclose={() => game?.closePrimeSheet()} />
   {/if}
-  <!-- No in: transition — the card must be up and painted BEFORE the solve
-       blocks the thread, so it appears in one frame and only the exit fades
-       (revealing the finale already mounted beneath it). `quitStill` is the
-       page's one reduced-motion fact; the fade borrows it like the settles do. -->
+  <!-- `quitStill` is the page's one reduced-motion fact; both fades borrow it
+       like the settles do. -->
   {#if fieldOpen}
-    <!-- The entrance fade is opacity-only, which Svelte injects as a CSS
-         animation: it composites, so it keeps easing even once the solve
-         blocks the main thread (the same escape the pour and hatch below
-         ride). The exit fade reveals the finale already mounted beneath. -->
+    <!-- The entrance fade is opacity-only and the exit fade reveals the finale
+         already mounted beneath. Both are short: this card only ever covers
+         the tail of a solve that already outran the landing beat, so it has
+         no time to spend arriving. -->
     <div
       class="field"
       role="status"
@@ -793,9 +807,10 @@
           <!-- The boot meter as an INDETERMINATE bar (no aria-valuenow): the
                solve has no steps to count, so the full-width fill POURS in by
                translateX (fieldpour) and the hatch keeps drifting after it
-               lands. Both are transform on composited layers — the one kind
-               of motion the blocked main thread cannot freeze; the boot bar's
-               width transition would stall exactly when this card is up.
+               lands. Transform on composited layers, like the boot card's —
+               and this card covers the tail of the slowest solves there are,
+               on the slowest devices, so keeping its motion off the main
+               thread is what keeps it smooth there.
                bfull: a poured-full bar has no cut edge to position. -->
           <div class="bootmeter" role="progressbar" aria-label="Playing the season">
             <span class="bootfill bfull fieldpour"></span>
@@ -1197,22 +1212,24 @@
   .field {
     position: fixed;
     inset: 0;
-    /* Above the sheets (Sheet.svelte carries 50): this card covers the seam
-       between the last tap and the finale, and nothing may show through it —
-       a ⭐ career sheet can be the thing that completes the club. */
-    z-index: 60;
+    /* Above the sheets (Sheet.svelte carries 50) AND above the coach marks
+       (Instructs.svelte carries 60): this card covers the seam between the
+       last tap and the finale, and nothing may show through it — a ⭐ career
+       sheet can be the thing that completes the club, and an instruct window
+       left open sat on top of this card at 60 (seen on the ?endgame screen). */
+    z-index: 70;
     background: var(--ground);
   }
   /* The pour: a full-width fill slid in from outside the track's clip, its
      leading (flat) edge reading as the progress position the whole way. The
      easing front-loads the motion so the bar is visibly working immediately
-     and settles full around when the card starts to leave (900ms hold +
+     and settles full around when the card starts to leave (600ms floor +
      220ms fade). Reduced motion: app.css stills the animation, which rests
      the fill at its final translate — a full bar, same as the boot card's
      finished state. */
   .fieldpour {
     width: 100%;
-    animation: fieldpour 1.1s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    animation: fieldpour 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
   }
   @keyframes fieldpour {
     from {

@@ -1,6 +1,6 @@
 /** The ?endgame review forge (src/lab/endgame.ts): a real-data club one
- * signing from complete, built for eyeballing the last-tap → TAKING THE
- * FIELD → finale seam. This pins that the forge actually delivers that
+ * signing from complete, built for eyeballing the last-tap → landing
+ * thunk → finale seam. This pins that the forge actually delivers that
  * state against the SHIPPED cards — seven seats + skipper filled through
  * the engine's own verbs, FLEX open with a signable row on the final card,
  * and the whole run inert (a dev screen must never write the player's
@@ -37,7 +37,7 @@ describe("the ?endgame dev fixture", () => {
     expect(p).toBeTruthy();
     g.signPlayer(p!, 4);
     expect(g.slots[4]).not.toBe(null);
-    expect(g.solving).toBe(true); // the interstitial's window is open
+    expect(g.solving).toBe(true); // the dream solve's window is open
     await vi.waitFor(() => expect(g.phase).toBe("finale"));
     expect(g.solving).toBe(false);
     expect(g.finale?.best).not.toBe(null); // the dream solve really ran

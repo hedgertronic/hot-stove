@@ -4,7 +4,10 @@
 # Baseline hardening, everywhere. No CSP on purpose for now: the GA snippet
 # is an inline script plus a Google-hosted loader, and a policy tight enough
 # to be worth shipping needs nonces or hashes wired through the build — a
-# deliberate follow-up, not a one-liner. Framing is left OPEN on purpose too:
+# deliberate follow-up, not a one-liner. When that policy is written it must
+# leave same-origin workers alone (script-src 'self' is enough; an explicit
+# worker-src must not be tighter): the dream solve runs in one, and a blocked
+# worker costs every finale its scouting yardstick without raising anything. Framing is left OPEN on purpose too:
 # there is nothing to clickjack (no auth, no payments), and an embeddable
 # game spreads further than a framed-blocked one.
 /*
