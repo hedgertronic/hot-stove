@@ -427,12 +427,18 @@ const SAVE_VERSION = 6;
 const FINALE_KEY = "hotstove.finale";
 const FINALE_OPEN_KEY = "hotstove.finale.open";
 
-/** How long the finale waits behind the club-completing signing: the length of
- * RailSeat's `seat-land` thunk, the last thing the player did. Held here
- * rather than read off the DOM because the wait has to hold for readers whose
- * reduced-motion setting removes that animation entirely — for them it is a
- * beat, not an animation. Keep in step with `seat-land`'s duration. */
-export const LANDING_BEAT_MS = 450;
+/** How long the finale waits behind the club-completing signing: RailSeat's
+ * `seat-land` thunk is 450ms, and this is that plus margin, because the two
+ * clocks do not start together. This one starts when `finishGame` has its
+ * frames; the animation starts when the seat paints, a frame or two later
+ * (measured: 12ms in Chrome, 14ms in WebKit). Timed exactly, the finale
+ * arrives 42ms after the thunk settles on a fast desktop and would clip it on
+ * anything slower. The margin buys the settle outright.
+ *
+ * Held here rather than read off the DOM because the wait has to hold for
+ * readers whose reduced-motion setting removes that animation entirely — for
+ * them it is a beat, not an animation. Keep in step with `seat-land`. */
+export const LANDING_BEAT_MS = 520;
 
 /** Everything the finale screen reads off a Game, plus the result itself.
  *
