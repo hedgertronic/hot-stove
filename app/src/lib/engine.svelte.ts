@@ -31,7 +31,7 @@ import {
   round1,
   score,
 } from "./scoring";
-import { solveBestRoster } from "./solve";
+import { solveBestRoster, solveIsOffThread } from "./solve";
 import { SLOT_TYPES } from "./types";
 import type {
   Card,
@@ -2472,7 +2472,8 @@ export class Game {
   solveMs = $state<number | null>(null);
   /** Stops the in-flight dream solve. Lives on the Game because that is what
    * a quit ends, and it is null except while `finishGame` is between its
-   * first frame and its last await. */
+   * first frame and the end of the solve. The landing beat that follows is
+   * not covered: by then there is nothing left to stop. */
   private solveStop: AbortController | null = null;
   abandon(): void {
     this.abandoned = true;
@@ -2543,6 +2544,15 @@ export class Game {
         // re-deal left two cards behind one landing (see `seen`).
         landings: this.seen.map((s) => s.spin),
       };
+      // A browser with no workers at all solves on this thread, so the freeze
+      // is known BEFORE the call rather than discovered by a rejection. Same
+      // treatment as the fallback below: card up, frames committed, then the
+      // block. In the bot harness this is true as well and costs nothing —
+      // `paint` has no frames to wait for and nothing is on screen.
+      if (!solveIsOffThread) {
+        this.solveBlocked = true;
+        await paint();
+      }
       try {
         // Off the main thread (solve.ts): the board is mid-thunk and stays live
         // through the whole solve.
@@ -2564,15 +2574,25 @@ export class Game {
         console.warn("hot stove: no worker for the dream solve; solving here", e);
         this.solveBlocked = true;
         await paint();
+        // Checked AGAIN after the frames. `paint` awaits, so a quit can land
+        // between the rejection above and this line, and the freeze about to
+        // start would then hold a home screen the player is already looking
+        // at — for a season that no longer exists.
+        if (stop.signal.aborted) throw stop.signal.reason;
         best = bestRoster(cards, solverOpts);
       }
       bestManager = best.manager ?? null;
-    } catch {
-      /* The cards themselves could not be loaded — offline mid-game — or the
-         player quit and the workers were stopped. Either way the season
-         finishes without its yardstick: no dream club, no ceiling, no
-         scouting hits. A solve that merely FAILED does not land here; the
-         inner catch takes the freeze rather than let a wrong finale through. */
+    } catch (e) {
+      /* Three ways in. The cards could not be loaded (offline mid-game); the
+         player quit and the workers were stopped; or the solve threw BOTH
+         off-thread and here, which is the one case with no yardstick to be
+         had — if the solver cannot answer, nobody can. All three finish the
+         season without one: no dream club, no ceiling, no scouting hits.
+         Said out loud, because a season scored without its yardstick looks
+         exactly like one scored with a bad club. A quit is not worth a line:
+         that finale is never written. */
+      if (!this.abandoned)
+        console.error("hot stove: this season has no dream-club yardstick", e);
     } finally {
       this.solveStop = null;
     }

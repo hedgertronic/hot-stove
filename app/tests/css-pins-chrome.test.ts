@@ -10,11 +10,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const read = (f: string) =>
-  fs.readFileSync(
-    path.resolve(path.dirname(fileURLToPath(import.meta.url)), `../src/${f}`),
-    "utf8",
-  );
+const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src");
+const read = (f: string) => fs.readFileSync(path.join(SRC, f), "utf8");
+
+/** Every source file under src/, src-relative. For the pins that have to be
+ * true of the whole tree rather than of one file. */
+const srcFiles = (dir = ""): string[] =>
+  fs.readdirSync(path.join(SRC, dir), { withFileTypes: true }).flatMap((e) => {
+    const rel = dir ? `${dir}/${e.name}` : e.name;
+    if (e.isDirectory()) return srcFiles(rel);
+    return /\.(ts|svelte)$/.test(e.name) ? [rel] : [];
+  });
 
 describe("award pills center their caps, not their font metrics", () => {
   const pill = read("components/AwardPill.svelte");
@@ -272,10 +278,27 @@ describe("review fixes: the finalization window", () => {
   // timer appears only once the freeze it covers is over.
   it("a failed solve freezes behind the card rather than shipping a null yardstick", () => {
     expect(engine).toMatch(/if \(stop\.signal\.aborted\) throw e;/);
+    // The abort is re-checked AFTER the frames, not only before them: `paint`
+    // awaits, so a quit can arrive inside it, and the blocking solve would
+    // then freeze a home screen the player is already looking at. Pinned as
+    // one sequence — a pin that allowed the check to be dropped would enshrine
+    // exactly the race it was written for.
     expect(engine).toMatch(
-      /this\.solveBlocked = true;\s*\n\s*await paint\(\);\s*\n\s*best = bestRoster\(cards, solverOpts\);/,
+      /this\.solveBlocked = true;\s*\n\s*await paint\(\);\s*\n(\s*\/\/[^\n]*\n)*\s*if \(stop\.signal\.aborted\) throw stop\.signal\.reason;\s*\n\s*best = bestRoster\(cards, solverOpts\);/,
     );
     expect(read("App.svelte")).toMatch(/if \(game\.solveBlocked\) \{\s*\n\s*fieldOpen = true;/);
+  });
+
+  // A browser with no Worker never rejects — it solves inline — so the cover
+  // has to be raised on that fact BEFORE the call, not on a rejection that
+  // never comes. Otherwise that branch freezes with nothing over it.
+  it("a browser without workers raises the cover before it blocks", () => {
+    expect(read("lib/solve.ts")).toContain(
+      "export const solveIsOffThread = typeof Worker === \"function\";",
+    );
+    expect(engine).toMatch(
+      /if \(!solveIsOffThread\) \{\s*\n\s*this\.solveBlocked = true;\s*\n\s*await paint\(\);\s*\n\s*\}/,
+    );
   });
 
   // The solve runs in a worker so the board can keep the landing thunk going
@@ -304,8 +327,21 @@ describe("the ?endgame screen stays out of production", () => {
     // The route and the module both hang off devParams, so neither the check
     // nor the chunk survives a production build.
     expect(app).toMatch(/if \(devParams\?\.has\("endgame"\)\) \{\s*\n\s*const m = await import\("\.\/lab\/endgame"\);/);
-    // No static import anywhere in src would defeat the dynamic one.
-    expect(app).not.toMatch(/^import .*lab\/endgame/m);
+    // The dev readout rides the same rule, and for a sharper reason: markup
+    // behind a DEV check still leaves its scoped CSS in the built stylesheet.
+    // Only a chunk nothing imports takes its styles with it.
+    expect(app).toMatch(
+      /if \(devParams\?\.has\("endgame"\)\)\s*\n\s*import\("\.\/lab\/SolveReadout\.svelte"\)/,
+    );
+    // One static import ANYWHERE in src defeats every dynamic one, so this
+    // walks the whole tree rather than the file that happens to hold the
+    // route.
+    const statics = srcFiles().filter((f) =>
+      // `import ...` with a space is the static form; `import(` is the
+      // dynamic one this file is built on, and must not match.
+      /^\s*import\s+[^\n(]*["']\.[^"']*lab\/(endgame|SolveReadout)/m.test(read(f)),
+    );
+    expect(statics, "a static import would pull the lab into production").toEqual([]);
   });
 
   it("is forged inert, so a review game cannot write the player's storage", () => {

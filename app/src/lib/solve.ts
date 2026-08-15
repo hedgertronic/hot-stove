@@ -40,10 +40,10 @@ function solveOne(
   });
   let stop = (): void => {};
   return new Promise<BestRoster>((resolve, reject) => {
-    // A quit lands here: the worker is solving a season that no longer exists,
-    // and it holds the whole card pool while it does. Terminating drops the
-    // thread and everything it was carrying, rather than leaving all six pools
-    // running to completion against the home screen the player just reached.
+    // The fan-out's signal, not the Game's: it fires for a quit (relayed from
+    // the Game) and for a peer pool's failure alike. Either way this worker is
+    // solving a season nobody will read, holding the whole card pool while it
+    // does. Terminating drops the thread and everything it was carrying.
     stop = () => {
       worker.terminate();
       reject(signal.reason);
@@ -53,23 +53,28 @@ function solveOne(
     worker.onerror = (e) => reject(new Error(`dream solve failed: ${e.message}`));
     worker.postMessage({ cards, opts, task });
   }).finally(() => {
-    // The signal outlives this solve — it belongs to the Game — so the
-    // listener has to come off with the worker it was holding.
+    // The signal outlives this pool — it belongs to the fan-out, which outlives
+    // any one of them — so the listener comes off with the worker it held.
     signal.removeEventListener("abort", stop);
     worker.terminate();
   });
 }
+
+/** Whether the dream solve can leave the calling thread at all.
+ *
+ * False in the bot harness, which runs whole seasons in Node with no Worker
+ * and nothing else on the thread to block — and false in a browser old enough
+ * to lack workers, where it means the board freezes for the solve's whole run.
+ * `finishGame` reads this to raise the cover card BEFORE calling, because once
+ * the freeze starts no timer of its own can run. */
+export const solveIsOffThread = typeof Worker === "function";
 
 export async function solveBestRoster(
   cards: Card[],
   opts: BestClubOptions,
   signal: AbortSignal,
 ): Promise<BestRoster> {
-  // The bot harness runs whole seasons in Node, which has no Worker — the same
-  // environment check `finishGame` already makes for requestAnimationFrame.
-  // There the solve is the only work on the thread and blocking it costs
-  // nothing.
-  if (typeof Worker !== "function") return bestRoster(cards, opts);
+  if (!solveIsOffThread) return bestRoster(cards, opts);
   const tasks = landingPools(cards, opts);
   const results = new Array<BestRoster>(tasks.length);
   // One controller for both ways this fan-out ends early — the player quits,
