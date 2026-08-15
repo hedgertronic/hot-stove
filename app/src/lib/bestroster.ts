@@ -706,14 +706,31 @@ const spendOf = (chosen: Chosen[]): number =>
 class Dp {
   private readonly cur = new Float64Array(STATES);
   private readonly next = new Float64Array(STATES);
-  private readonly fromState: Int32Array[];
-  private readonly fromOpt: Int32Array[];
-  private readonly options: Item[][];
+  private readonly parents: Int32Array;
+  private readonly itemTypes: Int32Array[];
+  private readonly itemBases: Float64Array[];
+  private readonly itemCosts: Float64Array[];
+  private readonly itemPlayerIds: (string | null)[][];
+  private readonly optionItems: Int32Array[];
+  private readonly optionTypes: Int32Array[];
+  private readonly optionBases: Float64Array[];
+  private readonly optionLambdaCosts: Float64Array[];
+  private readonly optionCounts: Int32Array;
+  private readonly byType = new Int32Array(RADIX.length);
+  private readonly bestVal = new Float64Array(RADIX.length);
+  private readonly bestLambdaCost = new Float64Array(RADIX.length);
 
   constructor(readonly items: Item[][]) {
-    this.fromState = items.map(() => new Int32Array(STATES));
-    this.fromOpt = items.map(() => new Int32Array(STATES));
-    this.options = items.map(() => []);
+    this.parents = new Int32Array(items.length * STATES);
+    this.itemTypes = items.map((list) => Int32Array.from(list, (item) => item.type));
+    this.itemBases = items.map((list) => Float64Array.from(list, (item) => item.base));
+    this.itemCosts = items.map((list) => Float64Array.from(list, (item) => item.cost));
+    this.itemPlayerIds = items.map((list) => list.map((item) => item.playerId));
+    this.optionItems = items.map(() => new Int32Array(RADIX.length));
+    this.optionTypes = items.map(() => new Int32Array(RADIX.length));
+    this.optionBases = items.map(() => new Float64Array(RADIX.length));
+    this.optionLambdaCosts = items.map(() => new Float64Array(RADIX.length));
+    this.optionCounts = new Int32Array(items.length);
   }
 
   /** Best club under rules 1, 3, 4 and 5 (rule 2, one season per human, is
@@ -730,46 +747,69 @@ class Dp {
   ): Chosen[] | null {
     const n = this.items.length;
     for (let c = 0; c < n; c++) {
-      const opts = this.options[c];
-      opts.length = 0;
+      this.optionCounts[c] = 0;
       if (skip.includes(c)) continue;
-      const byType: (Item | null)[] = [null, null, null, null, null, null, null];
-      const bestVal = [0, 0, 0, 0, 0, 0, 0];
-      for (const item of this.items[c]) {
-        if (item.playerId !== null && forbidden !== null && forbidden[c].has(item.playerId))
-          continue;
-        const v = item.base + lambda * item.cost;
-        if (byType[item.type] === null || v > bestVal[item.type]) {
-          byType[item.type] = item;
-          bestVal[item.type] = v;
+      const types = this.itemTypes[c];
+      const bases = this.itemBases[c];
+      const costs = this.itemCosts[c];
+      const playerIds = this.itemPlayerIds[c];
+      const barred = forbidden === null ? null : forbidden[c];
+      this.byType.fill(-1);
+      for (let i = 0; i < types.length; i++) {
+        const playerId = playerIds[i];
+        if (playerId !== null && barred !== null && barred.has(playerId)) continue;
+        const type = types[i];
+        const lambdaCost = lambda * costs[i];
+        const v = bases[i] + lambdaCost;
+        if (this.byType[type] < 0 || v > this.bestVal[type]) {
+          this.byType[type] = i;
+          this.bestVal[type] = v;
+          this.bestLambdaCost[type] = lambdaCost;
         }
       }
-      for (const item of byType) if (item !== null) opts.push(item);
+      const optionItems = this.optionItems[c];
+      const optionTypes = this.optionTypes[c];
+      const optionBases = this.optionBases[c];
+      const optionLambdaCosts = this.optionLambdaCosts[c];
+      let count = 0;
+      for (let type = 0; type < this.byType.length; type++) {
+        const i = this.byType[type];
+        if (i < 0) continue;
+        optionItems[count] = i;
+        optionTypes[count] = type;
+        optionBases[count] = bases[i];
+        optionLambdaCosts[count] = this.bestLambdaCost[type];
+        count += 1;
+      }
+      this.optionCounts[c] = count;
     }
 
     let dp = this.cur;
     let nxt = this.next;
     dp.fill(-Infinity);
     dp[0] = 0;
+    this.parents.fill(-1);
     for (let c = 0; c < n; c++) {
       // Carrying dp forward is the "skip this card" move; its states keep a -1
       // parent, which the unwind reads as "this card supplied nothing".
       nxt.set(dp);
-      const prevState = this.fromState[c].fill(-1);
-      const prevOpt = this.fromOpt[c].fill(-1);
-      const opts = this.options[c];
+      const parentOffset = c * STATES;
+      const optionTypes = this.optionTypes[c];
+      const optionBases = this.optionBases[c];
+      const optionLambdaCosts = this.optionLambdaCosts[c];
+      const optionCount = this.optionCounts[c];
       for (let s = 0; s < STATES; s++) {
         const at = dp[s];
         if (at === -Infinity) continue;
-        for (let oi = 0; oi < opts.length; oi++) {
-          const item = opts[oi];
-          const ns = FILL[s * 7 + item.type];
+        for (let oi = 0; oi < optionCount; oi++) {
+          const ns = FILL[s * 7 + optionTypes[oi]];
           if (ns < 0) continue;
-          const v = at + item.base + lambda * item.cost;
+          // The payroll product stays separate so this is exactly
+          // ((at + base) + product), the scoring yardstick's operation order.
+          const v = at + optionBases[oi] + optionLambdaCosts[oi];
           if (v > nxt[ns]) {
             nxt[ns] = v;
-            prevState[ns] = s;
-            prevOpt[ns] = oi;
+            this.parents[parentOffset + ns] = (s << 3) | oi;
           }
         }
       }
@@ -798,10 +838,11 @@ class Dp {
     const chosen: Chosen[] = [];
     let state = bestState;
     for (let c = n - 1; c >= 0; c--) {
-      const oi = this.fromOpt[c][state];
-      if (oi < 0) continue; // card skipped, state predates it — walk on unchanged
-      chosen.push({ card: c, item: this.options[c][oi] });
-      state = this.fromState[c][state];
+      const parent = this.parents[c * STATES + state];
+      if (parent < 0) continue; // card skipped, state predates it — walk on unchanged
+      const oi = parent & 7;
+      chosen.push({ card: c, item: this.items[c][this.optionItems[c][oi]] });
+      state = parent >> 3;
     }
     chosen.reverse(); // card-ascending, so conflict scans are stable
     return chosen;
