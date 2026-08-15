@@ -264,12 +264,18 @@ describe("review fixes: the finalization window", () => {
   // A solve that fails is not allowed to become a wrong finale: `best` reaching
   // the finale as null means no dream club, no ceiling and zero scouting hits,
   // which is a SCORE, not a slower screen. The worker path falling over
-  // (blocked by CSP, a 404'd chunk, a throw inside the solver) drops to the
-  // main thread instead. A quit is the one failure with nothing to salvage.
-  it("a failed solve falls back to the main thread rather than shipping a null yardstick", () => {
-    const solve = read("lib/solve.ts");
-    expect(solve).toMatch(/if \(signal\.aborted\) throw e;/);
-    expect(solve).toMatch(/return bestRoster\(cards, opts\);[\s\S]{0,80}} finally {/);
+  // (blocked by CSP, a 404'd chunk, a throw inside the solver) solves on this
+  // thread instead. A quit is the one failure with nothing to salvage.
+  //
+  // And the card goes up BEFORE that solve starts. A main-thread solve blocks
+  // the timer App.svelte would otherwise raise it with, so a card left to the
+  // timer appears only once the freeze it covers is over.
+  it("a failed solve freezes behind the card rather than shipping a null yardstick", () => {
+    expect(engine).toMatch(/if \(stop\.signal\.aborted\) throw e;/);
+    expect(engine).toMatch(
+      /this\.solveBlocked = true;\s*\n\s*await paint\(\);\s*\n\s*best = bestRoster\(cards, solverOpts\);/,
+    );
+    expect(read("App.svelte")).toMatch(/if \(game\.solveBlocked\) \{\s*\n\s*fieldOpen = true;/);
   });
 
   // The solve runs in a worker so the board can keep the landing thunk going
@@ -277,11 +283,33 @@ describe("review fixes: the finalization window", () => {
   // back, so nothing downstream may compare a solved pick by IDENTITY — the
   // hit test is by id/team/year, and this pins it.
   it("the dream solve runs off the main thread, and its picks compare by field", () => {
-    expect(engine).toContain("await solveBestRoster(cards, {");
-    expect(engine).not.toContain("bestRoster(cards, {");
+    expect(engine).toContain("await solveBestRoster(cards, solverOpts, stop.signal)");
     expect(engine).toMatch(
       /p\.id === b\.id && p\.year === b\.year && p\.team === b\.team/,
     );
+  });
+});
+
+// The ?endgame review screen forges a club with the real engine and the real
+// cards. It is a workbench, and it must never reach a player: the guard is
+// `import.meta.env.DEV`, which Vite folds to false in a build so the dynamic
+// import is shaken out with the chunk behind it. Pinned because the failure is
+// silent — a lifted guard ships a lab route that boots over a real save.
+describe("the ?endgame screen stays out of production", () => {
+  it("boots only behind the DEV guard, through a dynamic import", () => {
+    const app = read("App.svelte");
+    expect(app).toContain(
+      'const devParams = import.meta.env.DEV ? new URLSearchParams(location.search) : null;',
+    );
+    // The route and the module both hang off devParams, so neither the check
+    // nor the chunk survives a production build.
+    expect(app).toMatch(/if \(devParams\?\.has\("endgame"\)\) \{\s*\n\s*const m = await import\("\.\/lab\/endgame"\);/);
+    // No static import anywhere in src would defeat the dynamic one.
+    expect(app).not.toMatch(/^import .*lab\/endgame/m);
+  });
+
+  it("is forged inert, so a review game cannot write the player's storage", () => {
+    expect(read("lab/endgame.ts")).toContain("g.inert = true;");
   });
 });
 

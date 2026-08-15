@@ -114,18 +114,12 @@ export async function solveBestRoster(
     // leaves the other lanes pulling pools off the queue, and their answers
     // are already worthless.
     stop.abort(e);
-    // A quit is not a failure — there is nothing to salvage, and re-solving a
-    // discarded season on the main thread is the freeze this file exists to
-    // avoid.
-    if (signal.aborted) throw e;
-    // Everything else — a worker the page is not allowed to spawn, a chunk
-    // that 404s, a throw inside the solver — falls back to the main thread,
-    // and the fall is deliberate. `best` reaching the finale as null is not a
-    // slower finale, it is a WRONG one: no dream club, no ceiling, zero
-    // scouting hits, and the badges that read them silently withheld. A
-    // freeze is the cheaper failure.
-    console.warn("hot stove: dream solve fell back to the main thread", e);
-    return bestRoster(cards, opts);
+    // Then throw. What to do about a solve that could not run off-thread is
+    // `finishGame`'s call, not this file's: the answer is to solve here
+    // instead, and that freezes the board, which needs a card raised over it
+    // first. This module knows where a solve runs; only the engine knows what
+    // the screen owes the player while it does.
+    throw e;
   } finally {
     // The Game's signal outlives this solve; the relay must not outlive it.
     signal.removeEventListener("abort", relay);

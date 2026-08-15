@@ -110,11 +110,18 @@
   let OgPreviewComp = $state<typeof import("./og/OgPreview.svelte").default | null>(null);
   const devParams = import.meta.env.DEV ? new URLSearchParams(location.search) : null;
   const ogPreview = devParams?.has("og-preview") ?? false;
+  let SolveReadoutComp = $state<
+    typeof import("./lab/SolveReadout.svelte").default | null
+  >(null);
   if (ogPreview) {
     import("./og/OgPreview.svelte").then((m) => (OgPreviewComp = m.default));
   } else if (devParams?.has("lab")) {
     import("./lab/Lab.svelte").then((m) => (LabComp = m.default));
   }
+  // The ?endgame screen's instrument, on the same terms as the lab above: a
+  // dynamic import so its markup AND its scoped CSS leave with the chunk.
+  if (devParams?.has("endgame"))
+    import("./lab/SolveReadout.svelte").then((m) => (SolveReadoutComp = m.default));
   /* `?jitter` arms the on-device movement recorder (lib/jitterprobe). DEV
    * guarded: the compositor wobble it was built to measure is root-caused
    * and fixed, so the diagnostic doesn't earn a production CDN chunk — the
@@ -469,6 +476,14 @@
   $effect(() => {
     if (game?.solving) {
       clearTimeout(fieldTimer);
+      // A solve that fell back to this thread gets the card NOW. The timer
+      // below would not run until the freeze it covers had already ended,
+      // because the freeze is on the thread the timer runs on.
+      if (game.solveBlocked) {
+        fieldOpen = true;
+        fieldUntil = Date.now() + FIELD_FLOOR_MS;
+        return;
+      }
       const wait = setTimeout(() => {
         // Re-read rather than trust the schedule: the solve usually lands
         // inside the beat and there is nothing here to cover.
@@ -781,6 +796,12 @@
   {/if}
   {#if game.primeSpecial !== null}
     <SpecialPrimePicker {game} onclose={() => game?.closePrimeSheet()} />
+  {/if}
+  <!-- The solve's own time, on screen, for the ?endgame review screen only —
+       the phone that cannot show a console is the device whose number decides
+       whether the cover card below still earns its place. -->
+  {#if SolveReadoutComp}
+    <SolveReadoutComp {game} />
   {/if}
   <!-- `quitStill` is the page's one reduced-motion fact; both fades borrow it
        like the settles do. -->

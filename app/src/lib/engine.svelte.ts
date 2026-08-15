@@ -3,7 +3,7 @@
  * seed). The displayed record is deterministic (rounded expected wins). */
 import { track } from "./analytics";
 import { earnedBadges } from "./badges";
-import { type BestRoster } from "./bestroster";
+import { bestRoster, type BestRoster } from "./bestroster";
 import { loadCard, loadPlayers, loadSpecials, ownerFor } from "./data";
 import { eligibleTypes, isTwoWay } from "./eligibility";
 import { localDateStamp, recordFromTotal, type WarTier } from "./format";
@@ -2461,6 +2461,15 @@ export class Game {
    * sits on "landed" for the whole window and a little past it, until the
    * beat is paid. */
   solving = $state(false);
+  /** The dream solve fell back to this thread, so the board is about to freeze
+   * for its whole run. App.svelte raises the TAKING THE FIELD card on this
+   * IMMEDIATELY rather than on the usual timer, because a timer set now would
+   * not run until the freeze it was meant to cover had already ended. */
+  solveBlocked = $state(false);
+  /** How long the dream solve took, milliseconds. Dev screens read it — the
+   * seam's cost on a phone cannot be measured from a desktop harness, so the
+   * device reports its own. */
+  solveMs = $state<number | null>(null);
   /** Stops the in-flight dream solve. Lives on the Game because that is what
    * a quit ends, and it is null except while `finishGame` is between its
    * first frame and its last await. */
@@ -2496,7 +2505,8 @@ export class Game {
     // and the finalize would otherwise stall until the tab is visible again.
     // Feature-checked: the bot harness runs this in Node, where there is no
     // frame at all.
-    if (typeof requestAnimationFrame === "function") {
+    const paint = async (): Promise<void> => {
+      if (typeof requestAnimationFrame !== "function") return;
       const frame = () =>
         new Promise<void>((r) => {
           requestAnimationFrame(() => r());
@@ -2504,7 +2514,8 @@ export class Game {
         });
       await frame();
       await frame();
-    }
+    };
+    await paint();
     const players = this.slots.filter((s): s is Signed => s !== null);
     // Reload every card this game landed on (all memoized from play) and solve
     // for the best club those cards could have produced — the finale's scouting
@@ -2519,9 +2530,7 @@ export class Game {
         this.seen.map((s) => loadCard(s.team, s.year)),
       );
       const offReel = await this.offReelCards();
-      // Off the main thread (solve.ts): the board is mid-thunk and stays live
-      // through the whole solve.
-      best = await solveBestRoster(cards, {
+      const solverOpts = {
         // Moneyball / Blank Check hand out the cap, so the dream club has no
         // owner or ballpark to solve for.
         fixedBudgetM: this.fixedCap ? this.effectiveBudget : null,
@@ -2533,18 +2542,41 @@ export class Game {
         // its own order. This is what tells the solver that a 🎟️/🚚/cold-stove
         // re-deal left two cards behind one landing (see `seen`).
         landings: this.seen.map((s) => s.spin),
-      }, stop.signal);
+      };
+      try {
+        // Off the main thread (solve.ts): the board is mid-thunk and stays live
+        // through the whole solve.
+        best = await solveBestRoster(cards, solverOpts, stop.signal);
+      } catch (e) {
+        // A quit is not a failure and has nothing to salvage.
+        if (stop.signal.aborted) throw e;
+        // No worker to be had — blocked by policy, a chunk that would not
+        // load, a throw inside the solver. The solve runs here instead,
+        // because `best` reaching the finale as null is not a slower finale,
+        // it is a WRONG one: no dream club, no ceiling, zero scouting hits,
+        // and the badges reading them silently withheld.
+        //
+        // The card goes up FIRST and is given two committed frames to paint.
+        // This solve blocks the main thread for its whole run, so the timer
+        // App.svelte would otherwise use to raise the card cannot fire until
+        // the block is already over — the card has to be on screen before the
+        // freeze starts, or the player just watches a dead board.
+        console.warn("hot stove: no worker for the dream solve; solving here", e);
+        this.solveBlocked = true;
+        await paint();
+        best = bestRoster(cards, solverOpts);
+      }
       bestManager = best.manager ?? null;
     } catch {
       /* The cards themselves could not be loaded — offline mid-game — or the
          player quit and the workers were stopped. Either way the season
          finishes without its yardstick: no dream club, no ceiling, no
-         scouting hits. A solve that merely failed does NOT land here; solve.ts
-         falls back to the main thread rather than let a wrong finale through,
-         and only an abandoned game rethrows. */
+         scouting hits. A solve that merely FAILED does not land here; the
+         inner catch takes the freeze rather than let a wrong finale through. */
     } finally {
       this.solveStop = null;
     }
+    this.solveMs = Date.now() - solveStart;
     // Dropped the moment the SOLVE is done, not when the finale opens: the
     // beat below is the last signing's, not the solver's, and the cover
     // App.svelte raises for a solve that outlives the beat has to be able to
