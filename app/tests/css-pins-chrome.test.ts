@@ -231,12 +231,17 @@ describe("review fixes: the finalization window", () => {
     // The promise is kept rather than discarded — `driveReplay` awaits it, so a
     // replay presents a resolved finale instead of the "landed, no finale yet"
     // window this ordering opens. The ORDER is what this pins: save, then
-    // finish.
-    expect(engine).toMatch(/this\.save\(\);\n\s+this\.finishing = this\.finishGame\(\);/);
+    // finish (with the `solving` flag raised between — the interstitial's
+    // signal, part of the same committed sequence).
+    expect(engine).toMatch(
+      /this\.save\(\);\n\s+this\.solving = true;\n\s+this\.finishing = this\.finishGame\(\);/,
+    );
   });
 
   it("a quit during the dream solve stands the finalizer down", () => {
-    expect(engine).toContain("if (this.abandoned) return;");
+    expect(engine).toMatch(
+      /if \(this\.abandoned\) \{\n\s+this\.solving = false;\n\s+return;\n\s+\}/,
+    );
     expect(read("App.svelte")).toContain("game?.abandon();");
   });
 });

@@ -15,6 +15,7 @@
   import SpinBanner from "./components/SpinBanner.svelte";
   import TeamPicker from "./components/TeamPicker.svelte";
   import YearPicker from "./components/YearPicker.svelte";
+  import { fade } from "svelte/transition";
   import { track } from "./lib/analytics";
   import { loadColors, loadIndex, loadMeta, loadOwners } from "./lib/data";
   import {
@@ -158,6 +159,19 @@
         ]);
         deps = { meta, index, owners };
         colors = cols;
+        // Dev-only review switch (localhost:5173/?endgame): boots straight
+        // into a forged real-data club one signing from complete, so the
+        // last-tap → interstitial → finale seam is reviewable without playing
+        // a season. The forge is inert (replay rules: no storage writes) and
+        // the restore below is skipped so the player's real save is neither
+        // read nor racing this screen.
+        if (devParams?.has("endgame")) {
+          const m = await import("./lab/endgame");
+          game = await m.forgeEndgame(meta, index, owners);
+          screen = "game";
+          booted = true;
+          return;
+        }
         // A mid-game save resumes straight into the game (iOS tab eviction);
         // otherwise land on the mode-select home screen.
         const saved = await step(Game.restore(meta, index, owners));
@@ -346,16 +360,23 @@
       // confirm the player let lapse. It is the one badge no resolver pushes:
       // badges are read off a finished season and this path produces none, so
       // it is written straight into the log as an unscored row.
-      if (game) recordQuit(game.config.difficulty, game.config.bank);
-      // The confirmed tap only, matching recordQuit: arming the ✕ and thinking
-      // better of it is not a quit and must not be counted as one.
-      track("game_quit");
+      // Not on an inert game (the ?endgame review forge is one): its season
+      // was never the player's, so quitting it writes no quit row, and its
+      // clearSave would delete a REAL in-progress save this screen never
+      // loaded. Replays route through exitReplay above, so live games are the
+      // only non-inert ones here.
+      if (game && !game.inert) {
+        recordQuit(game.config.difficulty, game.config.bank);
+        // The confirmed tap only, matching recordQuit: arming the ✕ and
+        // thinking better of it is not a quit and must not be counted as one.
+        track("game_quit");
+        Game.clearSave();
+      }
       // A club that completed this instant may have an async finishGame in
       // flight (it awaits the dream solve's card loads). Told, it stands down
       // instead of landing after this quit and filing a finished season on
       // top of the quit row.
       game?.abandon();
-      Game.clearSave();
       goHome();
       return;
     }
@@ -414,6 +435,38 @@
     };
     window.addEventListener("pointerdown", away, true);
     return () => window.removeEventListener("pointerdown", away, true);
+  });
+
+  /* ---- the TAKING THE FIELD interstitial ----
+   *
+   * The dream solve is synchronous main-thread work (~350ms desktop, a
+   * second-plus on a phone) that runs between the club-completing tap and
+   * `phase = "finale"` — a window in which the board otherwise reads as
+   * frozen. `game.solving` opens this card over it; a minimum hold closes
+   * it. The hold exists because the solve's duration is device-dependent:
+   * without it the card strobes on a fast machine and the fade lands
+   * mid-solve on a slow one. The engine paints the card before it starts
+   * the solve (finishGame yields two committed frames), and the card's own
+   * motion is transform/opacity only, which the compositor keeps ticking
+   * while the main thread is blocked — the only kind of animation that can.
+   *
+   * Reduced motion keeps the hold: the hold is a pause, not motion, and a
+   * sub-100ms flash of a full-screen card is exactly the jolt that setting
+   * asks to avoid. app.css already stills the flicker and the fade. */
+  const FIELD_HOLD_MS = 900;
+  let fieldOpen = $state(false);
+  let fieldUntil = 0;
+  let fieldTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    if (game?.solving) {
+      clearTimeout(fieldTimer);
+      fieldOpen = true;
+      fieldUntil = Date.now() + FIELD_HOLD_MS;
+    } else if (fieldOpen) {
+      const left = fieldUntil - Date.now();
+      if (left <= 0) fieldOpen = false;
+      else fieldTimer = setTimeout(() => (fieldOpen = false), left);
+    }
   });
 
   // The header chip is emoji-only; full mode names live in the title/aria-label.
@@ -712,6 +765,44 @@
   {/if}
   {#if game.primeSpecial !== null}
     <SpecialPrimePicker {game} onclose={() => game?.closePrimeSheet()} />
+  {/if}
+  <!-- No in: transition — the card must be up and painted BEFORE the solve
+       blocks the thread, so it appears in one frame and only the exit fades
+       (revealing the finale already mounted beneath it). `quitStill` is the
+       page's one reduced-motion fact; the fade borrows it like the settles do. -->
+  {#if fieldOpen}
+    <!-- The entrance fade is opacity-only, which Svelte injects as a CSS
+         animation: it composites, so it keeps easing even once the solve
+         blocks the main thread (the same escape the pour and hatch below
+         ride). The exit fade reveals the finale already mounted beneath. -->
+    <div
+      class="field"
+      role="status"
+      in:fade={{ duration: quitStill ? 0 : 150 }}
+      out:fade={{ duration: quitStill ? 0 : 220 }}
+    >
+      <!-- The boot card's exact anatomy (same classes, same 38vh anchor), so
+           the game has ONE title-card language: boot warms the stove, this one
+           takes the field. -->
+      <div class="boot disp">
+        <div class="bootmast"><Logo big /></div>
+        <!-- `now`, not the boot card's 400ms hold: the solve this card covers
+             is already running, so the line and meter show from frame one. -->
+        <div class="bootload now">
+          <div class="bootline">Taking the field…</div>
+          <!-- The boot meter as an INDETERMINATE bar (no aria-valuenow): the
+               solve has no steps to count, so the full-width fill POURS in by
+               translateX (fieldpour) and the hatch keeps drifting after it
+               lands. Both are transform on composited layers — the one kind
+               of motion the blocked main thread cannot freeze; the boot bar's
+               width transition would stall exactly when this card is up.
+               bfull: a poured-full bar has no cut edge to position. -->
+          <div class="bootmeter" role="progressbar" aria-label="Playing the season">
+            <span class="bootfill bfull fieldpour"></span>
+          </div>
+        </div>
+      </div>
+    </div>
   {/if}
 {/if}
 
@@ -1097,6 +1188,38 @@
     from {
       opacity: 0;
       transform: translateY(10px);
+    }
+  }
+  /* ---- the TAKING THE FIELD interstitial ---- */
+  /* A fixed sheet of ground over the whole viewport; the .boot card inside
+     lays itself out exactly as it does at load time (its own 38vh anchor and
+     centering), so this rule owns only the covering. */
+  .field {
+    position: fixed;
+    inset: 0;
+    /* Above the sheets (Sheet.svelte carries 50): this card covers the seam
+       between the last tap and the finale, and nothing may show through it —
+       a ⭐ career sheet can be the thing that completes the club. */
+    z-index: 60;
+    background: var(--ground);
+  }
+  /* The pour: a full-width fill slid in from outside the track's clip, its
+     leading (flat) edge reading as the progress position the whole way. The
+     easing front-loads the motion so the bar is visibly working immediately
+     and settles full around when the card starts to leave (900ms hold +
+     220ms fade). Reduced motion: app.css stills the animation, which rests
+     the fill at its final translate — a full bar, same as the boot card's
+     finished state. */
+  .fieldpour {
+    width: 100%;
+    animation: fieldpour 1.1s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  }
+  @keyframes fieldpour {
+    from {
+      transform: translateX(-101%);
+    }
+    to {
+      transform: translateX(0);
     }
   }
 </style>

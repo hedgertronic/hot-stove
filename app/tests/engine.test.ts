@@ -1170,6 +1170,42 @@ describe("completion and the hunt", () => {
     expect(g.finale).not.toBe(null);
   });
 
+  /** The window the TAKING THE FIELD interstitial covers: the phase sits on
+   * "landed" from the club-completing tap until the dream solve resolves,
+   * and `solving` is the one signal that window is open. */
+  it("the club-completing move raises `solving` until the finale is written", async () => {
+    const g = new Game(meta, index, owners, 42, {
+      difficulty: "standard",
+      bank: "moneyball",
+    });
+    g.card = card([]);
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    fillSlots(g);
+    expect(g.solving).toBe(false);
+    g.hireManager();
+    expect(g.solving).toBe(true);
+    expect(g.phase).toBe("landed");
+    await vi.waitFor(() => expect(g.phase).toBe("finale"));
+    expect(g.solving).toBe(false);
+  });
+
+  it("a quit taken during the solve lowers `solving` without a finale", async () => {
+    const g = new Game(meta, index, owners, 42, {
+      difficulty: "standard",
+      bank: "moneyball",
+    });
+    g.card = card([]);
+    g.phase = "landed";
+    g.choicesLeft = 1;
+    fillSlots(g);
+    g.hireManager();
+    g.abandon();
+    await vi.waitFor(() => expect(g.solving).toBe(false));
+    expect(g.phase).toBe("landed");
+    expect(g.finale).toBe(null);
+  });
+
   it("a save from the retired bonus-spin rule (tdBonus field) still restores", async () => {
     const g = landedGame(card([player({})]));
     g.save();

@@ -2040,6 +2040,7 @@ export class Game {
       // restores to "landed, nothing left", which restore() already answers
       // by re-running this endSpin and finishing the game again.
       this.save();
+      this.solving = true;
       this.finishing = this.finishGame();
     } else {
       this.phase = "preSpin";
@@ -2438,6 +2439,12 @@ export class Game {
    * `phase`), but `driveReplay` does: a replay must present a resolved finale,
    * and "tokens exhausted" arrives one `await` before `finale` is written. */
   private finishing: Promise<void> | null = null;
+  /** The dream solve is running: true from the club-completing `endSpin`
+   * until `finishGame` writes the finale (or abandons). `phase` sits on
+   * "landed" for that whole window — the solve is synchronous main-thread
+   * work, so without this flag the board reads as frozen. App.svelte draws
+   * the TAKING THE FIELD interstitial off it. */
+  solving = $state(false);
   abandon(): void {
     this.abandoned = true;
   }
@@ -2449,6 +2456,22 @@ export class Game {
     // otherwise still be true, and a rewind taken inside it would have this
     // method finish a game that no longer exists.
     this.undoPoint = null;
+    // Two committed frames before the solve, not zero: `bestRoster` below
+    // blocks the main thread for its whole run, so the interstitial keyed off
+    // `solving` has to PAINT first — one rAF runs before the next paint, the
+    // second proves that paint committed. Raced against a timeout because a
+    // tab hidden right after the final tap gets no frames, and the finalize
+    // would otherwise stall until the tab is visible again. Feature-checked:
+    // the bot harness runs this in Node, where there is no frame at all.
+    if (typeof requestAnimationFrame === "function") {
+      const frame = () =>
+        new Promise<void>((r) => {
+          requestAnimationFrame(() => r());
+          setTimeout(r, 120);
+        });
+      await frame();
+      await frame();
+    }
     const players = this.slots.filter((s): s is Signed => s !== null);
     // Reload every card this game landed on (all memoized from play) and solve
     // for the best club those cards could have produced — the finale's scouting
@@ -2482,7 +2505,10 @@ export class Game {
     // Every await is behind us. If the player quit during them, the game this
     // method was finishing no longer exists — writing its finale now would
     // file a completed season AND a quit for the same run.
-    if (this.abandoned) return;
+    if (this.abandoned) {
+      this.solving = false;
+      return;
+    }
     const playerHits =
       best?.picks.filter(
         (b) =>
@@ -2708,6 +2734,7 @@ export class Game {
       beatCeiling,
     };
     this.phase = "finale";
+    this.solving = false;
     // The id tying this season's log row to its archive record. Minted here,
     // once, and handed to both writers: the row is what the seasons list draws
     // and the record is what it opens, so a row pointing at nothing would be a
