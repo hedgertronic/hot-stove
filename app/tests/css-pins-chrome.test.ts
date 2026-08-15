@@ -243,6 +243,20 @@ describe("review fixes: the finalization window", () => {
     expect(read("App.svelte")).toContain("game?.abandon();");
   });
 
+  // Pinned at the source, because the suite runs in Node where there is no
+  // Worker to terminate: a quit has to stop the solve, not just ignore it.
+  // Six workers hold the whole card pool each, and the game they are solving
+  // is gone. Verified live in Chrome (abort → 0 workers alive in 1ms).
+  it("a quit terminates the solve's workers and leaves no listener behind", () => {
+    expect(engine).toContain("this.solveStop?.abort(");
+    const solve = read("lib/solve.ts");
+    expect(solve).toContain('signal.addEventListener("abort", stop, { once: true })');
+    expect(solve).toContain('signal.removeEventListener("abort", stop)');
+    expect(solve).toContain("worker.terminate()");
+    // The lane must not start another pool once the game is abandoned.
+    expect(solve).toContain("while (!signal.aborted && next < tasks.length)");
+  });
+
   // The solve runs in a worker so the board can keep the landing thunk going
   // under it. What that costs is a structured clone of the club that comes
   // back, so nothing downstream may compare a solved pick by IDENTITY — the

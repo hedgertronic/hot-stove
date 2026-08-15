@@ -2461,8 +2461,17 @@ export class Game {
    * sits on "landed" for the whole window and a little past it, until the
    * beat is paid. */
   solving = $state(false);
+  /** Stops the in-flight dream solve. Lives on the Game because that is what
+   * a quit ends, and it is null except while `finishGame` is between its
+   * first frame and its last await. */
+  private solveStop: AbortController | null = null;
   abandon(): void {
     this.abandoned = true;
+    // The workers are solving a season the player has walked away from, and
+    // each one holds the whole card pool while it runs. Nothing downstream
+    // wants their answer — `finishGame` drops it — so the threads go now
+    // rather than finishing into a game that no longer exists.
+    this.solveStop?.abort(new Error("game abandoned"));
   }
 
   private async finishGame(): Promise<void> {
@@ -2500,6 +2509,8 @@ export class Game {
     let best: BestRoster | null = null;
     let bestManager: BestManager | null = null;
     const solveStart = Date.now();
+    const stop = new AbortController();
+    this.solveStop = stop;
     try {
       const cards = await Promise.all(
         this.seen.map((s) => loadCard(s.team, s.year)),
@@ -2519,10 +2530,13 @@ export class Game {
         // its own order. This is what tells the solver that a 🎟️/🚚/cold-stove
         // re-deal left two cards behind one landing (see `seen`).
         landings: this.seen.map((s) => s.spin),
-      });
+      }, stop.signal);
       bestManager = best.manager ?? null;
     } catch {
-      /* offline mid-game: finish without the yardstick */
+      /* offline mid-game, or a quit that stopped the workers: finish without
+         the yardstick — an abandoned game is dropped below regardless */
+    } finally {
+      this.solveStop = null;
     }
     // Dropped the moment the SOLVE is done, not when the finale opens: the
     // beat below is the last signing's, not the solver's, and the cover

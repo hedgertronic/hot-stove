@@ -33,20 +33,37 @@ function solveOne(
   cards: Card[],
   opts: BestClubOptions,
   task: PoolTask,
+  signal: AbortSignal,
 ): Promise<BestRoster> {
   const worker = new Worker(new URL("./solve.worker.ts", import.meta.url), {
     type: "module",
   });
+  let stop = (): void => {};
   return new Promise<BestRoster>((resolve, reject) => {
+    // A quit lands here: the worker is solving a season that no longer exists,
+    // and it holds the whole card pool while it does. Terminating drops the
+    // thread and everything it was carrying, rather than leaving all six pools
+    // running to completion against the home screen the player just reached.
+    stop = () => {
+      worker.terminate();
+      reject(signal.reason);
+    };
+    signal.addEventListener("abort", stop, { once: true });
     worker.onmessage = (e: MessageEvent<BestRoster>) => resolve(e.data);
     worker.onerror = (e) => reject(new Error(`dream solve failed: ${e.message}`));
     worker.postMessage({ cards, opts, task });
-  }).finally(() => worker.terminate());
+  }).finally(() => {
+    // The signal outlives this solve — it belongs to the Game — so the
+    // listener has to come off with the worker it was holding.
+    signal.removeEventListener("abort", stop);
+    worker.terminate();
+  });
 }
 
 export async function solveBestRoster(
   cards: Card[],
   opts: BestClubOptions,
+  signal: AbortSignal,
 ): Promise<BestRoster> {
   // The bot harness runs whole seasons in Node, which has no Worker — the same
   // environment check `finishGame` already makes for requestAnimationFrame.
@@ -57,9 +74,11 @@ export async function solveBestRoster(
   const results = new Array<BestRoster>(tasks.length);
   let next = 0;
   const lane = async (): Promise<void> => {
-    while (next < tasks.length) {
+    // Checked per pool, not just per solve: a quit taken while lane 1 is on
+    // its second pool must not start a third.
+    while (!signal.aborted && next < tasks.length) {
       const i = next++;
-      results[i] = await solveOne(cards, opts, tasks[i]);
+      results[i] = await solveOne(cards, opts, tasks[i], signal);
     }
   };
   // One lane per core the browser admits to, minus the one this thread is on.
