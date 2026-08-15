@@ -1464,7 +1464,20 @@ interface Landing {
  * Deterministic like the rest of the file: groups in first-card order, cards
  * within a group in pool order, an odometer over them, and strict improvement,
  * so the first club found at a given (seats, total) is the one that survives. */
-export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoster {
+/** One pool of the landing enumeration: the cards it leaves out, the off-reel
+ * season it leaves unbought (-1 for none), and whether ✌️ doubling is spent
+ * already. A plain-data description of one `solveClub` call, which is what
+ * lets the pools be solved somewhere other than here — solve.ts hands one of
+ * these to each worker. */
+export interface PoolTask {
+  skip: number[];
+  offSkip: number;
+  noDouble: boolean;
+}
+
+/** Enumerate the pools a season's landings produce, in the order they must be
+ * compared. Cheap — it walks landings and never solves anything. */
+export function landingPools(cards: Card[], opts: BestClubOptions = {}): PoolTask[] {
   const landings = opts.landings ?? [];
   const groups = new Map<number, Landing>();
   for (let i = 0; i < cards.length; i++) {
@@ -1502,7 +1515,8 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
   }
 
   const multi = [...groups.values()].filter((g) => g.cards.length > 1);
-  if (multi.length === 0 && split === null) return solveClub(cards, opts);
+  if (multi.length === 0 && split === null)
+    return [{ skip: [], offSkip: -1, noDouble: false }];
 
   // Pin the biggest groups first: they are the ones buying the most pools, so
   // pinning them keeps the most of the enumeration alive per landing given up.
@@ -1532,22 +1546,10 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
     );
 
   const open = multi.filter((g) => !pinned.includes(g));
-  let best: BestRoster | null = null;
-  // `underBudgetTotal` rides along with the club that won rather than being
-  // maxed across pools: it is the best under-cap total among the clubs THIS
-  // club was chosen from, and a figure lifted out of a losing pool could
-  // exceed the winner's own total, which is a thing it is never allowed to do.
-  const consider = (club: BestRoster): void => {
-    if (best === null || betterRoster(club, best)) best = club;
+  const tasks: PoolTask[] = [];
+  const emit = (skip: Set<number>, offSkip: number, noDouble: boolean): void => {
+    tasks.push({ skip: [...skip], offSkip, noDouble });
   };
-  const solveOne = (skip: Set<number>, off: Card[], noDouble: boolean): void =>
-    consider(
-      solveClub(
-        cards.filter((_, i) => !skip.has(i)),
-        off === offReel ? opts : { ...opts, offReel: off },
-        noDouble,
-      ),
-    );
   for (let n = 0; n < pools; n++) {
     const skip = new Set<number>(drop);
     let splitKeep = -1; // retained landed card of the split group, this pool
@@ -1563,14 +1565,14 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
       }
     }
     if (split === null) {
-      solveOne(skip, offReel, false);
+      emit(skip, -1, false);
       continue;
     }
     // A split group of one landed card never enters `open`; its one retained
     // choice is that card.
     if (splitKeep < 0) splitKeep = split.cards[split.cards.length - 1];
     // (a) The landed card keeps the landing's pick; the ⭐ season goes unbought.
-    solveOne(skip, offReel.filter((_, j) => j !== splitOff), false);
+    emit(skip, splitOff, false);
     // (b) BOTH pay out — the ✌️ Double Play spent here, split across the pair,
     //     so no card in this pool may double on top of it. ONLY with the card
     //     ⭐ was really reached from, the LAST card the group dealt: every
@@ -1579,18 +1581,62 @@ export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoste
     //     left the player holding — a split with a card the reroll abandoned
     //     would pair the ⭐ season with a card it could never have been
     //     browsed from.
-    if (splitKeep === split.cards[split.cards.length - 1])
-      solveOne(skip, offReel, true);
+    if (splitKeep === split.cards[split.cards.length - 1]) emit(skip, -1, true);
     // (c) The ⭐ season is the landing's one pick; the landed card supplies
     //     nothing. Once every landed card of the group is dropped the retained
     //     choice no longer matters, so this runs once per odometer family.
     if (splitFirst) {
       const s2 = new Set(skip);
       s2.add(splitKeep);
-      solveOne(s2, offReel, false);
+      emit(s2, -1, false);
     }
   }
+  return tasks;
+}
+
+/** Solve one enumerated pool. Pure over plain data, which is what lets it run
+ * in a worker: `solve.ts` sends the cards, the options, and one task. */
+export function solvePool(
+  cards: Card[],
+  opts: BestClubOptions,
+  task: PoolTask,
+): BestRoster {
+  const skip = new Set(task.skip);
+  const offReel = opts.offReel ?? [];
+  const pool = cards.filter((_, i) => !skip.has(i));
+  // The unbought ⭐ season is dropped from the pool this club is built from;
+  // `offReelLandings` rides along untouched, as the landing it was bought on
+  // is still the landing it was bought on.
+  return task.offSkip < 0
+    ? solveClub(pool, opts, task.noDouble)
+    : solveClub(
+        pool,
+        { ...opts, offReel: offReel.filter((_, j) => j !== task.offSkip) },
+        task.noDouble,
+      );
+}
+
+/** Pick the winner among the pools, in enumeration order.
+ *
+ * First-wins on ties, and that is load-bearing: `betterRoster` is a STRICT
+ * improvement test, so the earliest pool holds the seat unless a later one
+ * genuinely beats it. Reduce a reordered list and a tie resolves to a
+ * different club.
+ *
+ * `underBudgetTotal` rides along with the club that won rather than being
+ * maxed across pools: it is the best under-cap total among the clubs THIS
+ * club was chosen from, and a figure lifted out of a losing pool could exceed
+ * the winner's own total, which is a thing it is never allowed to do. */
+export function reduceBest(clubs: BestRoster[]): BestRoster {
+  let best: BestRoster | null = null;
+  for (const club of clubs) if (best === null || betterRoster(club, best)) best = club;
   return best!;
+}
+
+export function bestRoster(cards: Card[], opts: BestClubOptions = {}): BestRoster {
+  return reduceBest(
+    landingPools(cards, opts).map((t) => solvePool(cards, opts, t)),
+  );
 }
 /** Test-only handles. `completeClub` is rule 6's backstop, and the pools where
  * its upfront feasibility rejects decide anything are exactly the pools the
