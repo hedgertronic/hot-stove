@@ -1291,10 +1291,11 @@
      as modes are punched above it — the `.invis` reserve doctrine the two
      cards already run on. The rule goes to the dashed gray every other empty
      seat in this app wears (Home .row, PayrollBox .chip.ghost), and with
-     every column at zero height there is nothing else to draw. */
+     every column at zero height there is nothing else to draw. ONE border
+     color across both states, so the DASH itself is the whole open/punched
+     channel — app.css's own doctrine, and what .row next door already does. */
   .hdist.empty {
     border-bottom-style: dashed;
-    border-bottom-color: var(--gray-ink);
   }
   .hcol {
     display: flex;
