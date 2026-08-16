@@ -88,17 +88,16 @@
    *
    * `tick` is the rung's FULL RANGE OF WINS, both edges stated.
    *
-   * The labels took three passes to get here, and each one failed differently.
-   * The first named every rung in whatever vocabulary it happens to be famous
-   * in ("losing", ".500", "100"), which put three different units on one axis:
-   * a verdict, a winning percentage, and a win count, left to right. Restating
-   * them as thresholds fixed the unit but bought an operator mix — five bands
-   * opening upward (`81+`) beside the one closed from above (`<81`). Carrying
-   * the `+` on all six fixed the mix and left `0+`, which reads as a shrug.
+   * ONE UNIT, NO OPERATORS. Naming rungs in whatever vocabulary each happens
+   * to be famous in ("losing", ".500", "100") puts three units on one axis —
+   * a verdict, a winning percentage and a win count, left to right. Bare
+   * thresholds hold the unit but need an operator, and an operator set is
+   * either mixed (`81+` opening upward beside `<81` closed from above) or
+   * uniform down to `0+`, which reads as a shrug rather than a number.
    *
    * Closed ranges have nothing left to infer. The ticks sit centred UNDER
-   * their columns rather than at the boundaries between them, so every earlier
-   * form leaned on the reader to work out where a rung ended — and a bare
+   * their columns rather than at the boundaries between them, so an open form
+   * leans on the reader to work out where a rung ended — and a bare
    * `100` under a column can just as easily be read as "seasons of exactly
    * 100 wins". `116–134` cannot.
    *
@@ -577,9 +576,9 @@
         <!-- The bar's own floor is 0, not a sliver: with a labelled axis
              underneath, an empty rung is legible as empty, so nothing has to
              be painted to stand for it — the payroll meter's `.pzero` rule,
-             that a quantity of zero must never paint an edge. (The stacked
-             bar this replaced needed a 6px floor precisely BECAUSE it had no
-             axis to be absent from.) -->
+             that a quantity of zero must never paint an edge. A form with no
+             axis would need a floor to stand in for the absence; this one has
+             the tick underneath to say it. -->
         <span class="hbar war-{r.tier}" style:--fill={r.share}></span>
       </div>
     {/each}
@@ -587,10 +586,10 @@
   <!-- The axis, outside the plot so the rule sits between them. Every tick is
        the full win range of the rung above it (see RUNGS) — a complete
        partition of the 0–162 season, in the unit the record on the card above
-       is already counted in, with nothing left for the reader to infer. Naming the thresholds is the whole reason
-       this form was chosen over a bare proportion bar: it teaches the color
-       ladder instead of assuming it. aria-hidden: the spoken label on the
-       plot above already names every rung it counts, in words. -->
+       is already counted in, with nothing left for the reader to infer.
+       Naming the thresholds is what lets the axis teach the color ladder
+       instead of assuming it. aria-hidden: the spoken label on the plot above
+       already names every rung it counts, in words. -->
   <div class="hticks" aria-hidden="true">
     {#each rungs as r (r.tier)}
       <span class="htick" class:lit={r.n > 0}>{r.tick}</span>
@@ -1289,8 +1288,6 @@
     height: 100%;
   }
   /* The count, in the eyebrow voice the cards above use for their own small
-     lines (.bcap / .bpts / .btotal), so the section reads in one register. */
-  /* The count, in the eyebrow voice the cards above use for their own small
      lines (.bcap / .bpts / .btotal), so the section reads in one register.
      Its height is the reserve `--count-h` names, stated rather than left to
      the line box: the bars' arithmetic subtracts exactly this much, so the
@@ -1316,9 +1313,9 @@
     visibility: hidden;
   }
   /* Square feet, rounded shoulders: the bar grows UP off the axis, so the rule
-     is the one edge it must meet flush. The radius matches nothing else in
-     the app by accident — it is the .book card's 12px halved, which is what a
-     ~30px-wide column wants before the curve starts eating the fill. */
+     is the one edge it must meet flush. 5px is the punch box's own radius,
+     and about as much curve as a ~30px-wide column takes before it starts
+     eating the fill at the shoulders. */
   .hbar {
     flex: none;
     width: 100%;
