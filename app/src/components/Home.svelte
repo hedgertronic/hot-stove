@@ -137,8 +137,8 @@
     RUNGS.map((r) => ({ ...r, n: best.tiers[r.tier], share: best.tiers[r.tier] / peak })),
   );
   /** The whole chart as one sentence, for a reader who cannot see it. The
-   * columns are `aria-hidden` decoration under this label: six bars announced
-   * one at a time are noise, and the counts are the entire content. Empty
+   * columns are presentational under this label: six bars announced one at a
+   * time are noise, and the counts are the entire content. Empty
    * rungs are dropped HERE though they are drawn above — silence is how a
    * sentence says zero, where a chart needs the gap to keep its axis. */
   const rungsLabel = $derived(
@@ -563,6 +563,12 @@
        section that is only ever read, so it wears no cardstock, no press dip,
        and no focus ring — a plot that looked tappable would promise a screen
        that does not exist. -->
+  <!-- role="img" on the PLOT: one spoken sentence naming every rung that
+       carries a count, instead of six bars announced one at a time. The
+       columns below are decoration under that label, so they take no aria of
+       their own and no tooltip — a `title` would be a hover affordance on the
+       thing the note above just finished calling not a control, and it never
+       fires at all on the phone this is drawn for. -->
   <div class="hdist" class:empty={best.games === 0} role="img" aria-label={rungsLabel}>
     {#each rungs as r (r.tier)}
       <!-- One column per rung, drawn whether or not it fired. The count sits
@@ -571,7 +577,7 @@
            whose count is most worth reading. A rung at zero prints no numeral
            at all — a column of nothing needs no "0" to say so, and six zeroes
            on a fresh career would be the loudest thing on the screen. -->
-      <div class="hcol" title="{r.n} {r.name}" aria-hidden="true">
+      <div class="hcol">
         <span class="hn chipbox" class:invis={r.n === 0}
           ><span class="chiplbl">{r.n || " "}</span></span
         >
