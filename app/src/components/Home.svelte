@@ -61,7 +61,7 @@
    * GAMES says how many seasons, BEST says how high one of them reached, and
    * neither says anything about the other 39 — a player with one violet and
    * thirty-nine losing seasons reads identically to one who is violet every
-   * week. This band is that missing third fact: the same seasons the numeral
+   * week. This plot is that missing third fact: the same seasons the numeral
    * counts, sorted onto the same six rungs the record beside it is colored by.
    *
    * MODE-SCOPED, like both cards it sits under: the big GAMES numeral and the
@@ -86,7 +86,7 @@
    * above it does not already say louder. Here it is one short column beside
    * five empty ones, which is exactly what one season is.
    *
-   * `tick` is the band's FULL RANGE OF WINS, both edges stated.
+   * `tick` is the rung's FULL RANGE OF WINS, both edges stated.
    *
    * The labels took three passes to get here, and each one failed differently.
    * The first named every rung in whatever vocabulary it happens to be famous
@@ -98,13 +98,13 @@
    *
    * Closed ranges have nothing left to infer. The ticks sit centred UNDER
    * their columns rather than at the boundaries between them, so every earlier
-   * form leaned on the reader to work out where a band ended — and a bare
+   * form leaned on the reader to work out where a rung ended — and a bare
    * `100` under a column can just as easily be read as "seasons of exactly
    * 100 wins". `116–134` cannot.
    *
    * They also close honestly at BOTH ends, which is a fact about this game
    * rather than a formatting choice: `recordFromTotal` clamps to 0–162, so
-   * the top band really does stop at 162 and the bottom really does start at
+   * the top rung really does stop at 162 and the bottom really does start at
    * 0. The six labels are a complete partition of the season, with no open
    * end and no `+` standing in for one.
    *
@@ -117,7 +117,7 @@
    * `name` is the spoken form — the same two edges with the unit said out
    * loud, so a screen reader hears the axis the eye is reading rather than a
    * paraphrase of it. */
-  const BANDS: { tier: WarTier; tick: string; name: string }[] = [
+  const RUNGS: { tier: WarTier; tick: string; name: string }[] = [
     { tier: "neg", tick: "0–80", name: "0 to 80 wins" },
     { tier: "low", tick: "81–99", name: "81 to 99 wins" },
     { tier: "mid", tick: "100–115", name: "100 to 115 wins" },
@@ -125,7 +125,7 @@
     { tier: "star", tick: "135–154", name: "135 to 154 wins" },
     { tier: "elite", tick: "155–162", name: "155 to 162 wins" },
   ];
-  /** Every column, empty ones included — see BANDS. The tallest column sets
+  /** Every column, empty ones included — see RUNGS. The tallest column sets
    * the scale, so the shape uses the full plot height whatever the career
    * size; `peak` floors at 1 so a career of zero cannot divide by zero.
    *
@@ -133,25 +133,25 @@
    * multiplies it by the plot band's own height (see `--plot-h`): a
    * percentage would resolve against the whole column, count line included,
    * and clamp the tallest bars against each other. */
-  const peak = $derived(Math.max(1, ...BANDS.map((b) => best.tiers[b.tier])));
-  const bands = $derived(
-    BANDS.map((b) => ({ ...b, n: best.tiers[b.tier], share: best.tiers[b.tier] / peak })),
+  const peak = $derived(Math.max(1, ...RUNGS.map((r) => best.tiers[r.tier])));
+  const rungs = $derived(
+    RUNGS.map((r) => ({ ...r, n: best.tiers[r.tier], share: best.tiers[r.tier] / peak })),
   );
   /** The whole chart as one sentence, for a reader who cannot see it. The
    * columns are `aria-hidden` decoration under this label: six bars announced
    * one at a time are noise, and the counts are the entire content. Empty
    * rungs are dropped HERE though they are drawn above — silence is how a
    * sentence says zero, where a chart needs the gap to keep its axis. */
-  const bandsLabel = $derived(
+  const rungsLabel = $derived(
     best.games === 0
       ? "Season outcomes. No seasons yet in this mode"
       : `Season outcomes across ${best.games} season${best.games === 1 ? "" : "s"}. ` +
-        bands
-          .filter((b) => b.n > 0)
-          // Band first, count second. Count-first read as "4 0 to 80 wins" —
+        rungs
+          .filter((r) => r.n > 0)
+          // Rung first, count second. Count-first reads as "4 0 to 80 wins" —
           // two numbers with nothing between them, which a screen reader runs
           // together into a single figure.
-          .map((b) => `${b.name}: ${b.n}`)
+          .map((r) => `${r.name}: ${r.n}`)
           .join(", "),
   );
 
@@ -564,36 +564,36 @@
        section that is only ever read, so it wears no cardstock, no press dip,
        and no focus ring — a plot that looked tappable would promise a screen
        that does not exist. -->
-  <div class="dist" class:empty={best.games === 0} role="img" aria-label={bandsLabel}>
-    {#each bands as b (b.tier)}
+  <div class="dist" class:empty={best.games === 0} role="img" aria-label={rungsLabel}>
+    {#each rungs as r (r.tier)}
       <!-- One column per rung, drawn whether or not it fired. The count sits
            ABOVE its bar rather than inside it: inside, the number is hostage
            to the bar's height, and the shortest bars are exactly the ones
            whose count is most worth reading. A rung at zero prints no numeral
            at all — a column of nothing needs no "0" to say so, and six zeroes
            on a fresh career would be the loudest thing on the screen. -->
-      <div class="hcol" title="{b.n} {b.name}" aria-hidden="true">
-        <span class="hn" class:invis={b.n === 0}>{b.n || " "}</span>
+      <div class="hcol" title="{r.n} {r.name}" aria-hidden="true">
+        <span class="hn" class:invis={r.n === 0}>{r.n || " "}</span>
         <!-- The bar's own floor is 0, not a sliver: with a labelled axis
              underneath, an empty rung is legible as empty, so nothing has to
              be painted to stand for it — the payroll meter's `.pzero` rule,
              that a quantity of zero must never paint an edge. (The stacked
              bar this replaced needed a 6px floor precisely BECAUSE it had no
              axis to be absent from.) -->
-        <span class="hbar war-{b.tier}" style:--fill={b.share}></span>
+        <span class="hbar war-{r.tier}" style:--fill={r.share}></span>
       </div>
     {/each}
   </div>
   <!-- The axis, outside the plot so the rule sits between them. Every tick is
-       the full win range of the band above it (see BANDS) — a complete
+       the full win range of the rung above it (see RUNGS) — a complete
        partition of the 0–162 season, in the unit the record on the card above
        is already counted in, with nothing left for the reader to infer. Naming the thresholds is the whole reason
        this form was chosen over a bare proportion bar: it teaches the color
        ladder instead of assuming it. aria-hidden: the spoken label on the
        plot above already names every rung it counts, in words. -->
   <div class="hticks" aria-hidden="true">
-    {#each bands as b (b.tier)}
-      <span class="htick" class:lit={b.n > 0}>{b.tick}</span>
+    {#each rungs as r (r.tier)}
+      <span class="htick" class:lit={r.n > 0}>{r.tick}</span>
     {/each}
   </div>
 
