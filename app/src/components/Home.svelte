@@ -572,7 +572,9 @@
            at all — a column of nothing needs no "0" to say so, and six zeroes
            on a fresh career would be the loudest thing on the screen. -->
       <div class="hcol" title="{r.n} {r.name}" aria-hidden="true">
-        <span class="hn" class:invis={r.n === 0}>{r.n || " "}</span>
+        <span class="hn chipbox" class:invis={r.n === 0}
+          ><span class="chiplbl">{r.n || " "}</span></span
+        >
         <!-- The bar's own floor is 0, not a sliver: with a labelled axis
              underneath, an empty rung is legible as empty, so nothing has to
              be painted to stand for it — the payroll meter's `.pzero` rule,
@@ -1306,20 +1308,23 @@
   }
   /* The count, in the eyebrow voice the cards above use for their own small
      lines (.bcap / .bpts / .btotal), so the section reads in one register.
-     Its height is the reserve `--count-h` names, stated rather than left to
-     the line box: the bars' arithmetic subtracts exactly this much, so the
-     two numbers have to be the same number. Column order puts it before the
-     bar and `justify-content: flex-end` pushes the pair down, so the count
-     rides its own bar's top wherever that lands. */
+     It is a CHIP — app.css's one box for every small pill, tile and count —
+     so the reserve is spent as `--chip-h` and the recipe brings line-height 1
+     and the cap-band trim with it. A hand-pinned height with a px line-height
+     inside it seats the digits by the page's leading instead of on the box's
+     middle, which is the error the recipe exists to end.
+     `--count-h` is what the bars' arithmetic subtracts, so the chip's height
+     and that number have to be the same number. Column order puts the count
+     before the bar and `justify-content: flex-end` pushes the pair down, so
+     it rides its own bar's top wherever that lands. */
   .hn {
+    --chip-h: var(--count-h);
     /* No shrinking, here or on the bar: both are exact quantities in the
        height arithmetic above, and a flex line that overflows by a pixel
        would take it out of whichever one the engine felt like. */
     flex: none;
-    height: var(--count-h);
     font-size: 10px;
     font-weight: 800;
-    line-height: 12px;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
