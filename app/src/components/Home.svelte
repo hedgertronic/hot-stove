@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import type { Bank, Difficulty, GameConfig, StoredFinale } from "../lib/engine.svelte";
-  import { parseSeedCode, recordFromTotal } from "../lib/format";
+  import { parseSeedCode, recordFromTotal, type WarTier } from "../lib/format";
   import { loadArchive, loadHistory } from "../lib/history";
   import { BANKS, DIFFICULTIES } from "../lib/modes";
   import { bestFor } from "../lib/settings";
@@ -54,6 +54,105 @@
   // so the highest total and the best record are the same game.
   const season = $derived(
     best.best === null ? null : { ...recordFromTotal(best.best), pts: best.best.toFixed(1) },
+  );
+
+  /** THE SHAPE OF A CAREER, under the mode currently punched.
+   *
+   * GAMES says how many seasons, BEST says how high one of them reached, and
+   * neither says anything about the other 39 — a player with one violet and
+   * thirty-nine losing seasons reads identically to one who is violet every
+   * week. This band is that missing third fact: the same seasons the numeral
+   * counts, sorted onto the same six rungs the record beside it is colored by.
+   *
+   * MODE-SCOPED, like both cards it sits under: the big GAMES numeral and the
+   * whole BEST card re-scope as rows are punched above, and a distribution
+   * that stayed global would be the one thing in the section not answering
+   * the same question. (The global count keeps its own small line on the
+   * GAMES card, which is where "and everything else you have ever played"
+   * already lives.)
+   *
+   * Ladder order, coldest first — `WarTier`'s own declaration order, which is
+   * also the order the ramp is defined in (lib/format.recordFromTotal). Each
+   * column is AXIS, not data: all six are drawn at every career length,
+   * including the ones that never fired, because a fixed axis is what makes a
+   * career comparable to ITSELF. The rungs stay in the same six places from
+   * the first season to the four-hundredth, so a player watching their mass
+   * migrate rightward is watching one measurement change rather than a chart
+   * redraw itself.
+   *
+   * That constancy is also what makes a one-season career read honestly. A
+   * stacked proportion bar paints a lone season as one solid full-width rung
+   * — "100% losing", which is technically true and says nothing the BEST card
+   * above it does not already say louder. Here it is one short column beside
+   * five empty ones, which is exactly what one season is.
+   *
+   * `tick` is the band's FULL RANGE OF WINS, both edges stated.
+   *
+   * The labels took three passes to get here, and each one failed differently.
+   * The first named every rung in whatever vocabulary it happens to be famous
+   * in ("losing", ".500", "100"), which put three different units on one axis:
+   * a verdict, a winning percentage, and a win count, left to right. Restating
+   * them as thresholds fixed the unit but bought an operator mix — five bands
+   * opening upward (`81+`) beside the one closed from above (`<81`). Carrying
+   * the `+` on all six fixed the mix and left `0+`, which reads as a shrug.
+   *
+   * Closed ranges have nothing left to infer. The ticks sit centred UNDER
+   * their columns rather than at the boundaries between them, so every earlier
+   * form leaned on the reader to work out where a band ended — and a bare
+   * `100` under a column can just as easily be read as "seasons of exactly
+   * 100 wins". `116–134` cannot.
+   *
+   * They also close honestly at BOTH ends, which is a fact about this game
+   * rather than a formatting choice: `recordFromTotal` clamps to 0–162, so
+   * the top band really does stop at 162 and the bottom really does start at
+   * 0. The six labels are a complete partition of the season, with no open
+   * end and no `+` standing in for one.
+   *
+   * The unit is wins, which is what the record on the card above is already
+   * counted in, and the en dash is the separator that record already uses
+   * ("158–4"). Measured at the tightest supported width: the widest label
+   * inks 33.4px into a 43px column at 320px, so the row holds one line
+   * everywhere.
+   *
+   * `name` is the spoken form — the same two edges with the unit said out
+   * loud, so a screen reader hears the axis the eye is reading rather than a
+   * paraphrase of it. */
+  const BANDS: { tier: WarTier; tick: string; name: string }[] = [
+    { tier: "neg", tick: "0–80", name: "0 to 80 wins" },
+    { tier: "low", tick: "81–99", name: "81 to 99 wins" },
+    { tier: "mid", tick: "100–115", name: "100 to 115 wins" },
+    { tier: "high", tick: "116–134", name: "116 to 134 wins" },
+    { tier: "star", tick: "135–154", name: "135 to 154 wins" },
+    { tier: "elite", tick: "155–162", name: "155 to 162 wins" },
+  ];
+  /** Every column, empty ones included — see BANDS. The tallest column sets
+   * the scale, so the shape uses the full plot height whatever the career
+   * size; `peak` floors at 1 so a career of zero cannot divide by zero.
+   *
+   * `share` is a bare 0–1 ratio rather than a percentage, because the CSS
+   * multiplies it by the plot band's own height (see `--plot-h`): a
+   * percentage would resolve against the whole column, count line included,
+   * and clamp the tallest bars against each other. */
+  const peak = $derived(Math.max(1, ...BANDS.map((b) => best.tiers[b.tier])));
+  const bands = $derived(
+    BANDS.map((b) => ({ ...b, n: best.tiers[b.tier], share: best.tiers[b.tier] / peak })),
+  );
+  /** The whole chart as one sentence, for a reader who cannot see it. The
+   * columns are `aria-hidden` decoration under this label: six bars announced
+   * one at a time are noise, and the counts are the entire content. Empty
+   * rungs are dropped HERE though they are drawn above — silence is how a
+   * sentence says zero, where a chart needs the gap to keep its axis. */
+  const bandsLabel = $derived(
+    best.games === 0
+      ? "Season outcomes. No seasons yet in this mode"
+      : `Season outcomes across ${best.games} season${best.games === 1 ? "" : "s"}. ` +
+        bands
+          .filter((b) => b.n > 0)
+          // Band first, count second. Count-first read as "4 0 to 80 wins" —
+          // two numbers with nothing between them, which a screen reader runs
+          // together into a single figure.
+          .map((b) => `${b.name}: ${b.n}`)
+          .join(", "),
   );
 
 
@@ -453,6 +552,49 @@
         <div class="bpts" class:invis={!season}>{season ? `${season.pts} PTS` : "\u00a0"}</div>
       </div>
     </button>
+  </div>
+
+  <!-- THE OUTCOME HISTOGRAM, under both cards and inside their section: it is
+       the same seasons a third way. GAMES is the count, BEST is the peak, and
+       this is the spread — the reading order a player already goes in ("how
+       much have I played / how good was my best / and the rest?").
+       Full width across both columns on purpose: it belongs to neither card,
+       it is what the two of them are two ends of.
+       NOT a control. Both cards above are doors; this is the one thing in the
+       section that is only ever read, so it wears no cardstock, no press dip,
+       and no focus ring — a plot that looked tappable would promise a screen
+       that does not exist. -->
+  <div class="dist" class:empty={best.games === 0} role="img" aria-label={bandsLabel}>
+    {#each bands as b (b.tier)}
+      <!-- One column per rung, drawn whether or not it fired. The count sits
+           ABOVE its bar rather than inside it: inside, the number is hostage
+           to the bar's height, and the shortest bars are exactly the ones
+           whose count is most worth reading. A rung at zero prints no numeral
+           at all — a column of nothing needs no "0" to say so, and six zeroes
+           on a fresh career would be the loudest thing on the screen. -->
+      <div class="hcol" title="{b.n} {b.name}" aria-hidden="true">
+        <span class="hn" class:invis={b.n === 0}>{b.n || " "}</span>
+        <!-- The bar's own floor is 0, not a sliver: with a labelled axis
+             underneath, an empty rung is legible as empty, so nothing has to
+             be painted to stand for it — the payroll meter's `.pzero` rule,
+             that a quantity of zero must never paint an edge. (The stacked
+             bar this replaced needed a 6px floor precisely BECAUSE it had no
+             axis to be absent from.) -->
+        <span class="hbar war-{b.tier}" style:--fill={b.share}></span>
+      </div>
+    {/each}
+  </div>
+  <!-- The axis, outside the plot so the rule sits between them. Every tick is
+       the full win range of the band above it (see BANDS) — a complete
+       partition of the 0–162 season, in the unit the record on the card above
+       is already counted in, with nothing left for the reader to infer. Naming the thresholds is the whole reason
+       this form was chosen over a bare proportion bar: it teaches the color
+       ladder instead of assuming it. aria-hidden: the spoken label on the
+       plot above already names every rung it counts, in words. -->
+  <div class="hticks" aria-hidden="true">
+    {#each bands as b (b.tier)}
+      <span class="htick" class:lit={b.n > 0}>{b.tick}</span>
+    {/each}
   </div>
 
   {#if seasonsOpen}
@@ -1080,6 +1222,165 @@
     padding-left: 0.1em;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
+  }
+  /* ---- the outcome histogram ---- */
+  /* THE ONE CHART IN THE APP, and it earns the exception by being the one
+     question the app's existing shapes cannot answer. A meter (PayrollBox
+     .pmeter) carries a single quantity against a single cap; a chip carries a
+     single value. "How were twenty-two seasons distributed across six rungs"
+     is neither, and a stacked proportion bar — the shape that came closest —
+     could only say it in six unlabelled colors.
+     It still speaks the house language everywhere it can: cardstock ground,
+     the structural --line rule, the caps and tracking of the cards above, and
+     the ladder's own six hues.
+     Baseline rule but NO box: the plot is not a card. Both things above it in
+     this section are cards because both are doors, and drawing a third box
+     around a thing that cannot be tapped would have promised a screen that
+     does not exist. */
+  .dist {
+    /* THE PLOT'S TWO BANDS, stated as numbers because the bars' heights are
+       computed FROM them. A percentage height on a bar resolves against its
+       column — count line included — so the tallest rung gets asked for more
+       room than the column has left and every bar near the top clamps to the
+       same height. Measured on the first cut: counts of 6 and 5 both painted
+       38px, which is a chart drawing the wrong answer. The bar's height is
+       therefore `--plot-h × ratio`, where --plot-h is only the part of the
+       column a bar may occupy, and the count line is reserved beside it. */
+    --count-h: 14px;
+    /* The plot band. Tall enough that the short rungs are still bars rather
+       than slivers: at 40px a career whose peak was 6 drew its 1-season rung
+       at 6.7px, which reads as a smudge on the axis instead of a count of
+       one. At 52 the same rung is 8.7px — still small, which is the honest
+       reading, but unmistakably a bar. Past ~56 the section starts pushing
+       the fold on a short phone, which is the ceiling this is under. */
+    --plot-h: 52px;
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    /* content-box, against the app's global border-box: the stated height is
+       the two bands the bars are measured against, and the rule underneath is
+       furniture drawn OUTSIDE them. Under border-box the 2.5px rule ate into
+       the plot, leaving the tallest bar 1.5px short of the height its own
+       ratio asked for — a scale error that only ever hit the peak column, so
+       every other bar stayed honest and the chart read as merely flattened. */
+    box-sizing: content-box;
+    height: calc(var(--count-h) + var(--plot-h));
+    margin-top: 9px;
+    padding: 0 2px;
+    border-bottom: 2.5px solid var(--line);
+  }
+  /* Empty is DRAWN, not hidden: the plot and its axis hold their height on a
+     career with no seasons in the punched combo, so the section does not jump
+     as modes are punched above it — the `.invis` reserve doctrine the two
+     cards already run on. The rule goes to the dashed gray every other empty
+     seat in this app wears (Home .row, PayrollBox .chip.ghost), and with
+     every column at zero height there is nothing else to draw. */
+  .dist.empty {
+    border-bottom-style: dashed;
+    border-bottom-color: var(--gray-ink);
+  }
+  .hcol {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    height: 100%;
+  }
+  /* The count, in the eyebrow voice the cards above use for their own small
+     lines (.bcap / .bpts / .btotal), so the section reads in one register. */
+  /* The count, in the eyebrow voice the cards above use for their own small
+     lines (.bcap / .bpts / .btotal), so the section reads in one register.
+     Its height is the reserve `--count-h` names, stated rather than left to
+     the line box: the bars' arithmetic subtracts exactly this much, so the
+     two numbers have to be the same number. Column order puts it before the
+     bar and `justify-content: flex-end` pushes the pair down, so the count
+     rides its own bar's top wherever that lands. */
+  .hn {
+    /* No shrinking, here or on the bar: both are exact quantities in the
+       height arithmetic above, and a flex line that overflows by a pixel
+       would take it out of whichever one the engine felt like. */
+    flex: none;
+    height: var(--count-h);
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  /* A zero prints nothing but still holds its line, so every bar in the row
+     starts from the same ceiling and the tops stay comparable — the reserve
+     the cards make with their own `.invis` halves. */
+  .hn.invis {
+    visibility: hidden;
+  }
+  /* Square feet, rounded shoulders: the bar grows UP off the axis, so the rule
+     is the one edge it must meet flush. The radius matches nothing else in
+     the app by accident — it is the .book card's 12px halved, which is what a
+     ~30px-wide column wants before the curve starts eating the fill. */
+  .hbar {
+    flex: none;
+    width: 100%;
+    /* `--fill` is the column's share of the tallest column, 0–1, handed in
+       from the markup. Multiplying the plot band by it keeps every bar inside
+       the room that actually exists — see the --plot-h note on `.dist`. */
+    height: calc(var(--plot-h) * var(--fill));
+    border-radius: 5px 5px 0 0;
+    background: var(--rung);
+  }
+  /* One rule per rung, spelled out rather than composed: the ladder's tokens
+     are named individually in app.css and there is no `--war-{tier}` to
+     interpolate from a class. Same six names `.brec` uses, so a grep for a
+     rung finds every surface that spends it.
+     `elite` takes --war-elite, NOT the record stamp's brighter
+     --record-elite: that value exists for 24px-plus numerals, and a column of
+     it beside a --war-star violet read as a light leak rather than as the top
+     rung. */
+  .war-neg   { --rung: var(--war-neg); }
+  .war-low   { --rung: var(--war-low); }
+  .war-mid   { --rung: var(--war-mid); }
+  .war-high  { --rung: var(--war-high); }
+  .war-star  { --rung: var(--war-star); }
+  .war-elite { --rung: var(--war-elite); }
+  /* The axis. Same track and gap as the plot so every tick sits under its own
+     column; the landmarks are the ramp's real thresholds, which is what lets
+     the chart teach the ladder instead of assuming it. */
+  .hticks {
+    display: flex;
+    gap: 6px;
+    padding: 0 2px;
+    margin-top: 4px;
+  }
+  .htick {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    /* The tracking, given back — a centered run's trailing step seats its ink
+       a half-step left (app.css's .warchip .unit documents the leak). */
+    padding-left: 0.04em;
+    color: var(--gray-ink);
+  }
+  /* A rung that actually fired takes the darker label: the axis is constant
+     furniture, and this is the one channel that says which parts of it the
+     career has visited. --gray-ink on the ground is under AA for 8px type,
+     which is exactly why the UNLIT state is the one wearing it — an unvisited
+     tick is decoration the aria-label above does not need, while every tick
+     that carries a count is legible at --muted. */
+  .htick.lit {
+    color: var(--muted);
+  }
+  /* Narrowest phones: six ticks share ~292px of content, so "losing" at 8px
+     is the one label that can crowd its neighbours. It loses a step of
+     tracking rather than a size — the row has to stay one line. */
+  @media (max-width: 359px) {
+    .htick {
+      letter-spacing: 0.01em;
+      padding-left: 0.01em;
+    }
   }
   /* Global total under the mode-scoped count on the GAMES card. Same quiet
      voice as .bpts so the two cards read in the same register. */

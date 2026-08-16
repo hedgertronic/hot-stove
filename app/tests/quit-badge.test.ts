@@ -119,6 +119,9 @@ describe("what a quit must not disturb", () => {
       best: null,
       bestRecord: null,
       games: 0,
+      // And it lands on no rung of the home screen's outcome band either — a
+      // quit resolves no season, so there is no result to distribute.
+      tiers: { neg: 0, low: 0, mid: 0, high: 0, star: 0, elite: 0 },
     });
   });
 

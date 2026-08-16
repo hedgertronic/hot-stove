@@ -15,7 +15,7 @@ import {
   type Difficulty,
   type GameConfig,
 } from "./engine.svelte";
-import { localDateStamp } from "./format";
+import { localDateStamp, recordFromTotal, type WarTier } from "./format";
 import { appendHistory, earnedBadgeKeys, loadHistory } from "./history";
 
 const SETTINGS_KEY = "hotstove.settings";
@@ -251,16 +251,39 @@ export function recordQuit(difficulty: Difficulty, bank: Bank): void {
  * `bestId` tracks the archive id of the best-total entry. On ties, the NEWER
  * entry's id wins — `>=` on the comparison — matching the seasons sheet's own
  * tie-break (its shelf iterates newest-first and keeps the first match). The
- * numeric `best` is the same either way; only the id differs. */
+ * numeric `best` is the same either way; only the id differs.
+ *
+ * `tiers` is the SHAPE of those games — how many landed on each rung of the
+ * record ladder. It is computed here rather than by a second reader over the
+ * log for one reason: the mode filter above is not a two-field comparison, it
+ * is the accumulated tolerance for every spelling the log has ever carried
+ * (`legacyDifficulty`'s pre-v2 collision, `normalizeBank`'s pre-bank boolean).
+ * A parallel filter agrees with this one on the day it is written and drifts
+ * on the day either rule changes — and it would drift SILENTLY, since a
+ * distribution that quietly counts a different set of games than the numeral
+ * above it looks fine.
+ *
+ * Every counted game lands on exactly one rung, so the tier counts sum to
+ * `games` — the invariant the bar's proportions rest on. The ladder is
+ * `recordFromTotal`'s, the same one the finale stamp and the BEST card
+ * resolve through, so a season shown as violet on one screen is violet on
+ * every other. */
 export function bestFor(
   difficulty: Difficulty,
   bank: Bank,
-): { best: number | null; bestRecord: string | null; games: number; bestId?: string } {
+): {
+  best: number | null;
+  bestRecord: string | null;
+  games: number;
+  bestId?: string;
+  tiers: Record<WarTier, number>;
+} {
   let best: number | null = null;
   let bestId: string | undefined = undefined;
   let games = 0;
   let recW = -1;
   let recL = -1;
+  const tiers: Record<WarTier, number> = { neg: 0, low: 0, mid: 0, high: 0, star: 0, elite: 0 };
   for (const e of loadHistory()) {
     if (typeof e?.total !== "number") continue;
     const d =
@@ -270,6 +293,11 @@ export function bestFor(
     const b = normalizeBank(e);
     if (d !== difficulty || b !== bank) continue;
     games += 1;
+    // The rung is DERIVED from the total, never read from the stored `record`
+    // string: those hold the retired expected-wins record, and the BEST card
+    // one section up already re-resolves its own record the same way. One
+    // ladder, one input, so the bar and the card cannot disagree.
+    tiers[recordFromTotal(e.total).tier] += 1;
     if (best === null || e.total >= best) {
       best = e.total;
       bestId = e.id;
@@ -285,7 +313,7 @@ export function bestFor(
       }
     }
   }
-  return { best, bestRecord: recW >= 0 ? `${recW}–${recL}` : null, games, bestId };
+  return { best, bestRecord: recW >= 0 ? `${recW}–${recL}` : null, games, bestId, tiers };
 }
 
 /** One earned badge and how many games earned it. */

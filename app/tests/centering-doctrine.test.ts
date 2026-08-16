@@ -62,8 +62,9 @@ const MANIFEST: Record<string, [number, string]> = {
   "app.css :: 0.14em": [1, ".psep — immune-left (label leads, rule line trails)"],
   "app.css :: 0": [1, ".bic — zeroed at the glyph"],
   // ---- components ----
-  "components/Home.svelte :: 0.04em": [4,
-    ".chip/.pill (giveback-margin on .chiplbl), .playbtn (giveback + .bic zeroed), .ubtn (accepted: bare text node, step pads gap invisibly; .bic zeroed covers centering)"],
+  "components/Home.svelte :: 0.04em": [5,
+    ".chip/.pill (giveback-margin on .chiplbl), .playbtn (giveback + .bic zeroed), .ubtn (accepted: bare text node, step pads gap invisibly; .bic zeroed covers centering), .htick (giveback-padding — the outcome histogram's axis labels are centered under their columns)"],
+  "components/Home.svelte :: 0.01em": [1, ".htick narrow — giveback-padding with the base rule"],
   "components/Home.svelte :: 0.05em": [1, ".rmeta.caps narrow — giveback-margin (right-aligned)"],
   "components/Home.svelte :: 0.08em": [2, ".rmeta.caps (giveback-margin, right-aligned), .seedin (giveback-padding, centered input)"],
   "components/Home.svelte :: 0.03em": [1, ".seedin narrow — giveback-padding"],

@@ -9,7 +9,7 @@ import {
   SLOT_TYPES,
   type GameConfig,
 } from "../src/lib/engine.svelte";
-import { recordFromTotal } from "../src/lib/format";
+import { recordFromTotal, type WarTier } from "../src/lib/format";
 import { bestFor, loadSettings, saveSettings } from "../src/lib/settings";
 import type { Card, CardPlayer, GameIndex, Meta, Owners } from "../src/lib/types";
 
@@ -247,10 +247,26 @@ describe("bestFor leaderboard", () => {
         { v: 2, date: "2026-07-30", total: 110, record: "95-67", spins: 10, difficulty: "standard", bank: "classic" },
       ]),
     );
-    expect(bestFor("scout", "moneyball")).toEqual({ best: 90, bestRecord: "88–74", games: 1 });
-    expect(bestFor("standard", "classic")).toEqual({ best: 131.5, bestRecord: "104–58", games: 3 });
-    expect(bestFor("scout", "classic")).toEqual({ best: 100, bestRecord: "91–71", games: 1 });
-    expect(bestFor("standard", "blankcheck")).toEqual({ best: null, bestRecord: null, games: 0 });
+    // `tiers` is asserted alongside `games` on purpose: the distribution the
+    // home band draws is cut by THIS filter, so the rung counts have to sum
+    // to the same number the record book's numeral shows, on the same legacy
+    // spellings. Rungs come from recordFromTotal — 90 → 90 wins (over .500),
+    // 100 → the century mark, 120 and 131.5 → past the Mariners' 116.
+    const rungs = (t: Partial<Record<WarTier, number>>): Record<WarTier, number> => ({
+      neg: 0, low: 0, mid: 0, high: 0, star: 0, elite: 0, ...t,
+    });
+    expect(bestFor("scout", "moneyball")).toEqual({
+      best: 90, bestRecord: "88–74", games: 1, tiers: rungs({ low: 1 }),
+    });
+    expect(bestFor("standard", "classic")).toEqual({
+      best: 131.5, bestRecord: "104–58", games: 3, tiers: rungs({ mid: 1, high: 2 }),
+    });
+    expect(bestFor("scout", "classic")).toEqual({
+      best: 100, bestRecord: "91–71", games: 1, tiers: rungs({ mid: 1 }),
+    });
+    expect(bestFor("standard", "blankcheck")).toEqual({
+      best: null, bestRecord: null, games: 0, tiers: rungs({}),
+    });
   });
 
   it("the home BEST SEASON derives from the best TOTAL, not the stored record", () => {
