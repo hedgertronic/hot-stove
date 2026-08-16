@@ -563,7 +563,7 @@
        section that is only ever read, so it wears no cardstock, no press dip,
        and no focus ring — a plot that looked tappable would promise a screen
        that does not exist. -->
-  <div class="dist" class:empty={best.games === 0} role="img" aria-label={rungsLabel}>
+  <div class="hdist" class:empty={best.games === 0} role="img" aria-label={rungsLabel}>
     {#each rungs as r (r.tier)}
       <!-- One column per rung, drawn whether or not it fired. The count sits
            ABOVE its bar rather than inside it: inside, the number is hostage
@@ -1236,7 +1236,7 @@
      this section are cards because both are doors, and drawing a third box
      around a thing that cannot be tapped would have promised a screen that
      does not exist. */
-  .dist {
+  .hdist {
     /* THE PLOT'S TWO BANDS, stated as numbers because the bars' heights are
        computed FROM them. A percentage height on a bar resolves against its
        column — count line included — so the tallest rung gets asked for more
@@ -1274,7 +1274,7 @@
      cards already run on. The rule goes to the dashed gray every other empty
      seat in this app wears (Home .row, PayrollBox .chip.ghost), and with
      every column at zero height there is nothing else to draw. */
-  .dist.empty {
+  .hdist.empty {
     border-bottom-style: dashed;
     border-bottom-color: var(--gray-ink);
   }
