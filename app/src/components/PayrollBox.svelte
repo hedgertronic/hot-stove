@@ -279,12 +279,17 @@
     {@render meter()}
     <!-- The figures are always the truth; `bump` is the stamp that says the
          truth just changed (the note above the diff effect). -->
+    <!-- Each figure carries its OWN state class, because the two axes stop
+         and start at different moments — `idle` is about spending, `low` and
+         `nocap` are about the payroll. See the `.paylbl` color rules. -->
     <div class="paylbl">
-      <span class="spent">SPENT <span class="pamt" class:bump>{money(spend)}</span></span>
+      <span class="spent" class:idle={spend <= 0}
+        >SPENT <span class="pamt" class:bump>{money(spend)}</span></span
+      >
       {#if over}
         <span class="warn"><span class="pamt" class:bump>{money(overBy)}</span> OVER</span>
       {:else}
-        <span class="left"
+        <span class="left" class:nocap={!capKnown} class:low
           ><span class="pamt" class:bump>{money((capKnown ? budget : 0) - spend)}</span> LEFT</span
         >
       {/if}
@@ -660,10 +665,9 @@
   }
   /* Word-to-figure air as stated geometry, not font metrics. Each side of the
      row is a word and a figure separated by a literal space, but that space
-     renders at the label's 10.5px while the figure's own side bearings differ
-     between a "$" and a letter — the two gaps drift apart. A flex gap ignores
-     whitespace text nodes entirely, so SPENT-to-money and money-to-LEFT/OVER
-     are the same 4px by declaration. */
+     renders at the label's 10.5px while the figure sets its own — a flex gap
+     ignores whitespace text nodes entirely, so SPENT-to-money and
+     money-to-LEFT/OVER are the same 4px by declaration. */
   .spent,
   .warn,
   .left {
@@ -699,11 +703,86 @@
       transform: scale(0.85);
     }
   }
-  .spent .pamt,
+  /* ONE FIGURE CARRIES STATE, AND IT IS NOT THIS ONE.
+     SPENT is a fact — money left the building — and LEFT is the judgment
+     about it, so the box says the judgment in color and the fact in ink. That
+     split buys two things. Orange stops meaning two unrelated things at once
+     (it was both "outflow", neutral and permanent, and "over the cap", an
+     alarm) and now means only the alarm. And the mid-game row stops reading
+     as a red-beside-green verdict on a player who has done nothing wrong —
+     spending is the point of the game, not a cost the box should wince at.
+     Ink also takes this figure out of the contrast conversation entirely at
+     15.62:1, which matters more here than anywhere else in the box: it is the
+     largest, most-read number on the board. */
+  .spent .pamt {
+    color: var(--ink);
+  }
   .warn .pamt {
     color: var(--orange);
   }
+  /* THE FIGURE WEARS ITS METER'S OWN COLOR, exactly — owner call. Two of the
+     four states already did (`.pnocap`'s --gray-ink and `.pover`'s
+     --orange-8 are the same values their figures use), so green and gold were
+     the outliers rather than the rule, and matching them is what makes the
+     row and the bar one object instead of two that agree in wording.
+     THE COST IS STATED RATHER THAN HIDDEN: rung-8 hues are LINE colors, sized
+     for the 3:1 a graphical object owes, and as 16px figures they measure
+     3.39:1 (green) and 2.90:1 (gold) against the 4.5:1 AA asks of text. The
+     box already shipped two figures under that bar — --orange at 3.52:1 and
+     --gray-ink at 2.76:1 — so this puts all four on the same footing instead
+     of leaving two of them alone below it. The mitigation that survives is
+     redundancy: every one of these states is also carried by the meter's ring,
+     its fill, and its hatch directly above the figure, so no reading depends
+     on resolving the figure's hue alone.
+     (The alternative was moving the METER's rings deeper to meet the figures,
+     which would have raised contrast instead of spending it; it was declined
+     to keep the bar's look unchanged.) */
   .left .pamt {
-    color: var(--green-deep);
+    color: var(--green-8);
+  }
+  /* ---- the two figures' own state ladders ----
+     The bar has always had four states and the figures had two, so the row
+     under it could contradict it: a club fifteen percent into its payroll drew
+     a GOLD meter — the "you have not spent enough, the bonus is negative"
+     register — over a cheerful GREEN "$78M LEFT". The figure was announcing
+     the exact quantity that was costing points, in the color the game uses for
+     the quantity that earns them. Each figure now runs its own ladder, and the
+     two ladders are different because the axes are.
+
+     SPENT is about spending, so its off-state is "nothing has been spent" —
+     `idle`, spend at zero, whatever the payroll is. That is what fixes the
+     jolt of hiring an owner: the figure reads $0 before the hire and $0 after
+     it, and a number that did not change must not change color. Orange
+     returns with the first dollar out and never leaves.
+
+     LEFT is about the payroll, so its ladder is the payroll's:
+       · `nocap`  no owner yet — there is no payroll for anything to be left
+                  out of. Gray, the meter's own `.pnocap` reading, on the same
+                  grounds: with no quantity in either direction neither green
+                  nor gold is honest. (Orange was considered and declined —
+                  this is the opening position of every classic game, not an
+                  alarm.)
+       · `low`    below break-even. Gold, matching `.pmeter.plow` exactly,
+                  because this figure IS the bar's quantity read from the other
+                  end: `budgetBonus` is 10·(2·spend/budget − 1), so every
+                  dollar still sitting here below the halfway mark is negative
+                  points. Gold is where the game already says that.
+       · else     at or past half. Green, all the way to `$0 LEFT` at the cap,
+                  which is the BEST payroll outcome there is (+10). Two states
+                  print `$0 LEFT` and they are opposites; `nocap` is what keeps
+                  them apart.
+     Over the cap the LEFT figure does not exist — `.warn` replaces it, orange,
+     unchanged. */
+  .spent.idle .pamt {
+    color: var(--gray-ink);
+  }
+  .left.nocap .pamt {
+    color: var(--gray-ink);
+  }
+  /* `.pmeter.plow`'s own ring value, to the hex — the match is the point (see
+     `.left .pamt`). Written after the green so source order backs the
+     specificity up. */
+  .left.low .pamt {
+    color: var(--gold-8);
   }
 </style>
