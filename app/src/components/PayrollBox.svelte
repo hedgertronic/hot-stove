@@ -667,7 +667,14 @@
      row is a word and a figure separated by a literal space, but that space
      renders at the label's 10.5px while the figure sets its own — a flex gap
      ignores whitespace text nodes entirely, so SPENT-to-money and
-     money-to-LEFT/OVER are the same 4px by declaration. */
+     money-to-LEFT/OVER are the same 4px on both sides.
+
+     One number, deliberately. The rendered INK does not land equidistant —
+     the glyphs facing each other differ, so the two junctions measure 4.5px
+     and 6.0px — but correcting for that was tried and reverted: the metric
+     that says to tighten (narrowest distance) and the metric that says to
+     loosen (white area) disagree in sign, balancing at 2.5px and 7px
+     respectively. Equal declared spacing is the call. Leave it. */
   .spent,
   .warn,
   .left {
