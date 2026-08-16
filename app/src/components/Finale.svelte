@@ -57,11 +57,34 @@
   const reduced =
     typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  /** THE EMPTY SHELF, drawn once for all three trophy rows.
+   *
+   * Round nine replaced the pedigree row's phrase "nothing won" with a single
+   * cobweb on the argument that every POPULATED state of that row is pure
+   * emoji, so its empty state should speak the same language. The argument was
+   * never specific to rings: the trophy case deals award pills and the
+   * scouting report deals ⭐s, and both were still answering in sentences —
+   * "no award seasons", "none found" — so one finale could show three empty
+   * shelves in two different vocabularies, and a player reading down the
+   * ledger had to work out that the words and the glyph meant the same thing.
+   *
+   * Each row decides for ITSELF, so the three can never disagree about how an
+   * empty shelf looks: a club with rings but no hardware shows 💍 on one line
+   * and 🕸️ on the next, which is the honest picture of that season.
+   *
+   * A glyph also cannot ellipsize at 320px the way "no rings, no pennants, no
+   * medals" did, and it carries no cap band — hence `bare`, which keeps the
+   * cap trim off it (see the `.why` markup below). */
+  const COBWEB = { why: "🕸️", bare: true } as const;
+
   interface LedgerRow {
     key: string;
     lbl: string;
     /** Small muted text beside the label (after any chips/meter). */
     why?: string;
+    /** `why` is a bare glyph, not type: it has no cap band for the trim to
+     * measure, so it renders without `.chiplbl`. Set by `COBWEB` alone. */
+    bare?: boolean;
     /** Award pills / emoji chips rendered inline beside the label. */
     chips?: { code: string; n: number }[];
     /** Miniature spend/payroll bar rendered inline beside the label — the club
@@ -130,7 +153,7 @@
     out.push({
       key: "awards",
       lbl: "Trophy case",
-      why: hardwareChips.length > 0 ? undefined : "no award seasons",
+      ...(hardwareChips.length > 0 ? {} : COBWEB),
       chips: hardwareChips.length > 0 ? hardwareChips : undefined,
       amt: signed(p.awardPoints, 0),
       cls: p.awardPoints > 0 ? "plus" : "zero",
@@ -164,13 +187,9 @@
     out.push({
       key: "pedigree",
       lbl: "Ring chasing",
-      // A single cobweb where the hardware would be — round nine's owner
-      // call, replacing the phrase "nothing won". The empty trophy shelf is a
-      // picture, not a sentence: every populated state of this row is pure
-      // emoji, so its empty state speaks the same language, and one glyph
-      // can never ellipsize at 320px the way "no rings, no pennants, no
-      // medals" did.
-      why: pedigreeChips.length > 0 ? undefined : "🕸️",
+      // The row the cobweb started on; the reasoning now lives on COBWEB
+      // itself, where the other two trophy rows can read it.
+      ...(pedigreeChips.length > 0 ? {} : COBWEB),
       chips: pedigreeChips.length > 0 ? pedigreeChips : undefined,
       amt: signed(p.ringPoints, 0),
       cls: p.ringPoints > 0 ? "plus" : "zero",
@@ -181,7 +200,7 @@
         lbl: "Scouting report",
         // One star per find, like the pedigree row (max 9 fits the line).
         chips: fin.scoutHits > 0 ? [{ code: "⭐".repeat(fin.scoutHits), n: 1 }] : undefined,
-        why: fin.scoutHits > 0 ? undefined : "none found",
+        ...(fin.scoutHits > 0 ? {} : COBWEB),
         // Whole points, whole figure: a find is worth SCOUT_HIT_POINTS, which
         // is 1, so this row prints integers the way the ring row above does —
         // "+4", never "+4.0".
@@ -725,8 +744,11 @@
            (~0.3–0.4px at these sizes) and read as the emojis hanging low
            beside it. `.why` wears the trim too when it carries type (the
            baseline formula visibly floated above the trimmed label without
-           it) and stays bare only for the 🕸️ cobweb, which has no cap band
-           for the trim to measure. -->
+           it) and stays bare for the 🕸️ cobweb, which has no cap band for the
+           trim to measure. The bare-ness rides `row.bare` — a flag COBWEB
+           sets — rather than a string comparison against the glyph, so the
+           three trophy rows that now share it cannot fall out of step with
+           whatever the glyph happens to be. -->
       <span class="lbl chiplbl">{row.lbl}</span>
       {#if row.chips}
         <span class="chipline">
@@ -761,7 +783,7 @@
         </div>
       {/if}
       {#if row.why}
-        <span class="why" class:chiplbl={row.why !== "🕸️"}>{row.why}</span>
+        <span class="why" class:chiplbl={!row.bare}>{row.why}</span>
       {/if}
       <!-- The base row shows the animated wins count-up as its amount; every
            other row's amount is the precomputed string. -->
