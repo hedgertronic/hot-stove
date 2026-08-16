@@ -666,14 +666,36 @@
   /* Word-to-figure air as stated geometry, not font metrics. Each side of the
      row is a word and a figure separated by a literal space, but that space
      renders at the label's 10.5px while the figure sets its own — a flex gap
-     ignores whitespace text nodes entirely, so SPENT-to-money and
-     money-to-LEFT/OVER are the same 4px by declaration. */
+     ignores whitespace text nodes entirely, so both junctions are declared
+     rather than typed.
+
+     Declared equal is not SEEN equal, and the row puts the two junctions on
+     one line for the eye to compare. A gap measures between advance boxes;
+     what reads is the blank between INK, which additionally carries the side
+     bearings of the two glyphs facing each other. SPENT ends in a T whose
+     crossbar overhangs its own advance (right bearing −0.04px), so that
+     junction is bearing-free and a 4px gap paints 4.5px of blank. The other
+     junction stacks two bearings — the money's trailing M (1.15px) against
+     the label's leading L (0.81px) or O (0.57px) — and the same 4px paints
+     6.0px before LEFT, 5.63px before OVER.
+
+     So the trailing gaps are cut to land on the leading junction's 4.5px.
+     The correction is a constant because the glyphs are: every figure is
+     `$<digits>M`, so the junction is always $ on one side and M on the other
+     whatever the number does. Measured in Chromium at 8x against Nunito 700
+     (label) / 800 (figure); re-measure if either weight or the family moves. */
   .spent,
   .warn,
   .left {
     display: inline-flex;
     align-items: baseline;
     gap: 4px;
+  }
+  .left {
+    gap: 2.5px;
+  }
+  .warn {
+    gap: 3px;
   }
   .pamt {
     font-size: 16px;
