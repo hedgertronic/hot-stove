@@ -12,7 +12,22 @@
      content. Upper RIGHT because the home screen's upper left belongs to the
      ? / trophy pair and the right is free there — this component is
      home-only; in-game that corner holds the quit ✕. -->
-<a class="maker chipbox" href="https://hedgertronic.com/" aria-label="Visit hedgertronic.com">
+<!-- A new tab, because the mark leads OFF the game. This chip is a curiosity
+     tap — "who made this" — not a way out, and answering it in the same tab
+     spends the whole app to do it: the saved game, the mode rows just
+     punched, and a seed half-typed all leave the screen, and the way back is
+     the browser's back button rather than anything this app draws.
+     `noopener` is the security half (a linked page must not reach
+     `window.opener`); `noreferrer` is deliberately NOT set — the maker's own
+     site is the one destination that should see where the traffic came
+     from. -->
+<a
+  class="maker chipbox"
+  href="https://hedgertronic.com/"
+  target="_blank"
+  rel="noopener"
+  aria-label="Visit hedgertronic.com (opens in a new tab)"
+>
   <img class="cam" src={camUri} alt="" aria-hidden="true" />
   <span class="chiplbl">HEDGERTRONIC</span>
 </a>
