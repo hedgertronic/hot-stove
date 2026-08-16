@@ -274,7 +274,7 @@ describe("bestFor leaderboard", () => {
       "hotstove.history",
       JSON.stringify([
         // The stored record is the OLD expected-wins record and must be ignored:
-        // 131.5 points resolve to 132–30 (star tier), not the stored "104-58".
+        // 131.5 points resolve to 132–30 (high tier), not the stored "104-58".
         { v: 2, date: "2026-07-30", total: 131.5, record: "104-58", spins: 10, difficulty: "standard", bank: "classic" },
         { v: 2, date: "2026-07-30", total: 110, record: "95-67", spins: 10, difficulty: "standard", bank: "classic" },
       ]),

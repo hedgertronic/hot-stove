@@ -22,10 +22,12 @@ export function lastName(full: string): string {
 }
 
 /** Tier buckets from the build plan (docs/archive/BUILD.md) — WAR chip color, cold-to-hot with a medal on
- * top: gray = replacement (0–2), blue = everyday starter (2–4), green =
+ * top: gray = replacement (0–2), green = everyday starter (2–4), blue =
  * all-star (4–6), violet = MVP candidate (6–8), gold = generational (8+);
  * brick marks below-replacement. Gold caps the ramp because elite = gold
- * medal is the one universal sports color. */
+ * medal is the one universal sports color. The hues live in app.css as
+ * --war-low…--war-elite and that ladder is authoritative; this list only
+ * names it. */
 export type WarTier = "neg" | "low" | "mid" | "high" | "star" | "elite";
 export function warTier(war: number): WarTier {
   if (war >= 8) return "elite";
