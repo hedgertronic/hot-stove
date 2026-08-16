@@ -245,7 +245,7 @@ describe("Bug 4 — Trade Deadline swap confirm pill is text-only", () => {
     target.remove();
   });
 
-  it("PlayerList trade confirm reads 'TRADE FOR $X.XM' with no emoji", () => {
+  it("PlayerList trade confirm reads 'TRADE $X.XM' with no emoji", () => {
     // Trade Deadline armed + catcher already rostered gives a td candidate.
     // This test confirms the PlayerList side was already clean.
     const game = landedGame((g) => {
@@ -261,7 +261,10 @@ describe("Bug 4 — Trade Deadline swap confirm pill is text-only", () => {
     const pill = target.querySelector<HTMLButtonElement>(".confirm");
     if (pill) {
       expect(pill.textContent).not.toMatch(/[🔁🔄⇄↔🔀]/u);
-      expect(pill.textContent?.trim()).toMatch(/^TRADE FOR/);
+      // No "FOR": the pill has to stay narrower than the price+WAR column it
+      // replaces, or the row's award pills wrap under the tap (PlayerList
+      // carries the measurement).
+      expect(pill.textContent?.trim()).toMatch(/^TRADE \$/);
     }
 
     unmount(comp as never);

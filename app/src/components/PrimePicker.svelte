@@ -193,7 +193,7 @@
                 class="confirm"
                 disabled={busy}
                 onclick={(e) => { e.stopPropagation(); void commit(sea); }}
-              ><span class="chiplbl">SIGN FOR {money(price)}</span></button>
+              ><span class="chiplbl">SIGN {money(price)}</span></button>
             {/if}
           </div>
         {/each}

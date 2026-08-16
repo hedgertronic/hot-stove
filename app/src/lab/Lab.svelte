@@ -321,7 +321,7 @@
   <PlayerList game={scout} confirmKey={confirmScout} setConfirm={(k) => (confirmScout = k)} />
 
   <div class="psep">MARKET · TRADE DEADLINE ARMED</div>
-  <div class="cap">Roster full → unsigned rows are amber swap targets (TRADE FOR)</div>
+  <div class="cap">Roster full → unsigned rows are amber swap targets (TRADE $N)</div>
   <PlayerList game={td} confirmKey={confirmTd} setConfirm={(k) => (confirmTd = k)} />
 
   <div class="psep">MARKET · PRIME TIME ARMED</div>

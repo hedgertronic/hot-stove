@@ -122,7 +122,7 @@ describe("PlayerList parity", () => {
     expect(sct).not.toContain("warchip");
   });
 
-  it("armed TD shows the same TRADE FOR confirm in both modes", () => {
+  it("armed TD shows the same TRADE confirm in both modes", () => {
     const mut = (g: Game) => {
       g.card = marketCard();
       for (let i = 0; i < SLOT_TYPES.length; i++)
@@ -134,7 +134,7 @@ describe("PlayerList parity", () => {
     const gc = forgeGame(SCOUT, mut);
     for (const g of [gs, gc]) expect(g.tdCandidate(g.card!.players[0])).toBe(true);
     for (const body of [ssr(PlayerList, props(gs)), ssr(PlayerList, props(gc))])
-      expect(body).toContain("TRADE FOR $32M");
+      expect(body).toContain("TRADE $32M");
   });
 
   it("pending-pill hints are identical in both modes", () => {

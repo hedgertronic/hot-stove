@@ -198,10 +198,15 @@
           dead={(!playable && !primeable) || dimmed}
         />
       </button>
+      <!-- "SIGN $24.5M", not "SIGN FOR $24.5M". The dropped word is
+           GEOMETRY, not economy of phrasing — see the `.prow > .confirm` note
+           below for the measurement and the wrap it was costing. Both pills
+           lose it together: they occupy the same slot on the same row and a
+           player switching between them must not read two grammars. -->
       {#if signConfirm}
-        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitSign(p); }}><span class="chiplbl">SIGN FOR {money(price)}</span></button>
+        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitSign(p); }}><span class="chiplbl">SIGN {money(price)}</span></button>
       {:else if tradeConfirm}
-        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitTrade(p); }}><span class="chiplbl">TRADE FOR {money(price)}</span></button>
+        <button type="button" class="confirm" onclick={(e) => { e.stopPropagation(); commitTrade(p); }}><span class="chiplbl">TRADE {money(price)}</span></button>
       {/if}
     </div>
   {/each}
@@ -340,7 +345,30 @@
      mid column the difference and snap wrapped award pills back to one line
      for exactly the life of the pill. The guard is wrapnudge's `freeze`,
      passed through MarketRow: the mid column's width is clamped to its
-     pre-swap value while a confirm or hint is up. */
+     pre-swap value while a confirm or hint is up.
+
+     THE FREEZE ONLY GUARDS ONE DIRECTION, which is why the labels above lost
+     the word "FOR". `freeze` sets `max-inline-size`, so it stops the mid
+     column GROWING when the confirm is narrower than the column it replaced
+     — the case it was written for — and can do nothing at all when the
+     confirm is WIDER and the column shrinks. Measured at 430px (iPhone Pro
+     Max), Chromium, bundled Nunito:
+
+       .right  (.cost 56px floor + 10px gap + .warchip 64px floor)   130.0px
+       TRADE FOR $24.5M                                              135.0px  ✗
+       SIGN FOR  $24.5M                                              124.0px
+       TRADE     $24.5M                                              108.0px  ✓
+       TRADE     $148.5M  (the widest price the corpus can card)     114.8px  ✓
+
+     So any decimal price put the TRADE pill ~5px past the column it stood in
+     for, the mid column lost those 5px, and a row sitting within 5px of its
+     break point wrapped its award pills for the life of the pill — the 1991
+     PIT Barry Bonds row (LF, $24.5M, GG/SS/MVP2) is the owner's own report of
+     exactly this. SIGN sat 6px inside the column at that price and 0.7px
+     PAST it at $148.5M, so it was the same bug one glyph from firing; both
+     verbs shed the word, and now no price the game can deal produces a pill
+     wider than the column it replaces. Restore "FOR" and the wrap comes back
+     with it — the guard is the arithmetic, not the freeze. */
   /* The list expander, in the system's own button voice: a quiet full-width
      capsule — cardstock on the structural line, caps at the action-row
      tracking, the standard press dip and focus ring, and a real tap target.

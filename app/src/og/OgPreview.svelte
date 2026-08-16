@@ -57,7 +57,7 @@
           <div class="prowcontent">
             <MarketRow pos="SP" pit name="Randy Johnson" awards={["CY", "AS"]} priceText="$28.9M" rightHidden />
           </div>
-          <span class="confirm"><span class="chiplbl">SIGN FOR $28.9M</span></span>
+          <span class="confirm"><span class="chiplbl">SIGN $28.9M</span></span>
         </div>
         <div class="prow">
           <div class="prowcontent">
