@@ -1236,6 +1236,27 @@
      this section are cards because both are doors, and drawing a third box
      around a thing that cannot be tapped would have promised a screen that
      does not exist. */
+  /* ONE TRACK, declared once and read twice. The plot and its axis are
+     siblings that have to stay in register — six columns and six ticks on the
+     same centres — so the gutter and the end padding live here rather than
+     being spelled in both rules. Hand-copied geometry across two surfaces is
+     the drift app.css keeps a ledger of. */
+  .hdist,
+  .hticks {
+    --track-gap: 6px;
+    --track-pad: 2px;
+    display: flex;
+    gap: var(--track-gap);
+    padding: 0 var(--track-pad);
+  }
+  /* A column and the tick under it take equal shares of that track;
+     `min-width: 0` lets both go narrower than their content on the tightest
+     phone rather than pushing the row wide. */
+  .hcol,
+  .htick {
+    flex: 1;
+    min-width: 0;
+  }
   .hdist {
     /* THE PLOT'S TWO BANDS, stated as numbers because the bars' heights are
        computed FROM them. A percentage height on a bar resolves against its
@@ -1253,9 +1274,7 @@
        reading, but unmistakably a bar. Past ~56 the section starts pushing
        the fold on a short phone, which is the ceiling this is under. */
     --plot-h: 52px;
-    display: flex;
     align-items: flex-end;
-    gap: 6px;
     /* content-box, against the app's global border-box: the stated height is
        the two bands the bars are measured against, and the rule underneath is
        furniture drawn OUTSIDE them. Under border-box the 2.5px rule ate into
@@ -1265,7 +1284,6 @@
     box-sizing: content-box;
     height: calc(var(--count-h) + var(--plot-h));
     margin-top: 9px;
-    padding: 0 2px;
     border-bottom: 2.5px solid var(--line);
   }
   /* Empty is DRAWN, not hidden: the plot and its axis hold their height on a
@@ -1279,8 +1297,6 @@
     border-bottom-color: var(--gray-ink);
   }
   .hcol {
-    flex: 1;
-    min-width: 0;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
@@ -1344,14 +1360,9 @@
      column; the landmarks are the ramp's real thresholds, which is what lets
      the chart teach the ladder instead of assuming it. */
   .hticks {
-    display: flex;
-    gap: 6px;
-    padding: 0 2px;
     margin-top: 4px;
   }
   .htick {
-    flex: 1;
-    min-width: 0;
     text-align: center;
     font-size: 8px;
     font-weight: 800;
