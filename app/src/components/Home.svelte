@@ -154,7 +154,6 @@
           .join(", "),
   );
 
-
   // The way back into any finished game. Read once: the home screen is rebuilt
   // every time it is shown, and nothing appends to the log while it is on
   // screen. A finished game unmounts this screen on the way to the finale and
@@ -1386,9 +1385,15 @@
      career has visited. --gray-ink on the ground is under AA for 8px type,
      which is exactly why the UNLIT state is the one wearing it — an unvisited
      tick is decoration the aria-label above does not need, while every tick
-     that carries a count is legible at --muted. */
+     that carries a count is legible at --muted-2.
+     The lit voice is --muted-2 and NOT --muted, because of what app.css does
+     under `prefers-contrast: more`: it remaps --gray-ink onto --muted there,
+     so a lit/unlit pair spelled gray-ink-against-muted collapses into a
+     single color for precisely the readers who asked for more contrast.
+     --muted-2 is a step above --muted in both themes and the query does not
+     touch it, so the visited channel survives all three palette states. */
   .htick.lit {
-    color: var(--muted);
+    color: var(--muted-2);
   }
   /* Narrowest phones: six ticks share ~292px of content, so "losing" at 8px
      is the one label that can crowd its neighbours. It loses a step of
