@@ -53,20 +53,65 @@
    * what holds its flow slot, so the spacer answers for it — which is also
    * what lets a scroll back to the top unpin cleanly. The listener reads
    * state but runs outside the effect's tracking, so only `pickPlayer`
-   * re-runs the effect. */
+   * re-runs the effect.
+   *
+   * THE THRESHOLD IS THE SEATS' TOP, NOT THE WRAP'S, and the header is the
+   * whole reason. The pin drops the header (`.railwrap.pinned .railhead`), so
+   * the two layouts do not put the seats in the same place for the same
+   * scroll position: in flow the seats sit at `wrap.top + padding + header`,
+   * pinned they sit at `padding` alone. Triggering on the wrap's own top —
+   * "YOUR SQUAD has reached the ceiling" — therefore swapped one layout for
+   * the other while the seats still had a header's height to travel, and the
+   * grid visibly jumped as it took over the top of the screen.
+   *
+   * Solving `wrap.top + pad + header = pad′` for the wrap's top is what the
+   * comparison below is: the two paddings cancel except for the safe-area
+   * inset the pinned one adds, so the pin fires exactly when the SEATS reach
+   * the line they are about to be pinned at, and the swap is invisible. */
   let wrapEl = $state<HTMLDivElement | null>(null);
   let gapEl = $state<HTMLDivElement | null>(null);
+  let headEl = $state<HTMLDivElement | null>(null);
   let pinNeeded = $state(false);
   $effect(() => {
     if (!pickPlayer) {
       pinNeeded = false;
       return;
     }
+    // `env(safe-area-inset-top)`: 0 in a browser tab, the notch inset in a
+    // home-screen app. It is the one part of the pinned wrap's top padding
+    // that the in-flow wrap does not also carry, so it is the one part that
+    // survives the cancellation above. Probed rather than assumed — read off
+    // a throwaway box, once per pick, because a hand-written 0 would put the
+    // jump straight back for anyone who installed the game to their
+    // homescreen, which is the device the pin exists for in the first place.
+    const probe = document.createElement("div");
+    probe.style.cssText =
+      "position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top);visibility:hidden;pointer-events:none";
+    document.body.appendChild(probe);
+    const safe = probe.offsetHeight;
+    probe.remove();
+    // The header's IN-FLOW height, cached rather than read live: the pin is
+    // what hides the header, so a read taken during a pinned check measures
+    // the 0 of a `display: none` box and would hand the unpin a different
+    // threshold than the pin used. Refreshed on every unpinned check, so a
+    // font swap or a rotation that reflows the separator is picked up before
+    // it can matter.
+    let headH = headEl?.offsetHeight ?? 0;
     const check = () => {
       const el = pinNeeded ? gapEl : wrapEl;
       if (!el) return;
+      if (!pinNeeded && headEl) headH = headEl.offsetHeight;
       const r = el.getBoundingClientRect();
-      pinNeeded = r.top < 0 || r.bottom > window.innerHeight;
+      // The spacer holds the wrap's whole flow slot, header included, so the
+      // same offset answers for both directions and the pin and the unpin
+      // fire at one line rather than two.
+      // `<=`, not `<`: equality IS the crossing — the seats are exactly on
+      // the line they are about to be pinned at — and a strict test defers
+      // the swap to the next scroll step, which is a pixel of jump paid for
+      // nothing (measured: 1.5px with `<`, 0 with `<=`). Pinning at equality
+      // also cannot oscillate against the unpin, which needs the seats
+      // strictly back below the line.
+      pinNeeded = r.top + headH <= safe || r.bottom > window.innerHeight;
     };
     untrack(check);
     window.addEventListener("scroll", check, { passive: true });
@@ -381,7 +426,7 @@
 </script>
 
 <div class="railwrap disp" class:pinned={!!pickPlayer && pinNeeded} bind:this={wrapEl} bind:clientHeight={railH}>
-  <div class="psep railhead">YOUR SQUAD</div>
+  <div class="psep railhead" bind:this={headEl}>YOUR SQUAD</div>
   <div
     class="rail"
     class:peeking={peekView !== null}
@@ -496,10 +541,24 @@
     padding: 6px 0 4px;
     margin-bottom: 4px;
   }
-  /* The section header exists only at width, where the rail reads as the
-     finale-style squad card; the phone grid speaks for itself. */
-  .railhead {
-    display: none;
+  /* The section header runs at BOTH widths (owner call): the phone's PLAYERS
+     separator already names the market below, and an unlabelled grid of eight
+     boxes above a labelled list read as chrome rather than as the club — the
+     finale calls the same eight seats YOUR SQUAD, and the two surfaces should
+     name the object the same way.
+     It is dropped while the rail is PINNED, and that carve-out is the whole
+     cost of having it. During a slot or release pick the wrap leaves the flow
+     and fixes to the top of the viewport (see `.railwrap.pinned`) so the
+     picker stays reachable while the market scrolls underneath — every pixel
+     the overlay takes is a pixel of that market it covers, and a separator
+     naming a card the player is actively tapping is the first thing that can
+     go. The flow SPACER still reserves the header's height (`restH` is
+     measured in flow, header included), so the page below does not jump when
+     the pin engages. */
+  @media (max-width: 759px) {
+    .railwrap.pinned .railhead {
+      display: none;
+    }
   }
   /* Phone pin: `fixed`, not `sticky`. A sticky box can only travel inside its
      parent's box, and the rail's parent is the short club column (rail + bank
@@ -732,9 +791,9 @@
      geometry is RailSeat's, keyed to the same 760px because it is the same
      re-layout of the same page. */
   @media (min-width: 760px) {
-    .railhead {
-      display: flex;
-    }
+    /* No `.railhead` rule here any more: the header is on at every width, so
+       it simply takes `.psep`'s own flex display, and the wide column has no
+       pin for the phone's carve-out to fire on. */
     .rail {
       display: flex;
       flex-direction: column;
