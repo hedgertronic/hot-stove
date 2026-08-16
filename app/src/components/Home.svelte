@@ -1341,22 +1341,19 @@
        the room that actually exists — see the --plot-h note on `.dist`. */
     height: calc(var(--plot-h) * var(--fill));
     border-radius: 5px 5px 0 0;
-    background: var(--rung);
+    /* THE RUNG, read rather than re-enumerated. `war-{tier}` in the markup is
+       the same spelling the rail seats and the market rows wear, and app.css
+       answers it with the --rung-fill/--rung-line pair: the ladder's six
+       tokens are named in exactly one place and this is not it. A bar spends
+       the LINE half, the saturated one — the fill half is the rung-2 tint,
+       and the payroll meter is already held off the tinting rule for the same
+       reason a column is (see app.css's ledger of held-off fills).
+       This is also why the top rung takes --war-elite and not the record
+       stamp's brighter --record-elite: that value is for 24px-plus numerals,
+       and a column of it beside a --war-star violet reads as a light leak
+       rather than as the top of the ladder. */
+    background: var(--rung-line, var(--line));
   }
-  /* One rule per rung, spelled out rather than composed: the ladder's tokens
-     are named individually in app.css and there is no `--war-{tier}` to
-     interpolate from a class. Same six names `.brec` uses, so a grep for a
-     rung finds every surface that spends it.
-     `elite` takes --war-elite, NOT the record stamp's brighter
-     --record-elite: that value exists for 24px-plus numerals, and a column of
-     it beside a --war-star violet read as a light leak rather than as the top
-     rung. */
-  .war-neg   { --rung: var(--war-neg); }
-  .war-low   { --rung: var(--war-low); }
-  .war-mid   { --rung: var(--war-mid); }
-  .war-high  { --rung: var(--war-high); }
-  .war-star  { --rung: var(--war-star); }
-  .war-elite { --rung: var(--war-elite); }
   /* The axis. Same track and gap as the plot so every tick sits under its own
      column; the landmarks are the ramp's real thresholds, which is what lets
      the chart teach the ladder instead of assuming it. */

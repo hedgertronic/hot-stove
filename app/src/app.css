@@ -78,11 +78,17 @@
    the hidden hardware is supposed to come out.
 
    THREE FILLS ARE HELD OFF THE RULE, each at its token: --brick-wash, the
-   warm gray pair, and --gold-8. One more is held in place: the payroll meter's
-   fill stays saturated --green, because green-2 against the white track is
-   1.26:1 and a bar that can't be seen is not a bar. The meter's BORDER carries
-   the tinting instead: gold while spend sits below break-even, orange when
-   the payroll goes over.
+   warm gray pair, and --gold-8. TWO MORE are held in place, both of them bars
+   and both for the same reason — a rung-2 fill on a white track is 1.26:1,
+   and a bar that can't be seen is not a bar:
+
+     * the payroll meter's fill stays saturated --green. Its BORDER carries
+       the tinting instead: gold while spend sits below break-even, orange
+       when the payroll goes over.
+     * the home outcome plot's columns paint --rung-line solid and unbordered.
+       A column three-and-a-bit characters wide has no room for a border to
+       read as a second channel, and the labelled axis under it already
+       carries the state the border would have said.
 
    ---------- THE OPTICAL CENTERING RULE ----------
 
