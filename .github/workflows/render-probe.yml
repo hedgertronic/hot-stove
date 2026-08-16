@@ -21,6 +21,11 @@ jobs:
           - os: ubuntu-latest
             browsers: chromium,firefox
     runs-on: ${{ matrix.os }}
+    # `playwright install --with-deps` can hang instead of failing when a
+    # package mirror stops responding, and without a ceiling a job inherits
+    # GitHub's 360-minute default. Three legs on the priciest runner tiers
+    # makes that an expensive way to learn a mirror was down.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -15,8 +15,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Both jobs carry an explicit ceiling. Without one a job inherits GitHub's
+  # 360-minute default, and `playwright install --with-deps` shells out to apt,
+  # which hangs rather than fails when a package mirror stops responding — the
+  # browser cache below does not help, because --with-deps runs apt whether or
+  # not the binaries are already present. cancel-in-progress lets a newer push
+  # supersede a stalled run, but it is not a watchdog: with no later push, a
+  # hang would sit for six hours on its own.
   verify:
     runs-on: ubuntu-latest
+    # Ranges from under two minutes to about seven since the powerup simulation
+    # moved to its own workflow.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -57,6 +67,8 @@ jobs:
   deploy:
     needs: verify
     runs-on: ubuntu-latest
+    # Builds nothing; it uploads and calls the Cloudflare API.
+    timeout-minutes: 10
     # Account ID is not a secret; inlining it keeps the API token as the only
     # repository-secret setup. A missing token now fails instead of silently
     # producing a green run that did not deploy.
