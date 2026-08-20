@@ -1520,7 +1520,7 @@ export const BADGES: BadgeDef[] = [
     rarity: "legendary",
     axis: "goal",
     freq: null,
-    how: "Outscored the finale's own ceiling — the best total it could find in your cards.",
+    how: "Outscored the best total the finale could find in your cards.",
   },
   /* The goal axis's anti-trophy: the cards on the table could have stamped a
    * perfect 162–0 — the solver's own ceiling rounds to the full record — and
