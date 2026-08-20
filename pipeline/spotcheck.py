@@ -20,10 +20,8 @@ def show(team: str, year: int, top: int = 6) -> dict:
     c = card(team, year)
     print(f"\n{c['year']} {c['name']} ({c['team']})  {c['wins']}-{c['losses']}  "
           f"park: {c['park']}  att pct: {c['attendancePct']} (mult {c['stadiumMult']})")
-    print(f"  budget ${c['budget']}M (raw ${c['budgetRaw']:,})  "
-          f"prorated x{c['prorated']}  players: {len(c['players'])}")
-    for p in c["contracts"]:
-        print(f"    {p['name']:24} ${p['salary']:,}{' (est)' if p['est'] else ''}")
+    print(f"  budget ${c['budget']}M  prorated x{c['prorated']}  "
+          f"players: {len(c['players'])}")
     for p in c["players"][:top]:
         aw = f"  {'/'.join(p['awards'])}" if p["awards"] else ""
         print(f"  {p['war']:5.1f} WAR  ${p['cost']:6.1f}M  {p['pos']:6} {p['name']}{aw}")
