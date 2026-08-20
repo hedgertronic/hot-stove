@@ -15,10 +15,16 @@ export function money(m: number): string {
   return `$${m.toFixed(1).replace(/\.0$/, "")}M`;
 }
 
-/** Surname-ish display for roster cells: drop the first given name only. */
+/** Surname-ish display for roster cells: drop the first given name, then any
+ * dotted-initial tokens ("X.") before the surname. "A. J. Hinch" and
+ * "Michael A. Taylor" both shorten to their bare surname. Multi-word
+ * surnames and suffixes are made of real words, never "X." tokens, so
+ * "De Los Santos" and "Harris II" pass through whole. */
 export function lastName(full: string): string {
   const parts = full.split(" ");
-  return parts.length > 1 ? parts.slice(1).join(" ") : full;
+  let i = parts.length > 1 ? 1 : 0;
+  while (i < parts.length - 1 && /^[A-Z]\.$/.test(parts[i])) i += 1;
+  return parts.slice(i).join(" ");
 }
 
 /** Tier buckets from the build plan (docs/archive/BUILD.md) — WAR chip color, cold-to-hot with a medal on

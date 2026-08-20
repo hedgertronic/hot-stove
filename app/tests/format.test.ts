@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localDateStamp, parseSeedCode, posLabel, seedCode, slotLabel, sortAwards, warTier } from "../src/lib/format";
+import { lastName, localDateStamp, parseSeedCode, posLabel, seedCode, slotLabel, sortAwards, warTier } from "../src/lib/format";
 import type { CardPlayer } from "../src/lib/types";
 
 describe("warTier", () => {
@@ -15,6 +15,31 @@ describe("warTier", () => {
     expect(warTier(7.9)).toBe("star");
     expect(warTier(8)).toBe("elite");
     expect(warTier(11.9)).toBe("elite");
+  });
+});
+
+describe("lastName", () => {
+  it("drops the first given name", () => {
+    expect(lastName("Marcell Ozuna")).toBe("Ozuna");
+    expect(lastName("Michael Harris II")).toBe("Harris II");
+  });
+
+  it("treats spaced initials as one given name", () => {
+    expect(lastName("A. J. Hinch")).toBe("Hinch");
+    expect(lastName("A.J. Hinch")).toBe("Hinch");
+  });
+
+  it("drops internal initials like middle initials", () => {
+    expect(lastName("Michael A. Taylor")).toBe("Taylor");
+    expect(lastName("Jose A. Ferrer")).toBe("Ferrer");
+  });
+
+  it("keeps multi-word surnames whole", () => {
+    expect(lastName("Enyel De Los Santos")).toBe("De Los Santos");
+  });
+
+  it("returns a single token unchanged", () => {
+    expect(lastName("Ichiro")).toBe("Ichiro");
   });
 });
 
