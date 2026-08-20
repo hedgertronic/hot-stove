@@ -122,7 +122,11 @@ def display_pos(gd: GameData, lahman_id: str, year: int, e: dict, factor: float)
     # bare "P" — the frontend maps only "SP"/"RP" prefixes to pitcher slots.
     if e["war_pitch"] > e["war_bat"]:
         return "SP" if e["ip_start"] >= e["ip_relief"] else "RP"
-    return "P"
+    # Bat-first season with no Appearances row at all (the Lahman snapshot can
+    # lag B-R WAR by a season for individual players): a hitter with PA and no
+    # recorded fielding games is a DH as far as the data shows. Bare "P" is
+    # reserved for the zero-PA remainder, which no card season reaches today.
+    return "DH" if e["pa"] > 0 else "P"
 
 
 def build_players(gd: GameData, br: str, year: int, factor: float) -> list[dict]:
