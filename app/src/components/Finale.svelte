@@ -111,14 +111,17 @@
       amt: p.expectedWins.toFixed(1),
       cls: "zero",
     });
-    // One budget row, two faces: the tax and the bonus are mutually exclusive
-    // by construction (bonus is 0 whenever spend exceeds budget), so over cap
-    // the row IS the luxury tax; at/under it's the front-office bonus.
+    // One budget row, three faces: over cap the row IS the luxury tax;
+    // at/under it's the front-office swing, named by its sign — a negative
+    // swing (spend below half the cap, budgetBonus's zero crossing) reads
+    // "Payroll penalty", break-even and up reads "Payroll bonus". The tax and
+    // the swing are mutually exclusive by construction (the swing is 0
+    // whenever spend exceeds budget).
     const overCap = fin.spend > fin.budget;
     const spendPct = fin.budget > 0 ? (fin.spend / fin.budget) * 100 : 100;
     out.push({
       key: "budget",
-      lbl: overCap ? "Luxury tax" : "Payroll bonus",
+      lbl: overCap ? "Luxury tax" : p.budgetBonus < 0 ? "Payroll penalty" : "Payroll bonus",
       why: overCap
         ? `${money(fin.spend - fin.budget)} over`
         : `${Math.round(spendPct)}% used`,
