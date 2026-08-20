@@ -2579,6 +2579,26 @@ export const BADGES: BadgeDef[] = [
     freq: 18.51,
     how: "Rostered a 2020 season.",
   },
+  /* 🦠's ballpark counterpart: the SEAT came from the no-fans season, not the
+   * roster. Every 2020 park carries attendance 0 and the 0.85 floor mult — the
+   * worst stadium the game sells — so buying one is a citation, not a target,
+   * and the badge is `ironic` for 🪑's reason: naming it on a locked slot
+   * would invite a player to shrink their own payroll on purpose.
+   *
+   * `banks: ["classic"]` because only Open Market has a stadium seat at all —
+   * the front-office badges' mechanics argument, not a policy gate. */
+  {
+    key: "cutouts",
+    banks: ["classic"],
+    emoji: "👥",
+    label: "CARDBOARD CUTOUTS",
+    name: "Cardboard Cutouts",
+    rarity: "ironic",
+    axis: "era",
+    ironic: true,
+    freq: null,
+    how: "Bought a 2020 ballpark.",
+  },
   {
     key: "signstealing",
     secret: true,
@@ -3476,6 +3496,9 @@ export function earnedBadges(f: BadgeFacts): string[] {
   if (roster.some(isRecord)) out.push("recordbook");
   if (roster.some(isChase)) out.push("chase");
   if (roster.some((p) => p.year === 2020)) out.push("covid");
+  // Card-year exact like every stadium fact; franchise is irrelevant — all
+  // thirty 2020 parks sold the same empty seats.
+  if (f.stadium?.year === 2020) out.push("cutouts");
   if (
     roster.some(isScandal) ||
     isScandal({ team: f.managerTeam, year: f.managerYear })

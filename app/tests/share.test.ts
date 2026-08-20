@@ -675,9 +675,11 @@ describe("line width budget", () => {
     // +1 stacker and +1 to the shipped width. 🥁 SET THE TONE and 🤑 WORTH
     // EVERY PENNY stack on the roster axis — both single code points
     // (U+1F941 and U+1F911, no variation selector), +2 stackers and +2 to
-    // the shipped width.)
-    expect(MAXIMAL).toHaveLength(70);
-    expect(SHIPPED_MAX_LEN).toBe(87);
+    // the shipped width. 👥 CARDBOARD CUTOUTS stacks on the era axis — a
+    // single code point (U+1F465, no variation selector), +1 stacker and +1
+    // to the shipped width.)
+    expect(MAXIMAL).toHaveLength(71);
+    expect(SHIPPED_MAX_LEN).toBe(88);
     // total 104.3 gives the six-character record; the badge line is index 5.
     const s = shareText({ ...BASE, total: 104.3, badges: MAXIMAL });
     expect(codePoints(s.split("\n")[5])).toBe(SHIPPED_MAX_LEN);
@@ -698,8 +700,9 @@ describe("line width budget", () => {
     // (the submarine and bridesmaid round's pair) moved it by two more,
     // both single code points; 🐍 (SIDEWINDERS) moved it by one more, a
     // single code point; 🥁 🤑 (the tone-setter and luxury-tax round's pair)
-    // moved it by two more, both single code points.
-    expect(MAX_LEN).toBe(106);
+    // moved it by two more, both single code points; 👥 (CARDBOARD CUTOUTS)
+    // moved it by one more, a single code point.
+    expect(MAX_LEN).toBe(107);
     const s = shareText({
       ...BASE,
       total: 104.3,

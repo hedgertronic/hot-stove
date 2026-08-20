@@ -86,9 +86,10 @@ describe("badgeCase", () => {
     // 🤿 FROM DOWN UNDER and 💐 ALWAYS THE BRIDESMAID are both collectible
     // (🤿 is secret, which hides a name, not a slot), so they move both
     // sides by two more. 🥁 SET THE TONE and 🤑 WORTH EVERY PENNY are both
-    // collectible, so they move both sides by two more.
+    // collectible, so they move both sides by two more. 👥 CARDBOARD CUTOUTS
+    // is an anti-trophy (ironic), so it moves the badge total alone.
     expect(COLLECTIBLE.length).toBe(70);
-    expect(BADGES.length).toBe(88);
+    expect(BADGES.length).toBe(89);
     expect(badgeCase().total).toBe(COLLECTIBLE.length);
   });
 

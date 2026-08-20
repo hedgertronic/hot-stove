@@ -117,7 +117,11 @@ describe("the cards are readable at all", () => {
  * Pinned here because the shape invites a fix. Someone reading build.py will
  * see thirty identical multipliers, call it a bug, and tie-break the zeros —
  * which would invent a gate ranking out of thirty empty stadiums. This fails if
- * they do, and the comment in build.py says why not. */
+ * they do, and the comment in build.py says why not.
+ *
+ * 👥 CARDBOARD CUTOUTS stands on this same fact from the other side: the
+ * floor mult is what makes buying a 2020 park a citation, so the anti-trophy
+ * and the "not a bug" pin are one claim. */
 describe("2020's ballparks", () => {
   const y2020 = CARDS.filter((c) => c.year === 2020);
 

@@ -1437,6 +1437,37 @@ describe("the era badges", () => {
     expect(got).toContain("covid");
   });
 
+  it("takes the cutouts from a 2020 ballpark, any franchise", () => {
+    expect(
+      earnedBadges(f({ stadium: { franchise: "ATL", year: 2020 } })),
+    ).toContain("cutouts");
+    expect(
+      earnedBadges(f({ stadium: { franchise: "SEA", year: 2020 } })),
+    ).toContain("cutouts");
+  });
+
+  it("spares every other park year and the fail-safe null", () => {
+    expect(
+      earnedBadges(f({ stadium: { franchise: "ATL", year: 2019 } })),
+    ).not.toContain("cutouts");
+    expect(earnedBadges(f({ stadium: null }))).not.toContain("cutouts");
+  });
+
+  it("keys the cutouts to the seat and the tape to the roster, independently", () => {
+    // A 2020 bat under a non-2020 roof is 🦠 alone; a 2020 roof over a
+    // non-2020 club is 📦 alone.
+    const bat = earnedBadges(
+      f({ roster: [player({ year: 2020 })], stadium: { franchise: "ATL", year: 2021 } }),
+    );
+    expect(bat).toContain("covid");
+    expect(bat).not.toContain("cutouts");
+    const roof = earnedBadges(
+      f({ roster: [player({ year: 2021 })], stadium: { franchise: "ATL", year: 2020 } }),
+    );
+    expect(roof).toContain("cutouts");
+    expect(roof).not.toContain("covid");
+  });
+
   /** The scandal badge names a finding, not a rumor: the Commissioner's
    * report covers 2017 and 2018 only. 2019 was alleged and never
    * substantiated, and the badge must not quietly widen to it. */
