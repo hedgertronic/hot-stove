@@ -29,8 +29,12 @@
     /** This is the landed card's own season — just sign him the normal way. */
     here: boolean;
   }
-  let seasons = $state<Season[] | null>(null);
-  let failed = $state(false);
+  let career = $state<
+    | { status: "loading" }
+    | { status: "ready"; seasons: Season[] }
+    | { status: "failed" }
+  >({ status: "loading" });
+  let retryVersion = $state(0);
   let busy = $state(false);
   /** Key of the season row awaiting confirm tap, `null` when no row is armed. */
   let armed = $state<string | null>(null);
@@ -39,16 +43,19 @@
   // that fit no open seat render grayed rather than vanishing.
   $effect(() => {
     const id = playerId;
-    seasons = null;
-    failed = false;
+    void retryVersion;
+    career = { status: "loading" };
     armed = null;
     if (id === null) return;
+    let active = true;
     void (async () => {
       try {
         const index = await loadPlayers();
+        if (!active) return;
         const refs = index[id] ?? [];
         const cards = await Promise.all(refs.map(([t, y]) => loadCard(t, y)));
-        seasons = cards
+        if (!active) return;
+        const seasons = cards
           .map((card) => {
             const p = card.players.find((pl) => pl.id === id);
             return p
@@ -69,10 +76,12 @@
           })
           .filter((x): x is Season => x !== null)
           .sort((a, b) => a.year - b.year);
+        career = { status: "ready", seasons };
       } catch {
-        failed = true;
+        if (active) career = { status: "failed" };
       }
     })();
+    return () => { active = false; };
   });
 
   /** Award pills follow the market rows' rule exactly: hardware is Box Score
@@ -101,13 +110,9 @@
     if (busy) return;
     busy = true;
     try {
-      await game.applyPrime(sea.team, sea.year);
-      // A two-way season with more than one open seat type hands off to the
-      // rail's pick-a-slot flow: the engine has already closed this sheet and
-      // is holding ⭐ armed for the seat tap, so `onclose` — which disarms —
-      // must not run.
-      if (game.primeSlotPending) return;
-      onclose();
+      // A refusal or a handoff to the rail spends nothing and must not close
+      // whichever career is now open. Only a committed signing closes here.
+      if (await game.applyPrime(sea.team, sea.year)) onclose();
     } catch {
       /* offline mid-tap: stay open, rows re-enable */
     } finally {
@@ -122,20 +127,23 @@
   title="⭐ PRIME TIME: {listed?.name ?? ''}"
   confirmLabel="CANCEL"
 >
-    {#if failed}
-      <div class="picker-note">Couldn't load the career. Try again.</div>
-    {:else if seasons === null}
+    {#if career.status === "failed"}
+      <div class="picker-note" role="alert">
+        Couldn't load the career.
+        <button class="btn" onclick={() => retryVersion += 1}>TRY AGAIN</button>
+      </div>
+    {:else if career.status === "loading"}
       <!-- The notice register (☔ RAIN DELAY, 🥶 COLD STOVE): emoji + caps.
            Same string in SpecialPrimePicker — the two loading beats are one
            moment and must never drift apart. -->
-      <div class="picker-note busy">🔎 CHECKING THE BACK OF THE CARD…</div>
-    {:else}
+      <div class="picker-note busy" role="status">🔎 CHECKING THE BACK OF THE CARD…</div>
+    {:else if career.status === "ready"}
       <!-- No empty state: players.json indexes every card player and every
            entry includes the card's own season, so a loaded list always has
            at least the grayed `here` row. A one-season wonder shows exactly
            that — one row, already visited. -->
       <div class="picker-list">
-        {#each seasons as sea ((sea.team + sea.year))}
+        {#each career.seasons as sea ((sea.team + sea.year))}
           {@const plabel = posLabel(sea.p)}
           {@const price = game.primePriceFor(sea.p, sea.franchise)}
           {@const key = `${sea.team}:${sea.year}`}
