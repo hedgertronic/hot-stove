@@ -1352,12 +1352,13 @@ export class Game {
     try {
       landing = await pending;
     } catch {
-      if (epoch !== this.spinEpoch) return;
+      if (this.abandoned || epoch !== this.spinEpoch || this.pendingCard !== pending) return;
       this.pendingCard = null;
       this.loadFailed = true;
       return;
     }
-    if (epoch !== this.spinEpoch) return;
+    // Consuming the pending fetch makes concurrent land() calls idempotent.
+    if (this.abandoned || epoch !== this.spinEpoch || this.pendingCard !== pending) return;
     this.card = landing;
     this.pendingCard = null;
     this.phase = "landed";
@@ -1700,12 +1701,23 @@ export class Game {
    * lights up as Prime-able, the sheet opens, and every season in it is dead —
    * a state the player can enter and cannot resolve. */
   async applyPrime(team: string, year: number, slotIdx?: number): Promise<boolean> {
+    if (this.abandoned) return false;
     if (this.powerups.prime !== "armed" || this.primePick === null)
       return false;
     if (this.phase !== "landed" || this.choicesLeft === 0) return false;
     const id = this.primePick;
     if (this.slots.some((s) => s?.id === id)) return false;
+    const epoch = this.spinEpoch;
+    const version = this.armVersion;
     const card = await loadCard(team, year);
+    // The fetch belongs to this browse. Closing, re-arming, undoing, or a
+    // competing commit revokes it even if the same career opens again.
+    if (
+      this.abandoned || this.spinEpoch !== epoch || this.armVersion !== version ||
+      this.phase !== "landed" || this.choicesLeft === 0 ||
+      this.powerups.prime !== "armed" || this.primePick !== id ||
+      this.slots.some((s) => s?.id === id)
+    ) return false;
     const p = card.players.find((pl) => pl.id === id);
     if (!p) return false;
     // The intersection rule, engine-side: primeFits grays these rows in the
@@ -1866,11 +1878,21 @@ export class Game {
    * Mirrors applyPrime: consumes the powerup and the spin's choice. The
    * manager is Prime's only front-office target (see primeTapSpecial). */
   async applyPrimeSpecial(team: string, year: number): Promise<boolean> {
+    if (this.abandoned) return false;
     if (this.powerups.prime !== "armed" || this.primeSpecial !== "manager")
       return false;
     if (this.phase !== "landed" || this.choicesLeft === 0) return false;
     if (this.specialTaken("manager")) return false;
+    const epoch = this.spinEpoch;
+    const version = this.armVersion;
     const specials = await loadSpecials();
+    // A manager hire has the same browse lifetime as a player signing.
+    if (
+      this.abandoned || this.spinEpoch !== epoch || this.armVersion !== version ||
+      this.phase !== "landed" || this.choicesLeft === 0 ||
+      this.powerups.prime !== "armed" || this.primeSpecial !== "manager" ||
+      this.specialTaken("manager")
+    ) return false;
     let entry: SpecialSeason | undefined;
     for (const list of Object.values(specials)) {
       const e = list.find((s) => s.team === team && s.year === year);

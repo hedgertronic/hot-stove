@@ -42,8 +42,12 @@
     /** The landed card's own season — hire it the normal way. */
     here: boolean;
   }
-  let rows = $state<Row[] | null>(null);
-  let failed = $state(false);
+  let career = $state<
+    | { status: "loading" }
+    | { status: "ready"; rows: Row[] }
+    | { status: "failed" }
+  >({ status: "loading" });
+  let retryVersion = $state(0);
   let busy = $state(false);
   /** Key of the season row awaiting confirm tap, `null` when no row is armed. */
   let armed = $state<string | null>(null);
@@ -51,18 +55,20 @@
   $effect(() => {
     const name = skipper;
     const c = game.card;
-    rows = null;
-    failed = false;
+    void retryVersion;
+    career = { status: "loading" };
     armed = null;
     if (!name || !c) return;
+    let active = true;
     void (async () => {
       try {
         // A manager's career crosses franchises; scan the whole index.
         const specials = await loadSpecials();
+        if (!active) return;
         const picks: SpecialSeason[] = [];
         for (const list of Object.values(specials))
           for (const s of list) if (s.mgr === name) picks.push(s);
-        rows = picks
+        const rows = picks
           .sort((a, b) => a.year - b.year || a.team.localeCompare(b.team))
           .map((s) => ({
             team: s.team,
@@ -84,10 +90,12 @@
               : "",
             here: s.team === c.team && s.year === c.year,
           }));
+        career = { status: "ready", rows };
       } catch {
-        failed = true;
+        if (active) career = { status: "failed" };
       }
     })();
+    return () => { active = false; };
   });
 
   /** First tap arms the row; a second tap on the same row disarms it.
@@ -106,8 +114,7 @@
     if (busy) return;
     busy = true;
     try {
-      await game.applyPrimeSpecial(row.team, row.year);
-      onclose();
+      if (await game.applyPrimeSpecial(row.team, row.year)) onclose();
     } catch {
       /* offline mid-tap: stay open, rows re-enable */
     } finally {
@@ -122,17 +129,20 @@
   title="⭐ PRIME TIME: {skipper}"
   confirmLabel="CANCEL"
 >
-  {#if failed}
-    <div class="picker-note">Couldn't load the career. Try again.</div>
-  {:else if rows === null}
+  {#if career.status === "failed"}
+    <div class="picker-note" role="alert">
+      Couldn't load the career.
+      <button class="btn" onclick={() => retryVersion += 1}>TRY AGAIN</button>
+    </div>
+  {:else if career.status === "loading"}
     <!-- Identical to PrimePicker's loading note, deliberately. -->
-    <div class="picker-note busy">🔎 CHECKING THE BACK OF THE CARD…</div>
-  {:else}
+    <div class="picker-note busy" role="status">🔎 CHECKING THE BACK OF THE CARD…</div>
+  {:else if career.status === "ready"}
     <!-- No empty state: specials.json lists every manager's own card season
          under their name, so a loaded list always has at least the grayed
          `here` row. A one-season manager shows exactly that. -->
     <div class="picker-list">
-      {#each rows as row ((row.team + row.year))}
+      {#each career.rows as row ((row.team + row.year))}
         {@const key = `${row.team}:${row.year}`}
         {@const isArmed = armed === key}
         <!-- The card's own manager row, one field swapped: the FRONT OFFICE

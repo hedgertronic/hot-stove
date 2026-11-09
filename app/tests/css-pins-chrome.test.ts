@@ -150,10 +150,10 @@ describe("review fixes: the two markets share one right edge", () => {
 });
 
 describe("review fixes: a failed career tap re-enables the rows", () => {
-  it("both pickers release `busy` in finally and close only on success", () => {
+  it("both pickers await the commit and release `busy` in finally", () => {
     for (const f of ["components/PrimePicker.svelte", "components/SpecialPrimePicker.svelte"]) {
       const src = read(f);
-      expect(src, f).toMatch(/try \{\n\s+await game\.applyPrime/);
+      expect(src, f).toContain("await game.applyPrime");
       expect(src, f).toMatch(/\} finally \{\n\s+busy = false;/);
     }
   });
