@@ -27,7 +27,7 @@ export function lastName(full: string): string {
   return parts.slice(i).join(" ");
 }
 
-/** Tier buckets from the build plan (docs/archive/BUILD.md) — WAR chip color, cold-to-hot with a medal on
+/** Tier buckets — WAR chip color, cold-to-hot with a medal on
  * top: gray = replacement (0–2), green = everyday starter (2–4), blue =
  * all-star (4–6), violet = MVP candidate (6–8), gold = generational (8+);
  * brick marks below-replacement. Gold caps the ramp because elite = gold
@@ -44,7 +44,7 @@ export function warTier(war: number): WarTier {
   return "neg";
 }
 
-/** Tier buckets from the build plan (docs/archive/BUILD.md) — salary text color. */
+/** Tier buckets — salary text color. */
 export type CostTier = "cheap" | "mid" | "spendy";
 export function costTier(costM: number): CostTier {
   if (costM < 8) return "cheap";

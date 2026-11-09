@@ -10,8 +10,7 @@ TypeScript side and compares against the numbers Python produced here.
 That pin was unenforceable for most of this project's life. The test's header
 pointed at "the snippet in the repo history" and no such snippet was ever
 committed — so a Python-side balance change could be mirrored wrongly, or not at
-all, and nothing would fail. DECISIONS.md's Open items section (item 19) is that gap; this file
-closes it.
+all, and nothing would fail. This file closes that gap.
 
 HOW TO USE IT. Change a constant or a formula in scoring.py, run this, and the
 diff on scoring-fixtures.json is exactly the blast radius of the change. Then

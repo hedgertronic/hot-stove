@@ -1,4 +1,4 @@
-/* Hot Stove design tokens — extracted from design/cardstock-v2.html.
+/* Hot Stove design tokens.
    Flat cardstock: ruled borders + color washes do all structure. NO drop
    shadows. Every plain box is drawn in --line (see its note below); ink is kept
    for type and for the two states that must outrank the page.

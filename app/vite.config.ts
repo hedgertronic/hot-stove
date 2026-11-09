@@ -8,11 +8,12 @@ export default defineConfig({
   // The bug-report body stamps the running build (HelpModal reportHref) —
   // without it, issues filed against different deploys are indistinguishable.
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
-  // No font preload plugin: Nunito is no longer a bundle asset to race — it
-  // ships as a render-blocking data-URI stylesheet (public/nunito.css, linked
-  // from index.html), which is what retired the preload it used to need.
+  // No font preload plugin: Nunito ships as a render-blocking data-URI
+  // stylesheet (public/nunito.css, linked from index.html), so there is no
+  // bundle asset to race.
   plugins: [svelte()],
-  // Relative base so the build works at any GitHub Pages path.
+  // Relative base: one bundle serves at the hotstove.io root and under
+  // hedgertronic.com/games/hot-stove (see worker.js).
   base: "./",
   test: {
     projects: [

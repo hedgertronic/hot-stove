@@ -8,8 +8,8 @@ A baseball roster-drafting game. Each spin deals a random real team-season (1985
 
 - **`app/`** — the game: Svelte 5 + Vite + TypeScript. Static site, no backend; state in localStorage.
 - **`data/`** — 1,188 team-season cards plus index, players, specials, and meta files. Everything the game reads at runtime.
-- **`pipeline/`** — `fetch.py` (raw data acquisition with local snapshots), `transform.py` (aggregates WAR + salary + awards into game-ready structures), `build.py` (emits all `data/` files). `scoring.py` is the scoring source of truth, ported 1:1 to the frontend. `playtest.py` is the balance harness — rerun after any economy change.
-- **`design/`** — design artifacts. `cardstock-v2.html` is the original visual/interaction mock the app was built from (historical — it predates two of the six powerups); the live reference is the app's own component gallery at `localhost:5173/?lab`.
+- **`pipeline/`** — `fetch.py` (raw data acquisition with local snapshots), `transform.py` (aggregates WAR + salary + awards into game-ready structures), `build.py` (emits all `data/` files). `scoring.py` is the scoring source of truth, ported 1:1 to the frontend; `gen_fixtures.py` regenerates the parity fixtures that pin the port. Game balance is measured by the bot harness in `app/tests/bots/` (`npm run test:full`, `npm run test:studies`).
+- **`design/logo/`** — source SVGs for the logo and favicon; `npm run dev`/`build` copy them into `app/public/`. The live visual reference is the app's own component gallery at `localhost:5173/?lab`.
 - **`pyproject.toml`** — pipeline dependencies (`fungo`); managed with `uv`.
 
 ## Development
@@ -19,7 +19,7 @@ cd app
 npm ci            # install (lockfile-exact; ignore-scripts enforced by .npmrc)
 npm run dev       # dev server at localhost:5173
 npm test          # fast suite (~25s) — scoring parity, engine, modes, UI contracts
-npm run test:full # + the bot harness regression (~10 min); this is what gates a deploy
+npm run test:full # + the bot harness regression (~10 min); runs weekly in CI, not on deploy
 npm run check     # svelte-check type pass
 npm run build     # production bundle → dist/
 ```
@@ -36,19 +36,11 @@ The build is byte-stable. Raw data is snapshotted under `build/raw/` — delete 
 
 ## Deployment
 
-Every push to `main` runs tests, the real-browser ink-alignment probe, then build, then deploys to Cloudflare Workers via `.github/workflows/deploy.yml` (`wrangler deploy` on `app/wrangler.jsonc` + `app/worker.js`). A failing test blocks the deploy. Pushes that touch only `*.md` or `design/` files skip the workflow.
+Every push to `main` runs `npm run check`, `npm test`, the real-browser ink-alignment probe, the build, and the cross-origin migration test in Chromium, Firefox and WebKit, then deploys to Cloudflare Workers via `.github/workflows/deploy.yml` (`wrangler deploy` on `app/wrangler.jsonc` + `app/worker.js`). A failing step blocks the deploy. Pushes that touch only `*.md` or `design/` files skip the workflow.
 
-The deployed game lives at `hotstove.io`, its canonical home. One Worker serves it at three origins: the apex, `hedgertronic.com/games/hot-stove/` (the original mount, still serving because each origin holds its own `localStorage` and a redirect would strand a returning player's record book), and `hot-stove.josh-6d6.workers.dev` as a direct preview. `www.hotstove.io` redirects to the apex. To deploy by hand, run `wrangler deploy` from `app/`.
+The deployed game lives at `hotstove.io`, its canonical home. One Worker serves it at three origins: the apex, `hedgertronic.com/games/hot-stove/` (the original mount, which runs the save handoff that moves a returning player's `localStorage` to hotstove.io — a redirect there would strand it), and `hot-stove.josh-6d6.workers.dev` as a direct preview. `www.hotstove.io` redirects to the apex. To deploy by hand, run `wrangler deploy` from `app/`.
 
 The social-card image (`app/public/og-image.png`) is committed, not built in CI; regenerate it after a branding change with `uv run --with playwright python tools/generate_og_image.py`.
-
-## Docs
-
-- **DECISIONS.md** — the evolved rules: every call the original spec left undefined or the build revised, with rationale. Where docs disagree, this file and the shipped app are the authority.
-- **BADGES.md**, **POWERUPS.md** — living reference for the badge table and the six powerups.
-- **docs/archive/** — the original spec (`SPEC.md`), implementation plan (`BUILD.md`), launch checklist (`LAUNCH.md`), and migration log (`MIGRATION.md`). Historical; each carries its own header note.
-- **docs/research/** — bot-study reports from the balance harness (see its README for how to regenerate).
-- **DEVLOG.md** — running working notes; local only, deliberately untracked.
 
 ## Data & attribution
 

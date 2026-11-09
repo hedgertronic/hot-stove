@@ -165,8 +165,7 @@ const longOwners: Owners = {
  * truncation is the stylesheet's job and a JS slice would hide the very bug
  * this guards. And the price has to sit OUTSIDE the shrinking column, because
  * `.mid` is the box allowed to collapse to zero — a value nested in it would
- * collapse with it, and DECISIONS' round-16 rule is that these columns are
- * structural. */
+ * collapse with it, and these columns are structural. */
 describe("front-office rows under the corpus's longest names", () => {
   function longGame(config: GameConfig = CLASSIC): Game {
     return forgeGame(config, (g) => {

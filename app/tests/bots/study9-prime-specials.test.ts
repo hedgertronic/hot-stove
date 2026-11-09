@@ -6,7 +6,7 @@
  * Key question: is Prime-on-owner a meaningful third bank-shopping tool
  * alongside the reroll powerups?
  *
- * OUTCOME (shipped, DECISIONS.md Round 17): arm B. The engine now rejects
+ * OUTCOME (shipped): arm B. The engine now rejects
  * owner/stadium primes outright, so on a rerun arm A degrades to B — the
  * A-vs-B comparison is historical, only B-vs-C remains simulable.
  *

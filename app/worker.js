@@ -14,8 +14,10 @@
  * than redirecting because the two origins hold SEPARATE localStorage: every
  * save, the record book, the trophy case and the passport live on whichever
  * origin wrote them, so a redirect today would strand a returning player in
- * front of an empty record book. The old path keeps serving until the save
- * handoff ships, and becomes a redirect after it.
+ * front of an empty record book. The old path keeps serving so that its page
+ * can run the save handoff (index.html's boot switch + lib/migration.ts),
+ * which moves a returning player's storage to hotstove.io. A 301 would bypass
+ * it: the edge answers before any page code can read the old origin.
  *
  * run_worker_first (wrangler.jsonc) puts EVERY request through here, including
  * ones that would have matched an asset on their own — so each arm has to hand

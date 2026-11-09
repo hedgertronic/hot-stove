@@ -1,6 +1,0 @@
-=== Study 15: dream-club seats and ceiling beats, 400 Classic games/bot ===
-run         seats     open  solverT   played     beat      tie   beat|🏠
-baseline    9.000    0.00%    138.6    111.4    0.00%    0.00%       0/0
-powerups    9.000    0.00%    154.6    135.3    1.00%    0.00%       3/4
-no 🏠       9.000    0.00%    154.9    135.3    0.25%    0.00%       0/1
-overspend   9.000    0.00%    154.4    133.8    0.25%    0.00%       0/1

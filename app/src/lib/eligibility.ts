@@ -1,6 +1,6 @@
 import type { CardPlayer, SlotType } from "./types";
 
-/** Positional games threshold for C/IF/OF eligibility (docs/archive/BUILD.md). */
+/** Positional games threshold for C/IF/OF eligibility. */
 const MIN_POS_G = 10;
 
 export function isPitcher(p: CardPlayer): boolean {

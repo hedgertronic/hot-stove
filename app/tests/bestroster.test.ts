@@ -170,7 +170,7 @@ describe("bestRoster", () => {
     // at −2.0 he costs the club a point and a half.
     //
     // He is signed anyway, and the reason is the game's rule rather than the
-    // arithmetic. There is no passing (DECISIONS.md 2) and a club must be
+    // arithmetic. There is no passing and a club must be
     // complete to finish, so a player handed this one card takes this one
     // catcher. A yardstick that declined him would be measuring a season
     // nobody was allowed to play.

@@ -2,7 +2,7 @@
  * beat it? Two questions about the same object, so one loop answers both.
  *
  * THE SEAT QUESTION. The game has no passing and will not let a season end with
- * an open seat (DECISIONS.md item 2), so a yardstick printing an eight-man club
+ * an open seat, so a yardstick printing an eight-man club
  * is measuring a season nobody was allowed to play. The solver used to print
  * one: its DP relaxes the one-season-per-human rule, `repair` vacates a seat
  * when the conflicting card has nothing else legal to give, and every
