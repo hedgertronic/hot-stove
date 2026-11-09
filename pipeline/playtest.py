@@ -6,7 +6,7 @@ matching the spin structure with owner/stadium spins removed):
   war-greedy   ignores cost entirely, takes the best WAR every time
   cost-aware   same, but never signs a player it can't afford
 
-If war-greedy routinely lands under the league-average bankroll ($160M), the
+If war-greedy routinely lands under the league-average bankroll (AVG_BUDGET), the
 budget never binds and the game is too easy. Run: uv run python -m pipeline.playtest
 """
 

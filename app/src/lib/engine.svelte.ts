@@ -1,4 +1,4 @@
-/** Game state machine. Implements the spec's rules (docs/archive/SPEC.md), DECISIONS.md's gap fills.
+/** Game state machine: phases, choices, powerups, undo, and save/restore.
  * All gameplay randomness flows through `this.rng` (one mulberry32 stream per
  * seed). The displayed record is deterministic (rounded expected wins). */
 import { track } from "./analytics";
@@ -1245,7 +1245,7 @@ export class Game {
     );
   }
 
-  /** Can any choice still be committed on this card? (DECISIONS.md #3) */
+  /** Can any choice still be committed on this card? */
   anyActionable(): boolean {
     if (!this.card) return false;
     const specialsOpen = this.fixedCap
@@ -1611,8 +1611,8 @@ export class Game {
 
   /** Armed Prime, tap the OPEN manager tile: browse that skipper's whole
    * career. Prime targets are PLAYERS and MANAGERS only — owner and stadium
-   * tiles never open a timeline (DECISIONS.md Round 17: owner-Priming was
-   * pure bank-shopping, and banning it is score-neutral). A taken tile
+   * tiles never open a timeline (owner-Priming was pure bank-shopping, and
+   * banning it is score-neutral). A taken tile
    * isn't browsable — the seat is filled. */
   primeTapSpecial(which: SpecialKey): void {
     if (this.frontOfficeBlocks()) return;
@@ -1686,9 +1686,9 @@ export class Game {
    * not count as scouted (`seen`): only cards the reel landed on do.
    *
    * With 🏠 Homegrown armed, the discount travels per-season: only seasons
-   * whose card FRANCHISE matches the player's debut franchise sign at $1M
-   * (DECISIONS.md round 28 supersedes round 5). A's McGwire on an OAK card —
-   * Oakland seasons cost $1M, Cardinals seasons cost full price. The check is
+   * whose card FRANCHISE matches the player's debut franchise sign at $1M.
+   * A's McGwire on an OAK card — Oakland seasons cost $1M, Cardinals
+   * seasons cost full price. The check is
    * `primeDiscountEligible(p, card.franchise)` off the loaded season card
    * (franchise, not team code — see that method), and `primePriceFor`
    * applies the $1M cap.
@@ -1722,7 +1722,7 @@ export class Game {
       return true;
     }
     // THE HANDOFF. A season eligible for more than one open seat TYPE is the
-    // same question the market's two-way signings ask (DECISIONS.md #4), and
+    // same question the market's two-way signings ask, and
     // the answer is the same rail picker — not a picker nested in the sheet.
     // Nothing commits here: the sheet closes, the seats arm orange, and ⭐
     // stays armed until the seat tap spends it (cancel leaves it re-armable).
@@ -2063,7 +2063,7 @@ export class Game {
   }
 
   /** Sign an open player. When the seats a signing chooses among span more
-   * than one slot type the rail becomes a slot picker (DECISIONS.md #4) —
+   * than one slot type the rail becomes a slot picker —
    * re-call with slotIdx. */
   signPlayer(p: CardPlayer, slotIdx?: number): void {
     if (this.phase !== "landed" || this.choicesLeft === 0) return;

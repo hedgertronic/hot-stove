@@ -5,8 +5,8 @@ import { MANAGER_PER_NET_WIN } from "./scoring";
 /* The badge set — one table, read by the finale pill row, the share string,
  * and the home trophy case. Adding a badge means adding one BadgeDef and one
  * trigger; nothing else in the app enumerates badges. Copy, face, key, and
- * process rules live in BADGES.md at the repo root — every new badge goes
- * through its checklist.
+ * process rules are in the style guide below — every new badge goes through
+ * its checklist.
  *
  * Two rules govern the set:
  *
@@ -78,6 +78,72 @@ import { MANAGER_PER_NET_WIN } from "./scoring";
  *    stamp — so the badge copy and the screen agree instead of looking like
  *    two readings of one number. The same applies to every other badge keyed
  *    to a win total: 🧮, 🧢, 🧗 and 🧾 all read the baseline and all say so.
+ */
+
+/* Badge style guide. Several rules are enforced by tests, noted inline.
+ *
+ * THE DESCRIPTION (`how`) is shown only on an EARNED badge; locked badges
+ * never reveal it.
+ * - One sentence, ending in a period (badges.test.ts asserts the period).
+ * - State the condition the player met, not a rule to chase: a caption on
+ *   something that already happened.
+ * - Past tense for things the player did ("Took back a move."); a bare noun
+ *   phrase for facts about the season or club ("Back-to-back losing
+ *   seasons.").
+ * - Plain and short. Numerals ("95", "$51.5M"). No em dashes; use commas. No
+ *   second clause explaining why the badge exists — that goes in the def's
+ *   comment.
+ * - Name the record you read. A baseline-keyed badge says "baseline wins" and
+ *   never "stamp"; a floor rung reads "the record the finale stamps"
+ *   (enforced by the `baselineKeyed` and floor-rung wording tests; a new
+ *   baseline-keyed badge joins that list).
+ * - Categories over verdicts for anything about real people: name the class
+ *   ("MLB gambling suspensions"), never an individual's legal status.
+ *
+ * THE LABEL AND NAME. `label` is ALL CAPS, the finale-pill voice: "THE X" for
+ * the one guy or thing (THE ALBATROSS), no article for counts and clubs
+ * (RING BEARERS). `name` is the tooltip: mixed title case, equal to the label
+ * only for pure acronyms (enforced: non-empty, mixed-case, ≠ label). Name the
+ * experience, not the mechanic (PACKED IT IN, not "the quit badge").
+ *
+ * THE FACE. Unique across the badge set and never a mode face — 📊 🔭 🛒 🐘 💸
+ * belong to the difficulties and banks (badges.test.ts uniqueness;
+ * share.test.ts one-emoji-one-meaning). Prefer single-code-point glyphs: a
+ * variation selector costs the share line a code point. The face carries the
+ * joke on its own — it is all the share string shows.
+ *
+ * THE KEY. Lowercase letters only (the trigger-scrape test matches
+ * `out.push("[a-z]+")`). Never a mode id, and never re-keyed once shipped:
+ * history rows store keys, so a re-key orphans every earned copy.
+ *
+ * TIER, SECRECY, IRONY. `freq` is a MEASURED rate from a bot study
+ * (tests/bots/), or `null` — never a guess; badges bots cannot earn (keyboard,
+ * undo, cross-game, deliberate bad signings) stay `null` with a comment saying
+ * why. `ironic: true` ⇔ `rarity: "ironic"` (enforced); an anti-trophy's locked
+ * slot is anonymous. `secret: true` when the name is itself the reward (see
+ * `BadgeDef`); a chaseable direction stays named (💯, 🏰).
+ *
+ * AXIS AND EXCLUSIVITY. Exclusive axes (`onfield`, `payroll`, `scout` and the
+ * smaller chains) resolve in one if/else chain; a badge joining one is added
+ * to the `EXCLUSIVE` map in share.test.ts. Stacking axes (`roster`, `era`,
+ * `goal`, `meta`, `career`) need no resolver. A badge unearnable in some bank
+ * sets `banks:` so the trophy case drops it from N OF M; say whether the lock
+ * is mechanics (Open Market) or the trigger's own gate (📈).
+ *
+ * SHIPPING CHECKLIST
+ * 1. One BadgeDef + one trigger here, with a comment carrying the reasoning
+ *    (tier judgment, threshold, anything a future reader would re-litigate).
+ * 2. New BadgeFacts fields are optional and fail safe: absent earns nothing.
+ *    Anything read from the history log is resolved in the engine before
+ *    `recordHistory` appends the current game.
+ * 3. Trigger unit tests in badges.test.ts, including the fail-safe direction.
+ * 4. Bump the pinned counts: trophycase.test.ts (COLLECTIBLE / BADGES),
+ *    share.test.ts (MAXIMAL length, SHIPPED_MAX_LEN, MAX_LEN) and its width
+ *    changelog comment.
+ * 5. If the trigger stands on a data fact (a year, a price, a WAR ceiling),
+ *    pin it in badges-supply.test.ts.
+ * 6. Confirm the golden finale list and the BASE-earns-nothing test still
+ *    pass, or update them knowingly.
  */
 
 /** The collection ladder. `legendary` sits above `ultra` and holds the badges

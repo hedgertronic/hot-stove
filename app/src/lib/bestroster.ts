@@ -66,7 +66,7 @@
  *    below-replacement included — the list hides no one, so neither does the
  *    solver — at the listed price.
  * 6. NO PASSING. There is no such thing as a club with an open seat: the game
- *    will not let a season end until every seat is filled (DECISIONS.md item 2),
+ *    will not let a season end until every seat is filled,
  *    so a club a seat short is not a worse club, it is not a club. This is the
  *    one rule the DP cannot carry in its state, and `better` is where it lives —
  *    every club the search compares is ranked on (seats filled, total), seats
@@ -413,7 +413,7 @@ interface Club {
 /** THE ONLY ORDER THE SEARCH RANKS CLUBS BY: seats filled first, total second.
  *
  * A club with an open seat is not a club this game lets anybody finish
- * (DECISIONS.md: there is no passing, and the club must be complete to finish),
+ * (there is no passing, and the club must be complete to finish),
  * so it is not a candidate ceiling however well it scores. That has to dominate
  * rather than break ties, because the incomplete club usually scores HIGHER:
  * the seat it skipped was the one that pushed payroll past the cap, and under

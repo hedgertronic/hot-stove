@@ -2499,7 +2499,7 @@ describe("the manager hired first", () => {
     expect(g.powerups.hometown).toBe("spent");
   });
 
-  // ---- 🔁 Trade Deadline + 🏠 Homegrown (DECISIONS gap rule 8) ----
+  // ---- 🔁 Trade Deadline + 🏠 Homegrown ----
 
   it("makes only debut-eligible rows swap targets, and charges the discount", () => {
     // Relievers, so the incoming man has exactly one eligible chair and the
@@ -2694,7 +2694,7 @@ describe("the manager hired first", () => {
     expect(g.slots[0]).toMatchObject({ costPaid: HOMEGROWN_PRICE_M, hero: true });
   });
 
-  // ---- ✌️ Double Play with each of them (DECISIONS item 6) ----
+  // ---- ✌️ Double Play with each of them ----
 
   it("counts a Trade Deadline swap as one of Double Play's two picks", () => {
     const in1 = reliever({ debut: "SEA", cost: 20 });

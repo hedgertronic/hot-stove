@@ -16,9 +16,9 @@ worker answers for the whole zone and the main site is down. No test in the app
 can see this. It is the rollback trigger.
 
 ``hedgertronic.com/games/hot-stove/`` must keep returning 200. The two origins
-hold separate ``localStorage``, so until the save handoff ships (phase 2 of
-``docs/IO-MIGRATION.md``) redirecting that path strands every returning
-player's record book.
+hold separate ``localStorage``: the old path runs the save handoff that moves a
+returning player's record book to hotstove.io, and a redirect there would
+strand it (a 301 never executes the page that reads the old origin's storage).
 
 A freshly attached route propagates per colo, and a request that reaches an
 edge without it falls through to the zone's origin — a black-hole ``AAAA`` on

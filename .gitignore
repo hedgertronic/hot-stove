@@ -5,8 +5,7 @@ build/raw/
 DEVLOG.md
 data-backup-pre-trim.tar.gz
 
-# Bot-study console dumps, rewritten on every BOT_STUDIES run; the durable
-# reports live in docs/research/bot-studies/.
+# Bot-study console dumps, rewritten on every BOT_STUDIES run.
 app/tests/bots/last-run*.txt
 .wrangler/
 
@@ -19,3 +18,6 @@ app/public/og-preview-gameplay.png
 !.dev.vars.example
 .env*
 !.env.example
+
+# Local working notes and files archived out of the repo.
+notes/
