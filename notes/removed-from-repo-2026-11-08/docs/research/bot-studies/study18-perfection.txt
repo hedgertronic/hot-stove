@@ -1,0 +1,19 @@
+=== Study 18: 162–0 on the table, 2000 games/arm ===
+(possible = the printed ceiling stamps 162–0, i.e. ceiling ≥ 161.5;
+ 🎣 = possible and the club's own stamp fell short)
+
+--- classic + all powerups ---
+162–0 possible  15.15%   achieved 0.45%   🎣 got away 14.70%
+ceiling mean 151.9   achieved mean 134.7
+
+--- classic vanilla ---
+162–0 possible  0.20%   achieved 0.00%   🎣 got away 0.20%
+ceiling mean 136.1   achieved mean 110.5
+
+--- moneyball + all powerups ---
+162–0 possible  0.45%   achieved 0.10%   🎣 got away 0.35%
+ceiling mean 137.9   achieved mean 130.2
+
+--- moneyball vanilla ---
+162–0 possible  0.00%   achieved 0.00%   🎣 got away 0.00%
+ceiling mean 118.4   achieved mean 100.8

@@ -1,0 +1,20 @@
+
+=== Study 22: perfect-season (>=161.5) ablations, 5000 games/bot ===
+bot                      perfects   mean  p99-ish max
+baseline                0 (0.00%)  110.5        147.4
+powerups               26 (0.52%)  134.9        175.2
+no-seasonTicket         9 (0.18%)  127.6        168.5
+no-relocate             5 (0.10%)  127.8        167.8
+no-doublePlay          36 (0.72%)  134.1        177.0
+no-tradeDeadline       17 (0.34%)  131.8        175.2
+no-prime                6 (0.12%)  129.5        166.9
+no-hometown            22 (0.44%)  135.2        169.4
+
+paired flips vs the full kit (same seeds):
+  lost = full kit perfected the seed, ablation did not; found = the reverse
+  without seasonTicket   lost  21  found   4  net   17
+  without relocate       lost  23  found   2  net   21
+  without doublePlay     lost  23  found  33  net  -10
+  without tradeDeadline  lost  13  found   4  net    9
+  without prime          lost  24  found   4  net   20
+  without hometown       lost  18  found  14  net    4

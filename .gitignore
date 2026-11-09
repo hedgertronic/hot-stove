@@ -11,8 +11,6 @@ app/tests/bots/last-run*.txt
 .wrangler/
 
 # Local approval render; `--final` writes the committed share asset instead.
-tools/og-preview.png
-app/public/og-preview.png
 app/public/og-preview-gameplay.png
 
 .dev.vars*

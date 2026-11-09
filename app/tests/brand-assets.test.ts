@@ -46,10 +46,9 @@ describe("shared brand assets", () => {
     expect(uris[1]).toBe(uris[0].replaceAll("%2324221c", "%23ede8da"));
   });
 
-  it("routes the app, static 404, and OG template through the shared recipe", () => {
+  it("routes the app and static 404 through the shared recipe", () => {
     expect(read("app/index.html")).toContain('href="./brand.css"');
     expect(read("app/public/404.html")).toContain("hs-logo hs-logo--home");
-    expect(read("tools/og-template.html")).toContain("hs-logo hs-logo--og");
   });
 
   it("keeps retired launch copy off the static 404", () => {
