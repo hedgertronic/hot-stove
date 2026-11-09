@@ -1,0 +1,15 @@
+
+=== Study 23: Double Play bar sweep (>=161.5), 5000 games/bot ===
+bot                      perfects   mean      max
+dp3.0-shipped          26 (0.52%)  134.9    175.2
+dp4.5                  36 (0.72%)  135.5    177.0
+dp6.0                  38 (0.76%)  135.4    177.0
+dp8.0                  38 (0.76%)  134.9    177.0
+no-doublePlay          36 (0.72%)  134.1    177.0
+
+paired flips vs no-doublePlay (same seeds):
+  lost = no-DP perfected the seed, the DP bot did not; found = the reverse
+  dp3.0-shipped    lost  33  found  23  net  -10
+  dp4.5            lost  25  found  25  net    0
+  dp6.0            lost  23  found  25  net    2
+  dp8.0            lost  10  found  12  net    2

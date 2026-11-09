@@ -1,0 +1,12 @@
+
+=== Study 24: shortlist residual, 60 pools of 12 shipped cards ===
+pools short of the oracle: 10/60
+gap among those: mean 0.89, max 1.90 pts
+  pool  22  solver  141.5  oracle  143.4  gap  1.9
+  pool   2  solver  143.0  oracle  144.7  gap  1.7
+  pool  20  solver  131.1  oracle  132.7  gap  1.6
+  pool  35  solver  131.2  oracle  132.7  gap  1.5
+  pool  37  solver  137.3  oracle  138.1  gap  0.8
+  pool  32  solver  133.1  oracle  133.6  gap  0.5
+  pool  25  solver  142.5  oracle  142.8  gap  0.3
+  pool  55  solver  138.8  oracle  139.1  gap  0.3

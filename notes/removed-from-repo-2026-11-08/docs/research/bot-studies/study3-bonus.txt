@@ -1,0 +1,9 @@
+
+=== Study 3: payroll-bonus variants, 400 games/bot, Classic γ=1.25 ===
+variant     mean    med  HGworth  HGused  spend/bank  bank↔score r
+current    136.0  136.7     -0.0     90%        0.83         -0.07
+thrift     144.2  144.4      0.3     96%        0.66         -0.12
+none       134.8  135.0      0.2     96%        0.68         -0.12
+
+(HGworth = powerups mean − no-hometown mean, both rescored under the variant;
+ spend/bank = mean per-game ratio; r = Pearson corr of final bank vs rescored score)

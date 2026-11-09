@@ -1,0 +1,21 @@
+study 20 over 2000 reference games (classic + all powerups)
+
+max seats sharing one YEAR (cumulative ≥k is the candidate rung):
+  =2: 1090  (≥2: 59.50%)
+  =3:   94  (≥3: 5.00%)
+  =4:    6  (≥4: 0.30%)
+  =5:    0  (≥5: 0.00%)
+  =6:    0  (≥6: 0.00%)
+  =7:    0  (≥7: 0.00%)
+  =8:    0  (≥8: 0.00%)
+
+max seats sharing one TEAM-SEASON:
+  ≥2: 20.25%
+  ≥3: 0.25%
+  ≥4: 0.00%
+  ≥5: 0.00%
+  ≥6: 0.00%
+  ≥7: 0.00%
+  ≥8: 0.00%
+
+🧠 beatdream (baseline-wins rule): 11.20%

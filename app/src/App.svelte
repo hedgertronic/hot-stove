@@ -122,13 +122,6 @@
   // dynamic import so its markup AND its scoped CSS leave with the chunk.
   if (devParams?.has("endgame"))
     import("./lab/SolveReadout.svelte").then((m) => (SolveReadoutComp = m.default));
-  /* `?jitter` arms the on-device movement recorder (lib/jitterprobe). DEV
-   * guarded: the compositor wobble it was built to measure is root-caused
-   * and fixed, so the diagnostic doesn't earn a production CDN chunk — the
-   * guard tree-shakes it out of the bundle the way the lab's goes. To
-   * measure a live-site wobble again, lift the guard for one deploy. */
-  if (devParams?.has("jitter"))
-    import("./lib/jitterprobe").then((m) => m.startJitterProbe());
 
   /** The boot meter's numerator: the five discrete steps between mount and a
    * playable screen — four data files plus the save restore. Steps rather

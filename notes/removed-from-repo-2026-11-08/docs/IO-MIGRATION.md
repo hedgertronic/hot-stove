@@ -1,0 +1,516 @@
+# hotstove.io migration plan
+
+Status: phases 1 and 2 DEPLOYED 2026-08-13 from commit `cefb714` (worker
+version `7c7775ca-c190-405d-946d-b0ce1389f894`; GitHub Actions run
+`31751173914`). Phase 3 is unbuilt.
+
+All 15 live route checks passed after the phase 2 deployment. The deployment
+gate also passed the migration flow against two distinct origins in Chromium,
+Firefox and WebKit, including acknowledgment, clean Back behavior, later direct
+forwarding and a changed pre-migration tab.
+
+Rolling the worker back does NOT detach routes — those are zone config, not part
+of a version — so a rollback leaves `hotstove.io/*` pointing at an older script
+rather than at nothing. Removing the routes is a separate step.
+
+All 15 live route checks passed after deploy. Two apex checks returned 522 on the
+first run and passed on every run after: a 522 means Cloudflare reached for the
+origin, which on this zone is a black-hole `AAAA` on `100::`, so it is the
+signature of an edge colo that does not have the new route yet. Expect it for a
+few minutes after any route change here, and re-probe before believing it.
+
+The game moves its canonical home from `hedgertronic.com/games/hot-stove/` to
+`hotstove.io`, registered 2026-08-13 at Cloudflare Registrar (zone
+`e3b2173f5f0cdad35773453370349cc6`, expiry 2027-08-13).
+
+Revision note: an earlier draft of this plan was reviewed by Codex Sol and three
+of its claims were falsified. Each is recorded at the point it was wrong, under
+**Corrected**, because the wrong version is the intuitive one and will be
+proposed again by the next person who reads only the storage layout.
+
+## Why a handoff is needed at all
+
+The game has no backend; all state is localStorage. localStorage is scoped to
+the **origin**, and `hedgertronic.com` and `hotstove.io` are different origins.
+Eight keys hold everything a player owns:
+
+| Key | Shape | Holds |
+|---|---|---|
+| `hotstove.history` | oldest-first array | finished-game log; scored seasons AND repeatable no-id quit rows |
+| `hotstove.archive` | oldest-first array of `{id, ...StoredFinale}`, no date field | replayable finales, `ARCHIVE_CAP = 50` |
+| `hotstove.current` | JSON save, accepted versions 4–6 | in-progress save, written after every mutation |
+| `hotstove.finale` | one `StoredFinale` object | stored finale |
+| `hotstove.finale.open` | raw `"1"` or `"a:<archive-id>"` — a POINTER, not a boolean | which finale is open |
+| `hotstove.settings` | `{v:2,difficulty,bank}` | mode selection |
+| `hotstove.cues` | `{v:1,pendingBadges,helpSeen,tourSeen,finaleTourSeen}` | pending badge notifications AND seen flags |
+| `hotstove.theme` | raw `"light"`/`"dark"`, not JSON | day/night choice |
+
+A bare 301 from the old path therefore presents every returning player with an
+empty record book, an empty trophy case, and no in-progress season. Nothing
+recovers it server-side because there is no server side.
+
+## Phase 1 — hotstove.io serves the game (BUILT)
+
+`wrangler.jsonc` adds `hotstove.io/*` and `www.hotstove.io/*` routes.
+`worker.js` branches on hostname:
+
+- `www.hotstove.io` → 301 to apex. One hostname holds the canonical URL, and a
+  game played at www then reopened at the apex would find nothing. Permanent:
+  www will never be the game.
+- any hostname that is not `hedgertronic.com` → serve assets at root. Matched by
+  exclusion so `hotstove.io` and the workers.dev preview share one arm. This
+  fails OPEN: a custom domain added to the route list later becomes a root game
+  host with no code change, which is the intent for another vanity domain and
+  wrong for anything else.
+- `hedgertronic.com` → prefix-strip behavior, otherwise unchanged.
+
+### Misses redirect home; subresource misses stay misses
+
+The game is one document with no routes. State lives in localStorage and the only
+URL vocabulary is query strings — `?instructs` and `?n` (`App.svelte:77`), plus
+the dev-only `?lab` and `?og-preview`. Query strings ride on the `/` path, so the
+worker never sees them as subpaths and they need no handling.
+
+So a **navigation** to any other path is a stale link or a typo, and the game
+itself is the only useful destination: 302 to the game's document path on that
+hostname, preserving the query string. 302 rather than 301 because nothing about
+"this path is not the game" is a permanent fact about the URL, and a permanent
+cache entry would outlive the day a real path exists.
+
+A **subresource** miss returns a plain 404. Redirecting one would hand an HTML
+document to a `fetch()` that asked for JSON, so a bad card load would fail on a
+parse error pointing at the wrong thing instead of on the 404 that is true.
+Navigation is detected by `Sec-Fetch-Mode: navigate`, with an `Accept: text/html`
+sniff for clients that omit it; `fetch()` sends a wildcard Accept and so reads as
+a subresource.
+
+This replaces serving `dist/404.html` on a miss, which was an infinite loop on
+any root host: that page does `location.replace("/games/hot-stove/")`
+(`404.html:26`), which on the apex is itself a missing root asset, so the worker
+served the same page again. Its stylesheet (`:35`) and its visible link (`:100`)
+are hardcoded to the old mount as well.
+
+`dist/404.html` is now unreferenced by the worker and reachable only by typing
+its path, where it still renders unstyled and links nowhere on the apex. Deleting
+it, or rewriting its three hardcoded paths, is an open cleanup — it is a designed
+brand asset, so the call belongs to the owner.
+
+### Metadata
+
+`index.html` repoints `rel=canonical`, `og:url`, `og:image`, `twitter:image` and
+the JSON-LD `url`/`image` at `https://hotstove.io/`. The `?v=3` image param is
+NOT bumped: a host change re-keys the scraper cache on its own, and the file's
+own rule reserves `?v=` for art that changes underneath a stable URL.
+
+The old path keeps SERVING (not redirecting) through phase 1, so shipping this
+cannot lose player data. `base: "./"` in vite.config means the same bundle serves
+at a domain root and at a two-segment path with no rebuild.
+
+DNS: proxied `AAAA` placeholders on `100::` for apex and www. Origin is never
+contacted; the records exist so the Workers routes have a hostname to bind.
+
+Edge caching is not a cross-host hazard. The asset subrequest keeps the request
+hostname, so the two hostnames get separate cache keys, and static index assets
+default to `max-age=0, must-revalidate`. Phase 2's hostname branch is
+client-side, so a cached document cannot select the wrong branch — that stops
+being true if the worker ever generates host-specific HTML.
+
+## Phase 2 — the save handoff (DEPLOYED)
+
+### Mechanism, and the one that was rejected
+
+REJECTED: hidden `hotstove.io` iframe on the old page + `postMessage`. Chrome
+partitions iframe localStorage by embedded origin plus top-level site, and WebKit
+partitions third-party localStorage and makes it ephemeral. Data written into
+that iframe is keyed to the origin PAIR and is invisible when the player later
+visits `hotstove.io` first-party. The eTLD+1 shared-parent escape hatch does not
+apply — these are different registrable domains. This would pass a manual test
+and silently fail for real players.
+
+CHOSEN: **first-party fragment handoff.** The old page does a top-level
+navigation to `https://hotstove.io/#adopt=<payload>&t=<theme>`. `hotstove.io` is
+then the top-level document, so its localStorage is real and permanent. The
+fragment is never sent to any server.
+
+### Where the code lives
+
+Inside `index.html`, not a separate bridge page. The boot card markup, the
+pre-paint theme script and the ground hexes already live there; a standalone page
+would duplicate them, and this codebase has an explicit scar about duplicated
+logic drifting (`logcodec.ts` exists because two copies of an encoder diverged).
+One document, two behaviors, branched on `location.hostname`.
+
+### Merge policy
+
+**Corrected.** The earlier draft said "union history, dedupe on
+`id ?? JSON.stringify(row)`" and claimed every reader is an order-independent
+aggregate. Both are false:
+
+- The trophy case **tallies counts** (`settings.ts:383` builds a
+  `Map<string, number>`) and the code is explicit that repeats are counted, not
+  deduped: *"the case shows 🧳 ×4 after four quits"* (`settings.ts:221`). Quit
+  rows carry no `id` and only a day-level date, so four quits in one mode on one
+  day are byte-identical. A JSON-equality fallback destroys them.
+- Order matters. `bestFor` resolves tied bests to the NEWER row via `>=` and that
+  decides `bestId` (`settings.ts:251`). `SeasonsModal` assumes storage order is
+  oldest-first and reverses it (`SeasonsModal.svelte:76`). Passport ordering is
+  map insertion order (`settings.ts:669`). `prevTotal` for career badges reads
+  the last scored row (`engine.svelte.ts:2470`).
+
+So: no dedupe, and no re-sort. Everything in the source log happened BEFORE the
+move and everything in the target log after it, so **concatenate source ahead of
+target**. Chronology is preserved exactly, day-precision dates are never
+compared, and multiplicity survives.
+
+| Key | Policy |
+|---|---|
+| `history` | concatenate source rows ahead of target rows. No dedupe, no sort. |
+| `archive` | concatenate source ahead of target, dedupe by `id` only, keep the `ARCHIVE_CAP` NEWEST (the tail). |
+| `current` | keep target's if present, else adopt source's. |
+| `finale` + `finale.open` | move as a PAIR, only when the target has neither. |
+| `settings` | keep target's if present, else adopt source's. |
+| `cues` | merge: `pendingBadges` unions, the seen flags OR together. |
+| `theme` | keep target's if present, else adopt source's. |
+
+`finale`, `finale.open` and `archive` are ONE consistent state group, not three
+independent keys: `finale.open` may hold `a:<archive-id>`, so a marker adopted
+without its archive row points at nothing. If the referenced row did not survive
+the cap or the budget, drop the marker.
+
+`cues` is not preferences. `pendingBadges` is an accumulating notification set,
+so keeping the target's wholesale silently discards pending source
+notifications.
+
+The singular keys cannot be merged — there is one in-progress game per origin and
+the two are mutually exclusive states. Keeping the target's means a player
+mid-season on `hotstove.io` does not get the game yanked out from under them.
+
+### Idempotency without dedupe
+
+The original count-marker design was unsafe in two ways discovered during
+implementation: the capped archive is not append-only, and a crash after writing
+history but before advancing the marker would duplicate rows on retry.
+
+The built protocol uses three different mechanisms:
+
+- `history`: contiguous source ranges and a target high-water count. Initial
+  ranges insert before target play; ranges found after completion append after
+  it. No equality comparison, so identical quits remain separate events.
+- `archive`: stable archive IDs, not row counts. Source and target merge by ID
+  and retain the newest 50.
+- every multi-key commit: `hotstove.adopting`, a write-ahead journal holding
+  SHA-256 before/after hashes and intended values. A retry sees each value as
+  still-before, already-after, or unexpectedly changed; the last case stops
+  rather than overwriting another tab. `hotstove.adopted` is written last.
+
+The target marker also remembers the exact singular values migration last wrote.
+A later old-tab save may replace one only while the target still equals that
+migrated copy. Any gameplay on `.io` breaks that ownership and target wins.
+
+After target verification, the browser returns to the old origin once to write
+`hotstove.migrated` with a fingerprint of all eight source keys. Future old-URL
+visits compare it and forward directly to `.io`. A pre-migration tab that later
+changes any source value invalidates the fingerprint and receives one more silent
+handoff rather than losing its newer state.
+
+### The adopt hop
+
+**Corrected.** The earlier draft ended the hop with
+`location.replace("https://hotstove.io/")` and claimed a "second load … boots
+normally". From `https://hotstove.io/#adopt=…` that target differs only in the
+fragment, which is a SAME-DOCUMENT navigation: no new document, no module
+re-execution. Boot stays suppressed and the player sees a dead page.
+
+The hop is therefore: suppress boot, merge, verify, `history.replaceState` to
+clean the URL, then a real `location.reload()`.
+
+Boot suppression must be SYNCHRONOUS. The module tag at `index.html:223` is
+static, so an async inline routine yields and the module runs while decompression
+is still in flight. A synchronous inline script in `<head>` stashes the raw
+payload and sets a sentinel; `main.ts` checks that sentinel at the top of its
+body and returns before `applyTheme` and `mount`.
+
+The storage reads that must not happen first are `main.ts:13`'s `resolveTheme()`,
+component initialization during `mount()` (settings, cues, history at
+`App.svelte:46`/`:76`), and save restoration at `App.svelte:163`. No imported
+module reads storage merely on import, so gating `main.ts` is sufficient.
+
+`&t=<theme>` rides OUTSIDE the compressed blob so the pre-paint script can stamp
+`data-theme` synchronously before first paint. Without it a dark-mode player on a
+light-mode machine flashes light ground during the hop, because `hotstove.io`'s
+pre-paint script reads its own still-empty storage and falls through to
+`matchMedia`.
+
+Both hops use `replace`, so Back does not land on the bridge and repeat.
+
+### Payload budget and failure semantics
+
+Budget: 48 KB of base64, well under Chromium's 2 MB navigation limit. There is no
+normative cross-browser fragment limit, so this needs real-device testing on
+Safari, iOS WebViews and in-app browsers before it ships.
+
+History crosses as one or more contiguous ranges. Singular state travels only on
+the final range; archive rows are then added newest-first while they fit. Dropping
+archive rows degrades the way the model already expects —
+a history row whose archive record is gone is *"still counted, still stamped, no
+longer openable"* — so the season keeps contributing to the record book and to
+badge tallies.
+
+**Corrected.** History is uncapped (`history.ts:159`), so "tier 1 always carried
+whole" was not a guarantee. A heavy career therefore crosses in contiguous
+prefix chunks, never newest-first: a range marker can prove exactly which rows
+landed only when no hole is skipped.
+
+`localStorage` has no multi-key transaction, so adoption can partially succeed.
+The write-ahead journal makes the partial commit recoverable: write and verify the
+journal, write and verify every value, write the marker last, then remove the
+journal. A quota failure leaves enough evidence to continue without duplicating
+a successful write.
+
+`CompressionStream` is Safari 16.4+, and this codebase supports iOS Safari 16.0+
+(`scrolllock.ts:19`). Where it is missing, send uncompressed base64 if it fits
+the budget; if it does not, stop with the recovery message and leave the source
+copy untouched.
+
+### Untrusted input
+
+`#adopt=` is attacker-supplied: any link can carry a crafted payload, and this
+channel PERSISTS what it carries.
+
+**Corrected.** The earlier draft leaned on the existing readers for validation
+and cited replay shortcodes as precedent. Neither holds. Save restore validates a
+structural floor and then assigns many values verbatim
+(`engine.svelte.ts:3165`). `renderableFinale` checks some numeric fields and that
+`slots` is an array, not each slot's contents (`history.ts:221`). Replay
+shortcodes are not comparable because a replayed game is explicitly inert and
+writes nothing (`engine.svelte.ts:589`).
+
+Validate before persisting, not on read:
+
+- Bound decompressed output incrementally and abort past a hard cap. The
+  legitimate ceiling is ~300 KB, so a 1 MB cap is generous; without one a small
+  fragment is a decompression bomb.
+- Cap incoming row counts on both logs before any write.
+- Run `renderableFinale` on archive rows BEFORE they consume cap slots, so
+  invalid rows cannot displace valid target rows that readers would have kept.
+- Adopt only the eight known keys.
+
+Residual risk, accepted: a crafted link can stuff a fake record or badge into a
+player's own trophy case. Single-player, no server, no leaderboard, so the impact
+is confined to that player's own display.
+
+The fragment is not sent in HTTP requests but is readable by every script in the
+document, by extensions, and potentially by history-sync and crash-recovery. The
+page loads a third-party Google tag and ships no CSP by design
+(`index.html:151`, `_headers:4`). GA's default `page_location` omits fragments,
+so the current configuration should not transmit the payload, but GA should be
+suppressed on the adopt document regardless — both to avoid leaking the fragment
+and to avoid a duplicate pageview on the hop.
+
+### Visual
+
+Silent. The bridge wears the existing boot card, so the hop reads as one slightly
+long load. The address bar changing to `hotstove.io` is the only cue. No new
+player-facing copy, which also keeps out the change-state language a migration
+notice would require.
+
+### No migration UI on the new site
+
+There is deliberately no "played before?" link or migration copy on `.io`.
+New users get the ordinary clean home screen. Existing players enter the handoff
+by using the old URL, which is where their origin-scoped data can actually be
+read. A failure is the only time migration text appears: it says the old copy is
+still safe and offers retry or the explicitly bypassed old version.
+
+## Phase 3 — retire the old path (UNBUILT)
+
+Replace the bridge with a 301 from `hedgertronic.com/games/hot-stove*` to
+`hotstove.io`, as a Cloudflare redirect rule — the mechanism the earlier
+`/hot-stove/` → `/games/hot-stove/` migration used. Keep it permanently: it is
+also the `.io` hedge, since a retirement of the `.io` ccTLD (Chagos sovereignty
+transfer; no change expected inside five years) is handled by flipping the
+redirect back.
+
+Not before the bridge has been live long enough for returning-player traffic on
+the old path to decay. Six months is the floor, and the bridge costs nothing to
+keep.
+
+### What the 301 costs, stated once
+
+A 301 is issued by the edge, so the legacy document never executes. That is the
+entire objection: `hedgertronic.com` localStorage is readable only by JS running
+on `hedgertronic.com`, so the redirect and the handoff are mutually exclusive by
+construction. There is no expression that exempts the escape hatches, either —
+`#stay` and `#remigrate` are **fragments, and fragments are never transmitted**.
+The edge sees `GET /games/hot-stove/` and nothing more. Worse, per RFC 7231 a
+`Location` without its own fragment inherits the request's, so `#remigrate`
+would arrive at `hotstove.io/#remigrate`, where the boot switch knows only
+`prepare`, `adopt` and `done`, and be ignored in silence.
+
+Moving them to query strings is not the workaround it looks like. The protocol
+puts payloads in fragments precisely so that a 48KB packed record book never
+reaches an access log; `?adopt=` would write every player's save into
+Cloudflare's and GitHub's.
+
+**But the rule is a toggle, not a door.** It lives in zone config, not in
+shipped HTML, so recovery for a specific player is: disable the rule, have them
+load the legacy URL once, re-enable. `enabled` is a boolean on the rule. Nothing
+about the 301 destroys data on its own — it only makes it unreachable while the
+rule is on.
+
+### What actually destroys the data, and why waiting is not the safe choice
+
+WebKit deletes all script-writable storage after **seven days of Safari use
+without user interaction with the site**
+(<https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/>).
+For a browser game that is most of the mobile audience. Home-screen web apps are
+exempt — they run their own day counter — but a plain Safari tab is not.
+
+So the un-drained population evaporates on a rolling seven-day timer regardless
+of what this project does. Elapsed time is not a safety margin for phase 3; it
+is the interval over which the thing being protected disappears. The only action
+that preserves a record book is getting that browser onto the legacy URL soon.
+
+Two facts make the exposure small and shrinking:
+
+- **It froze at launch.** Every player who arrives after 2026-08-16 lands on
+  `hotstove.io` and never writes legacy-origin storage. The at-risk set can only
+  shrink.
+- **Nothing links to the legacy path any more.** `hedgertronic.com` surfaces
+  the game from a Games card under "In the Lab", driven by
+  `data/lab-games.json` in the `hedgertronic.github.io` repo — not from an
+  `href` in any HTML file, which is why a first grep for one found nothing and
+  wrongly concluded no link existed. That card pointed at
+  `hedgertronic.com/games/hot-stove/` until 2026-08-15, when launch repointed
+  it at `https://hotstove.io/`. Note what that costs: the card used to be a
+  DRAIN path, quietly migrating anyone who clicked it. It no longer is, which
+  is what makes the beta-tester message below load-bearing rather than
+  belt-and-braces. Remaining legacy traffic is bookmarks, shares and QR codes.
+
+### The one-week runbook
+
+Do these in order. Steps 1–2 are the ones with a deadline.
+
+1. **Message the beta testers — this week, not in a month.** One line: *"Open
+   your old Hot Stove link once before you play on hotstove.io, so your record
+   book comes with you."* This is the whole mitigation. It is urgent because of
+   the seven-day cap, not because of phase 3.
+2. **Confirm the fast path in the wild.** Load
+   `https://hedgertronic.com/games/hot-stove/` on a browser that has already
+   migrated; it should land on `hotstove.io` without the game ever painting on
+   the old origin. Covered by `npm run test:migration:browsers`, but eyeball it
+   once on real iOS Safari.
+3. **Read the legacy path's traffic before deciding.** In GA4 property
+   `549950974`, segment by `hostName`. Legacy migration hops emit **no**
+   pageview by design, so this measures `#stay` sessions and the un-migrated
+   arrival rate, not the total. Cloudflare GraphQL
+   `httpRequestsAdaptiveGroups` filtered on `clientRequestPath` is the honest
+   count; it caps at a 1-day window on the free plan.
+4. **Leave the bridge up.** It costs nothing, and after the seven-day cap the
+   difference between "the redirect blocked me" and "I never came back" is
+   nil for anyone who has been away. Revisit at the six-month floor above.
+5. **When it is finally time**, create the redirect rule in
+   `http_request_dynamic_redirect` on zone
+   `69d1d4586357f791b1e6cf324c2a6801`, preserving the query string and matching
+   the same shape the existing `/hot-stove/*` rule uses. Do **not** repoint that
+   existing rule at `hotstove.io` in the same change — it must keep landing on
+   the legacy origin until the bridge itself is retired, or it skips the handoff
+   for everyone who still uses the older link.
+
+### Rollback
+
+Set `enabled: false` on the redirect rule. The bridge resumes on the next
+request; there is no cache to purge, because the legacy document already sends
+`cache-control: max-age=0, must-revalidate`.
+
+## Phase 2.5 — the completion sweep (BUILT, round 40)
+
+Two defects surfaced after the phase 2 deployment, both reported as "half my
+last 50 games and my record book are grayed out on hotstove.io":
+
+1. `normalizeHistoryRow` rejected a WHOLE row when any optional field wore a
+   type an old build wrote differently, and `snapshotSource` dropped those rows
+   silently — a career could cross missing games and still report success. The
+   normalizer is now tolerant per field: a malformed optional field is not
+   copied, and the row survives.
+2. The archive (the ~5.4KB replay doors) got exactly one 48KB shot, newest rows
+   first, ever. Re-running `#remigrate` re-picked the same rows and changed
+   nothing.
+
+The sweep fixes both, and `#remigrate` on the old origin is its trigger: when
+`target-prepare` finds `initialComplete`, the session runs in sweep mode
+(`&s=1`). The source resends the WHOLE history from zero (chunked as before,
+staged on the target under `hotstove.migration.sweep`); on the done chunk the
+target identifies its previously adopted copies by a greedy in-order
+byte-for-byte match against the fresh list (both came out of the same
+normalizer; the advancing cursor keeps multiset semantics for identical quit
+rows) and keeps everything unmatched as .io play — nothing is ever dropped, so
+the sweep has no divergence failure — then merges the two ordered logs by
+date, source-first on ties. A late-source retry's rows, which the signature
+path appends after .io play, come back out in true chronological order this
+way; a prefix splice cannot represent that layout at all. Done chunks also
+carry the source's full
+archive id manifest; the target computes what it still wants (every per-combo
+record-book best in the log, then newest rows until the 50-row cap) and hops
+back with `&need=<ids>` until nothing is missing or a hop lands empty-handed.
+The merged archive is ordered by the log (oldest first) and trimmed with the
+record-book doors evicted last — the same protection `archiveGame`'s eviction
+now applies on every later finished game.
+
+## Known limits, accepted
+
+1. The handoff fires only for players who arrive via the OLD url. Anyone who
+   types `hotstove.io` or clicks a fresh share link sees an empty store until
+   they use an old link. Inherent to origin-scoped
+   storage: nothing can read `hedgertronic.com` storage without the browser
+   visiting `hedgertronic.com`.
+2. An unfinished season on the old origin is lost when a season is already in
+   progress on the new one. Finished games are never lost this way — they are in
+   the log, which merges.
+3. Very old archive rows may not survive a heavy player's budget. The record book
+   and badge tallies do.
+4. The source store has a shelf life the handoff cannot extend. Safari deletes
+   all script-writable storage after seven days of browser use without user
+   interaction with the site, so a beta tester who does not return inside that
+   window has nothing left to migrate — no phase-3 decision affects this, and
+   waiting makes it worse rather than safer. See phase 3.
+
+## Tests phase 2 must carry
+
+- Worker host/path matrix: apex root, apex assets, apex navigation miss, apex
+  subresource miss, www redirect preserving path/query, old bare prefix, old
+  prefix miss, workers.dev. Plus an executable test that a root-host miss does
+  not loop.
+- Merge: same-day duplicate quit rows preserved as a multiset (🧳 ×4 stays ×4),
+  identical legacy rows preserved, chronology such that `bestId`, the seasons
+  shelf, passport order and `prevTotal` all match a single-origin control.
+- High-water marker: repeat handoff is a no-op; a handoff after late source play
+  merges only the new rows.
+- State group: `finale.open` holding `a:<id>` whose archive row was dropped
+  resolves to no marker rather than a dangling pointer.
+- Failure paths: missing `CompressionStream`, malformed gzip, oversized
+  expansion, malformed JSON, truncated fragment, and each `setItem` failing in
+  turn leaving a short mark rather than a false completion.
+- Boot gating: the module never initializes against partial storage.
+- Cross-browser E2E on two real origins (Chromium, Firefox, WebKit): adoption,
+  clean reload, Back behavior.
+
+## Follow-ups outside the app
+
+- Zone hardening on `hotstove.io` to match the other five zones: HSTS
+  `max-age=604800`, Bot Fight Mode. DNSSEC is one-click here with no registrar
+  transfer to wait on.
+- `X-Robots-Tag: noindex` for the workers.dev hostname in `_headers`; it is
+  currently indexable and now serves a full root-mounted copy of the game.
+- GA4: the game runs on its own property, measurement ID `G-4HLN28H3S4`,
+  hardcoded in `index.html`. The dedicated property keeps game traffic and
+  events out of the hedgertronic.com series; `hedgertronic.com` still belongs
+  in unwanted referrals so the old mount does not show as a top referrer.
+  Inside the game's own reports, hostname distinguishes the two mounts —
+  `hotstove.io` at the root and `hedgertronic.com/games/hot-stove/`.
+- `tools/probe_routes.py` checks the live route matrix and is not wired into
+  `deploy.yml`. Routes attach outside the bundle, so no unit test can see them
+  and CI does not check them. Run it by hand after any change to `routes` in
+  `wrangler.jsonc`:
+
+      uv run --with requests python tools/probe_routes.py

@@ -1,0 +1,13 @@
+
+=== Study 2: bankroll γ=1.25 (shipped) vs γ=1.00, 400 games/bot, Classic ===
+bot                    mean    med    p90    max    WAR   spend/bank  bust   tax  >=162
+γ=1.25 baseline       111.7  112.6  128.3  142.9   37.8  106.0/115.4   14%   0.8     0%
+γ=1.25 powerups       136.0  136.7  148.4  166.8   49.3  130.4/161.2    5%   0.3     1%
+γ=1.00 baseline       111.4  112.9  127.0  142.2   37.2   99.4/105.5   15%   0.9     0%
+γ=1.00 powerups       135.7  136.5  148.0  160.2   49.1  125.8/151.7    6%   0.5     0%
+
+bank-shopping (powerups bot):
+  γ=1.25: mean final bank $161.2M, rerolls/game 1.93, into-richer-bank 75% of rerolls
+  γ=1.00: mean final bank $151.7M, rerolls/game 1.94, into-richer-bank 71% of rerolls
+paired powerup lift at γ=1.25: mean 24.3 pts, improved 97%
+paired powerup lift at γ=1.00: mean 24.3 pts, improved 98%

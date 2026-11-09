@@ -1,0 +1,17 @@
+=== Study 8: expert vs standard powerups bot ===
+
+[A] solo-feature selection, 1500 paired seeds (keep if mean > +0.3; tail shown for context):
+  +slope    paired mean  -1.65  >=150:  99 (std 129)  dropped
+  +decay    paired mean  -0.06  >=150: 136 (std 129)  dropped
+  +depth    paired mean  -0.18  >=150: 126 (std 129)  dropped
+  +jackpot  paired mean  -2.66  >=150:  91 (std 129)  dropped
+  +hgdp     paired mean  -1.04  >=150: 107 (std 129)  dropped
+  +chase    paired mean   0.00  >=150: 128 (std 129)  dropped
+  expert = standard (no refinement cleared the bar — the standard heuristics are the local optimum)
+
+[B] full sweep, 5000 paired Classic seeds:
+bot                 mean     p90     p99     max  >=150  >=155  >=162    rate
+standard           135.5   149.2   160.3   174.5    430    175     31      1%
+expert             135.5   149.2   160.3   174.5    430    175     31      1%
+chaser             133.1   147.2   158.5   170.1    295    110     21      0%
+paired chaser−standard: mean -2.4 pts (variance play — judge it on the >=162 column)
